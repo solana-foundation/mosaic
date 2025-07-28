@@ -25,6 +25,10 @@ import {
 export class Token {
   private extensions: Extension[] = [];
 
+  getExtensions(): Extension[] {
+    return this.extensions;
+  }
+
   withMetadata({
     mintAddress,
     authority,

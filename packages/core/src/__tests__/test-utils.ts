@@ -1,11 +1,11 @@
-import { Address, TransactionSigner } from '@solana/kit';
+import { Address, Rpc, TransactionSigner } from '@solana/kit';
 
 /**
  * Creates a mock RPC client for testing
  */
-export function createMockRpc(): any {
+export function createMockRpc(): Rpc<any> {
   return {
-    getMinimumBalanceForRentExemption: (space: bigint) => ({
+    getMinimumBalanceForRentExemption: (_space: bigint) => ({
       send: () => Promise.resolve(2039280n),
     }),
     getLatestBlockhash: () => ({
@@ -28,7 +28,7 @@ export function createMockSigner(address?: string): TransactionSigner<string> {
   return {
     address: mockAddress as Address,
     sign: () => Promise.resolve(new Uint8Array(64)),
-  } as any;
+  } as unknown as TransactionSigner<string>;
 }
 
 /**

@@ -46,9 +46,9 @@ describe('Token', () => {
       });
 
       expect(result).toBe(token); // Should return the same instance for chaining
-      expect((token as any).extensions).toHaveLength(2); // MetadataPointer + TokenMetadata
+      expect(token.getExtensions()).toHaveLength(2); // MetadataPointer + TokenMetadata
 
-      const extensions = (token as any).extensions;
+      const extensions: any = token.getExtensions();
       expect(extensions[0].__kind).toBe('MetadataPointer');
       expect(extensions[1].__kind).toBe('TokenMetadata');
       expect(extensions[1].name).toBe(TEST_METADATA.name);
@@ -63,9 +63,9 @@ describe('Token', () => {
       const result = token.withPermanentDelegate(TEST_AUTHORITY);
 
       expect(result).toBe(token);
-      expect((token as any).extensions).toHaveLength(1);
+      expect(token.getExtensions()).toHaveLength(1);
 
-      const extension = (token as any).extensions[0];
+      const extension: any = token.getExtensions()[0];
       expect(extension.__kind).toBe('PermanentDelegate');
       expect(extension.delegate).toBe(TEST_AUTHORITY);
     });
@@ -76,9 +76,9 @@ describe('Token', () => {
       const result = token.withPausable(TEST_AUTHORITY);
 
       expect(result).toBe(token);
-      expect((token as any).extensions).toHaveLength(1);
+      expect(token.getExtensions()).toHaveLength(1);
 
-      const extension = (token as any).extensions[0];
+      const extension: any = token.getExtensions()[0];
       expect(extension.__kind).toBe('PausableConfig');
       expect(extension.authority).toEqual({
         __option: 'Some',
@@ -93,9 +93,9 @@ describe('Token', () => {
       const result = token.withDefaultAccountState(true);
 
       expect(result).toBe(token);
-      expect((token as any).extensions).toHaveLength(1);
+      expect(token.getExtensions()).toHaveLength(1);
 
-      const extension = (token as any).extensions[0];
+      const extension: any = token.getExtensions()[0];
       expect(extension.__kind).toBe('DefaultAccountState');
       expect(extension.state).toBe(AccountState.Initialized);
     });
@@ -104,9 +104,9 @@ describe('Token', () => {
       const result = token.withDefaultAccountState(false);
 
       expect(result).toBe(token);
-      expect((token as any).extensions).toHaveLength(1);
+      expect(token.getExtensions()).toHaveLength(1);
 
-      const extension = (token as any).extensions[0];
+      const extension: any = token.getExtensions()[0];
       expect(extension.__kind).toBe('DefaultAccountState');
       expect(extension.state).toBe(AccountState.Uninitialized);
     });
@@ -117,9 +117,9 @@ describe('Token', () => {
       const result = token.withConfidentialBalances(TEST_AUTHORITY);
 
       expect(result).toBe(token);
-      expect((token as any).extensions).toHaveLength(1);
+      expect(token.getExtensions()).toHaveLength(1);
 
-      const extension = (token as any).extensions[0];
+      const extension: any = token.getExtensions()[0];
       expect(extension.__kind).toBe('ConfidentialTransferMint');
       expect(extension.authority).toEqual({
         __option: 'Some',
@@ -145,7 +145,7 @@ describe('Token', () => {
         .withPausable(TEST_AUTHORITY);
 
       expect(result).toBe(token);
-      expect((token as any).extensions).toHaveLength(4); // 2 from metadata + 1 + 1
+      expect(token.getExtensions()).toHaveLength(4); // 2 from metadata + 1 + 1
     });
   });
 
@@ -209,9 +209,9 @@ describe('Token', () => {
 });
 
 describe('getCreateMintInstructions', () => {
-  let mockRpc: any;
-  let mockMint: any;
-  let mockPayer: any;
+  let mockRpc: Rpc<any>;
+  let mockMint: TransactionSigner<string>;
+  let mockPayer: TransactionSigner<string>;
 
   beforeEach(() => {
     mockRpc = createMockRpc();
