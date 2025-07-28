@@ -1,0 +1,42 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "removeComments": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "baseUrl": ".",
+    "paths": {
+      "@mosaic/core": ["./packages/core/src"],
+      "@mosaic/sdk": ["./packages/sdk/src"],
+      "@mosaic/cli": ["./packages/cli/src"],
+      "@mosaic/ui": ["./packages/ui/src"]
+    }
+  },
+  "include": [
+    "packages/*/src/**/*",
+    "*.ts",
+    "*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/dist",
+    "**/build",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
+} 

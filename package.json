@@ -1,0 +1,43 @@
+{
+  "name": "mosaic-token-extensions-admin",
+  "version": "0.1.0",
+  "description": "TypeScript SDK, CLI, and UI for managing standard token types on Solana (ex: Stablecoin & Arcade Tokens)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --recursive run build",
+    "dev": "pnpm --recursive run dev",
+    "test": "pnpm --recursive run test",
+    "lint": "pnpm --recursive run lint",
+    "lint:fix": "pnpm --recursive run lint:fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "pnpm --recursive run type-check",
+    "clean": "pnpm --recursive run clean"
+  },
+  "keywords": [
+    "solana",
+    "token-2022",
+    "extensions",
+    "stablecoin",
+    "arcade-token",
+    "typescript",
+    "sdk",
+    "cli"
+  ],
+  "author": "Solana Foundation",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.0.0"
+} 

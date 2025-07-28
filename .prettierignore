@@ -1,0 +1,20 @@
+# Build outputs
+dist/
+build/
+out/
+.next/
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+
+# Environment files
+.env*
+
+# Generated files
+pnpm-lock.yaml
+
+# Git
+.git/ 
