@@ -25,10 +25,6 @@ import {
 export class Token {
   private extensions: Extension[] = [];
 
-  getExtensions(): Extension[] {
-    return this.extensions;
-  }
-
   withMetadata({
     mintAddress,
     authority,
@@ -124,19 +120,15 @@ export class Token {
 
     // TODO: Add other post-initialize instructions as needed like for transfer hooks
     const postInitializeInstructions = this.extensions.flatMap(ext =>
-      ext.__kind === 'TokenMetadata'
-        ? [
-            getInitializeTokenMetadataInstruction({
-              metadata: mint.address,
-              mint: mint.address,
-              mintAuthority: feePayer,
-              name: ext.name,
-              symbol: ext.symbol,
-              uri: ext.uri,
-              updateAuthority: authority,
-            }),
-          ]
-        : []
+      ext.__kind === 'TokenMetadata' ? [getInitializeTokenMetadataInstruction({
+        metadata: mint.address,
+        mint: mint.address,
+        mintAuthority: feePayer,
+        name: ext.name,
+        symbol: ext.symbol,
+        uri: ext.uri,
+        updateAuthority: authority,
+      })] : []
     );
 
     return [
@@ -159,9 +151,7 @@ export class Token {
     authority: Address;
     mint: TransactionSigner<string>;
     feePayer: TransactionSigner<string>;
-  }): Promise<
-    FullTransaction<TransactionVersion, TransactionMessageWithFeePayer>
-  > {
+  }): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer>> {
     const instructions = await this.buildInstructions({
       rpc,
       decimals,
@@ -211,9 +201,7 @@ export const getCreateMintInstructions = async (input: {
 
   // Get minimum rent-exempt balance
   const rent = await input.rpc
-    .getMinimumBalanceForRentExemption(
-      BigInt(spaceWithoutPostInitializeExtensions)
-    )
+    .getMinimumBalanceForRentExemption(BigInt(space))
     .send();
 
   // Return create account and initialize mint instructions
