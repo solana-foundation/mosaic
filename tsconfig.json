@@ -27,11 +27,7 @@
       "@mosaic/ui": ["./packages/ui/src"]
     }
   },
-  "include": [
-    "packages/*/src/**/*",
-    "*.ts",
-    "*.tsx"
-  ],
+  "include": ["packages/*/src/**/*", "*.ts", "*.tsx"],
   "exclude": [
     "node_modules",
     "**/dist",
@@ -39,4 +35,4 @@
     "**/*.test.ts",
     "**/*.test.tsx"
   ]
-} 
+}

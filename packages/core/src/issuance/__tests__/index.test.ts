@@ -1,6 +1,14 @@
 // Test imports - Jest globals are available automatically
-import { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
-import { AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+  Address,
+  Rpc,
+  SolanaRpcApiMainnet,
+  TransactionSigner,
+} from '@solana/kit';
+import {
+  AccountState,
+  TOKEN_2022_PROGRAM_ADDRESS,
+} from '@solana-program/token-2022';
 import { Token, getCreateMintInstructions } from '../index';
 import {
   createMockRpc,
@@ -21,13 +29,15 @@ describe('Token', () => {
     token = new Token();
     mockRpc = createMockRpc();
     mockMint = createMockSigner('A6ivpZrUV8CrDeZpZ9UXnVbbqEBQ475KYBaM8jstSZsK');
-    mockFeePayer = createMockSigner('7aHo5VmQ3CXgPTr4MTEcQTAaXn5avkxwwd8g4Ryo4r9P');
+    mockFeePayer = createMockSigner(
+      '7aHo5VmQ3CXgPTr4MTEcQTAaXn5avkxwwd8g4Ryo4r9P'
+    );
   });
 
   describe('withMetadata', () => {
     it('should add metadata extensions to the token', () => {
       const additionalMetadata = createTestAdditionalMetadata();
-      
+
       const result = token.withMetadata({
         mintAddress: mockMint.address,
         authority: TEST_AUTHORITY,
@@ -37,7 +47,7 @@ describe('Token', () => {
 
       expect(result).toBe(token); // Should return the same instance for chaining
       expect((token as any).extensions).toHaveLength(2); // MetadataPointer + TokenMetadata
-      
+
       const extensions = (token as any).extensions;
       expect(extensions[0].__kind).toBe('MetadataPointer');
       expect(extensions[1].__kind).toBe('TokenMetadata');
@@ -54,7 +64,7 @@ describe('Token', () => {
 
       expect(result).toBe(token);
       expect((token as any).extensions).toHaveLength(1);
-      
+
       const extension = (token as any).extensions[0];
       expect(extension.__kind).toBe('PermanentDelegate');
       expect(extension.delegate).toBe(TEST_AUTHORITY);
@@ -67,10 +77,13 @@ describe('Token', () => {
 
       expect(result).toBe(token);
       expect((token as any).extensions).toHaveLength(1);
-      
+
       const extension = (token as any).extensions[0];
       expect(extension.__kind).toBe('PausableConfig');
-      expect(extension.authority).toEqual({ __option: "Some", value: TEST_AUTHORITY });
+      expect(extension.authority).toEqual({
+        __option: 'Some',
+        value: TEST_AUTHORITY,
+      });
       expect(extension.paused).toBe(false);
     });
   });
@@ -81,7 +94,7 @@ describe('Token', () => {
 
       expect(result).toBe(token);
       expect((token as any).extensions).toHaveLength(1);
-      
+
       const extension = (token as any).extensions[0];
       expect(extension.__kind).toBe('DefaultAccountState');
       expect(extension.state).toBe(AccountState.Initialized);
@@ -92,7 +105,7 @@ describe('Token', () => {
 
       expect(result).toBe(token);
       expect((token as any).extensions).toHaveLength(1);
-      
+
       const extension = (token as any).extensions[0];
       expect(extension.__kind).toBe('DefaultAccountState');
       expect(extension.state).toBe(AccountState.Uninitialized);
@@ -105,10 +118,13 @@ describe('Token', () => {
 
       expect(result).toBe(token);
       expect((token as any).extensions).toHaveLength(1);
-      
+
       const extension = (token as any).extensions[0];
       expect(extension.__kind).toBe('ConfidentialTransferMint');
-      expect(extension.authority).toEqual({ __option: "Some", value: TEST_AUTHORITY });
+      expect(extension.authority).toEqual({
+        __option: 'Some',
+        value: TEST_AUTHORITY,
+      });
       expect(extension.autoApproveNewAccounts).toBe(false);
       expect(extension.auditorElgamalPubkey).toBe(null);
     });
@@ -117,7 +133,7 @@ describe('Token', () => {
   describe('method chaining', () => {
     it('should allow chaining multiple extensions', () => {
       const additionalMetadata = createTestAdditionalMetadata();
-      
+
       const result = token
         .withMetadata({
           mintAddress: mockMint.address,
@@ -136,7 +152,7 @@ describe('Token', () => {
   describe('buildInstructions', () => {
     it('should build instructions for token with extensions', async () => {
       const additionalMetadata = createTestAdditionalMetadata();
-      
+
       token.withMetadata({
         mintAddress: mockMint.address,
         authority: TEST_AUTHORITY,
@@ -153,8 +169,12 @@ describe('Token', () => {
       });
 
       expect(instructions).toHaveLength(4); // create + pre-init + init + post-init
-      expect(instructions[0].programAddress).toBe('11111111111111111111111111111111'); // System program for account creation
-      expect(instructions[instructions.length - 1].programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS); // Token program for mint init
+      expect(instructions[0].programAddress).toBe(
+        '11111111111111111111111111111111'
+      ); // System program for account creation
+      expect(instructions[instructions.length - 1].programAddress).toBe(
+        TOKEN_2022_PROGRAM_ADDRESS
+      ); // Token program for mint init
     });
 
     it('should build instructions for token without extensions', async () => {
@@ -207,7 +227,9 @@ describe('getCreateMintInstructions', () => {
     });
 
     expect(instructions).toHaveLength(2);
-    expect(instructions[0].programAddress).toBe('11111111111111111111111111111111'); // System program for account creation
+    expect(instructions[0].programAddress).toBe(
+      '11111111111111111111111111111111'
+    ); // System program for account creation
     expect(instructions[1].programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS); // Token program for mint init
   });
 
@@ -225,7 +247,7 @@ describe('getCreateMintInstructions', () => {
 
   it('should create mint instructions with freeze authority', async () => {
     const freezeAuthority = generateMockAddress() as Address;
-    
+
     const instructions = await getCreateMintInstructions({
       rpc: mockRpc,
       freezeAuthority,
@@ -240,7 +262,7 @@ describe('getCreateMintInstructions', () => {
     const extensions = [
       { __kind: 'PermanentDelegate' as const, delegate: TEST_AUTHORITY },
     ];
-    
+
     const instructions = await getCreateMintInstructions({
       rpc: mockRpc,
       extensions,
@@ -253,7 +275,7 @@ describe('getCreateMintInstructions', () => {
 
   it('should use custom program address when provided', async () => {
     const customProgramAddress = generateMockAddress() as Address;
-    
+
     const instructions = await getCreateMintInstructions({
       rpc: mockRpc,
       mint: mockMint,
@@ -262,7 +284,9 @@ describe('getCreateMintInstructions', () => {
     });
 
     expect(instructions).toHaveLength(2);
-    expect(instructions[0].programAddress).toBe('11111111111111111111111111111111'); // System program for account creation
+    expect(instructions[0].programAddress).toBe(
+      '11111111111111111111111111111111'
+    ); // System program for account creation
     expect(instructions[1].programAddress).toBe(customProgramAddress); // Custom token program for mint init
   });
-}); 
+});

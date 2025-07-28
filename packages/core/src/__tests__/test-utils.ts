@@ -9,12 +9,13 @@ export function createMockRpc(): any {
       send: () => Promise.resolve(2039280n),
     }),
     getLatestBlockhash: () => ({
-      send: () => Promise.resolve({
-        value: {
-          blockhash: 'EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N',
-          lastValidBlockHeight: 12345678,
-        },
-      }),
+      send: () =>
+        Promise.resolve({
+          value: {
+            blockhash: 'EkSnNWid2cvwEVnVx9aBqawnmiCNiDgp3gUdkDPTKN1N',
+            lastValidBlockHeight: 12345678,
+          },
+        }),
     }),
   };
 }
@@ -59,4 +60,5 @@ export const TEST_METADATA = {
 /**
  * Mock authority address
  */
-export const TEST_AUTHORITY = 'FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT' as Address; 
+export const TEST_AUTHORITY =
+  'FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT' as Address;
