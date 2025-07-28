@@ -1,4 +1,4 @@
-import { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
+import { Address, TransactionSigner } from '@solana/kit';
 
 /**
  * Creates a mock RPC client for testing
