@@ -14,7 +14,9 @@ This package provides high-level templates and SDK functionality that uses the c
 ## Token Templates
 
 ### Stablecoin Template
+
 Pre-configured for regulatory compliance:
+
 - Default Account State with SRFC blocklist
 - Metadata extension for token information
 - Confidential Balances for privacy
@@ -22,7 +24,9 @@ Pre-configured for regulatory compliance:
 - Permanent Delegate for regulatory actions
 
 ### Arcade Token Template
+
 Optimized for gaming and loyalty programs:
+
 - Default Account State with SRFC allowlist (programs and users)
 - Rich metadata for gaming integration
 - Permanent Delegate for game mechanics
@@ -49,7 +53,8 @@ sdk/
 ## Development Status
 
 ⚠️ **Planned** - This package will provide:
+
 - Template configurations for each token type
 - Factory functions for easy token creation
 - Management utilities for token operations
-- Exported functionality for CLI and UI packages 
+- Exported functionality for CLI and UI packages

@@ -6,12 +6,14 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 1. **Fork the repository**
 2. **Clone your fork**
+
    ```bash
    git clone https://github.com/your-username/mosaic.git
    cd mosaic
    ```
 
 3. **Install dependencies**
+
    ```bash
    pnpm install
    ```
@@ -24,28 +26,31 @@ Thank you for your interest in contributing! This document provides guidelines f
 ## 📦 Project Structure
 
 - `packages/core/` - Core Token-2022 wrapper library
-- `packages/sdk/` - Token templates and SDK functionality  
+- `packages/sdk/` - Token templates and SDK functionality
 - `packages/cli/` - Command-line interface
 - `packages/ui/` - Web interface
 
 ## 🔧 Development Workflow
 
 ### Code Style
+
 - Use TypeScript for all new code
 - Follow the existing code style (Prettier + ESLint)
 - Write meaningful commit messages
 
 ### Testing
+
 - Add tests for new functionality
 - Ensure all tests pass: `pnpm test`
 - Maintain or improve code coverage
 
 ### Before Submitting
+
 ```bash
 # Format code
 pnpm run format
 
-# Lint code  
+# Lint code
 pnpm run lint
 
 # Type check
@@ -79,9 +84,10 @@ When working with Token-2022 extensions:
 ## 🐛 Bug Reports
 
 Include:
+
 - Clear description of the issue
 - Steps to reproduce
-- Expected vs actual behavior  
+- Expected vs actual behavior
 - Environment details (Node.js version, OS, etc.)
 - Relevant logs or error messages
 
@@ -100,4 +106,4 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 - Open an issue for questions
 - Check existing documentation
-- Review Token-2022 specifications 
+- Review Token-2022 specifications

@@ -15,6 +15,7 @@ A comprehensive CLI tool for creating and managing Token-2022 tokens with variou
 ## Planned Commands
 
 ### Token Creation
+
 ```bash
 # Create a stablecoin with blocklist
 mosaic create stablecoin --name "USD Coin" --symbol "USDC" --decimals 6
@@ -24,6 +25,7 @@ mosaic create arcade-token --name "Game Points" --symbol "POINTS" --decimals 0
 ```
 
 ### Token Management
+
 ```bash
 # Mint tokens
 mosaic mint <mint-address> <recipient> <amount>
@@ -41,6 +43,7 @@ mosaic unpause <mint-address>
 ```
 
 ### SRFC List Management
+
 ```bash
 # Add addresses to allowlist/blocklist
 mosaic allowlist add <mint-address> <address1> <address2>
@@ -56,6 +59,7 @@ mosaic blocklist view <mint-address>
 ```
 
 ### Information Commands
+
 ```bash
 # Get token information
 mosaic info <mint-address>
@@ -94,7 +98,8 @@ cli/
 ## Development Status
 
 ⚠️ **Planned** - This CLI will provide:
+
 - Interactive token creation workflows
 - Comprehensive token management commands
 - SRFC allowlist/blocklist management
-- Rich terminal output with colors and progress indicators 
+- Rich terminal output with colors and progress indicators

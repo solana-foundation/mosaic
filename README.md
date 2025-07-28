@@ -14,7 +14,9 @@ This monorepo contains scaffolding for the following packages:
 ## 🪙 Token Types
 
 ### Stablecoin
+
 Token-2022 Extensions:
+
 - **Default Account State** - SRFC blocklist for compliance
 - **Metadata** - On-chain token metadata
 - **Confidential Balances** - Privacy-preserving transactions
@@ -22,7 +24,9 @@ Token-2022 Extensions:
 - **Permanent Delegate** - Regulatory compliance features
 
 ### Arcade Token
+
 Token-2022 Extensions:
+
 - **Default Account State** - SRFC allowlist for programs and users
 - **Metadata** - Rich on-chain metadata for gaming
 - **Permanent Delegate** - Game mechanics control
@@ -31,6 +35,7 @@ Token-2022 Extensions:
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js 18+
 - pnpm 8+
 - Solana CLI
@@ -85,7 +90,7 @@ pnpm dev
 This project is currently **scaffolded** and ready for implementation. The actual functionality depends on:
 
 - Token-2022 program stabilization
-- SRFC 37 specification finalization  
+- SRFC 37 specification finalization
 - Solana Kit integration availability
 
 ## 📋 Implementation Roadmap
@@ -112,4 +117,4 @@ MIT License - see LICENSE file for details
 
 - [Solana Token Extensions Documentation](https://solana.com/developers/guides/token-extensions)
 - [Token-2022 Program](https://github.com/solana-program/token-2022)
-- [SRFC Standards](https://github.com/solana-foundation/solana-rfcs) 
+- [SRFC Standards](https://github.com/solana-foundation/solana-rfcs)
