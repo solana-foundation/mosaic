@@ -1,4 +1,4 @@
-import { Token } from '@mosaic/core';
+import { Token } from '../issuance';
 import {
   Rpc,
   Address,
