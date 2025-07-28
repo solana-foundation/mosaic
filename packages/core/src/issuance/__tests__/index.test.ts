@@ -1,5 +1,5 @@
 // Test imports - Jest globals are available automatically
-import { Address } from '@solana/kit';
+import { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import { AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { Token, getCreateMintInstructions } from '../index';
 import {
@@ -13,9 +13,9 @@ import {
 
 describe('Token', () => {
   let token: Token;
-  let mockRpc: any;
-  let mockMint: any;
-  let mockFeePayer: any;
+  let mockRpc: Rpc<SolanaRpcApiMainnet>;
+  let mockMint: TransactionSigner<string>;
+  let mockFeePayer: TransactionSigner<string>;
 
   beforeEach(() => {
     token = new Token();

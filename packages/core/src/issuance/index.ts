@@ -201,7 +201,7 @@ export const getCreateMintInstructions = async (input: {
 
   // Get minimum rent-exempt balance
   const rent = await input.rpc
-    .getMinimumBalanceForRentExemption(BigInt(space))
+    .getMinimumBalanceForRentExemption(BigInt(spaceWithoutPostInitializeExtensions))
     .send();
 
   // Return create account and initialize mint instructions
