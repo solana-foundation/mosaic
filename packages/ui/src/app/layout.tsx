@@ -9,14 +9,15 @@ import { SolanaProvider } from "@/components/solana-provider"
 const ar = AR_One_Sans({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Mosaic - Tokenization Engine",
-  description: "Create, manage, and deploy stablecoins and tokenized assets on Solana",
-}
+  title: 'Mosaic - Tokenization Engine',
+  description:
+    'Create, manage, and deploy stablecoins and tokenized assets on Solana',
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <SolanaProvider>
