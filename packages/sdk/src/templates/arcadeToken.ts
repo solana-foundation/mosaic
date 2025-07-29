@@ -21,9 +21,13 @@ import { createNoopSigner } from 'gill';
  * @param symbol - The symbol of the arcade token.
  * @param decimals - The number of decimals for the arcade token.
  * @param uri - The URI pointing to the arcade token's metadata.
- * @param authority - The address with authority over the mint.
+ * @param mintAuthority - The address with authority over the mint.
  * @param mint - The address of the mint account to initialize.
  * @param feePayer - The address that will pay the transaction fees.
+ * @param metadataAuthority - The address with authority over the metadata.
+ * @param pausableAuthority - The address with authority over the pausable functionality.
+ * @param confidentialBalancesAuthority - The address with authority over the confidential balances extension.
+ * @param permanentDelegateAuthority - The address with authority over the permanent delegate.
  * @returns A promise that resolves to a FullTransaction object for initializing the arcade token mint.
  */
 export const createArcadeTokenInitTransaction = async (
@@ -32,16 +36,20 @@ export const createArcadeTokenInitTransaction = async (
   symbol: string,
   decimals: number,
   uri: string,
-  authority: Address,
+  mintAuthority: Address,
   mint: Address,
-  feePayer: Address
+  feePayer: Address,
+  metadataAuthority?: Address,
+  pausableAuthority?: Address,
+  confidentialBalancesAuthority?: Address,
+  permanentDelegateAuthority?: Address
 ): Promise<
   FullTransaction<TransactionVersion, TransactionMessageWithFeePayer>
 > => {
   const tx = await new Token()
     .withMetadata({
       mintAddress: mint,
-      authority: authority,
+      authority: metadataAuthority || mintAuthority,
       metadata: {
         name,
         symbol,
@@ -50,14 +58,14 @@ export const createArcadeTokenInitTransaction = async (
       // TODO: add additional metadata
       additionalMetadata: new Map(),
     })
-    .withPausable(authority)
+    .withPausable(pausableAuthority || mintAuthority)
     .withDefaultAccountState(true)
-    .withConfidentialBalances(authority)
-    .withPermanentDelegate(authority)
+    .withConfidentialBalances(confidentialBalancesAuthority || mintAuthority)
+    .withPermanentDelegate(permanentDelegateAuthority || mintAuthority)
     .buildTransaction({
       rpc,
       decimals,
-      authority,
+      authority: mintAuthority,
       mint: createNoopSigner(mint),
       feePayer: createNoopSigner(feePayer),
     });
