@@ -7,6 +7,7 @@ import type {
   TransactionSigner,
   TransactionVersion,
   FullTransaction,
+  TransactionWithBlockhashLifetime,
 } from 'gill';
 import { createTransaction, some } from 'gill';
 import { getCreateAccountInstruction } from 'gill/programs';
@@ -160,7 +161,11 @@ export class Token {
     mint: TransactionSigner<string>;
     feePayer: TransactionSigner<string>;
   }): Promise<
-    FullTransaction<TransactionVersion, TransactionMessageWithFeePayer>
+    FullTransaction<
+      TransactionVersion,
+      TransactionMessageWithFeePayer,
+      TransactionWithBlockhashLifetime
+    >
   > {
     const instructions = await this.buildInstructions({
       rpc,
