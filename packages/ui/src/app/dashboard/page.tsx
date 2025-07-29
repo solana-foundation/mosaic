@@ -122,7 +122,7 @@ function DashboardConnected({ publicKey } : { publicKey: string }) {
                             Manage your created tokens and their extensions
                         </p>
                     </div>
-                    <Link href="/create">
+                    <Link href="/dashboard/create">
                         <Button>
                             <Plus className="h-4 w-4 mr-2" />
                             Create New Token
