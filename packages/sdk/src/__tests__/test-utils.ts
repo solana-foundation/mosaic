@@ -1,4 +1,4 @@
-import { Address, Rpc, TransactionSigner } from '@solana/kit';
+import type { Address, Rpc, TransactionSigner } from 'gill';
 
 /**
  * Creates a mock RPC client for testing

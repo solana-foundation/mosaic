@@ -1,13 +1,13 @@
-import { Token } from '@mosaic/core';
-import {
+import { Token } from '../issuance';
+import type {
   Rpc,
   Address,
   SolanaRpcApi,
   FullTransaction,
   TransactionMessageWithFeePayer,
   TransactionVersion,
-  createNoopSigner,
 } from 'gill';
+import { createNoopSigner } from 'gill';
 
 /**
  * Creates a transaction to initialize a new stablecoin mint on Solana with common stablecoin features.

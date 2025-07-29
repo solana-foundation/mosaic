@@ -1,1 +1,2 @@
-export * from './issuanceTemplates';
+export { Token } from './issuance';
+export * from './templates';
