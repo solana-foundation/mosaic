@@ -1,7 +1,7 @@
-"use client"
+'use client';
 
-import { ModeToggle } from "@/components/mode-toggle"
-import { Button } from "@/components/ui/button"
+import { ModeToggle } from '@/components/mode-toggle';
+import { Button } from '@/components/ui/button';
 
 export function Header() {
   return (
@@ -16,5 +16,5 @@ export function Header() {
         </div>
       </div>
     </header>
-  )
-} 
+  );
+}

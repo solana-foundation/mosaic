@@ -4,6 +4,6 @@ const nextConfig = {
     appDir: true,
   },
   transpilePackages: ['@mosaic/sdk'],
-}
+};
 
-module.exports = nextConfig 
+module.exports = nextConfig;
