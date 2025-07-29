@@ -46,10 +46,15 @@ export const createArcadeTokenInitTransaction = async (
   confidentialBalancesAuthority?: Address,
   permanentDelegateAuthority?: Address
 ): Promise<
-  FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>
+  FullTransaction<
+    TransactionVersion,
+    TransactionMessageWithFeePayer,
+    TransactionWithBlockhashLifetime
+  >
 > => {
   const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
-  const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
+  const feePayerSigner =
+    typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
   const tx = await new Token()
     .withMetadata({
       mintAddress: mintSigner.address,

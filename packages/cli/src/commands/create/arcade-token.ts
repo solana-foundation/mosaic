@@ -112,7 +112,8 @@ export const createArcadeTokenCommand = new Command('arcade-token')
       spinner.text = 'Signing transaction...';
 
       // Sign the transaction
-      const signedTransaction = await signTransactionMessageWithSigners(transaction);
+      const signedTransaction =
+        await signTransactionMessageWithSigners(transaction);
 
       spinner.text = 'Sending transaction...';
 
