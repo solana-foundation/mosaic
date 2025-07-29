@@ -2,6 +2,7 @@
 
 import { Command } from 'commander';
 import { createStablecoinCommand } from './commands/create/stablecoin.js';
+import { createArcadeTokenCommand } from './commands/create/arcade-token.js';
 
 const program = new Command();
 
@@ -15,8 +16,9 @@ const createCommand = program
   .command('create')
   .description('Create new tokens with Token-2022 extensions');
 
-// Add stablecoin creation command
+// Add token creation commands
 createCommand.addCommand(createStablecoinCommand);
+createCommand.addCommand(createArcadeTokenCommand);
 
 // Global options
 program

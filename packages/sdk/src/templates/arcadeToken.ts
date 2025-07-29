@@ -6,6 +6,8 @@ import type {
   FullTransaction,
   TransactionMessageWithFeePayer,
   TransactionVersion,
+  TransactionSigner,
+  TransactionWithBlockhashLifetime,
 } from 'gill';
 import { createNoopSigner } from 'gill';
 
@@ -37,18 +39,20 @@ export const createArcadeTokenInitTransaction = async (
   decimals: number,
   uri: string,
   mintAuthority: Address,
-  mint: Address,
-  feePayer: Address,
+  mint: Address | TransactionSigner<string>,
+  feePayer: Address | TransactionSigner<string>,
   metadataAuthority?: Address,
   pausableAuthority?: Address,
   confidentialBalancesAuthority?: Address,
   permanentDelegateAuthority?: Address
 ): Promise<
-  FullTransaction<TransactionVersion, TransactionMessageWithFeePayer>
+  FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>
 > => {
+  const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
+  const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
   const tx = await new Token()
     .withMetadata({
-      mintAddress: mint,
+      mintAddress: mintSigner.address,
       authority: metadataAuthority || mintAuthority,
       metadata: {
         name,
@@ -66,8 +70,8 @@ export const createArcadeTokenInitTransaction = async (
       rpc,
       decimals,
       authority: mintAuthority,
-      mint: createNoopSigner(mint),
-      feePayer: createNoopSigner(feePayer),
+      mint: mintSigner,
+      feePayer: feePayerSigner,
     });
 
   return tx;
