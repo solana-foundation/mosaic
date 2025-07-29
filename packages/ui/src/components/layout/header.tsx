@@ -1,17 +1,28 @@
 "use client"
-
 import { ModeToggle } from "@/components/mode-toggle"
 import { Button } from "@/components/ui/button"
+import { useRouter, usePathname } from "next/navigation"
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui"
+import Link from "next/link"
 
 export function Header() {
+  const router = useRouter()
+  const pathname = usePathname()
+  
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
-        <div className="flex items-center space-x-2">
+        <Link className="flex items-center space-x-2" href={"/"}>
           <h1 className="text-2xl font-bold">Mosaic</h1>
-        </div>
+        </Link>
         <div className="flex items-center space-x-4">
-          <Button variant="outline">Get Started</Button>
+          {pathname === "/" ? (
+            <Button variant="outline" onClick={() => router.push("/dashboard")}>
+              Get Started
+            </Button>
+          ) : (
+            <WalletMultiButton/>
+          )}
           <ModeToggle />
         </div>
       </div>

@@ -1,7 +1,10 @@
+"use client"
 import { Button } from "@/components/ui/button"
 import { Coins, Shield, Zap } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 export function Hero() {
+  const router = useRouter()
   return (
     <section className="relative overflow-hidden bg-background py-24 sm:py-32">
       <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
@@ -14,8 +17,8 @@ export function Hero() {
             enterprise-grade security and compliance features.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
-            <Button size="lg">
-              Create Token
+            <Button size="lg" onClick={() => router.push("/dashboard")}>
+              Tokenize!
             </Button>
             <Button variant="outline" size="lg">
               Learn More
