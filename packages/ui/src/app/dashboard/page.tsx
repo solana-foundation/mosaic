@@ -9,13 +9,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export default function DashboardPage() {
     const { connected, publicKey } = useWallet();
-    const [walletConnected, setWalletConnected] = useState(false);
+    const walletConnected = connected && !!publicKey;
 
-    useEffect(() => {
-        setWalletConnected(connected && !!publicKey);
-    }, [connected, publicKey]);
-
-    return walletConnected && publicKey ? <DashboardConnected publicKey={publicKey.toBase58()}/> : <DashboardDisconnected />;
+    return walletConnected ? <DashboardConnected publicKey={publicKey!.toBase58()}/> : <DashboardDisconnected />;
 }
 
 function DashboardConnected({ publicKey } : { publicKey: string }) {
