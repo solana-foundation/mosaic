@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createStablecoinInitTransaction } from '@mosaic/sdk';
+import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
@@ -10,7 +10,7 @@ import {
   type Address,
 } from 'gill';
 
-interface StablecoinOptions {
+interface ArcadeTokenOptions {
   name: string;
   symbol: string;
   decimals: string;
@@ -18,18 +18,17 @@ interface StablecoinOptions {
   mintAuthority?: string;
   metadataAuthority?: string;
   pausableAuthority?: string;
-  confidentialBalancesAuthority?: string;
   permanentDelegateAuthority?: string;
   mintKeypair?: string;
   rpcUrl?: string;
   keypair?: string;
 }
 
-export const createStablecoinCommand = new Command('stablecoin')
-  .description('Create a new stablecoin with Token-2022 extensions')
+export const createArcadeTokenCommand = new Command('arcade-token')
+  .description('Create a new arcade token with Token-2022 extensions')
   .requiredOption('-n, --name <name>', 'Token name')
   .requiredOption('-s, --symbol <symbol>', 'Token symbol')
-  .option('-d, --decimals <decimals>', 'Number of decimals', '6')
+  .option('-d, --decimals <decimals>', 'Number of decimals', '0')
   .option('-u, --uri <uri>', 'Metadata URI', '')
   .option(
     '--mint-authority <address>',
@@ -44,10 +43,6 @@ export const createStablecoinCommand = new Command('stablecoin')
     'Pausable authority address (defaults to mint authority)'
   )
   .option(
-    '--confidential-balances-authority <address>',
-    'Confidential balances authority address (defaults to mint authority)'
-  )
-  .option(
     '--permanent-delegate-authority <address>',
     'Permanent delegate authority address (defaults to mint authority)'
   )
@@ -55,8 +50,8 @@ export const createStablecoinCommand = new Command('stablecoin')
     '--mint-keypair <path>',
     'Path to mint keypair file (generates new one if not provided)'
   )
-  .action(async (options: StablecoinOptions, command) => {
-    const spinner = ora('Creating stablecoin...').start();
+  .action(async (options: ArcadeTokenOptions, command) => {
+    const spinner = ora('Creating arcade token...').start();
 
     try {
       // Get global options from parent command
@@ -93,15 +88,13 @@ export const createStablecoinCommand = new Command('stablecoin')
         mintAuthority) as Address;
       const pausableAuthority = (options.pausableAuthority ||
         mintAuthority) as Address;
-      const confidentialBalancesAuthority =
-        (options.confidentialBalancesAuthority || mintAuthority) as Address;
       const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
         mintAuthority) as Address;
 
       spinner.text = 'Building transaction...';
 
-      // Create stablecoin transaction
-      const transaction = await createStablecoinInitTransaction(
+      // Create arcade token transaction
+      const transaction = await createArcadeTokenInitTransaction(
         rpc,
         options.name,
         options.symbol,
@@ -112,13 +105,13 @@ export const createStablecoinCommand = new Command('stablecoin')
         signerKeypair,
         metadataAuthority,
         pausableAuthority,
-        confidentialBalancesAuthority,
+        undefined, // Arcade tokens don't use confidential balances
         permanentDelegateAuthority
       );
 
       spinner.text = 'Signing transaction...';
 
-      // Sign the transaction (buildTransaction includes signers but doesn't auto-sign)
+      // Sign the transaction
       const signedTransaction =
         await signTransactionMessageWithSigners(transaction);
 
@@ -127,10 +120,10 @@ export const createStablecoinCommand = new Command('stablecoin')
       // Send and confirm transaction
       const signature = await sendAndConfirmTransaction(signedTransaction);
 
-      spinner.succeed('Stablecoin created successfully!');
+      spinner.succeed('Arcade token created successfully!');
 
       // Display results
-      console.log(chalk.green('✅ Stablecoin Creation Successful'));
+      console.log(chalk.green('✅ Arcade Token Creation Successful'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Name:')} ${options.name}`);
       console.log(`   ${chalk.bold('Symbol:')} ${options.symbol}`);
@@ -147,24 +140,25 @@ export const createStablecoinCommand = new Command('stablecoin')
         `   ${chalk.bold('Pausable Authority:')} ${pausableAuthority}`
       );
       console.log(
-        `   ${chalk.bold('Confidential Balances Authority:')} ${confidentialBalancesAuthority}`
-      );
-      console.log(
         `   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`
       );
 
-      console.log(chalk.cyan('🛡️ Token Extensions:'));
-      console.log(`   ${chalk.green('✓')} Metadata`);
+      console.log(chalk.cyan('🎮 Token Extensions:'));
+      console.log(`   ${chalk.green('✓')} Metadata (Rich Gaming Metadata)`);
       console.log(`   ${chalk.green('✓')} Pausable`);
-      console.log(`   ${chalk.green('✓')} Default Account State (Blocklist)`);
-      console.log(`   ${chalk.green('✓')} Confidential Balances`);
+      console.log(`   ${chalk.green('✓')} Default Account State (Allowlist)`);
+      console.log(
+        chalk.yellow(
+          '     ⚠️  You must add addresses to the allowlist for your arcade token to be usable by end users.'
+        )
+      );
       console.log(`   ${chalk.green('✓')} Permanent Delegate`);
 
       if (options.uri) {
         console.log(`${chalk.bold('Metadata URI:')} ${options.uri}`);
       }
     } catch (error) {
-      spinner.fail('Failed to create stablecoin');
+      spinner.fail('Failed to create arcade token');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
