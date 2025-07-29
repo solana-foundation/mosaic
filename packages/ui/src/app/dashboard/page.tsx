@@ -7,6 +7,14 @@ import { Plus, Settings, Coins } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
+interface Token {
+  name?: string;
+  symbol?: string;
+  address?: string;
+  supply?: string;
+  type?: string;
+}
+
 export default function DashboardPage() {
     const { connected, publicKey } = useWallet();
     const walletConnected = connected && !!publicKey;
@@ -16,7 +24,7 @@ export default function DashboardPage() {
 
 function DashboardConnected({ publicKey } : { publicKey: string }) {
     // Placeholder: Replace with actual token fetching logic
-    const [tokens, setTokens] = useState<any[]>([]);
+    const [tokens, setTokens] = useState<Token[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -157,7 +165,7 @@ function DashboardConnected({ publicKey } : { publicKey: string }) {
                                 </div>
                             </CardContent>
                             <CardFooter>
-                                <Link href={`/manage/${token.address || index}`} className="w-full">
+                                <Link href={`/dashboard/manage/${token.address || index}`} className="w-full">
                                     <Button variant="outline" className="w-full">
                                         <Settings className="h-4 w-4 mr-2" />
                                         Manage
