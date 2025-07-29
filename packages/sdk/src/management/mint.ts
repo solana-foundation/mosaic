@@ -41,7 +41,6 @@ export const createMintToTransaction = async (
     TransactionWithBlockhashLifetime
   >
 > => {
-  console.error(recipient);
   const feePayerSigner =
     typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
   const mintAuthoritySigner =
