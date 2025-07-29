@@ -70,9 +70,10 @@ A beautiful and modern web application for creating and managing Token-2022 toke
 ui/
 ├── src/
 │   ├── app/             # Next.js app directory
-│   │   ├── create/     # Token creation pages
-│   │   ├── manage/     # Token management pages
-│   │   └── dashboard/  # Main dashboard
+│   │   ├── dashboard/   # Main dashboard
+│   │   │   ├── create/  # Token creation pages
+│   │   │   └── manage/  # Token management pages
+│   │   └── globals.css  # Global styles
 │   ├── components/      # Reusable UI components
 │   │   ├── ui/         # Base UI components
 │   │   ├── forms/      # Form components
