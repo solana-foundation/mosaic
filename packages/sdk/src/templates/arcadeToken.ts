@@ -24,7 +24,7 @@ import { createNoopSigner } from 'gill';
  * @param authority - The address with authority over the mint.
  * @param mint - The address of the mint account to initialize.
  * @param feePayer - The address that will pay the transaction fees.
- * @returns A promise that resolves to a FullTransaction object for initializing the stablecoin mint.
+ * @returns A promise that resolves to a FullTransaction object for initializing the arcade token mint.
  */
 export const createArcadeTokenInitTransaction = async (
   rpc: Rpc<SolanaRpcApi>,
