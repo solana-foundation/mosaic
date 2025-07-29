@@ -13,7 +13,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "type-check": "pnpm --recursive run type-check",
-    "clean": "pnpm --recursive run clean"
+    "clean": "pnpm --recursive run clean",
+    "precommit": "pnpm run format && pnpm run lint:fix",
+    "check": "pnpm run format:check && pnpm run lint && pnpm run type-check"
   },
   "keywords": [
     "solana",
