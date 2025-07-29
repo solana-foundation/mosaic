@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import { createStablecoinCommand } from './commands/create/stablecoin.js';
 import { createArcadeTokenCommand } from './commands/create/arcade-token.js';
+import { mintCommand } from './commands/mint.js';
 
 const program = new Command();
 
@@ -19,6 +20,9 @@ const createCommand = program
 // Add token creation commands
 createCommand.addCommand(createStablecoinCommand);
 createCommand.addCommand(createArcadeTokenCommand);
+
+// Add token management commands
+program.addCommand(mintCommand);
 
 // Global options
 program
