@@ -59,7 +59,7 @@ A beautiful and modern web application for creating and managing Token-2022 toke
 
 ### UI Components
 
-- **Radix UI** for accessible components
+- **ShadCN UI** for accessible components
 - **Lucide React** for icons
 - **React Hook Form** for form management
 - **Zod** for validation
