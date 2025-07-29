@@ -43,3 +43,28 @@ export const transactionToB64 = (
   const compiledTransaction = compileTransaction(transaction);
   return getBase64Decoder().decode(compiledTransaction.messageBytes);
 };
+
+/**
+ * Converts a decimal amount to raw token amount based on mint decimals
+ *
+ * @param decimalAmount - The decimal amount (e.g., 1.5)
+ * @param decimals - The number of decimals the token has
+ * @returns The raw token amount as bigint
+ */
+export function decimalAmountToRaw(
+  decimalAmount: number,
+  decimals: number
+): bigint {
+  if (decimals < 0 || decimals > 9) {
+    throw new Error('Decimals must be between 0 and 9');
+  }
+
+  const multiplier = Math.pow(10, decimals);
+  const rawAmount = Math.floor(decimalAmount * multiplier);
+
+  if (rawAmount < 0) {
+    throw new Error('Amount must be positive');
+  }
+
+  return BigInt(rawAmount);
+}
