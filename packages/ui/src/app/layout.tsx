@@ -1,12 +1,12 @@
-import type { Metadata } from "next"
-import { AR_One_Sans } from "next/font/google"
-import "./globals.css"
-import { ThemeProvider } from "@/components/theme-provider"
-import { Header } from "@/components/layout/header"
-import { Footer } from "@/components/layout/footer"
-import { SolanaProvider } from "@/components/solana-provider"
+import type { Metadata } from 'next';
+import { AR_One_Sans } from 'next/font/google';
+import './globals.css';
+import { ThemeProvider } from '@/components/theme-provider';
+import { Header } from '@/components/layout/header';
+import { Footer } from '@/components/layout/footer';
+import { SolanaProvider } from '@/components/solana-provider';
 
-const ar = AR_One_Sans({ subsets: ["latin"] })
+const ar = AR_One_Sans({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Mosaic - Tokenization Engine',
@@ -31,14 +31,12 @@ export default function RootLayout({
           >
             <div className="flex min-h-screen flex-col bg-background">
               <Header />
-              <main className="flex-1">
-                {children}
-              </main>
+              <main className="flex-1">{children}</main>
               <Footer />
             </div>
           </ThemeProvider>
         </body>
       </html>
     </SolanaProvider>
-  )
-} 
+  );
+}
