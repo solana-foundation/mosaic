@@ -16,7 +16,7 @@ const compat = new FlatCompat({
 export default [
   // Extend Next.js config using compat
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
-  
+
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     languageOptions: {
@@ -36,13 +36,13 @@ export default [
       // TypeScript specific rules
       '@typescript-eslint/no-unused-vars': [
         'error',
-        { 
+        {
           argsIgnorePattern: '^_',
           varsIgnorePattern: '^_',
         },
       ],
       '@typescript-eslint/no-explicit-any': 'warn',
-      
+
       // General JavaScript rules
       'prefer-const': 'error',
       'no-var': 'error',
@@ -56,14 +56,8 @@ export default [
       },
     },
   },
-  
+
   {
-    ignores: [
-      'node_modules/',
-      '.next/',
-      'out/',
-      'build/',
-      'dist/',
-    ],
+    ignores: ['node_modules/', '.next/', 'out/', 'build/', 'dist/'],
   },
 ];

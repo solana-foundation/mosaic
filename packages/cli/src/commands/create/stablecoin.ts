@@ -161,12 +161,12 @@ export const createStablecoinCommand = new Command('stablecoin')
       console.log(`   ${chalk.green('✓')} Permanent Delegate`);
 
       if (options.uri) {
-        console.log(`\\n${chalk.bold('Metadata URI:')} ${options.uri}`);
+        console.log(`${chalk.bold('Metadata URI:')} ${options.uri}`);
       }
     } catch (error) {
       spinner.fail('Failed to create stablecoin');
       console.error(
-        chalk.red('\\n❌ Error:'),
+        chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
       );
       process.exit(1);
