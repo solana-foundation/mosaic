@@ -20,10 +20,9 @@ export const transactionToB58 = (
     TransactionMessageWithFeePayer,
     TransactionMessageWithBlockhashLifetime
   >
-) => {
+): string => {
   const compiledTransaction = compileTransaction(transaction);
-  const base58Decoder = getBase58Decoder();
-  return base58Decoder.decode(compiledTransaction.messageBytes);
+  return getBase58Decoder().decode(compiledTransaction.messageBytes);
 };
 
 /**
@@ -40,8 +39,7 @@ export const transactionToB64 = (
     TransactionMessageWithFeePayer,
     TransactionMessageWithBlockhashLifetime
   >
-) => {
+): string => {
   const compiledTransaction = compileTransaction(transaction);
-  const base64Decoder = getBase64Decoder();
-  return base64Decoder.decode(compiledTransaction.messageBytes);
+  return getBase64Decoder().decode(compiledTransaction.messageBytes);
 };

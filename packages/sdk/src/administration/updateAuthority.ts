@@ -86,7 +86,12 @@ export const getUpdateAuthorityTransaction = async (input: {
 }): Promise<
   FullTransaction<TransactionVersion, TransactionMessageWithFeePayer>
 > => {
-  const instructions = getUpdateAuthorityInstructions(input);
+  const instructions = getUpdateAuthorityInstructions({
+    mint: input.mint,
+    role: input.role,
+    currentAuthority: input.currentAuthority,
+    newAuthority: input.newAuthority,
+  });
   const { value: latestBlockhash } = await input.rpc
     .getLatestBlockhash()
     .send();
