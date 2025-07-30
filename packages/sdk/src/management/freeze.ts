@@ -57,7 +57,6 @@ export const createFreezeAccountTransaction = async (
 
   // If the account provided is a wallet address, create an ATA for it
   if (wasOwnerAddress) {
-    console.log('Creating ATA for account', account);
     instructions.push(
       getCreateAssociatedTokenIdempotentInstruction({
         payer: feePayerSigner,
