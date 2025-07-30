@@ -58,7 +58,7 @@ export const createStablecoinCommand = new Command('stablecoin')
   .showHelpAfterError()
   .configureHelp({
     sortSubcommands: true,
-    subcommandTerm: (cmd) => cmd.name()
+    subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: StablecoinOptions, command) => {
     const spinner = ora('Creating stablecoin...').start();
@@ -180,7 +180,6 @@ export const createStablecoinCommand = new Command('stablecoin')
           chalk.red('❌ Error:'),
           error instanceof Error ? error.message : 'Unknown error'
         );
-
       }
       process.exit(1);
     }
