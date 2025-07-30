@@ -15,8 +15,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "echo 'Build will be implemented'",
-    "dev": "echo 'Dev will be implemented'",
+    "build": "tsc",
+    "dev": "tsc --watch",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -34,7 +34,8 @@
     "@typescript-eslint/parser": "^8.34.0",
     "eslint": "^9.32.0",
     "jest": "^29.5.0",
-    "ts-jest": "^29.1.0"
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.8.3"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
