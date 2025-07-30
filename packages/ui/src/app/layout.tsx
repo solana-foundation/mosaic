@@ -1,12 +1,22 @@
 import type { Metadata } from 'next';
-import { AR_One_Sans } from 'next/font/google';
+import { Inter, Fira_Mono } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { SolanaProvider } from '@/components/solana-provider';
+import { cn } from '@/lib/utils';
 
-const ar = AR_One_Sans({ subsets: ['latin'] });
+const fontSans = Inter({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-sans',
+});
+const fontMono = Fira_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-mono',
+});
 
 export const metadata: Metadata = {
   title: 'Mosaic - Tokenization Engine',
@@ -22,7 +32,7 @@ export default function RootLayout({
   return (
     <SolanaProvider>
       <html lang="en" suppressHydrationWarning>
-        <body className={ar.className}>
+        <body className={cn(fontSans.variable, fontMono.variable, 'font-sans antialiased')}>
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"
