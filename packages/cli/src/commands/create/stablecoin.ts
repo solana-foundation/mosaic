@@ -55,6 +55,11 @@ export const createStablecoinCommand = new Command('stablecoin')
     '--mint-keypair <path>',
     'Path to mint keypair file (generates new one if not provided)'
   )
+  .showHelpAfterError()
+  .configureHelp({
+    sortSubcommands: true,
+    subcommandTerm: (cmd) => cmd.name()
+  })
   .action(async (options: StablecoinOptions, command) => {
     const spinner = ora('Creating stablecoin...').start();
 
@@ -165,10 +170,18 @@ export const createStablecoinCommand = new Command('stablecoin')
       }
     } catch (error) {
       spinner.fail('Failed to create stablecoin');
-      console.error(
-        chalk.red('❌ Error:'),
-        error instanceof Error ? error.message : 'Unknown error'
-      );
+      if ('context' in (error as any)) {
+        console.error(
+          chalk.red(`❌ Transaction simulation failed:`),
+          `\n\t${(error as any).context.logs.join('\n\t')}`
+        );
+      } else {
+        console.error(
+          chalk.red('❌ Error:'),
+          error instanceof Error ? error.message : 'Unknown error'
+        );
+
+      }
       process.exit(1);
     }
   });

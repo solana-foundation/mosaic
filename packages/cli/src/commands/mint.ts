@@ -32,6 +32,11 @@ export const mintCommand = new Command('mint')
     '-a, --amount <amount>',
     'The decimal amount to mint (e.g., 1.5)'
   )
+  .showHelpAfterError()
+  .configureHelp({
+    sortSubcommands: true,
+    subcommandTerm: (cmd) => cmd.name()
+  })
   .action(async (options: MintOptions, command) => {
     const spinner = ora('Minting tokens...').start();
 
