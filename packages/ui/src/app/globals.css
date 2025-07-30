@@ -60,10 +60,25 @@
 }
 
 .mosaic-text {
+  position: relative;
+  z-index: 1;
   background-image: radial-gradient(circle, #fff 55%, transparent 0%);
   background-size: 2px 3px;
   background-position: 0px 1px;
   background-repeat: repeat;
   background-clip: text;
   color: transparent;
+}
+
+.mosaic-text::before {
+  content: "";
+  position: absolute;
+  inset: -5%;
+  z-index: -1;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 30% 40%, #1fff9a 0%, transparent 70%),
+              radial-gradient(circle at 70% 60%, #9945ff 0%, transparent 70%);
+  filter: blur(20px);
+  opacity: 0.3;
+  pointer-events: none;
 }
