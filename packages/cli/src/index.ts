@@ -4,6 +4,8 @@ import { Command } from 'commander';
 import { createStablecoinCommand } from './commands/create/stablecoin.js';
 import { createArcadeTokenCommand } from './commands/create/arcade-token.js';
 import { mintCommand } from './commands/mint.js';
+import { freezeCommand } from './commands/freeze.js';
+import { thawCommand } from './commands/thaw.js';
 
 const program = new Command();
 
@@ -23,6 +25,8 @@ createCommand.addCommand(createArcadeTokenCommand);
 
 // Add token management commands
 program.addCommand(mintCommand);
+program.addCommand(freezeCommand);
+program.addCommand(thawCommand);
 
 // Global options
 program
