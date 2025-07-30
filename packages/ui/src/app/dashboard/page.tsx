@@ -13,14 +13,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { TokenDisplay } from '@/types/token';
+import { getAllTokens } from '@/lib/tokenData';
 
-interface Token {
-  name?: string;
-  symbol?: string;
-  address?: string;
-  supply?: string;
-  type?: string;
-}
 
 export default function DashboardPage() {
   const { connected, publicKey } = useWallet();
@@ -35,14 +36,14 @@ export default function DashboardPage() {
 
 function DashboardConnected({ publicKey }: { publicKey: string }) {
   // Placeholder: Replace with actual token fetching logic
-  const [tokens, setTokens] = useState<Token[]>([]);
+  const [tokens, setTokens] = useState<TokenDisplay[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Simulate loading tokens
     setTimeout(() => {
-      // Placeholder: Replace with actual token fetching
-      setTokens([]); // Empty array for "no tokens" state
+      // Get tokens from shared data
+      setTokens(getAllTokens());
       setLoading(false);
     }, 1000);
   }, []);
@@ -139,12 +140,28 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
               Manage your created tokens and their extensions
             </p>
           </div>
-          <Link href="/dashboard/create">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Token
-            </Button>
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create New Token
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/create/stablecoin">
+                  <Coins className="h-4 w-4 mr-2" />
+                  Stablecoin
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/create/arcade-token">
+                  <Coins className="h-4 w-4 mr-2" />
+                  Arcade Token
+                </Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -181,7 +198,7 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
               </CardContent>
               <CardFooter>
                 <Link
-                  href={`/dashboard/manage/${token.address || index}`}
+                  href={`/dashboard/manage/${token.address}`}
                   className="w-full"
                 >
                   <Button variant="outline" className="w-full">
