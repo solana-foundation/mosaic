@@ -1,7 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createForceTransferTransaction, validatePermanentDelegate } from '@mosaic/sdk';
+import {
+  createForceTransferTransaction,
+  validatePermanentDelegate,
+} from '@mosaic/sdk';
 import { createSolanaClient } from '../utils/rpc.js';
 import { loadKeypair } from '../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
@@ -79,7 +82,8 @@ export const forceTransferCommand = new Command('force-transfer')
       spinner.text = 'Signing transaction...';
 
       // Sign the transaction
-      const signedTransaction = await signTransactionMessageWithSigners(transaction);
+      const signedTransaction =
+        await signTransactionMessageWithSigners(transaction);
 
       spinner.text = 'Sending transaction...';
 
@@ -96,20 +100,27 @@ export const forceTransferCommand = new Command('force-transfer')
       console.log(`   ${chalk.bold('To Account:')} ${options.recipient}`);
       console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-      console.log(`   ${chalk.bold('Permanent Delegate:')} ${permanentDelegateKeypair.address}`);
+      console.log(
+        `   ${chalk.bold('Permanent Delegate:')} ${permanentDelegateKeypair.address}`
+      );
 
       console.log(chalk.cyan('\\n⚡ Result:'));
-      console.log(`   ${chalk.green('✓')} Tokens force transferred using permanent delegate authority`);
-      console.log(`   ${chalk.green('✓')} Transfer completed without requiring approval from source account`);
-      console.log(`   ${chalk.yellow('⚠️')}  This action bypassed normal token account permissions`);
-
+      console.log(
+        `   ${chalk.green('✓')} Tokens force transferred using permanent delegate authority`
+      );
+      console.log(
+        `   ${chalk.green('✓')} Transfer completed without requiring approval from source account`
+      );
+      console.log(
+        `   ${chalk.yellow('⚠️')}  This action bypassed normal token account permissions`
+      );
     } catch (error) {
       spinner.fail('Failed to force transfer tokens');
       console.error(
         chalk.red('\\n❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
       );
-      
+
       // Provide helpful error context for common issues
       if (error instanceof Error) {
         if (error.message.includes('permanent delegate extension')) {
@@ -124,7 +135,7 @@ export const forceTransferCommand = new Command('force-transfer')
           );
         }
       }
-      
+
       process.exit(1);
     }
   });

@@ -95,8 +95,11 @@ export const createForceTransferTransaction = async (
   const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
 
   // Resolve source and destination token accounts
-  const { tokenAccount: sourceTokenAccount } =
-    await resolveTokenAccount(rpc, fromAccount, mint);
+  const { tokenAccount: sourceTokenAccount } = await resolveTokenAccount(
+    rpc,
+    fromAccount,
+    mint
+  );
   const { tokenAccount: destTokenAccount, wasOwnerAddress: destWasOwner } =
     await resolveTokenAccount(rpc, toAccount, mint);
 
@@ -158,16 +161,18 @@ export async function validatePermanentDelegate(
   permanentDelegateAddress: Address
 ): Promise<void> {
   const mintInfo = await getMintInfo(rpc, mint);
-  
+
   // Check if permanent delegate extension exists
   const permanentDelegateExtension = mintInfo.extensions.find(
     (ext: any) => ext.extension === 'permanentDelegate'
   );
-  
+
   if (!permanentDelegateExtension) {
-    throw new Error(`Mint ${mint} does not have permanent delegate extension enabled`);
+    throw new Error(
+      `Mint ${mint} does not have permanent delegate extension enabled`
+    );
   }
-  
+
   const delegateAddress = permanentDelegateExtension.state?.delegate;
   if (delegateAddress !== permanentDelegateAddress) {
     throw new Error(
