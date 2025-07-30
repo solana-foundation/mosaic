@@ -10,81 +10,12 @@ import type {
 } from 'gill';
 import { createNoopSigner, createTransaction } from 'gill';
 import {
-  getAssociatedTokenAccountAddress,
+  getCreateAssociatedTokenIdempotentInstruction,
   getFreezeAccountInstruction,
   getThawAccountInstruction,
   TOKEN_2022_PROGRAM_ADDRESS,
 } from 'gill/programs/token';
-
-/**
- * Determines if an address is an Associated Token Account or wallet address
- * Returns the token account address to use for freeze/thaw operations
- *
- * @param rpc - The Solana RPC client instance
- * @param account - The account address (could be wallet or ATA)
- * @param mint - The mint address
- * @returns Promise with the token account address and whether it was derived
- */
-export async function resolveTokenAccount(
-  rpc: Rpc<SolanaRpcApi>,
-  account: Address,
-  mint: Address
-): Promise<{ tokenAccount: Address; wasOwnerAddress: boolean }> {
-  try {
-    // First check if the account exists and get its info
-    const accountInfo = await rpc
-      .getAccountInfo(account, { encoding: 'base64' })
-      .send();
-
-    if (accountInfo.value) {
-      // Account exists, check if it's a token account
-      const data = Buffer.from(accountInfo.value.data[0], 'base64');
-      
-      // Check if it's owned by TOKEN_2022_PROGRAM (token account)
-      if (accountInfo.value.owner === TOKEN_2022_PROGRAM_ADDRESS) {
-        // Parse the mint address from token account data (first 32 bytes)
-        const tokenMint = data.subarray(0, 32);
-        const mintBuffer = Buffer.from(mint.replace(/^0x/, ''), 'hex');
-        
-        if (tokenMint.equals(mintBuffer)) {
-          // It's a token account for this mint
-          return { tokenAccount: account, wasOwnerAddress: false };
-        } else {
-          throw new Error(`Token account ${account} is not for mint ${mint}`);
-        }
-      }
-    }
-    
-    // If we reach here, it's either a non-existent account or not a token account
-    // Treat it as a wallet address and derive the ATA
-    const ata = await getAssociatedTokenAccountAddress(
-      mint,
-      account,
-      TOKEN_2022_PROGRAM_ADDRESS
-    );
-    
-    // Check if the ATA exists
-    const ataInfo = await rpc.getAccountInfo(ata).send();
-    if (!ataInfo.value) {
-      throw new Error(`Associated Token Account for owner ${account} and mint ${mint} does not exist`);
-    }
-    
-    return { tokenAccount: ata, wasOwnerAddress: true };
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('does not exist')) {
-      throw error;
-    }
-    
-    // If checking the account failed, try to derive ATA anyway
-    const ata = await getAssociatedTokenAccountAddress(
-      mint,
-      account,
-      TOKEN_2022_PROGRAM_ADDRESS
-    );
-    
-    return { tokenAccount: ata, wasOwnerAddress: true };
-  }
-}
+import { resolveTokenAccount } from '../transactionUtil';
 
 /**
  * Creates a transaction to freeze a token account
@@ -117,17 +48,42 @@ export const createFreezeAccountTransaction = async (
       : freezeAuthority;
 
   // Resolve the token account
-  const { tokenAccount } = await resolveTokenAccount(rpc, account, mint);
+  const { tokenAccount, wasOwnerAddress } = await resolveTokenAccount(
+    rpc,
+    account,
+    mint
+  );
+  const instructions = [];
 
-  const instruction = getFreezeAccountInstruction(
-    {
-      account: tokenAccount,
-      mint,
-      owner: freezeAuthoritySigner,
-    },
-    {
-      programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-    }
+  // If the account provided is a wallet address, create an ATA for it
+  if (wasOwnerAddress) {
+    instructions.push(
+      getCreateAssociatedTokenIdempotentInstruction(
+        {
+          payer: feePayerSigner,
+          ata: tokenAccount,
+          owner: account,
+          mint,
+          tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+        },
+        {
+          programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+        }
+      )
+    );
+  }
+
+  instructions.push(
+    getFreezeAccountInstruction(
+      {
+        account: tokenAccount,
+        mint,
+        owner: freezeAuthoritySigner,
+      },
+      {
+        programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+      }
+    )
   );
 
   // Get latest blockhash for transaction
@@ -137,7 +93,7 @@ export const createFreezeAccountTransaction = async (
     feePayer: feePayerSigner,
     version: 'legacy',
     latestBlockhash,
-    instructions: [instruction],
+    instructions,
   });
 };
 
@@ -174,14 +130,13 @@ export const createThawAccountTransaction = async (
   // Resolve the token account
   const { tokenAccount } = await resolveTokenAccount(rpc, account, mint);
 
-  const instruction = getThawAccountInstruction({
-    account: tokenAccount,
-    mint,
+  const instruction = getThawAccountInstruction(
+    {
+      account: tokenAccount,
+      mint,
       owner: freezeAuthoritySigner,
     },
-    {
-      programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-    }
+    { programAddress: TOKEN_2022_PROGRAM_ADDRESS }
   );
 
   // Get latest blockhash for transaction

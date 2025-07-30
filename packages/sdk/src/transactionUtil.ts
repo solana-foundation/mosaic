@@ -3,8 +3,16 @@ import type {
   TransactionVersion,
   TransactionMessageWithFeePayer,
   TransactionMessageWithBlockhashLifetime,
+  Rpc,
+  Address,
+  SolanaRpcApi,
 } from 'gill';
 import { getBase58Decoder, compileTransaction, getBase64Decoder } from 'gill';
+import {
+  getAssociatedTokenAccountAddress,
+  TOKEN_2022_PROGRAM_ADDRESS,
+  SYSTEM_PROGRAM_ADDRESS,
+} from 'gill/programs';
 
 /**
  * Converts a compiled Solana transaction to a base58-encoded string.
@@ -67,4 +75,53 @@ export function decimalAmountToRaw(
   }
 
   return BigInt(rawAmount);
+}
+
+/**
+ * Determines if an address is an Associated Token Account or wallet address
+ * Returns the token account address to use for any operation
+ * Note this function will not ensure that the account exists onchain
+ *
+ * @param rpc - The Solana RPC client instance
+ * @param account - The account address (could be wallet or ATA)
+ * @param mint - The mint address
+ * @returns Promise with the token account address and whether it was derived
+ */
+export async function resolveTokenAccount(
+  rpc: Rpc<SolanaRpcApi>,
+  account: Address,
+  mint: Address
+): Promise<{ tokenAccount: Address; wasOwnerAddress: boolean }> {
+  const accountInfo = await rpc
+    .getAccountInfo(account, { encoding: 'jsonParsed' })
+    .send();
+
+  // Check if it's an existing token account for this mint
+  if (accountInfo.value?.owner === TOKEN_2022_PROGRAM_ADDRESS) {
+    const data = accountInfo.value.data;
+    if ('parsed' in data && data.parsed?.info) {
+      const tokenMint = (data.parsed.info as { mint: Address }).mint;
+      if (tokenMint === mint) {
+        return { tokenAccount: account, wasOwnerAddress: false };
+      }
+      throw new Error(`Token account ${account} is not for mint ${mint}`);
+    }
+    throw new Error(`Unable to parse token account data for ${account}`);
+  }
+
+  // If account exists but not a valid token program account
+  if (accountInfo.value && accountInfo.value.owner !== SYSTEM_PROGRAM_ADDRESS) {
+    throw new Error(
+      `Token account ${account} is not a valid account for mint ${mint}`
+    );
+  }
+
+  // Derive ATA for wallet address
+  const ata = await getAssociatedTokenAccountAddress(
+    mint,
+    account,
+    TOKEN_2022_PROGRAM_ADDRESS
+  );
+
+  return { tokenAccount: ata, wasOwnerAddress: true };
 }

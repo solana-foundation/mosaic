@@ -1,7 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createFreezeAccountTransaction, resolveTokenAccount } from '@mosaic/sdk';
+import {
+  createFreezeAccountTransaction,
+  resolveTokenAccount,
+} from '@mosaic/sdk';
 import { createSolanaClient } from '../utils/rpc.js';
 import { loadKeypair } from '../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
@@ -15,7 +18,10 @@ interface FreezeOptions {
 
 export const freezeCommand = new Command('freeze')
   .description('Freeze a token account')
-  .requiredOption('-m, --mint-address <mint-address>', 'The mint address of the token')
+  .requiredOption(
+    '-m, --mint-address <mint-address>',
+    'The mint address of the token'
+  )
   .requiredOption(
     '-a, --account <account>',
     'The account to freeze (wallet address or ATA address)'
@@ -58,7 +64,8 @@ export const freezeCommand = new Command('freeze')
       spinner.text = 'Signing transaction...';
 
       // Sign the transaction
-      const signedTransaction = await signTransactionMessageWithSigners(transaction);
+      const signedTransaction =
+        await signTransactionMessageWithSigners(transaction);
 
       spinner.text = 'Sending transaction...';
 
@@ -74,17 +81,24 @@ export const freezeCommand = new Command('freeze')
       console.log(`   ${chalk.bold('Input Account:')} ${options.account}`);
       console.log(`   ${chalk.bold('Token Account:')} ${tokenAccount}`);
       if (wasOwnerAddress) {
-        console.log(`   ${chalk.bold('Account Type:')} Derived ATA from wallet address`);
+        console.log(
+          `   ${chalk.bold('Account Type:')} Derived ATA from wallet address`
+        );
       } else {
-        console.log(`   ${chalk.bold('Account Type:')} Direct token account address`);
+        console.log(
+          `   ${chalk.bold('Account Type:')} Direct token account address`
+        );
       }
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-      console.log(`   ${chalk.bold('Freeze Authority:')} ${freezeAuthorityKeypair.address}`);
+      console.log(
+        `   ${chalk.bold('Freeze Authority:')} ${freezeAuthorityKeypair.address}`
+      );
 
       console.log(chalk.cyan('\\n🥶 Result:'));
       console.log(`   ${chalk.green('✓')} Token account is now frozen`);
-      console.log(`   ${chalk.yellow('⚠️')}  No tokens can be transferred from this account until thawed`);
-
+      console.log(
+        `   ${chalk.yellow('⚠️')}  No tokens can be transferred from this account until thawed`
+      );
     } catch (error) {
       spinner.fail('Failed to freeze account');
       console.error(

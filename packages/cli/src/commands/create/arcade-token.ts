@@ -53,7 +53,7 @@ export const createArcadeTokenCommand = new Command('arcade-token')
   .showHelpAfterError()
   .configureHelp({
     sortSubcommands: true,
-    subcommandTerm: (cmd) => cmd.name()
+    subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: ArcadeTokenOptions, command) => {
     const spinner = ora('Creating arcade token...').start();

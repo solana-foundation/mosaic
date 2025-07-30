@@ -35,7 +35,7 @@ export const mintCommand = new Command('mint')
   .showHelpAfterError()
   .configureHelp({
     sortSubcommands: true,
-    subcommandTerm: (cmd) => cmd.name()
+    subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: MintOptions, command) => {
     const spinner = ora('Minting tokens...').start();

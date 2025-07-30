@@ -15,7 +15,10 @@ interface ThawOptions {
 
 export const thawCommand = new Command('thaw')
   .description('Thaw a token account')
-  .requiredOption('-m, --mint-address <mint-address>', 'The mint address of the token')
+  .requiredOption(
+    '-m, --mint-address <mint-address>',
+    'The mint address of the token'
+  )
   .requiredOption(
     '-a, --account <account>',
     'The account to thaw (wallet address or ATA address)'
@@ -58,7 +61,8 @@ export const thawCommand = new Command('thaw')
       spinner.text = 'Signing transaction...';
 
       // Sign the transaction
-      const signedTransaction = await signTransactionMessageWithSigners(transaction);
+      const signedTransaction =
+        await signTransactionMessageWithSigners(transaction);
 
       spinner.text = 'Sending transaction...';
 
@@ -74,17 +78,24 @@ export const thawCommand = new Command('thaw')
       console.log(`   ${chalk.bold('Input Account:')} ${options.account}`);
       console.log(`   ${chalk.bold('Token Account:')} ${tokenAccount}`);
       if (wasOwnerAddress) {
-        console.log(`   ${chalk.bold('Account Type:')} Derived ATA from wallet address`);
+        console.log(
+          `   ${chalk.bold('Account Type:')} Derived ATA from wallet address`
+        );
       } else {
-        console.log(`   ${chalk.bold('Account Type:')} Direct token account address`);
+        console.log(
+          `   ${chalk.bold('Account Type:')} Direct token account address`
+        );
       }
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-      console.log(`   ${chalk.bold('Freeze Authority:')} ${freezeAuthorityKeypair.address}`);
+      console.log(
+        `   ${chalk.bold('Freeze Authority:')} ${freezeAuthorityKeypair.address}`
+      );
 
       console.log(chalk.cyan('\\n🌡️ Result:'));
       console.log(`   ${chalk.green('✓')} Token account is now thawed`);
-      console.log(`   ${chalk.green('✓')} Tokens can now be transferred from this account`);
-
+      console.log(
+        `   ${chalk.green('✓')} Tokens can now be transferred from this account`
+      );
     } catch (error) {
       spinner.fail('Failed to thaw account');
       console.error(
