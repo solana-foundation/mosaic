@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 
 const fontSans = Inter({
   subsets: ['latin'],
-  weight: ['100', '300', '600'],
+  weight: ['300', '500', '700'],
   variable: '--font-sans',
 });
 const fontMono = Fira_Mono({

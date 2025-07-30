@@ -183,15 +183,15 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Supply:</span>
-                    <span>{token.supply || '1,000,000'}</span>
+                    <span className="font-normal">{token.supply || '1,000,000'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Type:</span>
-                    <span>{token.type || 'Standard'}</span>
+                    <span className="font-normal">{token.type || 'Standard'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Status:</span>
-                    <span className="text-green-600">Active</span>
+                    <span className="text-green-600 font-normal">Active</span>
                   </div>
                 </div>
               </CardContent>
