@@ -15,8 +15,6 @@ import {
   X,
   Shield,
   Ban,
-  Gamepad2,
-  Trophy,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -462,18 +460,6 @@ function ManageTokenConnected({ address }: { address: string }) {
                     </>
                   )}
                 </Button>
-                {token && token.type === 'arcade-token' && (
-                  <>
-                    <Button className="w-full" variant="outline">
-                      <Gamepad2 className="h-4 w-4 mr-2" />
-                      Manage Tournament
-                    </Button>
-                    <Button className="w-full" variant="outline">
-                      <Trophy className="h-4 w-4 mr-2" />
-                      Award Winners
-                    </Button>
-                  </>
-                )}
               </CardContent>
             </Card>
 
