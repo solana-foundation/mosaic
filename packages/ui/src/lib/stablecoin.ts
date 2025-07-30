@@ -67,7 +67,7 @@ export const createStablecoin = async (
       options.uri || '',
       mintAuthority,
       mintKeypair,
-      wallet, // Use wallet as fee payer
+      wallet.publicKey as Address, // Use wallet as fee payer
       metadataAuthority,
       pausableAuthority,
       confidentialBalancesAuthority,
@@ -143,7 +143,7 @@ export const createStablecoinForUI = async (
       options.uri || '',
       mintAuthority,
       mintKeypair,
-      wallet, // Use wallet as fee payer
+      wallet.publicKey as Address, // Use wallet as fee payer
       metadataAuthority,
       pausableAuthority,
       confidentialBalancesAuthority,

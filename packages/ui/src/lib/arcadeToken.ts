@@ -116,7 +116,7 @@ export const createArcadeToken = async (
       options.uri || '',
       mintAuthority,
       mintKeypair.address,
-      signerAddress,
+      signerAddress as Address,
       metadataAuthority,
       pausableAuthority,
       permanentDelegateAuthority
@@ -172,7 +172,7 @@ export const createArcadeTokenForUI = async (
       options.uri || '',
       mintAuthority,
       mintKeypair.address,
-      signerAddress,
+      signerAddress as Address,
       metadataAuthority,
       pausableAuthority,
       permanentDelegateAuthority
