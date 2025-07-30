@@ -294,7 +294,7 @@ function ManageTokenConnected({ address }: { address: string }) {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <div className="p-3 border rounded-lg">
+                  <div className="p-3 border rounded">
                     <div className="flex items-center justify-between mb-3">
                       <div>
                         <h4 className="font-medium">Transfer Restrictions</h4>
@@ -408,7 +408,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                     )}
                   </div>
 
-                  <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center justify-between p-3 border rounded">
                     <div>
                       <h4 className="font-medium">Metadata</h4>
                       <p className="text-sm text-muted-foreground">
@@ -482,7 +482,7 @@ function ManageTokenConnected({ address }: { address: string }) {
       {/* Allowlist Modal */}
       {showAllowlistModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-lg w-full max-w-md mx-4">
+          <div className="bg-background p-6 rounded w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4">
               Add to Allowlist{' '}
               {token && token.type !== 'stablecoin' && '(Arcade Token)'}
@@ -534,7 +534,7 @@ function ManageTokenConnected({ address }: { address: string }) {
       {/* Blocklist Modal */}
       {showBlocklistModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-background p-6 rounded-lg w-full max-w-md mx-4">
+          <div className="bg-background p-6 rounded w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4">
               Add to Blocklist{' '}
               {token && token.type === 'stablecoin' && '(Stablecoin)'}

@@ -166,7 +166,7 @@ export default function StablecoinCreatePage() {
                 </div>
 
                 {/* Optional Parameters Dropdown */}
-                <div className="border rounded-lg">
+                <div className="border rounded">
                   <button
                     type="button"
                     onClick={() => setShowOptionalParams(!showOptionalParams)}

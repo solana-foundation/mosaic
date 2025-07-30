@@ -28,7 +28,7 @@ export function Hero() {
 
         <div className="mt-16 grid grid-cols-1 gap-8 sm:grid-cols-3">
           <div className="text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded bg-primary/10">
               <Coins className="h-6 w-6 text-primary" />
             </div>
             <h3 className="mt-4 text-lg font-semibold text-foreground">
@@ -41,7 +41,7 @@ export function Hero() {
           </div>
 
           <div className="text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded bg-primary/10">
               <Shield className="h-6 w-6 text-primary" />
             </div>
             <h3 className="mt-4 text-lg font-semibold text-foreground">
@@ -54,7 +54,7 @@ export function Hero() {
           </div>
 
           <div className="text-center">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded bg-primary/10">
               <Zap className="h-6 w-6 text-primary" />
             </div>
             <h3 className="mt-4 text-lg font-semibold text-foreground">
