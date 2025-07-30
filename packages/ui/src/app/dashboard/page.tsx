@@ -22,7 +22,6 @@ import {
 import { TokenDisplay } from '@/types/token';
 import { getAllTokens } from '@/lib/tokenData';
 
-
 export default function DashboardPage() {
   const { connected, publicKey } = useWallet();
   const walletConnected = connected && !!publicKey;

@@ -8,10 +8,9 @@ import {
   getSignatureFromTransaction,
 } from 'gill';
 import { StablecoinOptions, StablecoinCreationResult } from '@/types/token';
-// @ts-ignore
+import { WalletAdapter } from '@/types/wallet';
+// @ts-expect-error - SDK import not yet available in web environment
 import { createStablecoinInitTransaction } from '@mosaic/sdk';
-
-
 
 /**
  * Creates a stablecoin using the web-compatible version of the CLI script
@@ -21,10 +20,9 @@ import { createStablecoinInitTransaction } from '@mosaic/sdk';
  */
 export const createStablecoin = async (
   options: StablecoinOptions,
-  wallet: any
+  wallet: WalletAdapter
 ): Promise<string> => {
   try {
-
     if (!options.name || !options.symbol) {
       throw new Error('Name and symbol are required');
     }
@@ -48,10 +46,14 @@ export const createStablecoin = async (
 
     // Set authorities (default to signer if not provided)
     const mintAuthority = (options.mintAuthority || signerAddress) as Address;
-    const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
-    const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
-    const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
-    const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
+    const metadataAuthority = (options.metadataAuthority ||
+      mintAuthority) as Address;
+    const pausableAuthority = (options.pausableAuthority ||
+      mintAuthority) as Address;
+    const confidentialBalancesAuthority =
+      (options.confidentialBalancesAuthority || mintAuthority) as Address;
+    const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
+      mintAuthority) as Address;
 
     // Create RPC client
     const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
@@ -74,14 +76,16 @@ export const createStablecoin = async (
     );
 
     // Sign the transaction
-    const signedTransaction = await signTransactionMessageWithSigners(transaction);
-    const signature = getSignatureFromTransaction(signedTransaction)
+    const signedTransaction =
+      await signTransactionMessageWithSigners(transaction);
+    const signature = getSignatureFromTransaction(signedTransaction);
 
     // Return the transaction signature
     return signature;
-   
   } catch (error) {
-    throw new Error(error instanceof Error ? error.message : 'Unknown error occurred');
+    throw new Error(
+      error instanceof Error ? error.message : 'Unknown error occurred'
+    );
   }
 };
 
@@ -91,7 +95,7 @@ export const createStablecoin = async (
  */
 export const createStablecoinForUI = async (
   options: StablecoinOptions,
-  wallet: any
+  wallet: WalletAdapter
 ): Promise<StablecoinCreationResult> => {
   try {
     // Validate required fields
@@ -118,10 +122,14 @@ export const createStablecoinForUI = async (
 
     // Set authorities (default to signer if not provided)
     const mintAuthority = (options.mintAuthority || signerAddress) as Address;
-    const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
-    const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
-    const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
-    const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
+    const metadataAuthority = (options.metadataAuthority ||
+      mintAuthority) as Address;
+    const pausableAuthority = (options.pausableAuthority ||
+      mintAuthority) as Address;
+    const confidentialBalancesAuthority =
+      (options.confidentialBalancesAuthority || mintAuthority) as Address;
+    const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
+      mintAuthority) as Address;
 
     // Create RPC client
     const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
@@ -144,7 +152,8 @@ export const createStablecoinForUI = async (
     );
 
     // Sign the transaction
-    const signedTransaction = await signTransactionMessageWithSigners(transaction);
+    const signedTransaction =
+      await signTransactionMessageWithSigners(transaction);
     const signature = getSignatureFromTransaction(signedTransaction);
 
     // Return success result with all details
@@ -166,14 +175,14 @@ export const createStablecoinForUI = async (
           'Pausable',
           'Default Account State (Blocklist)',
           'Confidential Balances',
-          'Permanent Delegate'
-        ]
-      }
+          'Permanent Delegate',
+        ],
+      },
     };
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred'
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
     };
   }
 };

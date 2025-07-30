@@ -3,9 +3,23 @@
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Settings, Coins, Edit, Trash2, Copy, ExternalLink, Plus, X, Shield, Ban, Gamepad2, Trophy, Users } from 'lucide-react';
+import {
+  ArrowLeft,
+  Settings,
+  Coins,
+  Edit,
+  Trash2,
+  Copy,
+  ExternalLink,
+  Plus,
+  X,
+  Shield,
+  Ban,
+  Gamepad2,
+  Trophy,
+} from 'lucide-react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import {
   Card,
   CardContent,
@@ -19,7 +33,6 @@ import { findTokenByAddress } from '@/lib/tokenData';
 export default function ManageTokenPage() {
   const { connected, publicKey } = useWallet();
   const params = useParams();
-  const router = useRouter();
   const address = params.address as string;
 
   if (!connected || !publicKey) {
@@ -54,28 +67,28 @@ function ManageTokenConnected({ address }: { address: string }) {
     setTimeout(() => {
       // Find token by address from shared data
       const foundToken = findTokenByAddress(address);
-      
+
       if (foundToken) {
         setToken(foundToken);
-        
+
         // Set allowlist/blocklist based on token type
         if (foundToken.type === 'stablecoin') {
           // Stablecoins use blocklists
           setBlocklist([
             '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy',
-            '5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1'
+            '5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1',
           ]);
           setAllowlist([]); // Empty for stablecoins
         } else if (foundToken.type === 'arcade-token') {
           // Arcade tokens use allowlists
           setAllowlist([
             '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
-            '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM'
+            '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
           ]);
           setBlocklist([]); // Empty for arcade tokens
         }
       }
-      
+
       setLoading(false);
     }, 1000);
   }, [address]);
@@ -85,8 +98,8 @@ function ManageTokenConnected({ address }: { address: string }) {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy: ', err);
+    } catch {
+      // Silently handle copy errors
     }
   };
 
@@ -126,7 +139,7 @@ function ManageTokenConnected({ address }: { address: string }) {
   const togglePause = () => {
     setIsPaused(!isPaused);
     // TODO: Implement actual pause/unpause transaction
-    console.log(`${isPaused ? 'Unpausing' : 'Pausing'} token: ${address}`);
+    // console.log(`${isPaused ? 'Unpausing' : 'Pausing'} token: ${address}`);
   };
 
   if (loading) {
@@ -224,14 +237,18 @@ function ManageTokenConnected({ address }: { address: string }) {
                     <label className="text-sm font-medium text-muted-foreground">
                       Type
                     </label>
-                    <p className="text-lg font-semibold capitalize">{token.type}</p>
+                    <p className="text-lg font-semibold capitalize">
+                      {token.type}
+                    </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">
                       Status
                     </label>
                     <div className="flex items-center">
-                      <p className={`text-lg font-semibold ${isPaused ? 'text-red-600' : 'text-green-600'}`}>
+                      <p
+                        className={`text-lg font-semibold ${isPaused ? 'text-red-600' : 'text-green-600'}`}
+                      >
                         {isPaused ? 'Paused' : 'Active'}
                       </p>
                       {isPaused && (
@@ -240,7 +257,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                     </div>
                   </div>
                 </div>
-                
+
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
                     Token Address
@@ -258,7 +275,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                     </Button>
                   </div>
                   {copied && (
-                    <p className="text-sm text-green-600 mt-1">Copied to clipboard!</p>
+                    <p className="text-sm text-green-600 mt-1">
+                      Copied to clipboard!
+                    </p>
                   )}
                 </div>
               </CardContent>
@@ -286,7 +305,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                         </p>
                       </div>
                     </div>
-                    
+
                     {/* Transfer Restrictions based on token type */}
                     {token && token.type === 'stablecoin' ? (
                       /* Blocklist for Stablecoins */
@@ -299,8 +318,8 @@ function ManageTokenConnected({ address }: { address: string }) {
                               Stablecoin
                             </span>
                           </div>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => setShowBlocklistModal(true)}
                           >
@@ -309,14 +328,20 @@ function ManageTokenConnected({ address }: { address: string }) {
                           </Button>
                         </div>
                         <p className="text-sm text-muted-foreground mb-3">
-                          Block specific addresses from transferring this stablecoin
+                          Block specific addresses from transferring this
+                          stablecoin
                         </p>
                         {blocklist.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No addresses in blocklist</p>
+                          <p className="text-sm text-muted-foreground">
+                            No addresses in blocklist
+                          </p>
                         ) : (
                           <div className="space-y-2">
                             {blocklist.map((addr, index) => (
-                              <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-2 bg-muted rounded"
+                              >
                                 <code className="text-xs font-mono flex-1">
                                   {addr.slice(0, 8)}...{addr.slice(-8)}
                                 </code>
@@ -343,8 +368,8 @@ function ManageTokenConnected({ address }: { address: string }) {
                               Arcade Token
                             </span>
                           </div>
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             size="sm"
                             onClick={() => setShowAllowlistModal(true)}
                           >
@@ -353,14 +378,20 @@ function ManageTokenConnected({ address }: { address: string }) {
                           </Button>
                         </div>
                         <p className="text-sm text-muted-foreground mb-3">
-                          Allow only specific addresses to transfer this arcade token
+                          Allow only specific addresses to transfer this arcade
+                          token
                         </p>
                         {allowlist.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">No addresses in allowlist</p>
+                          <p className="text-sm text-muted-foreground">
+                            No addresses in allowlist
+                          </p>
                         ) : (
                           <div className="space-y-2">
                             {allowlist.map((addr, index) => (
-                              <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                              <div
+                                key={index}
+                                className="flex items-center justify-between p-2 bg-muted rounded"
+                              >
                                 <code className="text-xs font-mono flex-1">
                                   {addr.slice(0, 8)}...{addr.slice(-8)}
                                 </code>
@@ -378,7 +409,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center justify-between p-3 border rounded-lg">
                     <div>
                       <h4 className="font-medium">Metadata</h4>
@@ -390,8 +421,6 @@ function ManageTokenConnected({ address }: { address: string }) {
                       Edit
                     </Button>
                   </div>
-                  
-
                 </div>
               </CardContent>
             </Card>
@@ -416,9 +445,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                   <Coins className="h-4 w-4 mr-2" />
                   Mint Tokens
                 </Button>
-                <Button 
-                  className="w-full" 
-                  variant={isPaused ? "default" : "outline"}
+                <Button
+                  className="w-full"
+                  variant={isPaused ? 'default' : 'outline'}
                   onClick={togglePause}
                 >
                   {isPaused ? (
@@ -451,9 +480,7 @@ function ManageTokenConnected({ address }: { address: string }) {
             <Card>
               <CardHeader>
                 <CardTitle>Danger Zone</CardTitle>
-                <CardDescription>
-                  Irreversible actions
-                </CardDescription>
+                <CardDescription>Irreversible actions</CardDescription>
               </CardHeader>
               <CardContent>
                 <Button className="w-full" variant="destructive">
@@ -471,7 +498,8 @@ function ManageTokenConnected({ address }: { address: string }) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-background p-6 rounded-lg w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4">
-              Add to Allowlist {token && token.type !== 'stablecoin' && '(Arcade Token)'}
+              Add to Allowlist{' '}
+              {token && token.type !== 'stablecoin' && '(Arcade Token)'}
             </h3>
             <div className="space-y-4">
               <div>
@@ -481,7 +509,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                 <input
                   type="text"
                   value={newAddress}
-                  onChange={(e) => setNewAddress(e.target.value)}
+                  onChange={e => setNewAddress(e.target.value)}
                   placeholder="Enter Solana address..."
                   className="w-full p-2 border rounded-md"
                 />
@@ -494,7 +522,9 @@ function ManageTokenConnected({ address }: { address: string }) {
               <div className="flex space-x-2">
                 <Button
                   onClick={addToAllowlist}
-                  disabled={!newAddress.trim() || !validateSolanaAddress(newAddress)}
+                  disabled={
+                    !newAddress.trim() || !validateSolanaAddress(newAddress)
+                  }
                   className="flex-1"
                 >
                   Add to Allowlist
@@ -520,7 +550,8 @@ function ManageTokenConnected({ address }: { address: string }) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-background p-6 rounded-lg w-full max-w-md mx-4">
             <h3 className="text-lg font-semibold mb-4">
-              Add to Blocklist {token && token.type === 'stablecoin' && '(Stablecoin)'}
+              Add to Blocklist{' '}
+              {token && token.type === 'stablecoin' && '(Stablecoin)'}
             </h3>
             <div className="space-y-4">
               <div>
@@ -530,7 +561,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                 <input
                   type="text"
                   value={newAddress}
-                  onChange={(e) => setNewAddress(e.target.value)}
+                  onChange={e => setNewAddress(e.target.value)}
                   placeholder="Enter Solana address..."
                   className="w-full p-2 border rounded-md"
                 />
@@ -543,7 +574,9 @@ function ManageTokenConnected({ address }: { address: string }) {
               <div className="flex space-x-2">
                 <Button
                   onClick={addToBlocklist}
-                  disabled={!newAddress.trim() || !validateSolanaAddress(newAddress)}
+                  disabled={
+                    !newAddress.trim() || !validateSolanaAddress(newAddress)
+                  }
                   className="flex-1"
                 >
                   Add to Blocklist
@@ -565,4 +598,4 @@ function ManageTokenConnected({ address }: { address: string }) {
       )}
     </div>
   );
-} 
+}

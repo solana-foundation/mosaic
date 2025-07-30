@@ -7,15 +7,15 @@ export const tokenData: TokenDisplay[] = [
     symbol: 'AUSD',
     address: '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
     supply: '78548',
-    type: 'stablecoin'
+    type: 'stablecoin',
   },
   {
     name: 'AadilMiles',
     symbol: 'AMLS',
     address: '5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1',
     supply: '985474',
-    type: 'arcade-token'
-  }
+    type: 'arcade-token',
+  },
 ];
 
 // Function to find token by address
@@ -26,4 +26,4 @@ export const findTokenByAddress = (address: string): TokenDisplay | null => {
 // Function to get all tokens
 export const getAllTokens = (): TokenDisplay[] => {
   return tokenData;
-}; 
+};
