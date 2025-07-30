@@ -13,7 +13,7 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-20 items-center justify-between">
         <Link className="flex items-center space-x-2" href={'/'}>
-          <h1 className="text-3xl font-bold">Mosaic</h1>
+          <h1 className="text-3xl font-bold mosaic-text">mosaic</h1>
         </Link>
         <div className="flex items-center space-x-4">
           {pathname === '/' ? (
