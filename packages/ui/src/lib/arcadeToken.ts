@@ -9,7 +9,6 @@ import {
 } from 'gill';
 import { ArcadeTokenOptions, ArcadeTokenCreationResult } from '@/types/token';
 import { WalletAdapter } from '@/types/wallet';
-// @ts-expect-error - SDK import not yet available in web environment
 import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
 
 /**
@@ -117,7 +116,7 @@ export const createArcadeToken = async (
       options.uri || '',
       mintAuthority,
       mintKeypair.address,
-      signerAddress,
+      signerAddress as Address,
       metadataAuthority,
       pausableAuthority,
       permanentDelegateAuthority
@@ -173,7 +172,7 @@ export const createArcadeTokenForUI = async (
       options.uri || '',
       mintAuthority,
       mintKeypair.address,
-      signerAddress,
+      signerAddress as Address,
       metadataAuthority,
       pausableAuthority,
       permanentDelegateAuthority

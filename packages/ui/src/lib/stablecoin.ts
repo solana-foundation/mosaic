@@ -9,7 +9,6 @@ import {
 } from 'gill';
 import { StablecoinOptions, StablecoinCreationResult } from '@/types/token';
 import { WalletAdapter } from '@/types/wallet';
-// @ts-expect-error - SDK import not yet available in web environment
 import { createStablecoinInitTransaction } from '@mosaic/sdk';
 
 /**
@@ -68,7 +67,7 @@ export const createStablecoin = async (
       options.uri || '',
       mintAuthority,
       mintKeypair,
-      wallet, // Use wallet as fee payer
+      wallet.publicKey as Address, // Use wallet as fee payer
       metadataAuthority,
       pausableAuthority,
       confidentialBalancesAuthority,
@@ -144,7 +143,7 @@ export const createStablecoinForUI = async (
       options.uri || '',
       mintAuthority,
       mintKeypair,
-      wallet, // Use wallet as fee payer
+      wallet.publicKey as Address, // Use wallet as fee payer
       metadataAuthority,
       pausableAuthority,
       confidentialBalancesAuthority,
