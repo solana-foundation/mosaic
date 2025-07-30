@@ -13,6 +13,73 @@ import { WalletAdapter } from '@/types/wallet';
 import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
 
 /**
+ * Validates required fields for arcade token creation
+ */
+const validateRequiredFields = (options: ArcadeTokenOptions): void => {
+  if (!options.name || !options.symbol) {
+    throw new Error('Name and symbol are required');
+  }
+};
+
+/**
+ * Validates and parses decimals value
+ */
+const validateAndParseDecimals = (decimalsString: string): number => {
+  const decimals = parseInt(decimalsString, 10);
+  if (isNaN(decimals) || decimals < 0 || decimals > 9) {
+    throw new Error('Decimals must be a number between 0 and 9');
+  }
+  return decimals;
+};
+
+/**
+ * Validates wallet connection and returns signer address
+ */
+const validateWalletAndGetSignerAddress = (wallet: WalletAdapter): string => {
+  const walletPublicKey = wallet.publicKey;
+  if (!walletPublicKey) {
+    throw new Error('Wallet not connected');
+  }
+  return walletPublicKey.toString();
+};
+
+/**
+ * Sets up authorities with fallback to signer address
+ */
+const setupAuthorities = (
+  options: ArcadeTokenOptions,
+  signerAddress: string
+): {
+  mintAuthority: Address;
+  metadataAuthority: Address;
+  pausableAuthority: Address;
+  permanentDelegateAuthority: Address;
+} => {
+  const mintAuthority = (options.mintAuthority || signerAddress) as Address;
+  const metadataAuthority = (options.metadataAuthority ||
+    mintAuthority) as Address;
+  const pausableAuthority = (options.pausableAuthority ||
+    mintAuthority) as Address;
+  const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
+    mintAuthority) as Address;
+
+  return {
+    mintAuthority,
+    metadataAuthority,
+    pausableAuthority,
+    permanentDelegateAuthority,
+  };
+};
+
+/**
+ * Creates RPC client with default URL fallback
+ */
+const createRpcClient = (rpcUrl?: string): Rpc<SolanaRpcApi> => {
+  const url = rpcUrl || 'https://api.devnet.solana.com';
+  return createSolanaRpc(url);
+};
+
+/**
  * Creates an arcade token using the web-compatible version of the CLI script
  * @param options - Configuration options for the arcade token
  * @param wallet - Solana wallet instance
@@ -23,39 +90,23 @@ export const createArcadeToken = async (
   wallet: WalletAdapter
 ): Promise<string> => {
   try {
-    if (!options.name || !options.symbol) {
-      throw new Error('Name and symbol are required');
-    }
-
-    // Parse decimals
-    const decimals = parseInt(options.decimals, 10);
-    if (isNaN(decimals) || decimals < 0 || decimals > 9) {
-      throw new Error('Decimals must be a number between 0 and 9');
-    }
-
-    // Get wallet public key
-    const walletPublicKey = wallet.publicKey;
-    if (!walletPublicKey) {
-      throw new Error('Wallet not connected');
-    }
-
-    const signerAddress = walletPublicKey.toString();
+    validateRequiredFields(options);
+    const decimals = validateAndParseDecimals(options.decimals);
+    const signerAddress = validateWalletAndGetSignerAddress(wallet);
 
     // Generate mint keypair
     const mintKeypair = await generateKeyPairSigner();
 
     // Set authorities (default to signer if not provided)
-    const mintAuthority = (options.mintAuthority || signerAddress) as Address;
-    const metadataAuthority = (options.metadataAuthority ||
-      mintAuthority) as Address;
-    const pausableAuthority = (options.pausableAuthority ||
-      mintAuthority) as Address;
-    const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
-      mintAuthority) as Address;
+    const {
+      mintAuthority,
+      metadataAuthority,
+      pausableAuthority,
+      permanentDelegateAuthority,
+    } = setupAuthorities(options, signerAddress);
 
     // Create RPC client
-    const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
-    const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+    const rpc = createRpcClient(options.rpcUrl);
 
     // Create arcade token transaction using SDK
     const transaction = await createArcadeTokenInitTransaction(
@@ -95,40 +146,23 @@ export const createArcadeTokenForUI = async (
   wallet: WalletAdapter
 ): Promise<ArcadeTokenCreationResult> => {
   try {
-    // Validate required fields
-    if (!options.name || !options.symbol) {
-      throw new Error('Name and symbol are required');
-    }
-
-    // Parse decimals
-    const decimals = parseInt(options.decimals, 10);
-    if (isNaN(decimals) || decimals < 0 || decimals > 9) {
-      throw new Error('Decimals must be a number between 0 and 9');
-    }
-
-    // Get wallet public key
-    const walletPublicKey = wallet.publicKey;
-    if (!walletPublicKey) {
-      throw new Error('Wallet not connected');
-    }
-
-    const signerAddress = walletPublicKey.toString();
+    validateRequiredFields(options);
+    const decimals = validateAndParseDecimals(options.decimals);
+    const signerAddress = validateWalletAndGetSignerAddress(wallet);
 
     // Generate mint keypair
     const mintKeypair = await generateKeyPairSigner();
 
     // Set authorities (default to signer if not provided)
-    const mintAuthority = (options.mintAuthority || signerAddress) as Address;
-    const metadataAuthority = (options.metadataAuthority ||
-      mintAuthority) as Address;
-    const pausableAuthority = (options.pausableAuthority ||
-      mintAuthority) as Address;
-    const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
-      mintAuthority) as Address;
+    const {
+      mintAuthority,
+      metadataAuthority,
+      pausableAuthority,
+      permanentDelegateAuthority,
+    } = setupAuthorities(options, signerAddress);
 
     // Create RPC client
-    const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
-    const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+    const rpc = createRpcClient(options.rpcUrl);
 
     // Create arcade token transaction using SDK
     const transaction = await createArcadeTokenInitTransaction(
