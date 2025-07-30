@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { TokenDisplay } from '@/types/token';
 import { getAllTokens } from '@/lib/tokenData';
+import { Badge } from '@/components/ui/badge';
 
 export default function DashboardPage() {
   const { connected, publicKey } = useWallet();
@@ -172,9 +173,11 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                     <Coins className="h-6 w-6 text-primary mr-3" />
                     <div>
                       <CardTitle className="text-lg">
-                        {token.name || `Token ${index + 1}`}
+                        {token.name || `Token ${index + 1}`}{' '}
+                        <Badge className="ml-2 align-middle text-sm" variant="outline">
+                          {token.symbol || 'TKN'}
+                        </Badge>
                       </CardTitle>
-                      <CardDescription>{token.symbol || 'TKN'}</CardDescription>
                     </div>
                   </div>
                 </div>
@@ -183,11 +186,15 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Supply:</span>
-                    <span className="font-normal">{token.supply || '1,000,000'}</span>
+                    <span className="font-normal">
+                      {token.supply || '1,000,000'}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Type:</span>
-                    <span className="font-normal">{token.type || 'Standard'}</span>
+                    <span className="font-normal">
+                      {token.type || 'Standard'}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Status:</span>
