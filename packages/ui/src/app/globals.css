@@ -60,7 +60,7 @@
 }
 
 .mosaic-text {
-  background-image: radial-gradient(circle, #fff 50%, transparent 0%);
+  background-image: radial-gradient(circle, #fff 55%, transparent 0%);
   background-size: 2px 3px;
   background-position: 0px 1px;
   background-repeat: repeat;
