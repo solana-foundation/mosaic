@@ -1,10 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import {
-  createFreezeAccountTransaction,
-  resolveTokenAccount,
-} from '@mosaic/sdk';
+import { createFreezeAccountTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../utils/rpc.js';
 import { loadKeypair } from '../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
@@ -41,15 +38,6 @@ export const freezeCommand = new Command('freeze')
       // Load freeze authority keypair (assuming it's the configured keypair)
       const freezeAuthorityKeypair = await loadKeypair(keypairPath);
 
-      spinner.text = 'Resolving token account...';
-
-      // Resolve the token account (check if ATA or direct token account)
-      const { tokenAccount, wasOwnerAddress } = await resolveTokenAccount(
-        rpc,
-        options.account as Address,
-        options.mintAddress as Address
-      );
-
       spinner.text = 'Building freeze transaction...';
 
       // Create freeze transaction
@@ -79,16 +67,6 @@ export const freezeCommand = new Command('freeze')
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
       console.log(`   ${chalk.bold('Input Account:')} ${options.account}`);
-      console.log(`   ${chalk.bold('Token Account:')} ${tokenAccount}`);
-      if (wasOwnerAddress) {
-        console.log(
-          `   ${chalk.bold('Account Type:')} Derived ATA from wallet address`
-        );
-      } else {
-        console.log(
-          `   ${chalk.bold('Account Type:')} Direct token account address`
-        );
-      }
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
       console.log(
         `   ${chalk.bold('Freeze Authority:')} ${freezeAuthorityKeypair.address}`
@@ -103,7 +81,7 @@ export const freezeCommand = new Command('freeze')
       spinner.fail('Failed to freeze account');
       console.error(
         chalk.red('\\n❌ Error:'),
-        error instanceof Error ? error.message : 'Unknown error'
+        error instanceof Error ? error : 'Unknown error'
       );
       process.exit(1);
     }
