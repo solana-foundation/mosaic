@@ -214,25 +214,25 @@ function ManageTokenConnected({ address }: { address: string }) {
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm text-muted-foreground">
                       Name
                     </label>
                     <p className="text-lg font-semibold">{token.name}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm text-muted-foreground">
                       Symbol
                     </label>
                     <p className="text-lg font-semibold">{token.symbol}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm text-muted-foreground">
                       Supply
                     </label>
                     <p className="text-lg font-semibold">{token.supply}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm text-muted-foreground">
                       Type
                     </label>
                     <p className="text-lg font-semibold capitalize">
@@ -240,7 +240,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-sm text-muted-foreground">
                       Status
                     </label>
                     <div className="flex items-center">
@@ -257,7 +257,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-sm text-muted-foreground">
                     Token Address
                   </label>
                   <div className="flex items-center space-x-2 mt-1">
@@ -489,7 +489,7 @@ function ManageTokenConnected({ address }: { address: string }) {
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label className="block text-sm mb-2">
                   Solana Address
                 </label>
                 <input
@@ -541,7 +541,7 @@ function ManageTokenConnected({ address }: { address: string }) {
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label className="block text-sm mb-2">
                   Solana Address
                 </label>
                 <input
