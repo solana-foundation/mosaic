@@ -9,7 +9,6 @@ import {
 } from 'gill';
 import { StablecoinOptions, StablecoinCreationResult } from '@/types/token';
 import { WalletAdapter } from '@/types/wallet';
-// @ts-expect-error - SDK import not yet available in web environment
 import { createStablecoinInitTransaction } from '@mosaic/sdk';
 
 /**
