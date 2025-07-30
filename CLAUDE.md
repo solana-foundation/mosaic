@@ -11,7 +11,10 @@ Mosaic is a TypeScript monorepo for managing Token-2022 extensions on Solana, sp
   - Provides `Token` class for building token transactions with extensions
   - Contains predefined templates for stablecoin and arcade tokens
   - Token extensions include: Metadata, Pausable, Default Account State, Confidential Balances, Permanent Delegate
-- **@mosaic/cli** (`packages/cli/`) - Command-line interface (scaffolded)
+  - Key modules: issuance, management, administration, templates
+- **@mosaic/cli** (`packages/cli/`) - Command-line interface built with Commander.js
+  - Commands: `create stablecoin`, `create arcade-token`, `mint`
+  - Global options: `--rpc-url`, `--keypair`
 - **@mosaic/ui** (`packages/ui/`) - Next.js web interface with Tailwind CSS and Radix UI components
 
 ## Token Types
@@ -51,6 +54,9 @@ pnpm format:check      # Check formatting
 pnpm type-check        # TypeScript checking
 pnpm check             # Run format:check + lint + type-check
 
+# Clean build artifacts
+pnpm clean             # Remove dist folders from all packages
+
 # Before committing
 pnpm precommit         # format + lint:fix
 ```
@@ -63,11 +69,37 @@ pnpm precommit         # format + lint:fix
 - Main entry point exports `Token` class and templates
 - Test setup in `src/__tests__/setup.ts`
 
+```bash
+cd packages/sdk
+pnpm test:watch     # Run tests in watch mode
+pnpm test:coverage  # Generate test coverage report
+```
+
+### CLI (packages/cli/)
+
+- Uses Commander.js for CLI framework
+- Uses tsx for development execution
+- Exports mosaic binary when built
+
+```bash
+cd packages/cli
+pnpm dev           # Run CLI in development mode using tsx
+pnpm build         # Build CLI binary
+pnpm start         # Run built CLI
+```
+
 ### UI (packages/ui/)
 
 - Next.js 14 with App Router
 - Tailwind CSS + Radix UI components
 - Theme support with next-themes
+
+```bash
+cd packages/ui
+pnpm dev    # Start Next.js development server
+pnpm build  # Build for production
+pnpm start  # Start production server
+```
 
 ## Development Notes
 

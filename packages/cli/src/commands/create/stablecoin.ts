@@ -55,6 +55,11 @@ export const createStablecoinCommand = new Command('stablecoin')
     '--mint-keypair <path>',
     'Path to mint keypair file (generates new one if not provided)'
   )
+  .showHelpAfterError()
+  .configureHelp({
+    sortSubcommands: true,
+    subcommandTerm: (cmd) => cmd.name()
+  })
   .action(async (options: StablecoinOptions, command) => {
     const spinner = ora('Creating stablecoin...').start();
 

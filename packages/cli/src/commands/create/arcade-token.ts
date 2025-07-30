@@ -50,6 +50,11 @@ export const createArcadeTokenCommand = new Command('arcade-token')
     '--mint-keypair <path>',
     'Path to mint keypair file (generates new one if not provided)'
   )
+  .showHelpAfterError()
+  .configureHelp({
+    sortSubcommands: true,
+    subcommandTerm: (cmd) => cmd.name()
+  })
   .action(async (options: ArcadeTokenOptions, command) => {
     const spinner = ora('Creating arcade token...').start();
 
