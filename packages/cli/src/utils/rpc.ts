@@ -7,7 +7,10 @@ import {
 import { getSolanaConfig } from './solana.js';
 
 function getRpcUrl(rpcUrl?: string) {
-  const url = rpcUrl || getSolanaConfig()?.json_rpc_url || 'https://api.devnet.solana.com';
+  const url =
+    rpcUrl ||
+    getSolanaConfig()?.json_rpc_url ||
+    'https://api.devnet.solana.com';
   console.log('\nUsing RPC URL:', url);
   return url;
 }
