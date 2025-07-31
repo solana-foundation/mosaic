@@ -105,7 +105,7 @@ describe('Token', () => {
 
       const extension: any = token.getExtensions()[0];
       expect(extension.__kind).toBe('DefaultAccountState');
-      expect(extension.state).toBe(AccountState.Uninitialized);
+      expect(extension.state).toBe(AccountState.Frozen);
     });
   });
 

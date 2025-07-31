@@ -19,6 +19,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TokenDisplay } from '@/types/token';
+import { Badge } from '@/components/ui/badge';
+import { Loader } from '@/components/ui/loader';
 import { getAllTokens, getTokenCount } from '@/lib/token/tokenData';
 import { TokenStorage } from '@/lib/token/tokenStorage';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
@@ -65,7 +67,7 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
       <div className="flex-1 p-8">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <Loader className="h-8 w-8 mx-auto mb-4" />
             <p className="text-muted-foreground">Loading your tokens...</p>
           </div>
         </div>
