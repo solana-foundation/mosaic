@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -14,10 +14,10 @@ import Link from 'next/link';
 import { ArcadeTokenOptions, ArcadeTokenCreationResult } from '@/types/token';
 // import { createArcadeTokenForUI } from '@/lib/arcadeToken';
 import { mockCreateArcadeTokenForUI } from '@/lib/mockFunctions';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 
 export default function ArcadeTokenCreatePage() {
-  const { publicKey, connected } = useWallet();
+  const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
   const [arcadeTokenOptions, setArcadeTokenOptions] =
     useState<ArcadeTokenOptions>({
       name: '',
@@ -38,7 +38,7 @@ export default function ArcadeTokenCreatePage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!connected || !publicKey) {
+    if (!selectedWalletAccount) {
       alert('Please connect your wallet first');
       return;
     }
@@ -48,7 +48,7 @@ export default function ArcadeTokenCreatePage() {
 
     try {
       const result = await mockCreateArcadeTokenForUI(arcadeTokenOptions, {
-        publicKey,
+        publicKey: selectedWalletAccount.address,
         connected: true,
       });
       setResult(result);

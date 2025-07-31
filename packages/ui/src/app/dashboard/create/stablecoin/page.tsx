@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -12,12 +12,14 @@ import {
 import { DollarSign, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 import { StablecoinOptions, StablecoinCreationResult } from '@/types/token';
-// import { createStablecoinForUI } from '@/lib/stablecoin';
-import { mockCreateStablecoinForUI } from '@/lib/mockFunctions';
-import { useWallet } from '@solana/wallet-adapter-react';
+import { createStablecoin } from '@/lib/stablecoin';
+import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
+import { ChainContext } from '@/context/ChainContext';
+import { useWalletAccountTransactionSendingSigner } from '@solana/react';
+import { UiWalletAccount } from '@wallet-standard/react';
 
 export default function StablecoinCreatePage() {
-  const { publicKey, connected } = useWallet();
+  const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
   const [stablecoinOptions, setStablecoinOptions] = useState<StablecoinOptions>(
     {
       name: '',
@@ -35,10 +37,16 @@ export default function StablecoinCreatePage() {
   const [isCreating, setIsCreating] = useState(false);
   const [result, setResult] = useState<StablecoinCreationResult | null>(null);
 
+  const { chain: currentChain } = useContext(ChainContext);
+  const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
+    selectedWalletAccount as UiWalletAccount,
+    currentChain
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!connected || !publicKey) {
+    if (!selectedWalletAccount) {
       alert('Please connect your wallet first');
       return;
     }
@@ -47,13 +55,29 @@ export default function StablecoinCreatePage() {
     setResult(null);
 
     try {
-      const result = await mockCreateStablecoinForUI(stablecoinOptions, {
-        publicKey,
-        connected: true,
+      const result = await createStablecoin(
+        stablecoinOptions,
+        transactionSendingSigner
+      );
+      setResult({
+        success: true,
+        mintAddress: result.mintAddress,
+        transactionSignature: result.transactionSignature,
+        details: {
+          ...stablecoinOptions,
+          decimals: parseInt(stablecoinOptions.decimals),
+          mintAuthority: stablecoinOptions.mintAuthority || '',
+          metadataAuthority: stablecoinOptions.metadataAuthority || '',
+          pausableAuthority: stablecoinOptions.pausableAuthority || '',
+          confidentialBalancesAuthority:
+            stablecoinOptions.confidentialBalancesAuthority || '',
+          permanentDelegateAuthority:
+            stablecoinOptions.permanentDelegateAuthority || '',
+          extensions: ['stablecoin'],
+        },
       });
-      setResult(result);
 
-      if (result.success) {
+      if (result) {
         // console.log('Stablecoin created successfully:', result);
       } else {
         // console.error('Failed to create stablecoin:', result.error);

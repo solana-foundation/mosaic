@@ -6,10 +6,13 @@ import {
   type Rpc,
   type SolanaRpcApi,
   getSignatureFromTransaction,
+  signAndSendTransactionMessageWithSigners,
+  TransactionSendingSigner,
 } from 'gill';
 import { StablecoinOptions, StablecoinCreationResult } from '@/types/token';
-import { WalletAdapter } from '@/types/wallet';
 import { createStablecoinInitTransaction } from '@mosaic/sdk';
+import { UiWalletAccount } from '@wallet-standard/react';
+import bs58 from 'bs58';
 
 /**
  * Creates a stablecoin using the web-compatible version of the CLI script
@@ -19,8 +22,13 @@ import { createStablecoinInitTransaction } from '@mosaic/sdk';
  */
 export const createStablecoin = async (
   options: StablecoinOptions,
-  wallet: WalletAdapter
-): Promise<string> => {
+  signer: TransactionSendingSigner
+): Promise<{
+  success: boolean;
+  error?: string;
+  transactionSignature?: string;
+  mintAddress?: string;
+}> => {
   try {
     if (!options.name || !options.symbol) {
       throw new Error('Name and symbol are required');
@@ -33,7 +41,7 @@ export const createStablecoin = async (
     }
 
     // Get wallet public key
-    const walletPublicKey = wallet.publicKey;
+    const walletPublicKey = signer.address;
     if (!walletPublicKey) {
       throw new Error('Wallet not connected');
     }
@@ -67,7 +75,7 @@ export const createStablecoin = async (
       options.uri || '',
       mintAuthority,
       mintKeypair,
-      wallet.publicKey as Address, // Use wallet as fee payer
+      signer, // Use wallet as fee payer
       metadataAuthority,
       pausableAuthority,
       confidentialBalancesAuthority,
@@ -75,16 +83,22 @@ export const createStablecoin = async (
     );
 
     // Sign the transaction
-    const signedTransaction =
-      await signTransactionMessageWithSigners(transaction);
-    const signature = getSignatureFromTransaction(signedTransaction);
+    const signature =
+      await signAndSendTransactionMessageWithSigners(transaction);
 
-    // Return the transaction signature
-    return signature;
+    // Return the transaction signature as a base58 string
+    // (signature is Uint8Array, so use bs58 to encode)
+    // Import bs58 at the top of your file: import bs58 from 'bs58';
+    return {
+      success: true,
+      transactionSignature: bs58.encode(signature),
+      mintAddress: mintKeypair.address,
+    };
   } catch (error) {
-    throw new Error(
-      error instanceof Error ? error.message : 'Unknown error occurred'
-    );
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+    };
   }
 };
 
@@ -94,7 +108,7 @@ export const createStablecoin = async (
  */
 export const createStablecoinForUI = async (
   options: StablecoinOptions,
-  wallet: WalletAdapter
+  wallet: UiWalletAccount
 ): Promise<StablecoinCreationResult> => {
   try {
     // Validate required fields
@@ -143,7 +157,7 @@ export const createStablecoinForUI = async (
       options.uri || '',
       mintAuthority,
       mintKeypair,
-      wallet.publicKey as Address, // Use wallet as fee payer
+      wallet.address as Address, // Use wallet as fee payer
       metadataAuthority,
       pausableAuthority,
       confidentialBalancesAuthority,
