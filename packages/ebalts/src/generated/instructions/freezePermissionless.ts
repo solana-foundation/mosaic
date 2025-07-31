@@ -85,7 +85,7 @@ export type FreezePermissionlessInstructionDataArgs = {};
 export function getFreezePermissionlessInstructionDataEncoder(): Encoder<FreezePermissionlessInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({
+    value => ({
       ...value,
       discriminator: FREEZE_PERMISSIONLESS_DISCRIMINATOR,
     })

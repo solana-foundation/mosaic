@@ -83,7 +83,7 @@ export function getForfeitFreezeAuthorityInstructionDataEncoder(): Encoder<Forfe
       ['discriminator', getU8Encoder()],
       ['newFreezeAuthority', getAddressEncoder()],
     ]),
-    (value) => ({
+    value => ({
       ...value,
       discriminator: FORFEIT_FREEZE_AUTHORITY_DISCRIMINATOR,
     })

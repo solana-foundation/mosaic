@@ -41,7 +41,7 @@ program
   .option('--rpc-url <url>', 'Solana RPC URL', 'https://api.devnet.solana.com')
   .option(
     '--keypair <path>',
-    'Path to keypair file (defaults to Solana CLI default)',
+    'Path to keypair file (defaults to Solana CLI default)'
   );
 
 program.parse(process.argv);

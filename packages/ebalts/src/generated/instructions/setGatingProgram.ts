@@ -70,7 +70,7 @@ export function getSetGatingProgramInstructionDataEncoder(): Encoder<SetGatingPr
       ['discriminator', getU8Encoder()],
       ['newGatingProgram', getAddressEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: SET_GATING_PROGRAM_DISCRIMINATOR })
+    value => ({ ...value, discriminator: SET_GATING_PROGRAM_DISCRIMINATOR })
   );
 }
 

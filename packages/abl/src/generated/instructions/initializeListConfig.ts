@@ -95,7 +95,7 @@ export function getInitializeListConfigInstructionDataEncoder(): FixedSizeEncode
       ['seed', getAddressEncoder()],
       ['mode', getModeEncoder()],
     ]),
-    (value) => ({
+    value => ({
       ...value,
       discriminator: INITIALIZE_LIST_CONFIG_DISCRIMINATOR,
     })

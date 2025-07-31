@@ -88,7 +88,7 @@ export function getAddWalletToListInstructionDataEncoder(): FixedSizeEncoder<Add
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['wallet', getAddressEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: ADD_WALLET_TO_LIST_DISCRIMINATOR })
+    value => ({ ...value, discriminator: ADD_WALLET_TO_LIST_DISCRIMINATOR })
   );
 }
 

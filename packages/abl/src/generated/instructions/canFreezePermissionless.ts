@@ -53,7 +53,7 @@ export type CanFreezePermissionlessInstructionDataArgs = {};
 export function getCanFreezePermissionlessInstructionDataEncoder(): FixedSizeEncoder<CanFreezePermissionlessInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]),
-    (value) => ({
+    value => ({
       ...value,
       discriminator: CAN_FREEZE_PERMISSIONLESS_DISCRIMINATOR,
     })

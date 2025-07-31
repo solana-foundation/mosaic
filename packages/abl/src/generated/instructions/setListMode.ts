@@ -81,7 +81,7 @@ export function getSetListModeInstructionDataEncoder(): FixedSizeEncoder<SetList
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['mode', getModeEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: SET_LIST_MODE_DISCRIMINATOR })
+    value => ({ ...value, discriminator: SET_LIST_MODE_DISCRIMINATOR })
   );
 }
 

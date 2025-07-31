@@ -4,11 +4,11 @@ import ora from 'ora';
 import { getThawPermissionlessTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
+import { signTransactionMessageWithSigners, type Address } from 'gill';
 import {
-  signTransactionMessageWithSigners,
-  type Address,
-} from 'gill';
-import {  getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
+  getAssociatedTokenAccountAddress,
+  TOKEN_2022_PROGRAM_ADDRESS,
+} from 'gill/programs/token';
 
 interface CreateConfigOptions {
   mint: string;
@@ -51,7 +51,6 @@ export const thawPermissionless = new Command('thaw-permissionless')
         tokenAccountOwner: signerAddress,
       });
 
-      
       spinner.text = 'Signing transaction...';
 
       // Sign the transaction
@@ -61,7 +60,10 @@ export const thawPermissionless = new Command('thaw-permissionless')
       spinner.text = 'Sending transaction...';
 
       // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction, { skipPreflight: true, commitment: 'confirmed'});
+      const signature = await sendAndConfirmTransaction(signedTransaction, {
+        skipPreflight: true,
+        commitment: 'confirmed',
+      });
 
       spinner.succeed('Permissionless thawed successfully!');
 
@@ -70,8 +72,7 @@ export const thawPermissionless = new Command('thaw-permissionless')
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Token Account:')} ${ata}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-    }
-    catch (error) {
+    } catch (error) {
       spinner.fail('Failed to thaw permissionless');
       console.error(
         chalk.red('❌ Error:'),

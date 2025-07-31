@@ -123,7 +123,10 @@ export const createArcadeTokenCommand = new Command('arcade-token')
       spinner.text = 'Sending transaction...';
 
       // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction, { skipPreflight: true, commitment: 'confirmed'});
+      const signature = await sendAndConfirmTransaction(signedTransaction, {
+        skipPreflight: true,
+        commitment: 'confirmed',
+      });
 
       spinner.succeed('Arcade token created successfully!');
 

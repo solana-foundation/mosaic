@@ -71,7 +71,7 @@ export function getMintConfigEncoder(): Encoder<MintConfigArgs> {
       ['enablePermissionlessThaw', getBooleanEncoder()],
       ['enablePermissionlessFreeze', getBooleanEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: MINT_CONFIG_DISCRIMINATOR })
+    value => ({ ...value, discriminator: MINT_CONFIG_DISCRIMINATOR })
   );
 }
 
@@ -141,7 +141,7 @@ export async function fetchAllMaybeMintConfig(
   config?: FetchAccountsConfig
 ): Promise<MaybeAccount<MintConfig>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
-  return maybeAccounts.map((maybeAccount) => decodeMintConfig(maybeAccount));
+  return maybeAccounts.map(maybeAccount => decodeMintConfig(maybeAccount));
 }
 
 export function getMintConfigSize(): number {

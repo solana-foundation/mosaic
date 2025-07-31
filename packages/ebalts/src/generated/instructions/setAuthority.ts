@@ -70,7 +70,7 @@ export function getSetAuthorityInstructionDataEncoder(): Encoder<SetAuthorityIns
       ['discriminator', getU8Encoder()],
       ['newAuthority', getAddressEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: SET_AUTHORITY_DISCRIMINATOR })
+    value => ({ ...value, discriminator: SET_AUTHORITY_DISCRIMINATOR })
   );
 }
 

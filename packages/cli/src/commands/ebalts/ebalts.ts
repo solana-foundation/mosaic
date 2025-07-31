@@ -8,4 +8,4 @@ export const ebaltsCommand = new Command('ebalts')
   .addCommand(createConfig)
   .addCommand(setGatingProgram)
   .addCommand(thawPermissionless)
-  .addCommand(enablePermissionlessThaw);    
+  .addCommand(enablePermissionlessThaw);

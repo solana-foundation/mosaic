@@ -75,7 +75,7 @@ export function getListConfigEncoder(): FixedSizeEncoder<ListConfigArgs> {
       ['mode', getModeEncoder()],
       ['bump', getU8Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: LIST_CONFIG_DISCRIMINATOR })
+    value => ({ ...value, discriminator: LIST_CONFIG_DISCRIMINATOR })
   );
 }
 
@@ -146,7 +146,7 @@ export async function fetchAllMaybeListConfig(
   config?: FetchAccountsConfig
 ): Promise<MaybeAccount<ListConfig>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
-  return maybeAccounts.map((maybeAccount) => decodeListConfig(maybeAccount));
+  return maybeAccounts.map(maybeAccount => decodeListConfig(maybeAccount));
 }
 
 export function getListConfigSize(): number {

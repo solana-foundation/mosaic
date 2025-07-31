@@ -4,10 +4,7 @@ import ora from 'ora';
 import { getEnablePermissionlessThawTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
-import {
-  signTransactionMessageWithSigners,
-  type Address,
-} from 'gill';
+import { signTransactionMessageWithSigners, type Address } from 'gill';
 
 interface CreateConfigOptions {
   mint: string;
@@ -16,7 +13,9 @@ interface CreateConfigOptions {
   keypair?: string;
 }
 
-export const enablePermissionlessThaw = new Command('enable-permissionless-thaw')
+export const enablePermissionlessThaw = new Command(
+  'enable-permissionless-thaw'
+)
   .description('Enable permissionless thaw for an existing mint')
   .requiredOption('-m, --mint <mint>', 'Mint address')
   .action(async (options: CreateConfigOptions, command) => {
@@ -37,7 +36,6 @@ export const enablePermissionlessThaw = new Command('enable-permissionless-thaw'
         mint: options.mint as Address,
       });
 
-      
       spinner.text = 'Signing transaction...';
 
       // Sign the transaction
@@ -47,7 +45,10 @@ export const enablePermissionlessThaw = new Command('enable-permissionless-thaw'
       spinner.text = 'Sending transaction...';
 
       // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction, { skipPreflight: true, commitment: 'confirmed'});
+      const signature = await sendAndConfirmTransaction(signedTransaction, {
+        skipPreflight: true,
+        commitment: 'confirmed',
+      });
 
       spinner.succeed('Permissionless thaw enabled successfully!');
 
@@ -56,8 +57,7 @@ export const enablePermissionlessThaw = new Command('enable-permissionless-thaw'
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Mint:')} ${options.mint}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-    }
-    catch (error) {
+    } catch (error) {
       spinner.fail('Failed to enable permissionless thaw');
       console.error(
         chalk.red('❌ Error:'),

@@ -77,7 +77,7 @@ export function getTogglePermissionlessInstructionsInstructionDataEncoder(): Enc
       ['freezeEnabled', getBooleanEncoder()],
       ['thawEnabled', getBooleanEncoder()],
     ]),
-    (value) => ({
+    value => ({
       ...value,
       discriminator: TOGGLE_PERMISSIONLESS_INSTRUCTIONS_DISCRIMINATOR,
     })

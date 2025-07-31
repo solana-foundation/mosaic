@@ -77,7 +77,7 @@ export type FreezeInstructionDataArgs = {};
 export function getFreezeInstructionDataEncoder(): Encoder<FreezeInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: FREEZE_DISCRIMINATOR })
+    value => ({ ...value, discriminator: FREEZE_DISCRIMINATOR })
   );
 }
 

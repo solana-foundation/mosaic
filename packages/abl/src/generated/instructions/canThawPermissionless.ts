@@ -87,7 +87,7 @@ export type CanThawPermissionlessInstructionDataArgs = {};
 export function getCanThawPermissionlessInstructionDataEncoder(): FixedSizeEncoder<CanThawPermissionlessInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]),
-    (value) => ({
+    value => ({
       ...value,
       discriminator: CAN_THAW_PERMISSIONLESS_DISCRIMINATOR,
     })

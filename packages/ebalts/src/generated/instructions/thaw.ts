@@ -77,7 +77,7 @@ export type ThawInstructionDataArgs = {};
 export function getThawInstructionDataEncoder(): Encoder<ThawInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: THAW_DISCRIMINATOR })
+    value => ({ ...value, discriminator: THAW_DISCRIMINATOR })
   );
 }
 

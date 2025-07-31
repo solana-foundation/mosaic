@@ -96,7 +96,7 @@ export type SetExtraMetasThawInstructionDataArgs = {};
 export function getSetExtraMetasThawInstructionDataEncoder(): FixedSizeEncoder<SetExtraMetasThawInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]),
-    (value) => ({ ...value, discriminator: SET_EXTRA_METAS_THAW_DISCRIMINATOR })
+    value => ({ ...value, discriminator: SET_EXTRA_METAS_THAW_DISCRIMINATOR })
   );
 }
 

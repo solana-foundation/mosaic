@@ -85,7 +85,7 @@ export type ThawPermissionlessInstructionDataArgs = {};
 export function getThawPermissionlessInstructionDataEncoder(): Encoder<ThawPermissionlessInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: THAW_PERMISSIONLESS_DISCRIMINATOR })
+    value => ({ ...value, discriminator: THAW_PERMISSIONLESS_DISCRIMINATOR })
   );
 }
 

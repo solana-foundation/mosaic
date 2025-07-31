@@ -82,7 +82,7 @@ export type RemoveWalletFromListInstructionDataArgs = {};
 export function getRemoveWalletFromListInstructionDataEncoder(): FixedSizeEncoder<RemoveWalletFromListInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', fixEncoderSize(getBytesEncoder(), 8)]]),
-    (value) => ({
+    value => ({
       ...value,
       discriminator: REMOVE_WALLET_FROM_LIST_DISCRIMINATOR,
     })

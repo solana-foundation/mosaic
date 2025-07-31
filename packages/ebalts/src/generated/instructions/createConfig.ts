@@ -91,7 +91,7 @@ export function getCreateConfigInstructionDataEncoder(): Encoder<CreateConfigIns
       ['discriminator', getU8Encoder()],
       ['gatingProgram', getAddressEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: CREATE_CONFIG_DISCRIMINATOR })
+    value => ({ ...value, discriminator: CREATE_CONFIG_DISCRIMINATOR })
   );
 }
 

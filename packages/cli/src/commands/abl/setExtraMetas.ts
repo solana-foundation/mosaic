@@ -4,10 +4,7 @@ import ora from 'ora';
 import { getSetExtraMetasTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
-import {
-  signTransactionMessageWithSigners,
-  type Address,
-} from 'gill';
+import { signTransactionMessageWithSigners, type Address } from 'gill';
 
 interface CreateConfigOptions {
   mint: string;
@@ -29,7 +26,7 @@ export const setExtraMetas = new Command('set-extra-metas')
       const keypairPath = options.keypair || parentOpts.keypair;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
       const kp = await loadKeypair(keypairPath);
-      
+
       const transaction = await getSetExtraMetasTransaction({
         rpc,
         payer: kp,
@@ -38,7 +35,6 @@ export const setExtraMetas = new Command('set-extra-metas')
         list: options.list as Address,
       });
 
-      
       spinner.text = 'Signing transaction...';
 
       // Sign the transaction
@@ -48,7 +44,10 @@ export const setExtraMetas = new Command('set-extra-metas')
       spinner.text = 'Sending transaction...';
 
       // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction, { skipPreflight: true, commitment: 'confirmed'});
+      const signature = await sendAndConfirmTransaction(signedTransaction, {
+        skipPreflight: true,
+        commitment: 'confirmed',
+      });
 
       spinner.succeed('Extra metas set successfully!');
 
@@ -56,14 +55,13 @@ export const setExtraMetas = new Command('set-extra-metas')
       console.log(chalk.green('✅ Extra metas set successfully!'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-    }
-    catch (error) {
+    } catch (error) {
       spinner.fail('Failed to set extra metas');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
       );
-      
+
       process.exit(1);
     }
   });

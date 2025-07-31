@@ -4,9 +4,7 @@ import ora from 'ora';
 import { getCreateListTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
-import {
-  signTransactionMessageWithSigners,
-} from 'gill';
+import { signTransactionMessageWithSigners } from 'gill';
 
 interface CreateConfigOptions {
   mint: string;
@@ -26,14 +24,12 @@ export const createList = new Command('create-list')
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
       const kp = await loadKeypair(options.keypair);
 
-      
-      const {transaction, listConfig} = await getCreateListTransaction({
+      const { transaction, listConfig } = await getCreateListTransaction({
         rpc,
         payer: kp,
         authority: kp,
       });
 
-      
       spinner.text = 'Signing transaction...';
 
       // Sign the transaction
@@ -43,7 +39,10 @@ export const createList = new Command('create-list')
       spinner.text = 'Sending transaction...';
 
       // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction, { skipPreflight: true, commitment: 'confirmed'});
+      const signature = await sendAndConfirmTransaction(signedTransaction, {
+        skipPreflight: true,
+        commitment: 'confirmed',
+      });
 
       spinner.succeed('ABL list created successfully!');
 
@@ -52,14 +51,13 @@ export const createList = new Command('create-list')
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('List Config:')} ${listConfig}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-    }
-    catch (error) {
+    } catch (error) {
       spinner.fail('Failed to create ABL list');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
       );
-      
+
       process.exit(1);
     }
   });

@@ -53,7 +53,7 @@ export function getABWalletEncoder(): FixedSizeEncoder<ABWalletArgs> {
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['wallet', getAddressEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: A_B_WALLET_DISCRIMINATOR })
+    value => ({ ...value, discriminator: A_B_WALLET_DISCRIMINATOR })
   );
 }
 
@@ -118,7 +118,7 @@ export async function fetchAllMaybeABWallet(
   config?: FetchAccountsConfig
 ): Promise<MaybeAccount<ABWallet>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
-  return maybeAccounts.map((maybeAccount) => decodeABWallet(maybeAccount));
+  return maybeAccounts.map(maybeAccount => decodeABWallet(maybeAccount));
 }
 
 export function getABWalletSize(): number {
