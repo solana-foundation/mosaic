@@ -126,7 +126,7 @@ export type SetExtraMetasThawAsyncInput<
 > = {
   authority: TransactionSigner<TAccountAuthority>;
   listConfig: Address<TAccountListConfig>;
-  ebaltsMintConfig?: Address<TAccountEbaltsMintConfig>;
+  ebaltsMintConfig: Address<TAccountEbaltsMintConfig>;
   mint: Address<TAccountMint>;
   extraMetasThaw?: Address<TAccountExtraMetasThaw>;
   systemProgram?: Address<TAccountSystemProgram>;
@@ -182,18 +182,6 @@ export async function getSetExtraMetasThawInstructionAsync<
   >;
 
   // Resolve default values.
-  if (!accounts.ebaltsMintConfig.value) {
-    accounts.ebaltsMintConfig.value = await getProgramDerivedAddress({
-      programAddress:
-        'Eba1ts11111111111111111111111111111111111111' as Address<'Eba1ts11111111111111111111111111111111111111'>,
-      seeds: [
-        getBytesEncoder().encode(
-          new Uint8Array([77, 73, 78, 84, 95, 67, 79, 78, 70, 73, 71])
-        ),
-        getAddressEncoder().encode(expectAddress(accounts.mint.value)),
-      ],
-    });
-  }
   if (!accounts.extraMetasThaw.value) {
     accounts.extraMetasThaw.value = await getProgramDerivedAddress({
       programAddress,
