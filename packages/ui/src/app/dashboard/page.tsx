@@ -82,8 +82,8 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
       <div className="flex-1 p-8">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-          <Loader className="h-8 w-8 mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading your tokens...</p>
+            <Loader className="h-8 w-8 mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading your tokens...</p>
           </div>
         </div>
       </div>
@@ -204,7 +204,10 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                     <div>
                       <CardTitle className="text-lg">
                         {token.name || `Token ${index + 1}`}{' '}
-                        <Badge className="ml-2 align-middle text-sm" variant="outline">
+                        <Badge
+                          className="ml-2 align-middle text-sm"
+                          variant="outline"
+                        >
                           {token.symbol || 'TKN'}
                         </Badge>
                       </CardTitle>
@@ -264,7 +267,9 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Created:</span>
-                    <span className="font-normal">{formatDate(token.createdAt)}</span>
+                    <span className="font-normal">
+                      {formatDate(token.createdAt)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Status:</span>
