@@ -55,10 +55,7 @@ export const transferCommand = new Command('transfer')
     '-m, --mint-address <mint-address>',
     'The mint address of the token'
   )
-  .requiredOption(
-    '-r, --recipient <recipient>',
-    'The recipient wallet address'
-  )
+  .requiredOption('-r, --recipient <recipient>', 'The recipient wallet address')
   .requiredOption(
     '-a, --amount <amount>',
     'The decimal amount to transfer (e.g., 1.5)'
@@ -175,9 +172,7 @@ export const transferCommand = new Command('transfer')
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
 
       console.log(chalk.cyan('\\n⚡ Result:'));
-      console.log(
-        `   ${chalk.green('✓')} Tokens transferred successfully`
-      );
+      console.log(`   ${chalk.green('✓')} Tokens transferred successfully`);
       if (recipientTokenAccountInfo.wasOwnerAddress) {
         console.log(
           `   ${chalk.green('✓')} Created Associated Token Account for recipient`
