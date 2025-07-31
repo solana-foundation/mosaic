@@ -87,7 +87,7 @@ export const removeCommand = new Command('remove')
     } catch (error) {
       spinner.fail('Failed to remove account from access list');
       console.error(
-        chalk.red('\\n❌ Error:'),
+        chalk.red('❌ Error:'),
         error instanceof Error ? error : 'Unknown error'
       );
       process.exit(1);
