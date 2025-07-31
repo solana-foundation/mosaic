@@ -98,7 +98,7 @@ export async function resolveTokenAccount(
 
   // Check if it's an existing token account for this mint
   if (accountInfo.value?.owner === TOKEN_2022_PROGRAM_ADDRESS) {
-    const data = accountInfo.value.data;
+    const data = accountInfo.value?.data;
     if ('parsed' in data && data.parsed?.info) {
       const tokenMint = (data.parsed.info as { mint: Address }).mint;
       if (tokenMint === mint) {

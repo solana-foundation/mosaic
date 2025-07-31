@@ -68,7 +68,7 @@ export const createArcadeTokenInitTransaction = async (
       additionalMetadata: new Map(),
     })
     .withPausable(pausableAuthority || mintAuthority)
-    .withDefaultAccountState(true)
+    .withDefaultAccountState(false)
     .withConfidentialBalances(confidentialBalancesAuthority || mintAuthority)
     .withPermanentDelegate(permanentDelegateAuthority || mintAuthority)
     .buildTransaction({

@@ -6,6 +6,9 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { SolanaProvider } from '@/components/solana-provider';
 import { cn } from '@/lib/utils';
+import { ChainContextProvider } from '@/context/ChainContextProvider';
+import { SelectedWalletAccountContextProvider } from '@/context/SelectedWalletAccountContextProvider';
+import { RpcContextProvider } from '@/context/RpcContextProvider';
 
 const fontSans = Inter({
   subsets: ['latin'],
@@ -32,18 +35,30 @@ export default function RootLayout({
   return (
     <SolanaProvider>
       <html lang="en" suppressHydrationWarning>
-        <body className={cn(fontSans.variable, fontMono.variable, 'font-sans antialiased')}>
+        <body
+          className={cn(
+            fontSans.variable,
+            fontMono.variable,
+            'font-sans antialiased'
+          )}
+        >
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"
             enableSystem
             disableTransitionOnChange
           >
-            <div className="flex min-h-screen flex-col bg-background">
-              <Header />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </div>
+            <ChainContextProvider>
+              <SelectedWalletAccountContextProvider>
+                <RpcContextProvider>
+                  <div className="flex min-h-screen flex-col bg-background">
+                    <Header />
+                    <main className="flex-1">{children}</main>
+                    <Footer />
+                  </div>
+                </RpcContextProvider>
+              </SelectedWalletAccountContextProvider>
+            </ChainContextProvider>
           </ThemeProvider>
         </body>
       </html>

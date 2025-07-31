@@ -3,15 +3,7 @@ import { ModeToggle } from '@/components/mode-toggle';
 import { Button } from '@/components/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
-
-const WalletButton = dynamic(
-  () =>
-    import('@solana/wallet-adapter-react-ui').then(
-      mod => mod.WalletMultiButton
-    ),
-  { ssr: false }
-);
+import { ConnectWalletMenu } from '@/components/ConnectWallet/ConnectWalletMenu';
 
 export function Header() {
   const router = useRouter();
@@ -33,13 +25,9 @@ export function Header() {
               Get Started
             </Button>
           ) : (
-            <WalletButton
-              style={{
-                backgroundColor: 'hsl(var(--background))',
-                color: 'hsl(var(--foreground))',
-                border: '1px solid hsl(var(--border))',
-              }}
-            />
+            <ConnectWalletMenu>
+              <p>Connect Wallet</p>
+            </ConnectWalletMenu>
           )}
           <ModeToggle />
         </div>

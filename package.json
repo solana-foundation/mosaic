@@ -7,15 +7,15 @@
   "scripts": {
     "build": "pnpm --recursive run build",
     "dev": "pnpm --recursive run dev",
-    "test": "pnpm --recursive run test",
+    "test": "pnpm --recursive run test --passWithNoTests",
     "lint": "pnpm --recursive run lint",
     "lint:fix": "pnpm --recursive run lint:fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "type-check": "pnpm --recursive run type-check",
+    "type-check": "pnpm --filter @mosaic/sdk run build && pnpm --recursive run type-check",
     "clean": "pnpm --recursive run clean",
     "precommit": "pnpm run format && pnpm run lint:fix",
-    "check": "pnpm run format:check && pnpm run lint && pnpm run type-check"
+    "check": "pnpm run build && pnpm run format:check && pnpm run lint && pnpm run type-check"
   },
   "keywords": [
     "solana",

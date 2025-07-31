@@ -31,6 +31,6 @@ export default [
     },
   },
   {
-    ignores: ['dist/', 'build/', 'node_modules/', '*.js'],
+    ignores: ['dist/', 'build/', 'node_modules/', '*.js', '**/generated/'],
   },
 ];

@@ -24,8 +24,13 @@
     "paths": {
       "@mosaic/core": ["./packages/core/src"],
       "@mosaic/sdk": ["./packages/sdk/src"],
+      "@mosaic/tlv-account-resolution": [
+        "./packages/tlv-account-resolution/src"
+      ],
+      "@mosaic/ebalts": ["./packages/ebalts/src"],
       "@mosaic/cli": ["./packages/cli/src"],
-      "@mosaic/ui": ["./packages/ui/src"]
+      "@mosaic/ui": ["./packages/ui/src"],
+      "@mosaic/abl": ["./packages/abl/src"]
     }
   },
   "include": ["packages/*/src/**/*", "*.ts", "*.tsx"],

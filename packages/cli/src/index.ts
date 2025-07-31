@@ -6,6 +6,11 @@ import { createArcadeTokenCommand } from './commands/create/arcade-token.js';
 import { mintCommand } from './commands/mint.js';
 import { freezeCommand } from './commands/freeze.js';
 import { thawCommand } from './commands/thaw.js';
+import { forceTransferCommand } from './commands/force-transfer.js';
+import { transferCommand } from './commands/transfer.js';
+import { inspectMintCommand } from './commands/inspect-mint.js';
+import { ebaltsCommand } from './commands/ebalts/ebalts.js';
+import { ablCommand } from './commands/abl/abl.js';
 
 const program = new Command();
 
@@ -27,6 +32,11 @@ createCommand.addCommand(createArcadeTokenCommand);
 program.addCommand(mintCommand);
 program.addCommand(freezeCommand);
 program.addCommand(thawCommand);
+program.addCommand(transferCommand);
+program.addCommand(forceTransferCommand);
+program.addCommand(inspectMintCommand);
+program.addCommand(ebaltsCommand);
+program.addCommand(ablCommand);
 
 // Global options
 program
