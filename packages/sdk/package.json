@@ -26,7 +26,10 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "gill": "^0.10.2"
+    "gill": "^0.10.2",
+    "@mosaic/tlv-account-resolution": "workspace:*",
+    "@mosaic/ebalts": "workspace:*",
+    "@mosaic/abl": "workspace:*"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

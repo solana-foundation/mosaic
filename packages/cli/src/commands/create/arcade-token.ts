@@ -60,7 +60,7 @@ export const createArcadeTokenCommand = new Command('arcade-token')
 
     try {
       // Get global options from parent command
-      const parentOpts = command.parent?.opts() || {};
+      const parentOpts = command.parent?.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
       const keypairPath = options.keypair || parentOpts.keypair;
 
@@ -123,7 +123,10 @@ export const createArcadeTokenCommand = new Command('arcade-token')
       spinner.text = 'Sending transaction...';
 
       // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction);
+      const signature = await sendAndConfirmTransaction(signedTransaction, {
+        skipPreflight: true,
+        commitment: 'confirmed',
+      });
 
       spinner.succeed('Arcade token created successfully!');
 

@@ -1,0 +1,370 @@
+{
+  "address": "8hNxmWetsVptuZ5LGYC6fM4xTpoUfPijz3NyYctyM79N",
+  "metadata": {
+    "name": "abl_srfc37",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "add_wallet_to_list",
+      "discriminator": [249, 25, 0, 35, 88, 124, 60, 201],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": ["list_config"]
+        },
+        {
+          "name": "list_config"
+        },
+        {
+          "name": "ab_wallet",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "list_config.seed",
+                "account": "ListConfig"
+              },
+              {
+                "kind": "arg",
+                "path": "wallet"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "wallet",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "can_freeze_permissionless",
+      "discriminator": [214, 141, 109, 75, 248, 1, 45, 29],
+      "accounts": [],
+      "args": []
+    },
+    {
+      "name": "can_thaw_permissionless",
+      "discriminator": [8, 175, 169, 129, 137, 74, 61, 241],
+      "accounts": [
+        {
+          "name": "authority"
+        },
+        {
+          "name": "token_account"
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "owner"
+        },
+        {
+          "name": "extra_metas"
+        },
+        {
+          "name": "list_config"
+        },
+        {
+          "name": "ab_wallet"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_list_config",
+      "discriminator": [201, 223, 17, 210, 208, 124, 101, 58],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "list_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [108, 105, 115, 116, 95, 99, 111, 110, 102, 105, 103]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "arg",
+                "path": "args.seed"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "InitializeListConfigArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "remove_wallet_from_list",
+      "discriminator": [185, 14, 13, 222, 207, 118, 221, 146],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": ["list_config"]
+        },
+        {
+          "name": "list_config"
+        },
+        {
+          "name": "ab_wallet",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "list_config.seed",
+                "account": "ListConfig"
+              },
+              {
+                "kind": "account",
+                "path": "ab_wallet.wallet",
+                "account": "ABWallet"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_extra_metas_thaw",
+      "discriminator": [6, 94, 201, 255, 159, 241, 169, 164],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "list_config"
+        },
+        {
+          "name": "ebalts_mint_config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [77, 73, 78, 84, 95, 67, 79, 78, 70, 73, 71]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                202, 3, 2, 25, 133, 31, 219, 239, 24, 84, 179, 198, 92, 76, 228,
+                172, 204, 14, 138, 90, 35, 151, 49, 178, 41, 166, 250, 0, 0, 0,
+                0, 0
+              ]
+            }
+          }
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "extra_metas_thaw",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116, 104, 97, 119, 95, 101, 120, 116, 114, 97, 95, 97, 99, 99,
+                  111, 117, 110, 116, 95, 109, 101, 116, 97, 115
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_list_mode",
+      "discriminator": [174, 19, 169, 240, 19, 9, 146, 12],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": ["list_config"]
+        },
+        {
+          "name": "list_config"
+        }
+      ],
+      "args": [
+        {
+          "name": "mode",
+          "type": {
+            "defined": {
+              "name": "Mode"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "ABWallet",
+      "discriminator": [111, 162, 31, 45, 79, 239, 198, 72]
+    },
+    {
+      "name": "ListConfig",
+      "discriminator": [9, 220, 3, 74, 122, 218, 71, 204]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "InvalidAuthority"
+    },
+    {
+      "code": 6001,
+      "name": "NotSupported"
+    },
+    {
+      "code": 6002,
+      "name": "InvalidMintConfig"
+    },
+    {
+      "code": 6003,
+      "name": "InvalidABWallet"
+    },
+    {
+      "code": 6004,
+      "name": "Unauthorized"
+    }
+  ],
+  "types": [
+    {
+      "name": "ABWallet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "wallet",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InitializeListConfigArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "seed",
+            "type": "pubkey"
+          },
+          {
+            "name": "mode",
+            "type": {
+              "defined": {
+                "name": "Mode"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ListConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "seed",
+            "type": "pubkey"
+          },
+          {
+            "name": "mode",
+            "type": {
+              "defined": {
+                "name": "Mode"
+              }
+            }
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Mode",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Allow"
+          },
+          {
+            "name": "AllowWithPermissionlessEOAs"
+          },
+          {
+            "name": "Block"
+          }
+        ]
+      }
+    }
+  ]
+}
