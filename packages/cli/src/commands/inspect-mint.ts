@@ -255,7 +255,7 @@ export const inspectMintCommand = new Command('inspect-mint')
                 ext.transferFeeConfigAuthority
               ) {
                 console.log(
-                  `     Authority: ${ext.transferFeeConfigAuthority.__option === 'Some' ? ext.transferFeeConfigAuthority.value : 'None'}`
+                  `     Authority: ${ext.transferFeeConfigAuthority}`
                 );
               }
               if (
@@ -263,7 +263,7 @@ export const inspectMintCommand = new Command('inspect-mint')
                 ext.withdrawWithheldAuthority
               ) {
                 console.log(
-                  `     Withdraw Authority: ${ext.withdrawWithheldAuthority.__option === 'Some' ? ext.withdrawWithheldAuthority.value : 'None'}`
+                  `     Withdraw Authority: ${ext.withdrawWithheldAuthority}`
                 );
               }
               break;
