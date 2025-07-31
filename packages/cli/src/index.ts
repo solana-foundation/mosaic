@@ -7,6 +7,7 @@ import { mintCommand } from './commands/mint.js';
 import { freezeCommand } from './commands/freeze.js';
 import { thawCommand } from './commands/thaw.js';
 import { forceTransferCommand } from './commands/force-transfer.js';
+import { transferCommand } from './commands/transfer.js';
 import { inspectMintCommand } from './commands/inspect-mint.js';
 
 const program = new Command();
@@ -29,6 +30,7 @@ createCommand.addCommand(createArcadeTokenCommand);
 program.addCommand(mintCommand);
 program.addCommand(freezeCommand);
 program.addCommand(thawCommand);
+program.addCommand(transferCommand);
 program.addCommand(forceTransferCommand);
 program.addCommand(inspectMintCommand);
 
