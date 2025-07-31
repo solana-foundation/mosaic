@@ -1,19 +1,14 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createArcadeTokenInitTransaction, getCreateConfigTransaction } from '@mosaic/sdk';
+import { getCreateConfigTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
-    compressTransactionMessageUsingAddressLookupTables,
-    createTransaction,
-  generateKeyPairSigner,
   signTransactionMessageWithSigners,
   SolanaError,
   type Address,
 } from 'gill';
-import { findMintConfigPda, getCreateConfigInstruction } from '@mosaic/ebalts';
-import { EBALTS_PROGRAM_ID } from './util.js';
 
 interface CreateConfigOptions {
   mint: string;
@@ -26,8 +21,6 @@ export const createConfig = new Command('create')
   .description('Create a new ebalts config for an existing mint')
   .requiredOption('-m, --mint <mint>', 'Mint address')
   .option('-g, --gating-program <gating-program>', 'Gating program address')
-  //.option('-p, --payer <payer>', 'Payer address')
-  //.option('-a, --authority <authority>', 'Authority address')
   .action(async (options: CreateConfigOptions, command) => {
     const spinner = ora('Creating ebalts config...').start();
 
@@ -37,9 +30,6 @@ export const createConfig = new Command('create')
       const keypairPath = options.keypair || parentOpts.keypair;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
       const kp = await loadKeypair(options.keypair);
-
-      console.log(options);
-      console.log(parentOpts);
 
       const gatingProgram = (options.gatingProgram || '11111111111111111111111111111111') as Address;
 
@@ -80,15 +70,6 @@ export const createConfig = new Command('create')
         error instanceof Error ? error.message : 'Unknown error'
       );
       
-      console.error(
-        chalk.red('❌ Error:'),
-        error
-      );
-      console.error(
-        chalk.red('❌ Error:'),
-        error instanceof SolanaError ? error : error instanceof Error ? error.message : 'Unknown error'
-      );
-
       process.exit(1);
     }
   });

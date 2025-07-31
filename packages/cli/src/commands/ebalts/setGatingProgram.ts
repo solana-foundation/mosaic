@@ -1,18 +1,15 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createArcadeTokenInitTransaction, getSetGatingProgramTransaction } from '@mosaic/sdk';
+import {  getSetGatingProgramTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
-    compressTransactionMessageUsingAddressLookupTables,
-    createTransaction,
-  generateKeyPairSigner,
   signTransactionMessageWithSigners,
   SolanaError,
   type Address,
 } from 'gill';
-import { findMintConfigPda, getCreateConfigInstruction, getSetGatingProgramInstruction } from '@mosaic/ebalts';
+import { findMintConfigPda } from '@mosaic/ebalts';
 import { EBALTS_PROGRAM_ID } from './util.js';
 
 interface CreateConfigOptions {
@@ -30,20 +27,14 @@ export const setGatingProgram = new Command('set-gating-program')
     const spinner = ora('Setting gating program...').start();
 
     try {
-        const parentOpts = command.parent?.parent?.opts() || {};
-        const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-        const keypairPath = options.keypair || parentOpts.keypair;
+      const parentOpts = command.parent?.parent?.opts() || {};
+      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
+      const keypairPath = options.keypair || parentOpts.keypair;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
       const kp = await loadKeypair(options.keypair);
 
-      console.log(options);
-      console.log(parentOpts);
-
-      const signerAddress = kp.address;
-
       const mintConfigPda = await findMintConfigPda({ mint: options.mint as Address }, { programAddress: EBALTS_PROGRAM_ID });
       const gatingProgram = (options.gatingProgram || '11111111111111111111111111111111') as Address;
-
       
       const transaction = await getSetGatingProgramTransaction({
         rpc,
@@ -53,7 +44,6 @@ export const setGatingProgram = new Command('set-gating-program')
         gatingProgram: gatingProgram,
       });
 
-      
       spinner.text = 'Signing transaction...';
 
       // Sign the transaction
@@ -65,10 +55,10 @@ export const setGatingProgram = new Command('set-gating-program')
       // Send and confirm transaction
       const signature = await sendAndConfirmTransaction(signedTransaction, { skipPreflight: true, commitment: 'confirmed'});
 
-      spinner.succeed('Ebalts config created successfully!');
+      spinner.succeed('Gating program set successfully!');
 
       // Display results
-      console.log(chalk.green('✅ Ebalts config created successfully!'));
+      console.log(chalk.green('✅ Gating program set successfully!'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Mint:')} ${options.mint}`);
       console.log(`   ${chalk.bold('Gating Program:')} ${options.gatingProgram}`);
@@ -76,21 +66,12 @@ export const setGatingProgram = new Command('set-gating-program')
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
     }
     catch (error) {
-      spinner.fail('Failed to create ebalts config');
+      spinner.fail('Failed to set gating program');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
       );
       
-      console.error(
-        chalk.red('❌ Error:'),
-        error
-      );
-      console.error(
-        chalk.red('❌ Error:'),
-        error instanceof SolanaError ? error : error instanceof Error ? error.message : 'Unknown error'
-      );
-
       process.exit(1);
     }
   });

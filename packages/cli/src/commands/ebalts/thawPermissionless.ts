@@ -1,25 +1,15 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createArcadeTokenInitTransaction, getThawPermissionlessTransaction } from '@mosaic/sdk';
+import { getThawPermissionlessTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
-    compressTransactionMessageUsingAddressLookupTables,
-    createTransaction,
-  generateKeyPairSigner,
   signTransactionMessageWithSigners,
   SolanaError,
   type Address,
-  AccountRole,
-  fetchEncodedAccount,
-  lamports,
 } from 'gill';
-import { createThawPermissionlessInstructionWithExtraMetas, findMintConfigPda, getCreateConfigInstruction, getSetGatingProgramInstruction } from '@mosaic/ebalts';
-import { EBALTS_PROGRAM_ID } from './util.js';
-import { AccountState, getAssociatedTokenAccountAddress, getTokenEncoder, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
-import { ABL_PROGRAM_ID } from '../abl/utils.js';
-import { findABWalletPda } from '@mosaic/abl';
+import {  getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
 
 interface CreateConfigOptions {
   mint: string;
@@ -34,9 +24,9 @@ export const thawPermissionless = new Command('thaw-permissionless')
     const spinner = ora('Thawing permissionless...').start();
 
     try {
-        const parentOpts = command.parent?.parent?.opts() || {};
-        const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-        const keypairPath = options.keypair || parentOpts.keypair;
+      const parentOpts = command.parent?.parent?.opts() || {};
+      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
+      const keypairPath = options.keypair || parentOpts.keypair;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
       const kp = await loadKeypair(options.keypair);
 
@@ -84,19 +74,10 @@ export const thawPermissionless = new Command('thaw-permissionless')
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
     }
     catch (error) {
-      spinner.fail('Failed to create ebalts config');
+      spinner.fail('Failed to thaw permissionless');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
-      );
-      
-      console.error(
-        chalk.red('❌ Error:'),
-        error
-      );
-      console.error(
-        chalk.red('❌ Error:'),
-        error instanceof SolanaError ? error : error instanceof Error ? error.message : 'Unknown error'
       );
 
       process.exit(1);

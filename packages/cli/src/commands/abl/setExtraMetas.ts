@@ -1,15 +1,11 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createArcadeTokenInitTransaction, getSetExtraMetasTransaction } from '@mosaic/sdk';
+import { getSetExtraMetasTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
-    compressTransactionMessageUsingAddressLookupTables,
-    createTransaction,
-  generateKeyPairSigner,
   signTransactionMessageWithSigners,
-  SolanaError,
   type Address,
 } from 'gill';
 
@@ -28,14 +24,11 @@ export const setExtraMetas = new Command('set-extra-metas')
     const spinner = ora('Setting extra metas...').start();
 
     try {
-        const parentOpts = command.parent?.parent?.opts() || {};
-        const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-        const keypairPath = options.keypair || parentOpts.keypair;
+      const parentOpts = command.parent?.parent?.opts() || {};
+      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
+      const keypairPath = options.keypair || parentOpts.keypair;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
       const kp = await loadKeypair(keypairPath);
-
-      console.log(options);
-      console.log(parentOpts);
       
       const transaction = await getSetExtraMetasTransaction({
         rpc,
@@ -61,23 +54,16 @@ export const setExtraMetas = new Command('set-extra-metas')
 
       // Display results
       console.log(chalk.green('✅ Extra metas set successfully!'));
+      console.log(chalk.cyan('📋 Details:'));
+      console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
     }
     catch (error) {
-      spinner.fail('Failed to create ebalts config');
+      spinner.fail('Failed to set extra metas');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
       );
       
-      console.error(
-        chalk.red('❌ Error:'),
-        error
-      );
-      console.error(
-        chalk.red('❌ Error:'),
-        error instanceof SolanaError ? error : error instanceof Error ? error.message : 'Unknown error'
-      );
-
       process.exit(1);
     }
   });

@@ -17,7 +17,6 @@ export async function resolveExtraMetas(
     const resolvedMetas = [...previousMetas];
     for (const extraAccountMeta of extraAccountMetas) {
         const resolvedMeta = await resolveExtraAccountMeta(accountRetriever, extraAccountMeta, resolvedMetas, instructionData, programId);
-        console.log("resolvedMeta", resolvedMeta);
         resolvedMetas.push(resolvedMeta);
     }
     return resolvedMetas;
@@ -63,8 +62,6 @@ export function unpackExtraAccountMetas(
     const length = new DataView(data.buffer, 8, 4).getUint32(0, true);
     const count = new DataView(data.buffer, 12, 4).getUint32(0, true);
     const offset = 16;
-
-    console.log(length, count);
 
     if (length !== count * 35 + 4) {
         throw new TokenTransferHookInvalidPubkeyData();
@@ -125,12 +122,7 @@ export async function resolveExtraAccountMeta(
     }
 
     const seeds = await unpackSeeds(extraMeta.addressConfig, previousMetas, instructionData, accountRetriever);
-    //console.log("seeds", seeds);
-    console.log("seedProgramId", seedProgramId);
-    for (const seed of seeds) {
-        console.log("seed", seed);
-        console.log("address: ",getAddressDecoder().decode(seed));
-    }
+    
     const address =  await getProgramDerivedAddress({
         programAddress: seedProgramId,
         seeds,
