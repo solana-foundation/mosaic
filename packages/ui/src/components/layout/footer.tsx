@@ -1,5 +1,4 @@
 import { GithubIcon, TwitterIcon } from 'lucide-react';
-import SolanaLogoMark from '../../../public/solanaLogoMark.svg';
 
 export function Footer() {
   return (
