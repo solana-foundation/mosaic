@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/card';
 import { TokenDisplay } from '@/types/token';
 import { findTokenByAddress } from '@/lib/tokenData';
+import { Loader } from '@/components/ui/loader';
 
 export default function ManageTokenPage() {
   const { connected, publicKey } = useWallet();
@@ -145,7 +146,7 @@ function ManageTokenConnected({ address }: { address: string }) {
       <div className="flex-1 p-8">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <Loader className="h-8 w-8 mx-auto mb-4" />
             <p className="text-muted-foreground">Loading token details...</p>
           </div>
         </div>
