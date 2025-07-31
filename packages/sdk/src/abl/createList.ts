@@ -3,6 +3,17 @@ import { ABL_PROGRAM_ID } from "./utils";
 import { findListConfigPda, getInitializeListConfigInstruction, Mode } from '@mosaic/abl';
 
 
+/**
+ * Generates instructions for creating a new allowlist/blocklist configuration.
+ * 
+ * This function creates the necessary instructions to initialize a list configuration
+ * that can be used for gating token operations. The list can be configured as either
+ * an allowlist or blocklist depending on the mode.
+ * 
+ * @param input - Configuration parameters for list creation
+ * @param input.authority - The authority signer who will control the list configuration
+ * @returns Promise containing the instructions and the list configuration address
+ */
 export const getCreateListInstructions = async (input: {
     authority: TransactionSigner<string>;
   }): Promise<{instructions: Instruction<string>[], listConfig: Address}> => {
@@ -25,6 +36,19 @@ export const getCreateListInstructions = async (input: {
     };
 }
 
+/**
+ * Creates a complete transaction for initializing a new allowlist/blocklist configuration.
+ * 
+ * This function builds a full transaction that can be signed and sent to create
+ * a list configuration. The transaction includes the necessary instructions and
+ * uses the latest blockhash for proper transaction construction.
+ * 
+ * @param input - Configuration parameters for the transaction
+ * @param input.rpc - The Solana RPC client instance
+ * @param input.payer - The transaction fee payer signer
+ * @param input.authority - The authority signer who will control the list configuration
+ * @returns Promise containing the full transaction and the list configuration address
+ */
 export const getCreateListTransaction = async (input: {
     rpc: Rpc<SolanaRpcApi>;
     payer: TransactionSigner<string>;

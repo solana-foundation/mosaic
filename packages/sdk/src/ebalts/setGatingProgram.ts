@@ -5,6 +5,19 @@ import { findMintConfigPda, getCreateConfigInstruction, getSetGatingProgramInstr
 import { EBALTS_PROGRAM_ID } from "./utils";
 
 
+/**
+ * Generates instructions for setting or updating the gating program for a mint.
+ * 
+ * This function creates instructions to configure which program will gate operations
+ * on a specific mint. The gating program controls access to the permissionless thaw functionality.
+ * If no gating program is provided, it defaults to the System Program (11111111111111111111111111111111).
+ * 
+ * @param input - Configuration parameters for setting the gating program
+ * @param input.authority - The authority signer who can modify the gating configuration
+ * @param input.mint - The mint address for which to set the gating program
+ * @param input.gatingProgram - The program address that will gate operations on this mint
+ * @returns Promise containing the instructions for setting the gating program
+ */
 export const getSetGatingProgramInstructions = async (input: {
     authority: TransactionSigner<string>;
     mint: Address;
@@ -24,6 +37,21 @@ export const getSetGatingProgramInstructions = async (input: {
     return [setGatingProgramInstruction];
 }
 
+/**
+ * Creates a complete transaction for setting or updating the gating program.
+ * 
+ * This function builds a full transaction that can be signed and sent to configure
+ * the gating program for a specific mint. The transaction includes the necessary
+ * instructions and uses the latest blockhash for proper construction.
+ * 
+ * @param input - Configuration parameters for the transaction
+ * @param input.rpc - The Solana RPC client instance
+ * @param input.payer - The transaction fee payer signer
+ * @param input.authority - The authority signer who can modify the gating configuration
+ * @param input.mint - The mint address for which to set the gating program
+ * @param input.gatingProgram - The program address that will gate operations on this mint
+ * @returns Promise containing the full transaction for setting the gating program
+ */
 export const getSetGatingProgramTransaction = async (input: {
     rpc: Rpc<SolanaRpcApi>;
     payer: TransactionSigner<string>;

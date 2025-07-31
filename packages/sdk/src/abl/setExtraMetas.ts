@@ -5,6 +5,19 @@ import { findMintConfigPda, findThawExtraMetasAccountPda } from '@mosaic/ebalts'
 import { EBALTS_PROGRAM_ID } from "../ebalts";
 
 
+/**
+ * Generates instructions for setting extra metadata thaw configuration for a token.
+ * 
+ * This function creates instructions to configure the extra accounts metadata
+ * on a specific mint, effectively assigning a specific allow / block list to a token account.
+ * This is used in conjunction with the EBALTS program to permissionlessly thaw token accounts.
+ * 
+ * @param input - Configuration parameters for setting extra metadata thaw
+ * @param input.authority - The authority signer who can modify the thaw configuration
+ * @param input.mint - The mint address for which to configure extra metadata thaw
+ * @param input.list - The list configuration address that controls the thaw permissions
+ * @returns Promise containing the instructions for setting extra metadata thaw
+ */
 export const getSetExtraMetasInstructions = async (input: {
     authority: TransactionSigner<string>;
     mint: Address;
@@ -27,6 +40,21 @@ export const getSetExtraMetasInstructions = async (input: {
     return [createListInstruction];
 }
 
+/**
+ * Creates a complete transaction for setting extra metadata thaw configuration for a token.
+ * 
+ * This function builds a full transaction that can be signed and sent to configure
+ * the thaw settings for extra metadata on a specific mint. The transaction includes
+ * the necessary instructions and uses the latest blockhash for proper construction.
+ * 
+ * @param input - Configuration parameters for the transaction
+ * @param input.rpc - The Solana RPC client instance
+ * @param input.payer - The transaction fee payer signer
+ * @param input.authority - The authority signer who can modify the thaw configuration
+ * @param input.mint - The mint address for which to configure extra metadata thaw
+ * @param input.list - The list configuration address that controls the thaw permissions
+ * @returns Promise containing the full transaction for setting extra metadata thaw
+ */
 export const getSetExtraMetasTransaction = async (input: {
     rpc: Rpc<SolanaRpcApi>;
     payer: TransactionSigner<string>;
