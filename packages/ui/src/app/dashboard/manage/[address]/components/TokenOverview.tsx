@@ -1,7 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Coins, Copy } from 'lucide-react';
+import { Coins, Copy, RefreshCw } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
+import { useContext, useEffect, useState } from 'react';
+import { RpcContext } from '@/context/RpcContext';
+import { getTokenSupply } from '@/lib/utils';
 
 interface TokenOverviewProps {
   token: TokenDisplay;
@@ -10,6 +13,30 @@ interface TokenOverviewProps {
 }
 
 export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
+  const { rpc } = useContext(RpcContext);
+  const [currentSupply, setCurrentSupply] = useState<string>(token.supply || '0');
+  const [isLoadingSupply, setIsLoadingSupply] = useState(false);
+
+  const fetchSupply = async () => {
+    if (!token.address) return;
+    
+    setIsLoadingSupply(true);
+    try {
+      const supply = await getTokenSupply(rpc, token.address as any);
+      setCurrentSupply(supply);
+    } catch (error) {
+      console.error('Failed to fetch supply:', error);
+      setCurrentSupply(token.supply || '0');
+    } finally {
+      setIsLoadingSupply(false);
+    }
+  };
+
+  // Fetch supply on component mount
+  useEffect(() => {
+    fetchSupply();
+  }, [token.address]);
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown';
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -58,7 +85,20 @@ export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
             <label className="text-sm font-medium text-muted-foreground">
               Supply
             </label>
-            <p className="text-lg font-semibold">{token.supply || '0'}</p>
+            <div className="flex items-center space-x-2">
+              <p className="text-lg font-semibold">
+                {isLoadingSupply ? 'Loading...' : currentSupply}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchSupply}
+                disabled={isLoadingSupply}
+                className="h-6 w-6 p-0"
+              >
+                <RefreshCw className={`h-3 w-3 ${isLoadingSupply ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">
