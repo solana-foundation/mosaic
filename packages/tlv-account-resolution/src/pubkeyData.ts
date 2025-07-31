@@ -3,7 +3,7 @@ import {
   TokenTransferHookInvalidPubkeyData,
   TokenTransferHookPubkeyDataTooSmall,
   TokenTransferHookAccountNotFound,
-} from './errors.js';
+} from './errors';
 import {
   type Address,
   type AccountMeta,

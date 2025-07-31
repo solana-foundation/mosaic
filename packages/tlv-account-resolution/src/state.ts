@@ -1,9 +1,9 @@
 import {
   TokenTransferHookAccountNotFound,
   TokenTransferHookInvalidPubkeyData,
-} from './errors.js';
-import { unpackSeeds } from './seeds.js';
-import { unpackPubkeyData } from './pubkeyData.js';
+} from './errors';
+import { unpackSeeds } from './seeds';
+import { unpackPubkeyData } from './pubkeyData';
 import {
   type Address,
   type AccountMeta,

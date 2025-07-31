@@ -1,7 +1,7 @@
 import {
   TokenTransferHookAccountDataNotFound,
   TokenTransferHookInvalidSeed,
-} from './errors.js';
+} from './errors';
 import {
   type Address,
   type AccountMeta,
