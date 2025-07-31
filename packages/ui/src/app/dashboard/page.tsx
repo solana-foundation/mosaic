@@ -19,6 +19,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TokenDisplay } from '@/types/token';
+import { Badge } from '@/components/ui/badge';
+import { Loader } from '@/components/ui/loader';
 import { getAllTokens, getTokenCount } from '@/lib/token/tokenData';
 import { TokenStorage } from '@/lib/token/tokenStorage';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
@@ -80,7 +82,7 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
       <div className="flex-1 p-8">
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <Loader className="h-8 w-8 mx-auto mb-4" />
             <p className="text-muted-foreground">Loading your tokens...</p>
           </div>
         </div>
@@ -201,9 +203,14 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                     <Coins className="h-6 w-6 text-primary mr-3" />
                     <div>
                       <CardTitle className="text-lg">
-                        {token.name || `Token ${index + 1}`}
+                        {token.name || `Token ${index + 1}`}{' '}
+                        <Badge
+                          className="ml-2 align-middle text-sm"
+                          variant="outline"
+                        >
+                          {token.symbol || 'TKN'}
+                        </Badge>
                       </CardTitle>
-                      <CardDescription>{token.symbol || 'TKN'}</CardDescription>
                     </div>
                   </div>
                   <DropdownMenu>
@@ -246,25 +253,27 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Type:</span>
-                    <span className="font-medium">
+                    <span className="font-normal">
                       {getTokenTypeLabel(token.type)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Supply:</span>
-                    <span>{token.supply || '0'}</span>
+                    <span className="font-normal">{token.supply || '0'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Decimals:</span>
-                    <span>{token.decimals || '6'}</span>
+                    <span className="font-normal">{token.decimals || '6'}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Created:</span>
-                    <span>{formatDate(token.createdAt)}</span>
+                    <span className="font-normal">
+                      {formatDate(token.createdAt)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Status:</span>
-                    <span className="text-green-600">Active</span>
+                    <span className="text-green-600 font-normal">Active</span>
                   </div>
                   {token.extensions && token.extensions.length > 0 && (
                     <div className="pt-2">

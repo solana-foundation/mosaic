@@ -13,7 +13,7 @@
   "dependencies": {
     "@mosaic/sdk": "workspace:*",
     "@radix-ui/react-dropdown-menu": "^2.0.6",
-    "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-slot": "^1.2.3",
     "@solana/react": "^2.3.0",
     "@solana/signers": "^2.3.0",
     "@solana/wallet-adapter-base": "^0.9.27",
@@ -24,8 +24,8 @@
     "@wallet-standard/core": "^1.1.1",
     "@wallet-standard/react": "^1.0.1",
     "bs58": "^6.0.0",
-    "class-variance-authority": "^0.7.0",
-    "clsx": "^2.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "gill": "^0.10.2",
     "gill-react": "^0.4.4",
     "lucide-react": "^0.294.0",
@@ -33,7 +33,7 @@
     "next-themes": "^0.2.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tailwind-merge": "^2.0.0",
+    "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
