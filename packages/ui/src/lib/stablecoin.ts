@@ -15,10 +15,29 @@ import { UiWalletAccount } from '@wallet-standard/react';
 import bs58 from 'bs58';
 
 /**
- * Creates a stablecoin using the web-compatible version of the CLI script
+ * Validates stablecoin options and returns parsed decimals
+ * @param options - Stablecoin configuration options
+ * @returns Parsed decimals value
+ * @throws Error if validation fails
+ */
+function validateStablecoinOptions(options: StablecoinOptions): number {
+  if (!options.name || !options.symbol) {
+    throw new Error('Name and symbol are required');
+  }
+
+  const decimals = parseInt(options.decimals, 10);
+  if (isNaN(decimals) || decimals < 0 || decimals > 9) {
+    throw new Error('Decimals must be a number between 0 and 9');
+  }
+
+  return decimals;
+}
+
+/**
+ * Creates a stablecoin using the wallet standard transaction signer
  * @param options - Configuration options for the stablecoin
- * @param wallet - Solana wallet instance
- * @returns Promise that resolves to the transaction signature
+ * @param signer - Transaction sending signer instance
+ * @returns Promise that resolves to creation result with signature and mint address
  */
 export const createStablecoin = async (
   options: StablecoinOptions,
@@ -30,15 +49,7 @@ export const createStablecoin = async (
   mintAddress?: string;
 }> => {
   try {
-    if (!options.name || !options.symbol) {
-      throw new Error('Name and symbol are required');
-    }
-
-    // Parse decimals
-    const decimals = parseInt(options.decimals, 10);
-    if (isNaN(decimals) || decimals < 0 || decimals > 9) {
-      throw new Error('Decimals must be a number between 0 and 9');
-    }
+    const decimals = validateStablecoinOptions(options);
 
     // Get wallet public key
     const walletPublicKey = signer.address;
@@ -86,9 +97,6 @@ export const createStablecoin = async (
     const signature =
       await signAndSendTransactionMessageWithSigners(transaction);
 
-    // Return the transaction signature as a base58 string
-    // (signature is Uint8Array, so use bs58 to encode)
-    // Import bs58 at the top of your file: import bs58 from 'bs58';
     return {
       success: true,
       transactionSignature: bs58.encode(signature),
@@ -111,16 +119,7 @@ export const createStablecoinForUI = async (
   wallet: UiWalletAccount
 ): Promise<StablecoinCreationResult> => {
   try {
-    // Validate required fields
-    if (!options.name || !options.symbol) {
-      throw new Error('Name and symbol are required');
-    }
-
-    // Parse decimals
-    const decimals = parseInt(options.decimals, 10);
-    if (isNaN(decimals) || decimals < 0 || decimals > 9) {
-      throw new Error('Decimals must be a number between 0 and 9');
-    }
+    const decimals = validateStablecoinOptions(options);
 
     // Get wallet public key
     const walletPublicKey = wallet.publicKey;

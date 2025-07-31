@@ -10,13 +10,13 @@ import {
 
 const STORAGE_KEY = 'solana-example-react-app:selected-chain';
 
-export function ChainContextProvider({
-  children,
-}: {
+interface ChainContextProviderProps {
   children: React.ReactNode;
-}) {
+}
+
+export function ChainContextProvider({ children }: ChainContextProviderProps) {
   const [chain, setChain] = useState(
-    () => localStorage?.getItem(STORAGE_KEY) ?? 'solana:devnet'
+    () => localStorage.getItem(STORAGE_KEY) ?? 'solana:devnet'
   );
   const contextValue = useMemo<ChainContextType>(() => {
     switch (chain) {
@@ -54,7 +54,7 @@ export function ChainContextProvider({
       value={useMemo(
         () => ({
           ...contextValue,
-          setChain(newChain) {
+          setChain(newChain: `solana:${string}`) {
             localStorage.setItem(STORAGE_KEY, newChain);
             setChain(newChain);
           },

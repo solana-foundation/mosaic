@@ -1,15 +1,15 @@
 'use client';
 import { createSolanaRpc, createSolanaRpcSubscriptions } from 'gill';
-import { type ReactNode, useContext, useMemo } from 'react';
+import React, { useContext, useMemo } from 'react';
 
 import { ChainContext } from './ChainContext';
 import { RpcContext } from './RpcContext';
 
-type Props = Readonly<{
-  children: ReactNode;
-}>;
+interface RpcContextProviderProps {
+  children: React.ReactNode;
+}
 
-export function RpcContextProvider({ children }: Props) {
+export function RpcContextProvider({ children }: RpcContextProviderProps) {
   const { solanaRpcSubscriptionsUrl, solanaRpcUrl } = useContext(ChainContext);
   return (
     <RpcContext.Provider
