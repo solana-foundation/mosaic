@@ -1,4 +1,5 @@
 import { GithubIcon, TwitterIcon } from 'lucide-react';
+import SolanaLogoMark from '../../../public/solanaLogoMark.svg';
 
 export function Footer() {
   return (
@@ -32,6 +33,15 @@ export function Footer() {
             className="hover:text-primary"
           >
             <TwitterIcon className="w-5 h-5" />
+          </a>
+          <a
+            href="https://solana.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Solana"
+            className="hover:text-primary"
+          >
+            <img src="/solanaLogoMark.svg" alt="Solana" className="w-5 h-5" />
           </a>
         </div>
       </div>
