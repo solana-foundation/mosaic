@@ -33,7 +33,7 @@ import {
   type MaybeAccount,
   type MaybeEncodedAccount,
 } from '@solana/kit';
-import { MintConfigSeeds, findMintConfigPda } from '../pdas';
+import { type MintConfigSeeds, findMintConfigPda } from '../pdas';
 
 export const MINT_CONFIG_DISCRIMINATOR = 1;
 
