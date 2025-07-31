@@ -61,6 +61,28 @@
     font-family: var(--font-sans), sans-serif;
     font-weight: 300;
   }
+
+  input,
+  textarea,
+  select {
+    @apply px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-card text-foreground;
+    transition: box-shadow 0.2s, border-color 0.2s;
+  }
+
+  input:disabled,
+  textarea:disabled,
+  select:disabled {
+    @apply bg-muted text-muted-foreground cursor-not-allowed opacity-70;
+  }
+
+  label {
+    @apply block text-sm font-medium mb-2;
+  }
+
+  button {
+    @apply px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-primary;
+    transition: background 0.2s, color 0.2s;
+  }
 }
 
 .mosaic-text {
