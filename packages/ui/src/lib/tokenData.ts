@@ -1,7 +1,8 @@
 import { TokenDisplay } from '@/types/token';
+import { TokenStorage } from './tokenStorage';
 
-// Token data definitions
-export const tokenData: TokenDisplay[] = [
+// Legacy token data for backward compatibility
+const legacyTokenData: TokenDisplay[] = [
   {
     name: 'AadilUSD',
     symbol: 'AUSD',
@@ -20,10 +21,27 @@ export const tokenData: TokenDisplay[] = [
 
 // Function to find token by address
 export const findTokenByAddress = (address: string): TokenDisplay | null => {
-  return tokenData.find(token => token.address === address) || null;
+  return TokenStorage.findTokenByAddress(address);
 };
 
-// Function to get all tokens
+// Function to get all tokens from local storage
 export const getAllTokens = (): TokenDisplay[] => {
-  return tokenData;
+  const storedTokens = TokenStorage.getAllTokens();
+  
+  // If no tokens in storage, return legacy data for demo purposes
+  if (storedTokens.length === 0) {
+    return legacyTokenData;
+  }
+  
+  return storedTokens;
+};
+
+// Function to get tokens by type
+export const getTokensByType = (type: string): TokenDisplay[] => {
+  return TokenStorage.getTokensByType(type);
+};
+
+// Function to get token count
+export const getTokenCount = (): number => {
+  return TokenStorage.getTokenCount();
 };

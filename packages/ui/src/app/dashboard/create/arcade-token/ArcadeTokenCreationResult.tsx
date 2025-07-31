@@ -1,28 +1,28 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, CheckCircle, Settings } from 'lucide-react';
-import { StablecoinCreationResult } from '@/types/token';
+import { Gamepad2, CheckCircle, Settings } from 'lucide-react';
+import { ArcadeTokenCreationResult } from '@/types/token';
 import Link from 'next/link';
 
-interface StablecoinCreationResultProps {
-  result: StablecoinCreationResult;
+interface ArcadeTokenCreationResultProps {
+  result: ArcadeTokenCreationResult;
 }
 
-export function StablecoinCreationResultDisplay({
+export function ArcadeTokenCreationResultDisplay({
   result,
-}: StablecoinCreationResultProps) {
+}: ArcadeTokenCreationResultProps) {
   return (
     <Card className="mb-8">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           {result.success ? (
             <>
-              <DollarSign className="h-6 w-6 text-green-600" />
-              Stablecoin Created Successfully!
+              <Gamepad2 className="h-6 w-6 text-green-600" />
+              Arcade Token Created Successfully!
             </>
           ) : (
             <>
-              <DollarSign className="h-6 w-6 text-red-600" />
+              <Gamepad2 className="h-6 w-6 text-red-600" />
               Creation Failed
             </>
           )}
@@ -50,7 +50,7 @@ export function StablecoinCreationResultDisplay({
               </code>
             </div>
             <div className="text-sm text-muted-foreground">
-              Your stablecoin has been successfully created with the following
+              Your arcade token has been successfully created with the following
               parameters:
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -89,4 +89,4 @@ export function StablecoinCreationResultDisplay({
       </CardContent>
     </Card>
   );
-}
+} 

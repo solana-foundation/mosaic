@@ -14,6 +14,8 @@ import {
   X,
   Shield,
   Ban,
+  Calendar,
+  Hash,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -26,6 +28,7 @@ import {
 } from '@/components/ui/card';
 import { TokenDisplay } from '@/types/token';
 import { findTokenByAddress } from '@/lib/tokenData';
+import { TokenStorage } from '@/lib/tokenStorage';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 
 export default function ManageTokenPage() {
@@ -61,34 +64,22 @@ function ManageTokenConnected({ address }: { address: string }) {
   const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
-    // Simulate loading token data
-    setTimeout(() => {
-      // Find token by address from shared data
+    // Load token data from local storage
+    const loadTokenData = () => {
       const foundToken = findTokenByAddress(address);
 
       if (foundToken) {
         setToken(foundToken);
 
-        // Set allowlist/blocklist based on token type
-        if (foundToken.type === 'stablecoin') {
-          // Stablecoins use blocklists
-          setBlocklist([
-            '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy',
-            '5Q544fKrFoe6tsEbD7S8EmxGTJYAKtTVhAW5Q5pge4j1',
-          ]);
-          setAllowlist([]); // Empty for stablecoins
-        } else if (foundToken.type === 'arcade-token') {
-          // Arcade tokens use allowlists
-          setAllowlist([
-            '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
-            '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM',
-          ]);
-          setBlocklist([]); // Empty for arcade tokens
-        }
+        // Initialize empty lists - in a real app, these would be loaded from the blockchain
+        setAllowlist([]);
+        setBlocklist([]);
       }
 
       setLoading(false);
-    }, 1000);
+    };
+
+    loadTokenData();
   }, [address]);
 
   const copyToClipboard = async (text: string) => {
@@ -102,7 +93,11 @@ function ManageTokenConnected({ address }: { address: string }) {
   };
 
   const openInExplorer = () => {
-    window.open(`https://explorer.solana.com/address/${address}`, '_blank');
+    window.open(`https://explorer.solana.com/address/${address}?cluster=devnet`, '_blank');
+  };
+
+  const openInSolscan = () => {
+    window.open(`https://solscan.io/token/${address}?cluster=devnet`, '_blank');
   };
 
   const addToAllowlist = () => {
@@ -140,6 +135,28 @@ function ManageTokenConnected({ address }: { address: string }) {
     // console.log(`${isPaused ? 'Unpausing' : 'Pausing'} token: ${address}`);
   };
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getTokenTypeLabel = (type?: string) => {
+    switch (type) {
+      case 'stablecoin':
+        return 'Stablecoin';
+      case 'arcade-token':
+        return 'Arcade Token';
+      default:
+        return type || 'Unknown';
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex-1 p-8">
@@ -160,7 +177,7 @@ function ManageTokenConnected({ address }: { address: string }) {
           <div className="text-center">
             <h2 className="text-3xl font-bold mb-4">Token Not Found</h2>
             <p className="text-muted-foreground mb-6">
-              The token with address {address} could not be found.
+              The token with address {address} could not be found in your local storage.
             </p>
             <Link href="/dashboard">
               <Button>
@@ -189,11 +206,15 @@ function ManageTokenConnected({ address }: { address: string }) {
             <div>
               <h1 className="text-3xl font-bold">{token.name}</h1>
               <p className="text-muted-foreground">
-                Manage your {token.type} token
+                Manage your {getTokenTypeLabel(token.type)} token
               </p>
             </div>
           </div>
           <div className="flex space-x-2">
+            <Button variant="outline" onClick={openInSolscan}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              View on Solscan
+            </Button>
             <Button variant="outline" onClick={openInExplorer}>
               <ExternalLink className="h-4 w-4 mr-2" />
               View on Explorer
@@ -229,15 +250,27 @@ function ManageTokenConnected({ address }: { address: string }) {
                     <label className="text-sm font-medium text-muted-foreground">
                       Supply
                     </label>
-                    <p className="text-lg font-semibold">{token.supply}</p>
+                    <p className="text-lg font-semibold">{token.supply || '0'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Decimals
+                    </label>
+                    <p className="text-lg font-semibold">{token.decimals || '6'}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">
                       Type
                     </label>
-                    <p className="text-lg font-semibold capitalize">
-                      {token.type}
+                    <p className="text-lg font-semibold">
+                      {getTokenTypeLabel(token.type)}
                     </p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Created
+                    </label>
+                    <p className="text-lg font-semibold">{formatDate(token.createdAt)}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">
@@ -260,14 +293,15 @@ function ManageTokenConnected({ address }: { address: string }) {
                   <label className="text-sm font-medium text-muted-foreground">
                     Token Address
                   </label>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono">
+                  <div className="flex items-start space-x-2 mt-1">
+                    <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono break-all">
                       {token.address}
                     </code>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => copyToClipboard(token.address || '')}
+                      className="flex-shrink-0"
                     >
                       <Copy className="h-4 w-4" />
                     </Button>
@@ -276,6 +310,105 @@ function ManageTokenConnected({ address }: { address: string }) {
                     <p className="text-sm text-green-600 mt-1">
                       Copied to clipboard!
                     </p>
+                  )}
+                </div>
+
+                {token.transactionSignature && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Creation Transaction
+                    </label>
+                    <div className="flex items-start space-x-2 mt-1">
+                      <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono break-all">
+                        {token.transactionSignature}
+                      </code>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(token.transactionSignature || '')}
+                        className="flex-shrink-0"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {token.metadataUri && (
+                  <div>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Metadata URI
+                    </label>
+                    <p className="text-sm bg-muted px-3 py-2 rounded mt-1">
+                      {token.metadataUri}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Authorities */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Settings className="h-5 w-5 mr-2" />
+                  Token Authorities
+                </CardTitle>
+                <CardDescription>
+                  Manage the authorities for this token
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {token.mintAuthority && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Mint Authority
+                      </label>
+                      <code className="block text-sm bg-muted px-2 py-1 rounded mt-1 font-mono">
+                        {token.mintAuthority.slice(0, 8)}...{token.mintAuthority.slice(-8)}
+                      </code>
+                    </div>
+                  )}
+                  {token.metadataAuthority && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Metadata Authority
+                      </label>
+                      <code className="block text-sm bg-muted px-2 py-1 rounded mt-1 font-mono">
+                        {token.metadataAuthority.slice(0, 8)}...{token.metadataAuthority.slice(-8)}
+                      </code>
+                    </div>
+                  )}
+                  {token.pausableAuthority && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Pausable Authority
+                      </label>
+                      <code className="block text-sm bg-muted px-2 py-1 rounded mt-1 font-mono">
+                        {token.pausableAuthority.slice(0, 8)}...{token.pausableAuthority.slice(-8)}
+                      </code>
+                    </div>
+                  )}
+                  {token.confidentialBalancesAuthority && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Confidential Balances Authority
+                      </label>
+                      <code className="block text-sm bg-muted px-2 py-1 rounded mt-1 font-mono">
+                        {token.confidentialBalancesAuthority.slice(0, 8)}...{token.confidentialBalancesAuthority.slice(-8)}
+                      </code>
+                    </div>
+                  )}
+                  {token.permanentDelegateAuthority && (
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">
+                        Permanent Delegate Authority
+                      </label>
+                      <code className="block text-sm bg-muted px-2 py-1 rounded mt-1 font-mono">
+                        {token.permanentDelegateAuthority.slice(0, 8)}...{token.permanentDelegateAuthority.slice(-8)}
+                      </code>
+                    </div>
                   )}
                 </div>
               </CardContent>
@@ -289,11 +422,28 @@ function ManageTokenConnected({ address }: { address: string }) {
                   Token Extensions
                 </CardTitle>
                 <CardDescription>
-                  Manage the extensions enabled on this token
+                  Extensions enabled on this token
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
+                  {token.extensions && token.extensions.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {token.extensions.map((extension, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
+                        >
+                          {extension}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No extensions configured
+                    </p>
+                  )}
+
                   <div className="p-3 border rounded-lg">
                     <div className="flex items-center justify-between mb-3">
                       <div>

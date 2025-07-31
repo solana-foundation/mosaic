@@ -2,7 +2,7 @@
 
 import { useContext, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Settings, Coins } from 'lucide-react';
+import { Plus, Settings, Coins, Trash2, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import {
   Card,
@@ -19,7 +19,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TokenDisplay } from '@/types/token';
-import { getAllTokens } from '@/lib/tokenData';
+import { getAllTokens, getTokenCount } from '@/lib/tokenData';
+import { TokenStorage } from '@/lib/tokenStorage';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 
 export default function DashboardPage() {
@@ -33,18 +34,42 @@ export default function DashboardPage() {
 }
 
 function DashboardConnected({ publicKey }: { publicKey: string }) {
-  // Placeholder: Replace with actual token fetching logic
   const [tokens, setTokens] = useState<TokenDisplay[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate loading tokens
-    setTimeout(() => {
-      // Get tokens from shared data
-      setTokens(getAllTokens());
+    // Load tokens from local storage
+    const loadTokens = () => {
+      const storedTokens = getAllTokens();
+      setTokens(storedTokens);
       setLoading(false);
-    }, 1000);
+    };
+
+    loadTokens();
   }, []);
+
+  const handleDeleteToken = (address: string) => {
+    if (confirm('Are you sure you want to delete this token from your local storage?')) {
+      TokenStorage.deleteToken(address);
+      setTokens(getAllTokens());
+    }
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const getTokenTypeLabel = (type?: string) => {
+    switch (type) {
+      case 'stablecoin':
+        return 'Stablecoin';
+      case 'arcade-token':
+        return 'Arcade Token';
+      default:
+        return type || 'Unknown';
+    }
+  };
 
   if (loading) {
     return (
@@ -135,7 +160,7 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
           <div>
             <h2 className="text-3xl font-bold mb-2">Your Tokens</h2>
             <p className="text-muted-foreground">
-              Manage your created tokens and their extensions
+              Manage your created tokens and their extensions ({getTokenCount()} total)
             </p>
           </div>
           <DropdownMenu>
@@ -176,22 +201,84 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                       <CardDescription>{token.symbol || 'TKN'}</CardDescription>
                     </div>
                   </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <Settings className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem asChild>
+                        <Link href={`/dashboard/manage/${token.address}`}>
+                          <Settings className="h-4 w-4 mr-2" />
+                          Manage
+                        </Link>
+                      </DropdownMenuItem>
+                      {token.address && (
+                        <DropdownMenuItem asChild>
+                          <a
+                            href={`https://solscan.io/token/${token.address}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4 mr-2" />
+                            View on Solscan
+                          </a>
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem
+                        onClick={() => handleDeleteToken(token.address!)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete from Storage
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </CardHeader>
               <CardContent className="flex-1">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Supply:</span>
-                    <span>{token.supply || '1,000,000'}</span>
+                    <span className="text-muted-foreground">Type:</span>
+                    <span className="font-medium">{getTokenTypeLabel(token.type)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Type:</span>
-                    <span>{token.type || 'Standard'}</span>
+                    <span className="text-muted-foreground">Supply:</span>
+                    <span>{token.supply || '0'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Decimals:</span>
+                    <span>{token.decimals || '6'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Created:</span>
+                    <span>{formatDate(token.createdAt)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Status:</span>
                     <span className="text-green-600">Active</span>
                   </div>
+                  {token.extensions && token.extensions.length > 0 && (
+                    <div className="pt-2">
+                      <span className="text-muted-foreground text-xs">Extensions:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {token.extensions.slice(0, 2).map((ext, idx) => (
+                          <span
+                            key={idx}
+                            className="px-1 py-0.5 bg-blue-100 text-blue-800 rounded text-xs"
+                          >
+                            {ext}
+                          </span>
+                        ))}
+                        {token.extensions.length > 2 && (
+                          <span className="px-1 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                            +{token.extensions.length - 2} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
               <CardFooter>
