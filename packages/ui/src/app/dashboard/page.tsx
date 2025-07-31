@@ -60,8 +60,6 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
     }
   };
 
-
-
   if (loading) {
     return (
       <div className="flex-1 p-8">

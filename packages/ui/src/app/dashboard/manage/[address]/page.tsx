@@ -53,12 +53,10 @@ function ManageTokenConnected({ address }: { address: string }) {
   const [isPaused, setIsPaused] = useState(false);
 
   // Create transaction sending signer if wallet is connected
-  const transactionSendingSigner = selectedWalletAccount && currentChain
-    ? useWalletAccountTransactionSendingSigner(
-        selectedWalletAccount,
-        currentChain
-      )
-    : null;
+  const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
+    selectedWalletAccount!,
+    currentChain!
+  );
 
   useEffect(() => {
     // Load token data from local storage
@@ -233,9 +231,9 @@ function ManageTokenConnected({ address }: { address: string }) {
           </div>
 
           {/* Sidebar */}
-          <ActionSidebar 
-            isPaused={isPaused} 
-            onTogglePause={togglePause} 
+          <ActionSidebar
+            isPaused={isPaused}
+            onTogglePause={togglePause}
             onMintTokens={() => setShowMintModal(true)}
           />
         </div>

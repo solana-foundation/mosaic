@@ -6,7 +6,6 @@ import {
   signAndSendTransactionMessageWithSigners,
   TransactionSendingSigner,
   isAddress,
-  type TransactionSigner,
 } from 'gill';
 import { createMintToTransaction, getMintInfo } from '@mosaic/sdk';
 import bs58 from 'bs58';
@@ -67,7 +66,7 @@ function convertAmountToRaw(amount: string, decimals: number): bigint {
   if (isNaN(numericAmount) || numericAmount <= 0) {
     throw new Error('Amount must be a positive number');
   }
-  
+
   return BigInt(Math.floor(numericAmount * Math.pow(10, decimals)));
 }
 
@@ -82,10 +81,6 @@ export const mintTokens = async (
   signer: TransactionSendingSigner
 ): Promise<MintResult> => {
   try {
-    console.log('=== MINT TOKENS START ===');
-    console.log('Options:', options);
-    console.log('Signer address:', signer.address);
-    
     // Validate options
     validateMintOptions(options);
 
@@ -96,52 +91,35 @@ export const mintTokens = async (
     }
 
     const signerAddress = walletPublicKey.toString();
-    console.log('Signer address (string):', signerAddress);
 
     // Set authorities (default to signer if not provided)
     // If both mintAuthority and feePayer are the same address, use the same signer instance
     const mintAuthorityAddress = options.mintAuthority || signerAddress;
     const feePayerAddress = options.feePayer || signerAddress;
-    
-    console.log('Mint authority address:', mintAuthorityAddress);
-    console.log('Fee payer address:', feePayerAddress);
-    console.log('Are they the same?', mintAuthorityAddress === feePayerAddress);
-    
+
     // Only allow minting if the wallet is the mint authority
     if (mintAuthorityAddress !== feePayerAddress) {
-      throw new Error('Only the mint authority can mint tokens. Please ensure the connected wallet is the mint authority.');
+      throw new Error(
+        'Only the mint authority can mint tokens. Please ensure the connected wallet is the mint authority.'
+      );
     }
-    
+
     // Use the wallet signer for both mint authority and fee payer
     const mintAuthority = signer;
     const feePayer = signer;
-    console.log('Using wallet signer for both mint authority and fee payer');
 
     // Create RPC client
     const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
     const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-    console.log('RPC URL:', rpcUrl);
 
     // Get mint info to determine decimals
-    console.log('Getting mint info for:', options.mintAddress);
     const mintInfo = await getMintInfo(rpc, options.mintAddress as Address);
     const decimals = mintInfo.decimals;
-    console.log('Mint decimals:', decimals);
 
     // Convert amount to raw token amount
     const rawAmount = convertAmountToRaw(options.amount, decimals);
-    console.log('Raw amount:', rawAmount.toString());
 
     // Create mint transaction using SDK
-    console.log('Creating mint transaction...');
-    console.log('Parameters:', {
-      mint: options.mintAddress,
-      recipient: options.recipient,
-      amount: rawAmount.toString(),
-      mintAuthority,
-      feePayer
-    });
-    
     const transaction = await createMintToTransaction(
       rpc,
       options.mintAddress as Address,
@@ -152,11 +130,8 @@ export const mintTokens = async (
     );
 
     // Sign and send the transaction
-    console.log('Signing and sending transaction...');
-    const signature = await signAndSendTransactionMessageWithSigners(transaction);
-    console.log('Transaction signature:', bs58.encode(signature));
-
-    console.log('=== MINT TOKENS SUCCESS ===');
+    const signature =
+      await signAndSendTransactionMessageWithSigners(transaction);
     return {
       success: true,
       transactionSignature: bs58.encode(signature),
@@ -164,8 +139,6 @@ export const mintTokens = async (
       recipient: options.recipient,
     };
   } catch (error) {
-    console.log('=== MINT TOKENS ERROR ===');
-    console.error('Error details:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred',

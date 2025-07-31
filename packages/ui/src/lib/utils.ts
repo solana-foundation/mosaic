@@ -30,24 +30,26 @@ export async function getTokenSupply(
     // Parse mint data to get supply and decimals
     // In Token-2022, supply is at offset 36-44 and decimals at offset 44
     const data = Buffer.from(accountInfo.value.data[0], 'base64');
-    
+
     // Read supply (8 bytes starting at offset 36)
     const supplyBuffer = data.slice(36, 44);
     const supply = supplyBuffer.readBigUInt64LE();
-    
+
     // Read decimals (1 byte at offset 44)
     const decimals = data[44];
 
     // Convert supply to human-readable format
     const supplyNumber = Number(supply);
-    const formattedSupply = (supplyNumber / Math.pow(10, decimals)).toLocaleString('en-US', {
+    const formattedSupply = (
+      supplyNumber / Math.pow(10, decimals)
+    ).toLocaleString('en-US', {
       minimumFractionDigits: 0,
       maximumFractionDigits: decimals,
     });
 
     return formattedSupply;
-  } catch (error) {
-    console.error('Error fetching token supply:', error);
+  } catch {
+    // Silently handle errors and return default value
     return '0';
   }
 }

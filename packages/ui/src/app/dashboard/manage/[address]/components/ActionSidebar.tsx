@@ -14,7 +14,11 @@ interface ActionSidebarProps {
   onMintTokens: () => void;
 }
 
-export function ActionSidebar({ isPaused, onTogglePause, onMintTokens }: ActionSidebarProps) {
+export function ActionSidebar({
+  isPaused,
+  onTogglePause,
+  onMintTokens,
+}: ActionSidebarProps) {
   return (
     <div className="space-y-6">
       <Card>

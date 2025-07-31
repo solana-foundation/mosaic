@@ -2,9 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Coins, Copy, RefreshCw } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState, useCallback } from 'react';
 import { RpcContext } from '@/context/RpcContext';
 import { getTokenSupply } from '@/lib/utils';
+import { type Address } from 'gill';
 
 interface TokenOverviewProps {
   token: TokenDisplay;
@@ -14,28 +15,30 @@ interface TokenOverviewProps {
 
 export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
   const { rpc } = useContext(RpcContext);
-  const [currentSupply, setCurrentSupply] = useState<string>(token.supply || '0');
+  const [currentSupply, setCurrentSupply] = useState<string>(
+    token.supply || '0'
+  );
   const [isLoadingSupply, setIsLoadingSupply] = useState(false);
 
-  const fetchSupply = async () => {
+    const fetchSupply = useCallback(async () => {
     if (!token.address) return;
     
     setIsLoadingSupply(true);
     try {
-      const supply = await getTokenSupply(rpc, token.address as any);
+      const supply = await getTokenSupply(rpc, token.address as Address);
       setCurrentSupply(supply);
-    } catch (error) {
-      console.error('Failed to fetch supply:', error);
+    } catch {
+      // Silently handle errors and fall back to stored supply
       setCurrentSupply(token.supply || '0');
     } finally {
       setIsLoadingSupply(false);
     }
-  };
+  }, [rpc, token.address, token.supply]);
 
   // Fetch supply on component mount
   useEffect(() => {
     fetchSupply();
-  }, [token.address]);
+  }, [fetchSupply]);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown';
@@ -96,7 +99,9 @@ export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
                 disabled={isLoadingSupply}
                 className="h-6 w-6 p-0"
               >
-                <RefreshCw className={`h-3 w-3 ${isLoadingSupply ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`h-3 w-3 ${isLoadingSupply ? 'animate-spin' : ''}`}
+                />
               </Button>
             </div>
           </div>

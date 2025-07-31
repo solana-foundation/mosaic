@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Settings, Coins, Trash2, ExternalLink, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
@@ -19,6 +19,7 @@ import {
 import { TokenDisplay } from '@/types/token';
 import { RpcContext } from '@/context/RpcContext';
 import { getTokenSupply } from '@/lib/utils';
+import { type Address } from 'gill';
 
 interface TokenCardProps {
   token: TokenDisplay;
@@ -28,28 +29,30 @@ interface TokenCardProps {
 
 export function TokenCard({ token, index, onDelete }: TokenCardProps) {
   const { rpc } = useContext(RpcContext);
-  const [currentSupply, setCurrentSupply] = useState<string>(token.supply || '0');
+  const [currentSupply, setCurrentSupply] = useState<string>(
+    token.supply || '0'
+  );
   const [isLoadingSupply, setIsLoadingSupply] = useState(false);
 
-  const fetchSupply = async () => {
+    const fetchSupply = useCallback(async () => {
     if (!token.address) return;
     
     setIsLoadingSupply(true);
     try {
-      const supply = await getTokenSupply(rpc, token.address as any);
+      const supply = await getTokenSupply(rpc, token.address as Address);
       setCurrentSupply(supply);
-    } catch (error) {
-      console.error('Failed to fetch supply:', error);
+    } catch {
+      // Silently handle errors and fall back to stored supply
       setCurrentSupply(token.supply || '0');
     } finally {
       setIsLoadingSupply(false);
     }
-  };
+  }, [rpc, token.address, token.supply]);
 
   // Fetch supply on component mount
   useEffect(() => {
     fetchSupply();
-  }, [token.address]);
+  }, [fetchSupply]);
 
   const getTokenTypeLabel = (type?: string) => {
     switch (type) {
@@ -120,9 +123,7 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Type:</span>
-            <span className="font-medium">
-              {getTokenTypeLabel(token.type)}
-            </span>
+            <span className="font-medium">{getTokenTypeLabel(token.type)}</span>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Supply:</span>
@@ -135,7 +136,9 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
                 disabled={isLoadingSupply}
                 className="h-4 w-4 p-0"
               >
-                <RefreshCw className={`h-3 w-3 ${isLoadingSupply ? 'animate-spin' : ''}`} />
+                <RefreshCw
+                  className={`h-3 w-3 ${isLoadingSupply ? 'animate-spin' : ''}`}
+                />
               </Button>
             </div>
           </div>
@@ -153,9 +156,7 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
           </div>
           {token.extensions && token.extensions.length > 0 && (
             <div className="pt-2">
-              <span className="text-muted-foreground text-xs">
-                Extensions:
-              </span>
+              <span className="text-muted-foreground text-xs">Extensions:</span>
               <div className="flex flex-wrap gap-1 mt-1">
                 {token.extensions.slice(0, 2).map((ext, idx) => (
                   <span
@@ -176,10 +177,7 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
         </div>
       </CardContent>
       <CardFooter>
-        <Link
-          href={`/dashboard/manage/${token.address}`}
-          className="w-full"
-        >
+        <Link href={`/dashboard/manage/${token.address}`} className="w-full">
           <Button variant="outline" className="w-full">
             <Settings className="h-4 w-4 mr-2" />
             Manage
@@ -188,4 +186,4 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
       </CardFooter>
     </Card>
   );
-} 
+}

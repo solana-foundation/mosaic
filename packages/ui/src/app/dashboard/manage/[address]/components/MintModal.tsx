@@ -1,10 +1,7 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import { Button } from '@/components/ui/button';
 import { mintTokens, type MintOptions } from '@/lib/management/mint';
-import { useContext } from 'react';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
-import { ChainContext } from '@/context/ChainContext';
-import { useWalletAccountTransactionSendingSigner } from '@solana/react';
 import { isAddress } from 'gill';
 import { TransactionSendingSigner } from '@solana/signers';
 import { ExternalLink } from 'lucide-react';
@@ -64,10 +61,7 @@ export function MintModal({
 
     try {
       const walletAddress = selectedWalletAccount.address.toString();
-      console.log('=== MINT MODAL START ===');
-      console.log('Wallet address:', walletAddress);
-      console.log('Mint authority from props:', mintAuthority);
-      
+
       const mintOptions: MintOptions = {
         mintAddress,
         recipient,
@@ -75,9 +69,6 @@ export function MintModal({
         mintAuthority: mintAuthority || walletAddress,
         feePayer: walletAddress,
       };
-      
-      console.log('Mint options:', mintOptions);
-      console.log('Selected wallet account:', selectedWalletAccount);
 
       if (!transactionSendingSigner) {
         throw new Error('Transaction signer not available');
@@ -85,8 +76,6 @@ export function MintModal({
 
       const result = await mintTokens(mintOptions, transactionSendingSigner);
 
-      console.log('Mint result:', result);
-      
       if (result.success) {
         setSuccess(true);
         setTransactionSignature(result.transactionSignature || '');
@@ -94,7 +83,6 @@ export function MintModal({
         setError(result.error || 'Minting failed');
       }
     } catch (err) {
-      console.error('Mint modal error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setIsLoading(false);
@@ -125,7 +113,7 @@ export function MintModal({
         <h3 className="text-lg font-semibold mb-4">
           {success ? 'Mint Successful' : 'Mint Tokens'}
         </h3>
-        
+
         {success ? (
           <div className="space-y-4">
             <div className="text-green-600">
@@ -181,9 +169,7 @@ export function MintModal({
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">
-                Amount
-              </label>
+              <label className="block text-sm font-medium mb-2">Amount</label>
               <input
                 type="number"
                 value={amount}
@@ -214,11 +200,7 @@ export function MintModal({
               </div>
             )}
 
-            {error && (
-              <div className="text-red-600 text-sm">
-                {error}
-              </div>
-            )}
+            {error && <div className="text-red-600 text-sm">{error}</div>}
           </div>
         )}
 
@@ -227,7 +209,12 @@ export function MintModal({
             onClick={handleAdd}
             disabled={
               isLoading ||
-              (success ? false : (!recipient.trim() || !amount.trim() || !validateSolanaAddress(recipient) || !validateAmount(amount)))
+              (success
+                ? false
+                : !recipient.trim() ||
+                  !amount.trim() ||
+                  !validateSolanaAddress(recipient) ||
+                  !validateAmount(amount))
             }
             className="flex-1"
           >
@@ -240,4 +227,4 @@ export function MintModal({
       </div>
     </div>
   );
-} 
+}
