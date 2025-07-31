@@ -9,11 +9,14 @@ import { TokenDisplay } from '@/types/token';
 import { Loader } from '@/components/ui/loader';
 import { findTokenByAddress } from '@/lib/token/tokenData';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
+import { ChainContext } from '@/context/ChainContext';
 import { TokenOverview } from './components/TokenOverview';
 import { TokenAuthorities } from './components/TokenAuthorities';
 import { TokenExtensions } from './components/TokenExtensions';
 import { ActionSidebar } from './components/ActionSidebar';
 import { AddressModal } from './components/AddressModal';
+import { MintModal } from './components/MintModal';
+import { useWalletAccountTransactionSendingSigner } from '@solana/react';
 
 export default function ManageTokenPage() {
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
@@ -37,6 +40,8 @@ export default function ManageTokenPage() {
 }
 
 function ManageTokenConnected({ address }: { address: string }) {
+  const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+  const { chain: currentChain } = useContext(ChainContext);
   const [token, setToken] = useState<TokenDisplay | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -45,7 +50,14 @@ function ManageTokenConnected({ address }: { address: string }) {
   const [newAddress, setNewAddress] = useState('');
   const [showAllowlistModal, setShowAllowlistModal] = useState(false);
   const [showBlocklistModal, setShowBlocklistModal] = useState(false);
+  const [showMintModal, setShowMintModal] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+
+  // Create transaction sending signer if wallet is connected
+  const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
+    selectedWalletAccount!,
+    currentChain!
+  );
 
   useEffect(() => {
     // Load token data from local storage
@@ -220,7 +232,11 @@ function ManageTokenConnected({ address }: { address: string }) {
           </div>
 
           {/* Sidebar */}
-          <ActionSidebar isPaused={isPaused} onTogglePause={togglePause} />
+          <ActionSidebar
+            isPaused={isPaused}
+            onTogglePause={togglePause}
+            onMintTokens={() => setShowMintModal(true)}
+          />
         </div>
       </div>
 
@@ -254,6 +270,16 @@ function ManageTokenConnected({ address }: { address: string }) {
         buttonText="Add to Blocklist"
         isAddressValid={validateSolanaAddress(newAddress)}
       />
+
+      {transactionSendingSigner && (
+        <MintModal
+          isOpen={showMintModal}
+          onClose={() => setShowMintModal(false)}
+          mintAddress={address}
+          mintAuthority={token?.mintAuthority}
+          transactionSendingSigner={transactionSendingSigner}
+        />
+      )}
     </div>
   );
 }

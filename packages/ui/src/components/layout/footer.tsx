@@ -1,4 +1,5 @@
 import { GithubIcon, TwitterIcon } from 'lucide-react';
+import Image from 'next/image';
 
 export function Footer() {
   return (
@@ -40,7 +41,12 @@ export function Footer() {
             aria-label="Solana"
             className="hover:text-primary"
           >
-            <img src="/solanaLogoMark.svg" alt="Solana" className="w-5 h-5" />
+            <Image
+              src="/solanaLogoMark.svg"
+              alt="Solana"
+              width={20}
+              height={20}
+            />
           </a>
         </div>
       </div>
