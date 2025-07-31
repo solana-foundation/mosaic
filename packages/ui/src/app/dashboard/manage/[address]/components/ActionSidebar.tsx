@@ -11,9 +11,10 @@ import { Edit, Settings, Coins, Ban, Trash2 } from 'lucide-react';
 interface ActionSidebarProps {
   isPaused: boolean;
   onTogglePause: () => void;
+  onMintTokens: () => void;
 }
 
-export function ActionSidebar({ isPaused, onTogglePause }: ActionSidebarProps) {
+export function ActionSidebar({ isPaused, onTogglePause, onMintTokens }: ActionSidebarProps) {
   return (
     <div className="space-y-6">
       <Card>
@@ -29,7 +30,7 @@ export function ActionSidebar({ isPaused, onTogglePause }: ActionSidebarProps) {
             <Settings className="h-4 w-4 mr-2" />
             Configure Extensions
           </Button>
-          <Button className="w-full" variant="outline">
+          <Button className="w-full" variant="outline" onClick={onMintTokens}>
             <Coins className="h-4 w-4 mr-2" />
             Mint Tokens
           </Button>
