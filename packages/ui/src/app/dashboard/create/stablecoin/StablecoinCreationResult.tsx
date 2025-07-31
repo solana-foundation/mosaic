@@ -6,7 +6,9 @@ interface StablecoinCreationResultProps {
   result: StablecoinCreationResult;
 }
 
-export function StablecoinCreationResultDisplay({ result }: StablecoinCreationResultProps) {
+export function StablecoinCreationResultDisplay({
+  result,
+}: StablecoinCreationResultProps) {
   return (
     <Card className="mb-8">
       <CardHeader>
@@ -40,8 +42,8 @@ export function StablecoinCreationResultDisplay({ result }: StablecoinCreationRe
               </code>
             </div>
             <div className="text-sm text-muted-foreground">
-              Your stablecoin has been successfully created with the
-              following parameters:
+              Your stablecoin has been successfully created with the following
+              parameters:
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>

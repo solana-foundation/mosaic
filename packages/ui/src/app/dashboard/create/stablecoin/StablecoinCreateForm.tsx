@@ -11,18 +11,22 @@ interface StablecoinCreateFormProps {
   transactionSendingSigner: TransactionSendingSigner<string>;
 }
 
-export function StablecoinCreateForm({ transactionSendingSigner }: StablecoinCreateFormProps) {
-  const [stablecoinOptions, setStablecoinOptions] = useState<StablecoinOptions>({
-    name: '',
-    symbol: '',
-    decimals: '6',
-    uri: '',
-    mintAuthority: '',
-    metadataAuthority: '',
-    pausableAuthority: '',
-    confidentialBalancesAuthority: '',
-    permanentDelegateAuthority: '',
-  });
+export function StablecoinCreateForm({
+  transactionSendingSigner,
+}: StablecoinCreateFormProps) {
+  const [stablecoinOptions, setStablecoinOptions] = useState<StablecoinOptions>(
+    {
+      name: '',
+      symbol: '',
+      decimals: '6',
+      uri: '',
+      mintAuthority: '',
+      metadataAuthority: '',
+      pausableAuthority: '',
+      confidentialBalancesAuthority: '',
+      permanentDelegateAuthority: '',
+    }
+  );
   const [isCreating, setIsCreating] = useState(false);
   const [result, setResult] = useState<StablecoinCreationResult | null>(null);
 
@@ -61,7 +65,8 @@ export function StablecoinCreateForm({ transactionSendingSigner }: StablecoinCre
     } catch (error) {
       setResult({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
       });
     } finally {
       setIsCreating(false);
@@ -86,14 +91,14 @@ export function StablecoinCreateForm({ transactionSendingSigner }: StablecoinCre
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-6">
-        <StablecoinBasicParams 
-          options={stablecoinOptions} 
-          onInputChange={handleInputChange} 
+        <StablecoinBasicParams
+          options={stablecoinOptions}
+          onInputChange={handleInputChange}
         />
-        
-        <StablecoinAuthorityParams 
-          options={stablecoinOptions} 
-          onInputChange={handleInputChange} 
+
+        <StablecoinAuthorityParams
+          options={stablecoinOptions}
+          onInputChange={handleInputChange}
         />
 
         {result && <StablecoinCreationResultDisplay result={result} />}
@@ -111,11 +116,7 @@ export function StablecoinCreateForm({ transactionSendingSigner }: StablecoinCre
           >
             {isCreating ? 'Creating Stablecoin...' : 'Create Stablecoin'}
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleReset}
-          >
+          <Button type="button" variant="outline" onClick={handleReset}>
             Reset
           </Button>
         </div>

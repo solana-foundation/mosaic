@@ -1,4 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { StablecoinOptions } from '@/types/token';
 
 interface StablecoinBasicParamsProps {
@@ -6,7 +12,10 @@ interface StablecoinBasicParamsProps {
   onInputChange: (field: string, value: string) => void;
 }
 
-export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasicParamsProps) {
+export function StablecoinBasicParams({
+  options,
+  onInputChange,
+}: StablecoinBasicParamsProps) {
   return (
     <Card>
       <CardHeader>
@@ -31,9 +40,7 @@ export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasi
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Symbol *
-            </label>
+            <label className="block text-sm font-medium mb-2">Symbol *</label>
             <input
               type="text"
               className="w-full p-3 border rounded-lg"
@@ -46,9 +53,7 @@ export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasi
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Decimals *
-            </label>
+            <label className="block text-sm font-medium mb-2">Decimals *</label>
             <input
               type="number"
               className="w-full p-3 border rounded-lg"

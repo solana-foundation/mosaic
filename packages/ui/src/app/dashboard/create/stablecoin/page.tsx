@@ -47,7 +47,9 @@ function StablecoinCreateWithWallet({
           </div>
         </div>
 
-        <StablecoinCreateForm transactionSendingSigner={transactionSendingSigner} />
+        <StablecoinCreateForm
+          transactionSendingSigner={transactionSendingSigner}
+        />
       </div>
     </div>
   );

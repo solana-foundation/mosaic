@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { StablecoinOptions } from '@/types/token';
 
@@ -8,7 +14,10 @@ interface StablecoinAuthorityParamsProps {
   onInputChange: (field: string, value: string) => void;
 }
 
-export function StablecoinAuthorityParams({ options, onInputChange }: StablecoinAuthorityParamsProps) {
+export function StablecoinAuthorityParams({
+  options,
+  onInputChange,
+}: StablecoinAuthorityParamsProps) {
   const [showOptionalParams, setShowOptionalParams] = useState(false);
 
   return (
@@ -41,9 +50,7 @@ export function StablecoinAuthorityParams({ options, onInputChange }: Stablecoin
               className="w-full p-3 border rounded-lg"
               placeholder="Public key or leave empty for connected wallet"
               value={options.mintAuthority}
-              onChange={e =>
-                onInputChange('mintAuthority', e.target.value)
-              }
+              onChange={e => onInputChange('mintAuthority', e.target.value)}
             />
           </div>
           <div>
@@ -55,9 +62,7 @@ export function StablecoinAuthorityParams({ options, onInputChange }: Stablecoin
               className="w-full p-3 border rounded-lg"
               placeholder="Public key or leave empty for connected wallet"
               value={options.metadataAuthority}
-              onChange={e =>
-                onInputChange('metadataAuthority', e.target.value)
-              }
+              onChange={e => onInputChange('metadataAuthority', e.target.value)}
             />
           </div>
           <div>
@@ -69,9 +74,7 @@ export function StablecoinAuthorityParams({ options, onInputChange }: Stablecoin
               className="w-full p-3 border rounded-lg"
               placeholder="Public key or leave empty for connected wallet"
               value={options.pausableAuthority}
-              onChange={e =>
-                onInputChange('pausableAuthority', e.target.value)
-              }
+              onChange={e => onInputChange('pausableAuthority', e.target.value)}
             />
           </div>
           <div>
@@ -84,10 +87,7 @@ export function StablecoinAuthorityParams({ options, onInputChange }: Stablecoin
               placeholder="Public key or leave empty for connected wallet"
               value={options.confidentialBalancesAuthority}
               onChange={e =>
-                onInputChange(
-                  'confidentialBalancesAuthority',
-                  e.target.value
-                )
+                onInputChange('confidentialBalancesAuthority', e.target.value)
               }
             />
           </div>
@@ -101,10 +101,7 @@ export function StablecoinAuthorityParams({ options, onInputChange }: Stablecoin
               placeholder="Public key or leave empty for connected wallet"
               value={options.permanentDelegateAuthority}
               onChange={e =>
-                onInputChange(
-                  'permanentDelegateAuthority',
-                  e.target.value
-                )
+                onInputChange('permanentDelegateAuthority', e.target.value)
               }
             />
           </div>
