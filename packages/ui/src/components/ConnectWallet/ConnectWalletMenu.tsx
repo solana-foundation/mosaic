@@ -67,7 +67,7 @@ export function ConnectWalletMenu({ children }: Props) {
     <>
       <DropdownMenu
         open={forceClose ? false : undefined}
-        onOpenChange={setForceClose.bind(null, false)}
+        onOpenChange={() => setForceClose(false)}
       >
         <DropdownMenuTrigger>
           <div>

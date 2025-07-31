@@ -1,17 +1,14 @@
 import {
-  signTransactionMessageWithSigners,
   generateKeyPairSigner,
   createSolanaRpc,
   type Address,
   type Rpc,
   type SolanaRpcApi,
-  getSignatureFromTransaction,
   signAndSendTransactionMessageWithSigners,
   TransactionSendingSigner,
 } from 'gill';
-import { StablecoinOptions, StablecoinCreationResult } from '@/types/token';
+import { StablecoinOptions } from '@/types/token';
 import { createStablecoinInitTransaction } from '@mosaic/sdk';
-import { UiWalletAccount } from '@wallet-standard/react';
 import bs58 from 'bs58';
 
 /**
@@ -101,95 +98,6 @@ export const createStablecoin = async (
       success: true,
       transactionSignature: bs58.encode(signature),
       mintAddress: mintKeypair.address,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
-};
-
-/**
- * Simplified version for UI integration that handles the transaction conversion
- * This version works with the existing UI structure
- */
-export const createStablecoinForUI = async (
-  options: StablecoinOptions,
-  wallet: UiWalletAccount
-): Promise<StablecoinCreationResult> => {
-  try {
-    const decimals = validateStablecoinOptions(options);
-
-    // Get wallet public key
-    const walletPublicKey = wallet.publicKey;
-    if (!walletPublicKey) {
-      throw new Error('Wallet not connected');
-    }
-
-    const signerAddress = walletPublicKey.toString();
-
-    // Generate mint keypair
-    const mintKeypair = await generateKeyPairSigner();
-
-    // Set authorities (default to signer if not provided)
-    const mintAuthority = (options.mintAuthority || signerAddress) as Address;
-    const metadataAuthority = (options.metadataAuthority ||
-      mintAuthority) as Address;
-    const pausableAuthority = (options.pausableAuthority ||
-      mintAuthority) as Address;
-    const confidentialBalancesAuthority =
-      (options.confidentialBalancesAuthority || mintAuthority) as Address;
-    const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
-      mintAuthority) as Address;
-
-    // Create RPC client
-    const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
-    const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-
-    // Create stablecoin transaction using SDK
-    const transaction = await createStablecoinInitTransaction(
-      rpc,
-      options.name,
-      options.symbol,
-      decimals,
-      options.uri || '',
-      mintAuthority,
-      mintKeypair,
-      wallet.address as Address, // Use wallet as fee payer
-      metadataAuthority,
-      pausableAuthority,
-      confidentialBalancesAuthority,
-      permanentDelegateAuthority
-    );
-
-    // Sign the transaction
-    const signedTransaction =
-      await signTransactionMessageWithSigners(transaction);
-    const signature = getSignatureFromTransaction(signedTransaction);
-
-    // Return success result with all details
-    return {
-      success: true,
-      transactionSignature: signature,
-      mintAddress: mintKeypair.address,
-      details: {
-        name: options.name,
-        symbol: options.symbol,
-        decimals: decimals,
-        mintAuthority: mintAuthority,
-        metadataAuthority: metadataAuthority,
-        pausableAuthority: pausableAuthority,
-        confidentialBalancesAuthority: confidentialBalancesAuthority,
-        permanentDelegateAuthority: permanentDelegateAuthority,
-        extensions: [
-          'Metadata',
-          'Pausable',
-          'Default Account State (Blocklist)',
-          'Confidential Balances',
-          'Permanent Delegate',
-        ],
-      },
     };
   } catch (error) {
     return {
