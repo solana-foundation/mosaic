@@ -20,9 +20,9 @@ export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
   );
   const [isLoadingSupply, setIsLoadingSupply] = useState(false);
 
-    const fetchSupply = useCallback(async () => {
+  const fetchSupply = useCallback(async () => {
     if (!token.address) return;
-    
+
     setIsLoadingSupply(true);
     try {
       const supply = await getTokenSupply(rpc, token.address as Address);

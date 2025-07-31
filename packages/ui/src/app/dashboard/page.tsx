@@ -19,7 +19,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TokenDisplay } from '@/types/token';
-import { Badge } from '@/components/ui/badge';
 import { Loader } from '@/components/ui/loader';
 import { getAllTokens, getTokenCount } from '@/lib/token/tokenData';
 import { TokenStorage } from '@/lib/token/tokenStorage';
