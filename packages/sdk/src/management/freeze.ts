@@ -68,6 +68,8 @@ export const createFreezeAccountTransaction = async (
     );
   }
 
+  console.log('tokenAccount', tokenAccount);
+
   instructions.push(
     getFreezeAccountInstruction(
       {

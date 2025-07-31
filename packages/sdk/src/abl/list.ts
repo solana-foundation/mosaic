@@ -1,6 +1,5 @@
 import {
   createTransaction,
-  generateKeyPairSigner,
   type Address,
   type Base58EncodedBytes,
   type FullTransaction,
@@ -34,11 +33,11 @@ import {
  */
 export const getCreateListInstructions = async (input: {
   authority: TransactionSigner<string>;
+  mint: Address;
+  mode?: Mode;
 }): Promise<{ instructions: Instruction<string>[]; listConfig: Address }> => {
-  const seed = await generateKeyPairSigner();
-
   const listConfigPda = await findListConfigPda(
-    { authority: input.authority.address, seed: seed.address },
+    { authority: input.authority.address, seed: input.mint },
     { programAddress: ABL_PROGRAM_ID }
   );
 
@@ -46,8 +45,8 @@ export const getCreateListInstructions = async (input: {
     {
       authority: input.authority,
       listConfig: listConfigPda[0],
-      mode: Mode.AllowWithPermissionlessEOAs,
-      seed: seed.address,
+      mode: input.mode || Mode.Allow,
+      seed: input.mint,
     },
     { programAddress: ABL_PROGRAM_ID }
   );
@@ -75,6 +74,7 @@ export const getCreateListTransaction = async (input: {
   rpc: Rpc<SolanaRpcApi>;
   payer: TransactionSigner<string>;
   authority: TransactionSigner<string>;
+  mint: Address;
 }): Promise<{
   transaction: FullTransaction<
     TransactionVersion,
@@ -83,7 +83,10 @@ export const getCreateListTransaction = async (input: {
   >;
   listConfig: Address;
 }> => {
-  const { instructions, listConfig } = await getCreateListInstructions(input);
+  const { instructions, listConfig } = await getCreateListInstructions({
+    authority: input.authority,
+    mint: input.mint,
+  });
   const { value: latestBlockhash } = await input.rpc
     .getLatestBlockhash()
     .send();

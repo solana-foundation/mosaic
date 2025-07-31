@@ -91,7 +91,11 @@ export async function resolveTokenAccount(
   rpc: Rpc<SolanaRpcApi>,
   account: Address,
   mint: Address
-): Promise<{ tokenAccount: Address; wasOwnerAddress: boolean }> {
+): Promise<{
+  tokenAccount: Address;
+  wasOwnerAddress: boolean;
+  isFrozen: boolean;
+}> {
   const accountInfo = await rpc
     .getAccountInfo(account, { encoding: 'jsonParsed' })
     .send();
@@ -100,11 +104,17 @@ export async function resolveTokenAccount(
   if (accountInfo.value?.owner === TOKEN_2022_PROGRAM_ADDRESS) {
     const data = accountInfo.value?.data;
     if ('parsed' in data && data.parsed?.info) {
-      const tokenMint = (data.parsed.info as { mint: Address }).mint;
-      if (tokenMint === mint) {
-        return { tokenAccount: account, wasOwnerAddress: false };
+      const ataInfo = data.parsed.info as { mint: Address; state: string };
+      if (ataInfo.mint === mint) {
+        return {
+          tokenAccount: account,
+          wasOwnerAddress: false,
+          isFrozen: ataInfo.state === 'frozen',
+        };
       }
-      throw new Error(`Token account ${account} is not for mint ${mint}`);
+      throw new Error(
+        `Token account ${account} is not for mint ${mint} but for ${ataInfo.mint}`
+      );
     }
     throw new Error(`Unable to parse token account data for ${account}`);
   }
@@ -122,6 +132,24 @@ export async function resolveTokenAccount(
     account,
     TOKEN_2022_PROGRAM_ADDRESS
   );
+  // check if the ATA is frozen
+  const ataInfo = await rpc
+    .getAccountInfo(ata, { encoding: 'jsonParsed' })
+    .send();
+  if (
+    ataInfo.value?.data &&
+    'parsed' in ataInfo.value.data &&
+    ataInfo.value.data.parsed?.info
+  ) {
+    const tokenState = (ataInfo.value?.data.parsed?.info as { state: string })
+      .state;
+    return {
+      tokenAccount: ata,
+      wasOwnerAddress: false,
+      isFrozen: tokenState === 'frozen',
+    };
+  }
 
-  return { tokenAccount: ata, wasOwnerAddress: true };
+  // if the ATA doesn't exist yet, consider it frozen as it will be created through EBALTS
+  return { tokenAccount: ata, wasOwnerAddress: true, isFrozen: true };
 }

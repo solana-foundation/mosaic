@@ -11,6 +11,8 @@ import { transferCommand } from './commands/transfer.js';
 import { inspectMintCommand } from './commands/inspect-mint.js';
 import { ebaltsCommand } from './commands/ebalts/ebalts.js';
 import { ablCommand } from './commands/abl/abl.js';
+import { addCommand } from './commands/access-list/add.js';
+import { removeCommand } from './commands/access-list/remove.js';
 
 const program = new Command();
 
@@ -27,6 +29,13 @@ const createCommand = program
 // Add token creation commands
 createCommand.addCommand(createStablecoinCommand);
 createCommand.addCommand(createArcadeTokenCommand);
+
+// Add access list commands
+const accessListCommand = program
+  .command('access-list')
+  .description('Manage access lists');
+accessListCommand.addCommand(addCommand);
+accessListCommand.addCommand(removeCommand);
 
 // Add token management commands
 program.addCommand(mintCommand);

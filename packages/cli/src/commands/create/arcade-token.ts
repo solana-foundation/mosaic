@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
+import { ABL_PROGRAM_ID, createArcadeTokenInitTransaction, EBALTS_PROGRAM_ID } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
@@ -9,6 +9,8 @@ import {
   signTransactionMessageWithSigners,
   type Address,
 } from 'gill';
+import { findListConfigPda } from '@mosaic/abl';
+import { findMintConfigPda } from '@mosaic/ebalts';
 
 interface ArcadeTokenOptions {
   name: string;
@@ -130,6 +132,15 @@ export const createArcadeTokenCommand = new Command('arcade-token')
 
       spinner.succeed('Arcade token created successfully!');
 
+      const listConfigPda = await findListConfigPda(
+        { authority: mintAuthority, seed: mintKeypair.address },
+        { programAddress: ABL_PROGRAM_ID }
+      );
+      const mintConfigPda = await findMintConfigPda(
+        { mint: mintKeypair.address },
+        { programAddress: EBALTS_PROGRAM_ID }
+      );
+
       // Display results
       console.log(chalk.green('✅ Arcade Token Creation Successful'));
       console.log(chalk.cyan('📋 Details:'));
@@ -165,6 +176,11 @@ export const createArcadeTokenCommand = new Command('arcade-token')
       if (options.uri) {
         console.log(`${chalk.bold('Metadata URI:')} ${options.uri}`);
       }
+
+      console.log(chalk.cyan('🔑 Allowlist Initialized:'));
+      console.log(`   ${chalk.green('✓')} Allowlist Address: ${listConfigPda[0]}`);
+      console.log(`   ${chalk.green('✓')} EBALTS mint config Address: ${mintConfigPda[0]}`);
+
     } catch (error) {
       spinner.fail('Failed to create arcade token');
       console.error(
