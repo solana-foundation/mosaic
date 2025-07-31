@@ -1,25 +1,25 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { StablecoinOptions, StablecoinCreationResult } from '@/types/token';
-import { StablecoinBasicParams } from './StablecoinBasicParams';
-import { StablecoinAuthorityParams } from './StablecoinAuthorityParams';
-import { StablecoinCreationResultDisplay } from '@/app/dashboard/create/stablecoin/StablecoinCreationResult';
-import { createStablecoin } from '@/lib/issuance/stablecoin';
+import { ArcadeTokenOptions, ArcadeTokenCreationResult } from '@/types/token';
+import { ArcadeTokenBasicParams } from './ArcadeTokenBasicParams';
+import { ArcadeTokenAuthorityParams } from './ArcadeTokenAuthorityParams';
+import { ArcadeTokenCreationResultDisplay } from '@/app/dashboard/create/arcade-token/ArcadeTokenCreationResult';
+import { createArcadeToken } from '@/lib/issuance/arcadeToken';
 import { TransactionSendingSigner } from '@solana/signers';
 import {
   TokenStorage,
   createTokenDisplayFromResult,
 } from '@/lib/token/tokenStorage';
 
-interface StablecoinCreateFormProps {
+interface ArcadeTokenCreateFormProps {
   transactionSendingSigner: TransactionSendingSigner<string>;
 }
 
-export function StablecoinCreateForm({
+export function ArcadeTokenCreateForm({
   transactionSendingSigner,
-}: StablecoinCreateFormProps) {
-  const [stablecoinOptions, setStablecoinOptions] = useState<StablecoinOptions>(
-    {
+}: ArcadeTokenCreateFormProps) {
+  const [arcadeTokenOptions, setArcadeTokenOptions] =
+    useState<ArcadeTokenOptions>({
       name: '',
       symbol: '',
       decimals: '6',
@@ -27,15 +27,13 @@ export function StablecoinCreateForm({
       mintAuthority: '',
       metadataAuthority: '',
       pausableAuthority: '',
-      confidentialBalancesAuthority: '',
       permanentDelegateAuthority: '',
-    }
-  );
+    });
   const [isCreating, setIsCreating] = useState(false);
-  const [result, setResult] = useState<StablecoinCreationResult | null>(null);
+  const [result, setResult] = useState<ArcadeTokenCreationResult | null>(null);
 
   const handleInputChange = (field: string, value: string) => {
-    setStablecoinOptions(prev => ({ ...prev, [field]: value }));
+    setArcadeTokenOptions(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,8 +43,8 @@ export function StablecoinCreateForm({
     setResult(null);
 
     try {
-      const result = await createStablecoin(
-        stablecoinOptions,
+      const result = await createArcadeToken(
+        arcadeTokenOptions,
         transactionSendingSigner
       );
 
@@ -54,8 +52,8 @@ export function StablecoinCreateForm({
         // Create token display object
         const tokenDisplay = createTokenDisplayFromResult(
           result,
-          'stablecoin',
-          stablecoinOptions
+          'arcade-token',
+          arcadeTokenOptions
         );
 
         // Save to local storage
@@ -66,15 +64,13 @@ export function StablecoinCreateForm({
           mintAddress: result.mintAddress,
           transactionSignature: result.transactionSignature,
           details: {
-            ...stablecoinOptions,
-            decimals: parseInt(stablecoinOptions.decimals),
-            mintAuthority: stablecoinOptions.mintAuthority || '',
-            metadataAuthority: stablecoinOptions.metadataAuthority || '',
-            pausableAuthority: stablecoinOptions.pausableAuthority || '',
-            confidentialBalancesAuthority:
-              stablecoinOptions.confidentialBalancesAuthority || '',
+            ...arcadeTokenOptions,
+            decimals: parseInt(arcadeTokenOptions.decimals),
+            mintAuthority: arcadeTokenOptions.mintAuthority || '',
+            metadataAuthority: arcadeTokenOptions.metadataAuthority || '',
+            pausableAuthority: arcadeTokenOptions.pausableAuthority || '',
             permanentDelegateAuthority:
-              stablecoinOptions.permanentDelegateAuthority || '',
+              arcadeTokenOptions.permanentDelegateAuthority || '',
             extensions: [
               'Metadata',
               'Pausable',
@@ -102,7 +98,7 @@ export function StablecoinCreateForm({
   };
 
   const handleReset = () => {
-    setStablecoinOptions({
+    setArcadeTokenOptions({
       name: '',
       symbol: '',
       decimals: '6',
@@ -110,7 +106,6 @@ export function StablecoinCreateForm({
       mintAuthority: '',
       metadataAuthority: '',
       pausableAuthority: '',
-      confidentialBalancesAuthority: '',
       permanentDelegateAuthority: '',
     });
     setResult(null);
@@ -119,17 +114,17 @@ export function StablecoinCreateForm({
   return (
     <>
       <form onSubmit={handleSubmit} className="space-y-6">
-        <StablecoinBasicParams
-          options={stablecoinOptions}
+        <ArcadeTokenBasicParams
+          options={arcadeTokenOptions}
           onInputChange={handleInputChange}
         />
 
-        <StablecoinAuthorityParams
-          options={stablecoinOptions}
+        <ArcadeTokenAuthorityParams
+          options={arcadeTokenOptions}
           onInputChange={handleInputChange}
         />
 
-        {result && <StablecoinCreationResultDisplay result={result} />}
+        {result && <ArcadeTokenCreationResultDisplay result={result} />}
 
         <div className="flex gap-4">
           <Button
@@ -137,12 +132,12 @@ export function StablecoinCreateForm({
             className="flex-1"
             disabled={
               isCreating ||
-              !stablecoinOptions.name ||
-              !stablecoinOptions.symbol ||
-              !stablecoinOptions.decimals
+              !arcadeTokenOptions.name ||
+              !arcadeTokenOptions.symbol ||
+              !arcadeTokenOptions.decimals
             }
           >
-            {isCreating ? 'Creating Stablecoin...' : 'Create Stablecoin'}
+            {isCreating ? 'Creating Arcade Token...' : 'Create Arcade Token'}
           </Button>
           <Button type="button" variant="outline" onClick={handleReset}>
             Reset

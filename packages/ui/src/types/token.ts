@@ -4,6 +4,16 @@ export interface TokenDisplay {
   address?: string;
   supply?: string;
   type?: string;
+  decimals?: number;
+  mintAuthority?: string;
+  metadataAuthority?: string;
+  pausableAuthority?: string;
+  confidentialBalancesAuthority?: string;
+  permanentDelegateAuthority?: string;
+  extensions?: string[];
+  transactionSignature?: string;
+  createdAt?: string;
+  metadataUri?: string;
 }
 
 export interface StablecoinOptions {
