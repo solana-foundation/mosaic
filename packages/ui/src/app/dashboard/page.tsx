@@ -1,7 +1,6 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Settings, Coins } from 'lucide-react';
 import Link from 'next/link';
@@ -21,13 +20,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { TokenDisplay } from '@/types/token';
 import { getAllTokens } from '@/lib/tokenData';
+import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 
 export default function DashboardPage() {
-  const { connected, publicKey } = useWallet();
-  const walletConnected = connected && !!publicKey;
+  const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
 
-  return walletConnected ? (
-    <DashboardConnected publicKey={publicKey!.toBase58()} />
+  return selectedWalletAccount ? (
+    <DashboardConnected publicKey={selectedWalletAccount.address} />
   ) : (
     <DashboardDisconnected />
   );

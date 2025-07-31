@@ -2,8 +2,8 @@
 import { ModeToggle } from '@/components/mode-toggle';
 import { Button } from '@/components/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
 import Link from 'next/link';
+import { ConnectWalletMenu } from '@/components/ConnectWallet/ConnectWalletMenu';
 
 export function Header() {
   const router = useRouter();
@@ -25,7 +25,9 @@ export function Header() {
               Get Started
             </Button>
           ) : (
-            <WalletMultiButton />
+            <ConnectWalletMenu>
+              <p>Connect Wallet</p>
+            </ConnectWalletMenu>
           )}
           <ModeToggle />
         </div>

@@ -1,7 +1,6 @@
 'use client';
 
-import { useWallet } from '@solana/wallet-adapter-react';
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   ArrowLeft,
@@ -27,13 +26,14 @@ import {
 } from '@/components/ui/card';
 import { TokenDisplay } from '@/types/token';
 import { findTokenByAddress } from '@/lib/tokenData';
+import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 
 export default function ManageTokenPage() {
-  const { connected, publicKey } = useWallet();
+  const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
   const params = useParams();
   const address = params.address as string;
 
-  if (!connected || !publicKey) {
+  if (!selectedWalletAccount) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-8">
         <div className="text-center">
