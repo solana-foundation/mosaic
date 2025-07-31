@@ -13,7 +13,11 @@ import {
   getTransferCheckedInstruction,
   TOKEN_2022_PROGRAM_ADDRESS,
 } from 'gill/programs/token';
-import { decimalAmountToRaw, resolveTokenAccount } from '@mosaic/sdk';
+import {
+  decimalAmountToRaw,
+  getThawPermissionlessInstructions,
+  resolveTokenAccount,
+} from '@mosaic/sdk';
 
 interface TransferOptions {
   mintAddress: string;
@@ -116,7 +120,16 @@ export const transferCommand = new Command('transfer')
           mint: options.mintAddress as Address,
           payer: senderKeypair,
           tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
-        })
+        }),
+        ...(recipientTokenAccountInfo.isFrozen
+          ? await getThawPermissionlessInstructions({
+              authority: senderKeypair,
+              mint: options.mintAddress as Address,
+              tokenAccount: recipientTokenAccountInfo.tokenAccount,
+              tokenAccountOwner: options.recipient as Address,
+              rpc,
+            })
+          : [])
       );
 
       // Add transfer instruction

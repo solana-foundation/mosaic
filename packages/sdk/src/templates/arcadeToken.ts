@@ -9,7 +9,14 @@ import type {
   TransactionSigner,
   TransactionWithBlockhashLifetime,
 } from 'gill';
-import { createNoopSigner } from 'gill';
+import { createNoopSigner, createTransaction } from 'gill';
+import { getCreateConfigInstructions } from '../ebalts/createConfig';
+import { ABL_PROGRAM_ID } from '../abl/utils';
+import { getSetGatingProgramInstructions } from '../ebalts/setGatingProgram';
+import { getEnablePermissionlessThawInstructions } from '../ebalts/enablePermissionlessThaw';
+import { getCreateListInstructions } from '../abl/list';
+import { getSetExtraMetasInstructions } from '../abl/setExtraMetas';
+import { Mode } from '@mosaic/abl';
 
 /**
  * Creates a transaction to initialize a new arcade token mint on Solana with common arcade token features.
@@ -55,7 +62,7 @@ export const createArcadeTokenInitTransaction = async (
   const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
   const feePayerSigner =
     typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-  const tx = await new Token()
+  const instructions = await new Token()
     .withMetadata({
       mintAddress: mintSigner.address,
       authority: metadataAuthority || mintAuthority,
@@ -71,7 +78,7 @@ export const createArcadeTokenInitTransaction = async (
     .withDefaultAccountState(false)
     .withConfidentialBalances(confidentialBalancesAuthority || mintAuthority)
     .withPermanentDelegate(permanentDelegateAuthority || mintAuthority)
-    .buildTransaction({
+    .buildInstructions({
       rpc,
       decimals,
       authority: mintAuthority,
@@ -79,5 +86,67 @@ export const createArcadeTokenInitTransaction = async (
       feePayer: feePayerSigner,
     });
 
-  return tx;
+  // 2. create mintConfig (ebalts)
+  if (mintAuthority !== feePayerSigner.address) {
+    // Get latest blockhash for transaction
+    const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
+
+    return createTransaction({
+      feePayer,
+      version: 'legacy',
+      latestBlockhash,
+      instructions,
+    });
+  }
+
+  const { instructions: createConfigInstructions } =
+    await getCreateConfigInstructions({
+      authority: feePayerSigner,
+      mint: mintSigner.address,
+      gatingProgram: ABL_PROGRAM_ID,
+    });
+
+  // 3. set gating program to ABL (ebalts)
+  const setGatingProgramInstructions = await getSetGatingProgramInstructions({
+    authority: feePayerSigner,
+    mint: mintSigner.address,
+    gatingProgram: ABL_PROGRAM_ID,
+  });
+
+  // 4. enable permissionless thaw (Ebalts)
+  const enablePermissionlessThawInstructions =
+    await getEnablePermissionlessThawInstructions({
+      authority: feePayerSigner,
+      mint: mintSigner.address,
+    });
+
+  // 5. create list (abl)
+  const { instructions: createListInstructions, listConfig } =
+    await getCreateListInstructions({
+      authority: feePayerSigner,
+      mint: mintSigner.address,
+      mode: Mode.Allow,
+    });
+
+  // 6. set extra metas (abl): this is how we can change the list associated with a given mint
+  const setExtraMetasInstructions = await getSetExtraMetasInstructions({
+    authority: feePayerSigner,
+    mint: mintSigner.address,
+    list: listConfig,
+  });
+
+  instructions.push(...createConfigInstructions);
+  instructions.push(...setGatingProgramInstructions);
+  instructions.push(...enablePermissionlessThawInstructions);
+  instructions.push(...createListInstructions);
+  instructions.push(...setExtraMetasInstructions);
+
+  // Get latest blockhash for transaction
+  const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
+  return createTransaction({
+    feePayer,
+    version: 'legacy',
+    latestBlockhash,
+    instructions,
+  });
 };

@@ -1,7 +1,11 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createStablecoinInitTransaction } from '@mosaic/sdk';
+import {
+  ABL_PROGRAM_ID,
+  createStablecoinInitTransaction,
+  EBALTS_PROGRAM_ID,
+} from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
@@ -9,6 +13,8 @@ import {
   signTransactionMessageWithSigners,
   type Address,
 } from 'gill';
+import { findListConfigPda } from '@mosaic/abl';
+import { findMintConfigPda } from '@mosaic/ebalts';
 
 interface StablecoinOptions {
   name: string;
@@ -134,6 +140,16 @@ export const createStablecoinCommand = new Command('stablecoin')
 
       spinner.succeed('Stablecoin created successfully!');
 
+      const listConfigPda = await findListConfigPda(
+        { authority: mintAuthority, seed: mintKeypair.address },
+        { programAddress: ABL_PROGRAM_ID }
+      );
+
+      const mintConfigPda = await findMintConfigPda(
+        { mint: mintKeypair.address },
+        { programAddress: EBALTS_PROGRAM_ID }
+      );
+
       // Display results
       console.log(chalk.green('✅ Stablecoin Creation Successful'));
       console.log(chalk.cyan('📋 Details:'));
@@ -168,6 +184,14 @@ export const createStablecoinCommand = new Command('stablecoin')
       if (options.uri) {
         console.log(`${chalk.bold('Metadata URI:')} ${options.uri}`);
       }
+
+      console.log(chalk.cyan('🔑 Blocklist Initialized:'));
+      console.log(
+        `   ${chalk.green('✓')} Blocklist Address: ${listConfigPda[0]}`
+      );
+      console.log(
+        `   ${chalk.green('✓')} EBALTS mint config Address: ${mintConfigPda[0]}`
+      );
     } catch (error) {
       spinner.fail('Failed to create stablecoin');
       if (error && typeof error === 'object' && 'context' in error) {

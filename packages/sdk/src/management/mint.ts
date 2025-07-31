@@ -10,10 +10,12 @@ import type {
 } from 'gill';
 import { createNoopSigner, createTransaction } from 'gill';
 import {
-  getAssociatedTokenAccountAddress,
   TOKEN_2022_PROGRAM_ADDRESS,
-  getMintTokensInstructions,
+  getMintToInstruction,
+  getCreateAssociatedTokenIdempotentInstruction,
 } from 'gill/programs/token';
+import { getThawPermissionlessInstructions } from '../ebalts';
+import { resolveTokenAccount } from '../transactionUtil';
 
 /**
  * Creates a transaction to mint tokens to a recipient's associated token account.
@@ -47,19 +49,43 @@ export const createMintToTransaction = async (
     typeof mintAuthority === 'string'
       ? createNoopSigner(mintAuthority)
       : mintAuthority;
-  const instructions = getMintTokensInstructions({
-    mint,
-    destination: recipient,
-    amount,
-    mintAuthority: mintAuthoritySigner,
-    feePayer: feePayerSigner,
-    ata: await getAssociatedTokenAccountAddress(
-      mint,
-      recipient,
-      TOKEN_2022_PROGRAM_ADDRESS
+
+  const { tokenAccount: destinationAta, isFrozen } = await resolveTokenAccount(
+    rpc,
+    recipient,
+    mint
+  );
+
+  const instructions = [
+    // create idempotent will gracefully fail if the ata already exists. this is the gold standard!
+    getCreateAssociatedTokenIdempotentInstruction({
+      owner: recipient,
+      mint: mint,
+      ata: destinationAta,
+      payer: feePayerSigner,
+      tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+    }),
+    ...(isFrozen
+      ? await getThawPermissionlessInstructions({
+          authority: mintAuthoritySigner,
+          mint: mint,
+          tokenAccount: destinationAta,
+          tokenAccountOwner: recipient,
+          rpc,
+        })
+      : []),
+    getMintToInstruction(
+      {
+        mint: mint,
+        mintAuthority: mintAuthority,
+        token: destinationAta,
+        amount: amount,
+      },
+      {
+        programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+      }
     ),
-    tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
-  });
+  ];
 
   // Get latest blockhash for transaction
   const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();

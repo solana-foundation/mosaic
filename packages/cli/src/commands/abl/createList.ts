@@ -4,7 +4,7 @@ import ora from 'ora';
 import { getCreateListTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
-import { signTransactionMessageWithSigners } from 'gill';
+import { type Address, signTransactionMessageWithSigners } from 'gill';
 
 interface CreateConfigOptions {
   mint: string;
@@ -28,6 +28,7 @@ export const createList = new Command('create-list')
         rpc,
         payer: kp,
         authority: kp,
+        mint: options.mint as Address,
       });
 
       spinner.text = 'Signing transaction...';

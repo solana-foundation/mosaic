@@ -15,6 +15,7 @@ import {
   TOKEN_2022_PROGRAM_ADDRESS,
 } from 'gill/programs/token';
 import { resolveTokenAccount, decimalAmountToRaw } from '../transactionUtil';
+import { getThawPermissionlessInstructions } from '../ebalts';
 
 /**
  * Gets mint information including decimals from the blockchain
@@ -100,8 +101,11 @@ export const createForceTransferTransaction = async (
     fromAccount,
     mint
   );
-  const { tokenAccount: destTokenAccount, wasOwnerAddress: destWasOwner } =
-    await resolveTokenAccount(rpc, toAccount, mint);
+  const {
+    tokenAccount: destTokenAccount,
+    wasOwnerAddress: destWasOwner,
+    isFrozen,
+  } = await resolveTokenAccount(rpc, toAccount, mint);
 
   const instructions = [];
 
@@ -114,7 +118,16 @@ export const createForceTransferTransaction = async (
         owner: toAccount,
         mint,
         tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
-      })
+      }),
+      ...(isFrozen
+        ? await getThawPermissionlessInstructions({
+            authority: feePayerSigner,
+            mint,
+            tokenAccount: destTokenAccount,
+            tokenAccountOwner: toAccount,
+            rpc,
+          })
+        : [])
     );
   }
 
