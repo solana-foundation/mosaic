@@ -65,7 +65,7 @@
   input,
   textarea,
   select {
-    @apply px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white dark:bg-card text-foreground;
+    @apply px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-card text-foreground;
     transition: box-shadow 0.2s, border-color 0.2s;
   }
 
