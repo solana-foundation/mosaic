@@ -6,6 +6,7 @@ export interface TokenDisplay {
   type?: string;
   decimals?: number;
   mintAuthority?: string;
+  freezeAuthority?: string;
   metadataAuthority?: string;
   pausableAuthority?: string;
   confidentialBalancesAuthority?: string;

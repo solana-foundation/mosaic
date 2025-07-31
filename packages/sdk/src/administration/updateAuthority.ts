@@ -13,6 +13,7 @@ import type {
   TransactionSigner,
   Rpc,
   SolanaRpcApi,
+  TransactionWithBlockhashLifetime,
 } from 'gill';
 import { createTransaction } from 'gill';
 
@@ -84,7 +85,7 @@ export const getUpdateAuthorityTransaction = async (input: {
   currentAuthority: TransactionSigner<string>;
   newAuthority: Address;
 }): Promise<
-  FullTransaction<TransactionVersion, TransactionMessageWithFeePayer>
+  FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>
 > => {
   const instructions = getUpdateAuthorityInstructions({
     mint: input.mint,
