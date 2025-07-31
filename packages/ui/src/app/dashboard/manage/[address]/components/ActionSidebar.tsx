@@ -1,4 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Edit, Settings, Coins, Ban, Trash2 } from 'lucide-react';
 
@@ -61,4 +67,4 @@ export function ActionSidebar({ isPaused, onTogglePause }: ActionSidebarProps) {
       </Card>
     </div>
   );
-} 
+}

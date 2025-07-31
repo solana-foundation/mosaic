@@ -6,7 +6,10 @@ import { StablecoinAuthorityParams } from './StablecoinAuthorityParams';
 import { StablecoinCreationResultDisplay } from '@/app/dashboard/create/stablecoin/StablecoinCreationResult';
 import { createStablecoin } from '@/lib/issuance/stablecoin';
 import { TransactionSendingSigner } from '@solana/signers';
-import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/tokenStorage';
+import {
+  TokenStorage,
+  createTokenDisplayFromResult,
+} from '@/lib/token/tokenStorage';
 
 interface StablecoinCreateFormProps {
   transactionSendingSigner: TransactionSendingSigner<string>;
@@ -46,7 +49,7 @@ export function StablecoinCreateForm({
         stablecoinOptions,
         transactionSendingSigner
       );
-      
+
       if (result.success && result.mintAddress) {
         // Create token display object
         const tokenDisplay = createTokenDisplayFromResult(

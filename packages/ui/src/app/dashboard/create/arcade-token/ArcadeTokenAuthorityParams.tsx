@@ -95,4 +95,4 @@ export function ArcadeTokenAuthorityParams({
       )}
     </Card>
   );
-} 
+}

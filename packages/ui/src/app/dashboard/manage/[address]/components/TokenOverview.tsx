@@ -78,7 +78,9 @@ export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
             <label className="text-sm font-medium text-muted-foreground">
               Created
             </label>
-            <p className="text-lg font-semibold">{formatDate(token.createdAt)}</p>
+            <p className="text-lg font-semibold">
+              {formatDate(token.createdAt)}
+            </p>
           </div>
         </div>
 
@@ -100,9 +102,7 @@ export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
             </Button>
           </div>
           {copied && (
-            <p className="text-sm text-green-600 mt-1">
-              Copied to clipboard!
-            </p>
+            <p className="text-sm text-green-600 mt-1">Copied to clipboard!</p>
           )}
         </div>
 
@@ -140,4 +140,4 @@ export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
       </CardContent>
     </Card>
   );
-} 
+}

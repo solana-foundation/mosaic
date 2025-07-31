@@ -81,4 +81,4 @@ export function ArcadeTokenBasicParams({
       </CardContent>
     </Card>
   );
-} 
+}

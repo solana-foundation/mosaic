@@ -2,10 +2,7 @@
 
 import { useContext, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  ArrowLeft,
-  ExternalLink,
-} from 'lucide-react';
+import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { TokenDisplay } from '@/types/token';
@@ -79,7 +76,10 @@ function ManageTokenConnected({ address }: { address: string }) {
   };
 
   const openInExplorer = () => {
-    window.open(`https://explorer.solana.com/address/${address}?cluster=devnet`, '_blank');
+    window.open(
+      `https://explorer.solana.com/address/${address}?cluster=devnet`,
+      '_blank'
+    );
   };
 
   const openInSolscan = () => {
@@ -152,7 +152,8 @@ function ManageTokenConnected({ address }: { address: string }) {
           <div className="text-center">
             <h2 className="text-3xl font-bold mb-4">Token Not Found</h2>
             <p className="text-muted-foreground mb-6">
-              The token with address {address} could not be found in your local storage.
+              The token with address {address} could not be found in your local
+              storage.
             </p>
             <Link href="/dashboard">
               <Button>
@@ -200,10 +201,10 @@ function ManageTokenConnected({ address }: { address: string }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            <TokenOverview 
-              token={token} 
-              copied={copied} 
-              onCopy={copyToClipboard} 
+            <TokenOverview
+              token={token}
+              copied={copied}
+              onCopy={copyToClipboard}
             />
             <TokenAuthorities token={token} />
             <TokenExtensions
@@ -218,10 +219,7 @@ function ManageTokenConnected({ address }: { address: string }) {
           </div>
 
           {/* Sidebar */}
-          <ActionSidebar 
-            isPaused={isPaused} 
-            onTogglePause={togglePause} 
-          />
+          <ActionSidebar isPaused={isPaused} onTogglePause={togglePause} />
         </div>
       </div>
 

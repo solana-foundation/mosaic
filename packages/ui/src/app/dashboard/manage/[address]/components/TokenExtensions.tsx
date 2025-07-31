@@ -1,4 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Settings, Plus, X, Shield, Ban } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
@@ -29,9 +35,7 @@ export function TokenExtensions({
           <Settings className="h-5 w-5 mr-2" />
           Token Extensions
         </CardTitle>
-        <CardDescription>
-          Extensions enabled on this token
-        </CardDescription>
+        <CardDescription>Extensions enabled on this token</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
@@ -84,8 +88,7 @@ export function TokenExtensions({
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Block specific addresses from transferring this
-                  stablecoin
+                  Block specific addresses from transferring this stablecoin
                 </p>
                 {blocklist.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
@@ -134,8 +137,7 @@ export function TokenExtensions({
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground mb-3">
-                  Allow only specific addresses to transfer this arcade
-                  token
+                  Allow only specific addresses to transfer this arcade token
                 </p>
                 {allowlist.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
@@ -181,4 +183,4 @@ export function TokenExtensions({
       </CardContent>
     </Card>
   );
-} 
+}

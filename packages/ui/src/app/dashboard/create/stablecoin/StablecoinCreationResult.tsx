@@ -34,7 +34,8 @@ export function StablecoinCreationResultDisplay({
             <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
               <CheckCircle className="h-5 w-5 text-green-600" />
               <span className="text-green-800 text-sm font-medium">
-                Token saved to your local storage and will appear on your dashboard
+                Token saved to your local storage and will appear on your
+                dashboard
               </span>
             </div>
             <div>
@@ -68,7 +69,7 @@ export function StablecoinCreationResultDisplay({
                 {result.details?.extensions?.join(', ')}
               </div>
             </div>
-            
+
             {/* Manage Token Button */}
             {result.mintAddress && (
               <div className="pt-4 border-t">

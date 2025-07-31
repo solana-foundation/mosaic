@@ -49,7 +49,11 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
   }, []);
 
   const handleDeleteToken = (address: string) => {
-    if (confirm('Are you sure you want to delete this token from your local storage?')) {
+    if (
+      confirm(
+        'Are you sure you want to delete this token from your local storage?'
+      )
+    ) {
       TokenStorage.deleteToken(address);
       setTokens(getAllTokens());
     }
@@ -160,7 +164,8 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
           <div>
             <h2 className="text-3xl font-bold mb-2">Your Tokens</h2>
             <p className="text-muted-foreground">
-              Manage your created tokens and their extensions ({getTokenCount()} total)
+              Manage your created tokens and their extensions ({getTokenCount()}{' '}
+              total)
             </p>
           </div>
           <DropdownMenu>
@@ -241,7 +246,9 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Type:</span>
-                    <span className="font-medium">{getTokenTypeLabel(token.type)}</span>
+                    <span className="font-medium">
+                      {getTokenTypeLabel(token.type)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Supply:</span>
@@ -261,7 +268,9 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                   </div>
                   {token.extensions && token.extensions.length > 0 && (
                     <div className="pt-2">
-                      <span className="text-muted-foreground text-xs">Extensions:</span>
+                      <span className="text-muted-foreground text-xs">
+                        Extensions:
+                      </span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {token.extensions.slice(0, 2).map((ext, idx) => (
                           <span

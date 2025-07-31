@@ -55,11 +55,7 @@ export function AddressModal({
             >
               {buttonText}
             </Button>
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-            >
+            <Button variant="outline" onClick={onClose} className="flex-1">
               Cancel
             </Button>
           </div>
@@ -67,4 +63,4 @@ export function AddressModal({
       </div>
     </div>
   );
-} 
+}

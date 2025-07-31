@@ -170,10 +170,11 @@ export const createStablecoinCommand = new Command('stablecoin')
       }
     } catch (error) {
       spinner.fail('Failed to create stablecoin');
-      if ('context' in (error as any)) {
+      if (error && typeof error === 'object' && 'context' in error) {
+        const typedError = error as { context: { logs: string[] } };
         console.error(
           chalk.red(`❌ Transaction simulation failed:`),
-          `\n\t${(error as any).context.logs.join('\n\t')}`
+          `\n\t${typedError.context.logs.join('\n\t')}`
         );
       } else {
         console.error(

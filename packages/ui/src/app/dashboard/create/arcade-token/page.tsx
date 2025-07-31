@@ -97,8 +97,8 @@ function ArcadeTokenCreatePage() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              To create an arcade token, you need to connect a wallet first. Please
-              use the wallet connection button in the top navigation.
+              To create an arcade token, you need to connect a wallet first.
+              Please use the wallet connection button in the top navigation.
             </p>
           </CardContent>
         </Card>

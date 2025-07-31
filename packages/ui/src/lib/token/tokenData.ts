@@ -27,12 +27,12 @@ export const findTokenByAddress = (address: string): TokenDisplay | null => {
 // Function to get all tokens from local storage
 export const getAllTokens = (): TokenDisplay[] => {
   const storedTokens = TokenStorage.getAllTokens();
-  
+
   // If no tokens in storage, return legacy data for demo purposes
   if (storedTokens.length === 0) {
     return legacyTokenData;
   }
-  
+
   return storedTokens;
 };
 

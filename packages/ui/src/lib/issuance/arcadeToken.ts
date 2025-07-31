@@ -138,7 +138,7 @@ export const createArcadeTokenForUI = async (
     const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
 
     // Create arcade token transaction using SDK
-    const transaction = await createArcadeTokenInitTransaction(
+    await createArcadeTokenInitTransaction(
       rpc,
       options.name,
       options.symbol,

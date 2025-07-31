@@ -6,7 +6,10 @@ import { ArcadeTokenAuthorityParams } from './ArcadeTokenAuthorityParams';
 import { ArcadeTokenCreationResultDisplay } from '@/app/dashboard/create/arcade-token/ArcadeTokenCreationResult';
 import { createArcadeToken } from '@/lib/issuance/arcadeToken';
 import { TransactionSendingSigner } from '@solana/signers';
-import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/tokenStorage';
+import {
+  TokenStorage,
+  createTokenDisplayFromResult,
+} from '@/lib/token/tokenStorage';
 
 interface ArcadeTokenCreateFormProps {
   transactionSendingSigner: TransactionSendingSigner<string>;
@@ -15,8 +18,8 @@ interface ArcadeTokenCreateFormProps {
 export function ArcadeTokenCreateForm({
   transactionSendingSigner,
 }: ArcadeTokenCreateFormProps) {
-  const [arcadeTokenOptions, setArcadeTokenOptions] = useState<ArcadeTokenOptions>(
-    {
+  const [arcadeTokenOptions, setArcadeTokenOptions] =
+    useState<ArcadeTokenOptions>({
       name: '',
       symbol: '',
       decimals: '6',
@@ -25,8 +28,7 @@ export function ArcadeTokenCreateForm({
       metadataAuthority: '',
       pausableAuthority: '',
       permanentDelegateAuthority: '',
-    }
-  );
+    });
   const [isCreating, setIsCreating] = useState(false);
   const [result, setResult] = useState<ArcadeTokenCreationResult | null>(null);
 
@@ -45,7 +47,7 @@ export function ArcadeTokenCreateForm({
         arcadeTokenOptions,
         transactionSendingSigner
       );
-      
+
       if (result.success && result.mintAddress) {
         // Create token display object
         const tokenDisplay = createTokenDisplayFromResult(
@@ -144,4 +146,4 @@ export function ArcadeTokenCreateForm({
       </form>
     </>
   );
-} 
+}

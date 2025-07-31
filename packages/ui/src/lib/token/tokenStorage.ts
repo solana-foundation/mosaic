@@ -17,7 +17,7 @@ export class TokenStorage {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (!stored) return [];
-      
+
       const tokens = JSON.parse(stored) as TokenDisplay[];
       return Array.isArray(tokens) ? tokens : [];
     } catch (error) {
@@ -36,16 +36,19 @@ export class TokenStorage {
 
     try {
       const existingTokens = this.getAllTokens();
-      
+
       // Check if token already exists (by address)
-      const existingIndex = existingTokens.findIndex(t => t.address === token.address);
-      
+      const existingIndex = existingTokens.findIndex(
+        t => t.address === token.address
+      );
+
       if (existingIndex >= 0) {
         // Update existing token
         existingTokens[existingIndex] = {
           ...existingTokens[existingIndex],
           ...token,
-          createdAt: existingTokens[existingIndex].createdAt || new Date().toISOString(),
+          createdAt:
+            existingTokens[existingIndex].createdAt || new Date().toISOString(),
         };
       } else {
         // Add new token
@@ -137,9 +140,27 @@ export class TokenStorage {
  * Helper function to convert creation result to TokenDisplay
  */
 export const createTokenDisplayFromResult = (
-  result: { mintAddress?: string; transactionSignature?: string; details?: any },
+  result: {
+    mintAddress?: string;
+    transactionSignature?: string;
+    details?: {
+      name?: string;
+      symbol?: string;
+      decimals?: number;
+      mintAuthority?: string;
+      metadataAuthority?: string;
+      pausableAuthority?: string;
+      confidentialBalancesAuthority?: string;
+      permanentDelegateAuthority?: string;
+      extensions?: string[];
+    };
+  },
   type: 'stablecoin' | 'arcade-token',
-  options: any
+  options: {
+    name: string;
+    symbol: string;
+    uri?: string;
+  }
 ): TokenDisplay => {
   return {
     name: result.details?.name || options.name,
@@ -150,11 +171,12 @@ export const createTokenDisplayFromResult = (
     mintAuthority: result.details?.mintAuthority,
     metadataAuthority: result.details?.metadataAuthority,
     pausableAuthority: result.details?.pausableAuthority,
-    confidentialBalancesAuthority: result.details?.confidentialBalancesAuthority,
+    confidentialBalancesAuthority:
+      result.details?.confidentialBalancesAuthority,
     permanentDelegateAuthority: result.details?.permanentDelegateAuthority,
     extensions: result.details?.extensions,
     transactionSignature: result.transactionSignature,
     metadataUri: options.uri,
     supply: '0', // Initial supply is 0 for new tokens
   };
-}; 
+};
