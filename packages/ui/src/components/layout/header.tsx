@@ -6,7 +6,10 @@ import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
 const WalletButton = dynamic(
-  () => import('@solana/wallet-adapter-react-ui').then((mod) => mod.WalletMultiButton),
+  () =>
+    import('@solana/wallet-adapter-react-ui').then(
+      mod => mod.WalletMultiButton
+    ),
   { ssr: false }
 );
 
@@ -30,7 +33,13 @@ export function Header() {
               Get Started
             </Button>
           ) : (
-            <WalletButton />
+            <WalletButton
+              style={{
+                backgroundColor: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
+                border: '1px solid hsl(var(--border))',
+              }}
+            />
           )}
           <ModeToggle />
         </div>
