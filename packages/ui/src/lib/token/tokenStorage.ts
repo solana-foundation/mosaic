@@ -20,8 +20,8 @@ export class TokenStorage {
 
       const tokens = JSON.parse(stored) as TokenDisplay[];
       return Array.isArray(tokens) ? tokens : [];
-    } catch (error) {
-      console.error('Error reading tokens from localStorage:', error);
+    } catch {
+      // Silently handle errors and return empty array
       return [];
     }
   }
@@ -60,8 +60,8 @@ export class TokenStorage {
       }
 
       localStorage.setItem(STORAGE_KEY, JSON.stringify(existingTokens));
-    } catch (error) {
-      console.error('Error saving token to localStorage:', error);
+    } catch {
+      // Silently handle errors
     }
   }
 
@@ -75,8 +75,8 @@ export class TokenStorage {
 
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
-    } catch (error) {
-      console.error('Error saving tokens to localStorage:', error);
+    } catch {
+      // Silently handle errors
     }
   }
 
@@ -100,8 +100,8 @@ export class TokenStorage {
       const tokens = this.getAllTokens();
       const filteredTokens = tokens.filter(token => token.address !== address);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredTokens));
-    } catch (error) {
-      console.error('Error deleting token from localStorage:', error);
+    } catch {
+      // Silently handle errors
     }
   }
 
@@ -115,8 +115,8 @@ export class TokenStorage {
 
     try {
       localStorage.removeItem(STORAGE_KEY);
-    } catch (error) {
-      console.error('Error clearing tokens from localStorage:', error);
+    } catch {
+      // Silently handle errors
     }
   }
 
