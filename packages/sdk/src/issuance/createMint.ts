@@ -76,7 +76,7 @@ export class Token {
     const defaultAccountStateExtension = extension('DefaultAccountState', {
       state: initialState
         ? AccountState.Initialized
-        : AccountState.Uninitialized,
+        : AccountState.Frozen,
     });
     this.extensions.push(defaultAccountStateExtension);
     return this;

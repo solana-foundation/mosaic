@@ -1,5 +1,5 @@
 {
-  "name": "@mosaic/sdk",
+  "name": "@mosaic/tlv-account-resolution",
   "version": "0.1.0",
   "description": "SDK for Mosaic with helper functions for issuance and management of any token",
   "type": "module",
@@ -16,7 +16,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
+    "dev": "echo 'Dev will be implemented'",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -27,9 +27,7 @@
   },
   "dependencies": {
     "gill": "^0.10.2",
-    "@mosaic/tlv-account-resolution": "workspace:*",
-    "@mosaic/ebalts": "workspace:*",
-    "@mosaic/abl": "workspace:*"
+    "@solana/kit": "2.3.0"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",
@@ -37,8 +35,7 @@
     "@typescript-eslint/parser": "^8.34.0",
     "eslint": "^9.32.0",
     "jest": "^29.5.0",
-    "ts-jest": "^29.1.0",
-    "typescript": "^5.8.3"
+    "ts-jest": "^29.1.0"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
