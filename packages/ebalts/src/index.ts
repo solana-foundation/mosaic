@@ -1,4 +1,4 @@
-import { type Address, type Rpc, type GetAccountInfoApi, type Instruction, fetchEncodedAccount, type TransactionSigner, AccountRole, type AccountMeta, type MaybeEncodedAccount } from '@solana/kit';
+import { type Address, type Instruction, type TransactionSigner, AccountRole, type AccountMeta, type MaybeEncodedAccount } from '@solana/kit';
 import { findMintConfigPda } from './generated/pdas/mintConfig';
 import { findFreezeExtraMetasAccountPda, findThawExtraMetasAccountPda, getFreezePermissionlessInstruction, getMintConfigDecoder, getThawPermissionlessInstruction } from './generated';
 import { resolveExtraMetas } from '@mosaic/tlv-account-resolution';

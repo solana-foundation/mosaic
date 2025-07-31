@@ -6,7 +6,6 @@ import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
   signTransactionMessageWithSigners,
-  SolanaError,
   type Address,
 } from 'gill';
 
@@ -26,7 +25,6 @@ export const enablePermissionlessThaw = new Command('enable-permissionless-thaw'
     try {
       const parentOpts = command.parent?.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
       const kp = await loadKeypair(options.keypair);
 

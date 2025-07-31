@@ -1,4 +1,4 @@
-import { createTransaction, generateKeyPairSigner, type Address, type FullTransaction, type Instruction, type Rpc, type SolanaRpcApi, type TransactionMessageWithFeePayer, type TransactionSigner, type TransactionVersion, type TransactionWithBlockhashLifetime } from "gill";
+import { createTransaction, type Address, type FullTransaction, type Instruction, type Rpc, type SolanaRpcApi, type TransactionMessageWithFeePayer, type TransactionSigner, type TransactionVersion, type TransactionWithBlockhashLifetime } from "gill";
 import { ABL_PROGRAM_ID } from "./utils";
 import { getSetExtraMetasThawInstruction } from '@mosaic/abl';
 import { findMintConfigPda, findThawExtraMetasAccountPda } from '@mosaic/ebalts';

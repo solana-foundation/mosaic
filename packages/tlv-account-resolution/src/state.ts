@@ -2,7 +2,7 @@
 import { TokenTransferHookAccountNotFound, TokenTransferHookInvalidPubkeyData } from './errors.js';
 import { unpackSeeds } from './seeds.js';
 import { unpackPubkeyData } from './pubkeyData.js';
-import { type Address, type AccountMeta, type GetAccountInfoApi, type Rpc, getProgramDerivedAddress, address, AccountRole, mergeRoles, getAddressDecoder, type MaybeEncodedAccount } from '@solana/kit';
+import { type Address, type AccountMeta, getProgramDerivedAddress, AccountRole, mergeRoles, getAddressDecoder, type MaybeEncodedAccount } from '@solana/kit';
 
 
 export async function resolveExtraMetas(
@@ -58,7 +58,7 @@ export function unpackExtraAccountMetas(
     if (data.length < 12) {
         throw new TokenTransferHookInvalidPubkeyData();
     }
-    const discriminator = data.slice(0,8);
+    //const discriminator = data.slice(0,8);
     const length = new DataView(data.buffer, 8, 4).getUint32(0, true);
     const count = new DataView(data.buffer, 12, 4).getUint32(0, true);
     const offset = 16;

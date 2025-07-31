@@ -5,7 +5,7 @@ import {
     TokenTransferHookPubkeyDataTooSmall,
     TokenTransferHookAccountNotFound,
 } from './errors.js';
-import { type Address, type Rpc, type AccountMeta, fetchEncodedAccount, type GetAccountInfoApi, address, getAddressDecoder, type MaybeEncodedAccount } from '@solana/kit';
+import { type Address, type AccountMeta, getAddressDecoder, type MaybeEncodedAccount } from '@solana/kit';
 
 
 export async function unpackPubkeyData(

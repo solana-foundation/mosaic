@@ -1,12 +1,9 @@
 
 import {
     TokenTransferHookAccountDataNotFound,
-    TokenTransferHookInvalidPubkeyData,
-    TokenTransferHookPubkeyDataTooSmall,
-    TokenTransferHookAccountNotFound,
     TokenTransferHookInvalidSeed,
 } from './errors.js';
-import { type Address, type Rpc, type AccountMeta, fetchEncodedAccount, type GetAccountInfoApi, address, getAddressDecoder, getAddressEncoder, type MaybeEncodedAccount } from '@solana/kit';
+import { type Address, type AccountMeta, getAddressEncoder, type MaybeEncodedAccount } from '@solana/kit';
 
 interface Seed {
     data: Buffer;

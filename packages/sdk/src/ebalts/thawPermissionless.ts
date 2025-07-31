@@ -1,9 +1,7 @@
-import { createTransaction, fetchEncodedAccount, generateKeyPairSigner, lamports, type Address, type FullTransaction, type Instruction, type Rpc, type SolanaRpcApi, type TransactionMessageWithFeePayer, type TransactionSigner, type TransactionVersion, type TransactionWithBlockhashLifetime } from "gill";
-import { findListConfigPda, getInitializeListConfigInstruction, Mode } from '@mosaic/abl';
-import { ABL_PROGRAM_ID, getCreateListInstructions } from "../abl";
-import { createThawPermissionlessInstructionWithExtraMetas, findMintConfigPda, getCreateConfigInstruction, getSetGatingProgramInstruction } from "@mosaic/ebalts";
+import { createTransaction, fetchEncodedAccount, lamports, type Address, type FullTransaction, type Instruction, type Rpc, type SolanaRpcApi, type TransactionMessageWithFeePayer, type TransactionSigner, type TransactionVersion, type TransactionWithBlockhashLifetime } from "gill";
+import { createThawPermissionlessInstructionWithExtraMetas, findMintConfigPda } from "@mosaic/ebalts";
 import { EBALTS_PROGRAM_ID } from "./utils";
-import { getTokenEncoder, AccountState, TOKEN_2022_PROGRAM_ADDRESS, AuthorityType } from "gill/programs";
+import { getTokenEncoder, AccountState, TOKEN_2022_PROGRAM_ADDRESS } from "gill/programs";
 
 
 /**
@@ -34,7 +32,7 @@ export const getThawPermissionlessInstructions = async (input: {
 
     const thawPermissionlessInstruction = await createThawPermissionlessInstructionWithExtraMetas(input.authority, input.tokenAccount, input.mint, mintConfigPda[0], input.tokenAccountOwner, EBALTS_PROGRAM_ID,
         async (address: Address) => {
-          let data = getTokenEncoder().encode({
+          const data = getTokenEncoder().encode({
             amount: 0,
             closeAuthority: null,
             delegate: null,
