@@ -83,10 +83,7 @@ export const removeCommand = new Command('remove')
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
       console.log(`   ${chalk.bold('Input Account:')} ${options.account}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-      console.log(
-        `   ${chalk.bold('Authority:')} ${authorityKeypair.address}`
-      );
-
+      console.log(`   ${chalk.bold('Authority:')} ${authorityKeypair.address}`);
     } catch (error) {
       spinner.fail('Failed to remove account from access list');
       console.error(

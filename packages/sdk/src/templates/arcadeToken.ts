@@ -107,12 +107,11 @@ export const createArcadeTokenInitTransaction = async (
     });
 
   // 3. set gating program to ABL (ebalts)
-  const setGatingProgramInstructions =
-    await getSetGatingProgramInstructions({
-      authority: feePayerSigner,
-      mint: mintSigner.address,
-      gatingProgram: ABL_PROGRAM_ID,
-    });
+  const setGatingProgramInstructions = await getSetGatingProgramInstructions({
+    authority: feePayerSigner,
+    mint: mintSigner.address,
+    gatingProgram: ABL_PROGRAM_ID,
+  });
 
   // 4. enable permissionless thaw (Ebalts)
   const enablePermissionlessThawInstructions =

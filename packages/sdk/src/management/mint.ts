@@ -10,7 +10,6 @@ import type {
 } from 'gill';
 import { createNoopSigner, createTransaction } from 'gill';
 import {
-  getAssociatedTokenAccountAddress,
   TOKEN_2022_PROGRAM_ADDRESS,
   getMintToInstruction,
   getCreateAssociatedTokenIdempotentInstruction,
@@ -51,10 +50,11 @@ export const createMintToTransaction = async (
       ? createNoopSigner(mintAuthority)
       : mintAuthority;
 
-  const {
-    tokenAccount: destinationAta,
-    isFrozen,
-  } = await resolveTokenAccount(rpc, recipient, mint);
+  const { tokenAccount: destinationAta, isFrozen } = await resolveTokenAccount(
+    rpc,
+    recipient,
+    mint
+  );
 
   const instructions = [
     // create idempotent will gracefully fail if the ata already exists. this is the gold standard!
@@ -65,13 +65,15 @@ export const createMintToTransaction = async (
       payer: feePayerSigner,
       tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
     }),
-    ...(isFrozen ? await getThawPermissionlessInstructions({
-      authority: mintAuthoritySigner,
-      mint: mint,
-      tokenAccount: destinationAta,
-      tokenAccountOwner: recipient,
-      rpc,
-    }) : []),
+    ...(isFrozen
+      ? await getThawPermissionlessInstructions({
+          authority: mintAuthoritySigner,
+          mint: mint,
+          tokenAccount: destinationAta,
+          tokenAccountOwner: recipient,
+          rpc,
+        })
+      : []),
     getMintToInstruction(
       {
         mint: mint,
@@ -81,10 +83,9 @@ export const createMintToTransaction = async (
       },
       {
         programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-      },
+      }
     ),
   ];
-
 
   // Get latest blockhash for transaction
   const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();

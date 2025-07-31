@@ -1,7 +1,11 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { ABL_PROGRAM_ID, createArcadeTokenInitTransaction, EBALTS_PROGRAM_ID } from '@mosaic/sdk';
+import {
+  ABL_PROGRAM_ID,
+  createArcadeTokenInitTransaction,
+  EBALTS_PROGRAM_ID,
+} from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
@@ -178,9 +182,12 @@ export const createArcadeTokenCommand = new Command('arcade-token')
       }
 
       console.log(chalk.cyan('🔑 Allowlist Initialized:'));
-      console.log(`   ${chalk.green('✓')} Allowlist Address: ${listConfigPda[0]}`);
-      console.log(`   ${chalk.green('✓')} EBALTS mint config Address: ${mintConfigPda[0]}`);
-
+      console.log(
+        `   ${chalk.green('✓')} Allowlist Address: ${listConfigPda[0]}`
+      );
+      console.log(
+        `   ${chalk.green('✓')} EBALTS mint config Address: ${mintConfigPda[0]}`
+      );
     } catch (error) {
       spinner.fail('Failed to create arcade token');
       console.error(

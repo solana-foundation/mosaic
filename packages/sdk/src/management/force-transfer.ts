@@ -119,14 +119,15 @@ export const createForceTransferTransaction = async (
         mint,
         tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
       }),
-      ...(isFrozen ? await getThawPermissionlessInstructions({
-        authority: feePayerSigner,
-        mint,
-        tokenAccount: destTokenAccount,
-              tokenAccountOwner: toAccount,
-              rpc,
-            })
-          : []),
+      ...(isFrozen
+        ? await getThawPermissionlessInstructions({
+            authority: feePayerSigner,
+            mint,
+            tokenAccount: destTokenAccount,
+            tokenAccountOwner: toAccount,
+            rpc,
+          })
+        : [])
     );
   }
 
