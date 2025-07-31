@@ -4,7 +4,6 @@ export function Footer() {
   return (
     <footer className="border-t bg-background">
       <div className="container flex h-16 items-center justify-between">
-        {/* Left: License */}
         <p className="text-sm text-muted-foreground">
           <a
             href="https://github.com/YOUR_ORG/mosaic/blob/main/LICENSE"
@@ -15,7 +14,6 @@ export function Footer() {
             MIT License
           </a>
         </p>
-        {/* Right: Social Icons */}
         <div className="flex gap-4 text-muted-foreground">
           <a
             href="https://github.com/gitteri/mosaic"
