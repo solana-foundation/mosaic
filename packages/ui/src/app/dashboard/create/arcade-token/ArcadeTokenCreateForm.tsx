@@ -4,9 +4,9 @@ import { ArcadeTokenOptions, ArcadeTokenCreationResult } from '@/types/token';
 import { ArcadeTokenBasicParams } from './ArcadeTokenBasicParams';
 import { ArcadeTokenAuthorityParams } from './ArcadeTokenAuthorityParams';
 import { ArcadeTokenCreationResultDisplay } from '@/app/dashboard/create/arcade-token/ArcadeTokenCreationResult';
-import { createArcadeToken } from '@/lib/arcadeToken';
+import { createArcadeToken } from '@/lib/issuance/arcadeToken';
 import { TransactionSendingSigner } from '@solana/signers';
-import { TokenStorage, createTokenDisplayFromResult } from '@/lib/tokenStorage';
+import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/tokenStorage';
 
 interface ArcadeTokenCreateFormProps {
   transactionSendingSigner: TransactionSendingSigner<string>;

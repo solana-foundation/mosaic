@@ -4,9 +4,9 @@ import { StablecoinOptions, StablecoinCreationResult } from '@/types/token';
 import { StablecoinBasicParams } from './StablecoinBasicParams';
 import { StablecoinAuthorityParams } from './StablecoinAuthorityParams';
 import { StablecoinCreationResultDisplay } from '@/app/dashboard/create/stablecoin/StablecoinCreationResult';
-import { createStablecoin } from '@/lib/stablecoin';
+import { createStablecoin } from '@/lib/issuance/stablecoin';
 import { TransactionSendingSigner } from '@solana/signers';
-import { TokenStorage, createTokenDisplayFromResult } from '@/lib/tokenStorage';
+import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/tokenStorage';
 
 interface StablecoinCreateFormProps {
   transactionSendingSigner: TransactionSendingSigner<string>;

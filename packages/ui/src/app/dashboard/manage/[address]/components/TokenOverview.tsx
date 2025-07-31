@@ -1,0 +1,143 @@
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Coins, Copy } from 'lucide-react';
+import { TokenDisplay } from '@/types/token';
+
+interface TokenOverviewProps {
+  token: TokenDisplay;
+  copied: boolean;
+  onCopy: (text: string) => void;
+}
+
+export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'Unknown';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  const getTokenTypeLabel = (type?: string) => {
+    switch (type) {
+      case 'stablecoin':
+        return 'Stablecoin';
+      case 'arcade-token':
+        return 'Arcade Token';
+      default:
+        return type || 'Unknown';
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center">
+          <Coins className="h-5 w-5 mr-2" />
+          Token Overview
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">
+              Name
+            </label>
+            <p className="text-lg font-semibold">{token.name}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">
+              Symbol
+            </label>
+            <p className="text-lg font-semibold">{token.symbol}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">
+              Supply
+            </label>
+            <p className="text-lg font-semibold">{token.supply || '0'}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">
+              Decimals
+            </label>
+            <p className="text-lg font-semibold">{token.decimals || '6'}</p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">
+              Type
+            </label>
+            <p className="text-lg font-semibold">
+              {getTokenTypeLabel(token.type)}
+            </p>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">
+              Created
+            </label>
+            <p className="text-lg font-semibold">{formatDate(token.createdAt)}</p>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-sm font-medium text-muted-foreground">
+            Token Address
+          </label>
+          <div className="flex items-start space-x-2 mt-1">
+            <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono break-all">
+              {token.address}
+            </code>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onCopy(token.address || '')}
+              className="flex-shrink-0"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+          {copied && (
+            <p className="text-sm text-green-600 mt-1">
+              Copied to clipboard!
+            </p>
+          )}
+        </div>
+
+        {token.transactionSignature && (
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">
+              Creation Transaction
+            </label>
+            <div className="flex items-start space-x-2 mt-1">
+              <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono break-all">
+                {token.transactionSignature}
+              </code>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onCopy(token.transactionSignature || '')}
+                className="flex-shrink-0"
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {token.metadataUri && (
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">
+              Metadata URI
+            </label>
+            <p className="text-sm bg-muted px-3 py-2 rounded mt-1">
+              {token.metadataUri}
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+} 

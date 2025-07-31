@@ -19,8 +19,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TokenDisplay } from '@/types/token';
-import { getAllTokens, getTokenCount } from '@/lib/tokenData';
-import { TokenStorage } from '@/lib/tokenStorage';
+import { getAllTokens, getTokenCount } from '@/lib/token/tokenData';
+import { TokenStorage } from '@/lib/token/tokenStorage';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 
 export default function DashboardPage() {
