@@ -14,6 +14,7 @@ import {
   getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
+  getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
   transformEncoder,
@@ -33,7 +34,12 @@ import {
   type WritableSignerAccount,
 } from '@solana/kit';
 import { ABL_SRFC37_PROGRAM_ADDRESS } from '../programs';
-import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
+import {
+  expectAddress,
+  expectSome,
+  getAccountMetaFactory,
+  type ResolvedAccount,
+} from '../shared';
 
 export const ADD_WALLET_TO_LIST_DISCRIMINATOR = new Uint8Array([
   249, 25, 0, 35, 88, 124, 60, 201,
@@ -107,6 +113,98 @@ export function getAddWalletToListInstructionDataCodec(): FixedSizeCodec<
     getAddWalletToListInstructionDataEncoder(),
     getAddWalletToListInstructionDataDecoder()
   );
+}
+
+export type AddWalletToListAsyncInput<
+  TAccountAuthority extends string = string,
+  TAccountListConfig extends string = string,
+  TAccountAbWallet extends string = string,
+  TAccountSystemProgram extends string = string,
+> = {
+  authority: TransactionSigner<TAccountAuthority>;
+  listConfig: Address<TAccountListConfig>;
+  abWallet?: Address<TAccountAbWallet>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  wallet: AddWalletToListInstructionDataArgs['wallet'];
+};
+
+export async function getAddWalletToListInstructionAsync<
+  TAccountAuthority extends string,
+  TAccountListConfig extends string,
+  TAccountAbWallet extends string,
+  TAccountSystemProgram extends string,
+  TProgramAddress extends Address = typeof ABL_SRFC37_PROGRAM_ADDRESS,
+>(
+  input: AddWalletToListAsyncInput<
+    TAccountAuthority,
+    TAccountListConfig,
+    TAccountAbWallet,
+    TAccountSystemProgram
+  >,
+  config?: { programAddress?: TProgramAddress }
+): Promise<
+  AddWalletToListInstruction<
+    TProgramAddress,
+    TAccountAuthority,
+    TAccountListConfig,
+    TAccountAbWallet,
+    TAccountSystemProgram
+  >
+> {
+  // Program address.
+  const programAddress = config?.programAddress ?? ABL_SRFC37_PROGRAM_ADDRESS;
+
+  // Original accounts.
+  const originalAccounts = {
+    authority: { value: input.authority ?? null, isWritable: true },
+    listConfig: { value: input.listConfig ?? null, isWritable: false },
+    abWallet: { value: input.abWallet ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+  };
+  const accounts = originalAccounts as Record<
+    keyof typeof originalAccounts,
+    ResolvedAccount
+  >;
+
+  // Original args.
+  const args = { ...input };
+
+  // Resolve default values.
+  if (!accounts.abWallet.value) {
+    accounts.abWallet.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getAddressEncoder().encode(expectAddress(accounts.listConfig.value)),
+        getAddressEncoder().encode(expectSome(args.wallet)),
+      ],
+    });
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
+  const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
+  const instruction = {
+    accounts: [
+      getAccountMeta(accounts.authority),
+      getAccountMeta(accounts.listConfig),
+      getAccountMeta(accounts.abWallet),
+      getAccountMeta(accounts.systemProgram),
+    ],
+    programAddress,
+    data: getAddWalletToListInstructionDataEncoder().encode(
+      args as AddWalletToListInstructionDataArgs
+    ),
+  } as AddWalletToListInstruction<
+    TProgramAddress,
+    TAccountAuthority,
+    TAccountListConfig,
+    TAccountAbWallet,
+    TAccountSystemProgram
+  >;
+
+  return instruction;
 }
 
 export type AddWalletToListInput<

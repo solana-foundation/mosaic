@@ -43,15 +43,20 @@ export function getABWalletDiscriminatorBytes() {
   return fixEncoderSize(getBytesEncoder(), 8).encode(A_B_WALLET_DISCRIMINATOR);
 }
 
-export type ABWallet = { discriminator: ReadonlyUint8Array; wallet: Address };
+export type ABWallet = {
+  discriminator: ReadonlyUint8Array;
+  wallet: Address;
+  listConfig: Address;
+};
 
-export type ABWalletArgs = { wallet: Address };
+export type ABWalletArgs = { wallet: Address; listConfig: Address };
 
 export function getABWalletEncoder(): FixedSizeEncoder<ABWalletArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['wallet', getAddressEncoder()],
+      ['listConfig', getAddressEncoder()],
     ]),
     value => ({ ...value, discriminator: A_B_WALLET_DISCRIMINATOR })
   );
@@ -61,6 +66,7 @@ export function getABWalletDecoder(): FixedSizeDecoder<ABWallet> {
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['wallet', getAddressDecoder()],
+    ['listConfig', getAddressDecoder()],
   ]);
 }
 
@@ -122,5 +128,5 @@ export async function fetchAllMaybeABWallet(
 }
 
 export function getABWalletSize(): number {
-  return 40;
+  return 72;
 }

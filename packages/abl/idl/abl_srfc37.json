@@ -27,8 +27,7 @@
             "seeds": [
               {
                 "kind": "account",
-                "path": "list_config.seed",
-                "account": "ListConfig"
+                "path": "list_config"
               },
               {
                 "kind": "arg",
@@ -179,27 +178,7 @@
           "name": "list_config"
         },
         {
-          "name": "ebalts_mint_config",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [77, 73, 78, 84, 95, 67, 79, 78, 70, 73, 71]
-              },
-              {
-                "kind": "account",
-                "path": "mint"
-              }
-            ],
-            "program": {
-              "kind": "const",
-              "value": [
-                202, 3, 2, 25, 133, 31, 219, 239, 24, 84, 179, 198, 92, 76, 228,
-                172, 204, 14, 138, 90, 35, 151, 49, 178, 41, 166, 250, 0, 0, 0,
-                0, 0
-              ]
-            }
-          }
+          "name": "ebalts_mint_config"
         },
         {
           "name": "mint"
@@ -296,6 +275,10 @@
         "fields": [
           {
             "name": "wallet",
+            "type": "pubkey"
+          },
+          {
+            "name": "list_config",
             "type": "pubkey"
           }
         ]
