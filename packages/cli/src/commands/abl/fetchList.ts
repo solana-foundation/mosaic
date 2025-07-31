@@ -33,7 +33,7 @@ export const fetchList = new Command('fetch-list')
       console.log(`   ${chalk.bold('Authority:')} ${list.authority}`);
       console.log(`   ${chalk.bold('Wallets:')} ${list.wallets.join('\n')}`);
     } catch (error) {
-      spinner.fail('Failed to create ABL list');
+      spinner.fail('Failed to fetch ABL list');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'

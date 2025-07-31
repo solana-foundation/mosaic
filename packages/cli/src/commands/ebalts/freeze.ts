@@ -48,15 +48,15 @@ export const freeze = new Command('freeze')
         commitment: 'confirmed',
       });
 
-      spinner.succeed('Gating program set successfully!');
+      spinner.succeed('Token account frozen successfully!');
 
       // Display results
-      console.log(chalk.green('✅ Gating program set successfully!'));
+      console.log(chalk.green('✅ Token account frozen successfully!'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Token Account:')} ${options.tokenAccount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
     } catch (error) {
-      spinner.fail('Failed to set gating program');
+      spinner.fail('Failed to freeze token account');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'

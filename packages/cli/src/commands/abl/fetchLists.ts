@@ -27,7 +27,7 @@ export const fetchLists = new Command('fetch-lists')
         `   ${chalk.bold('Lists:')} ${lists.map(list => list.listConfig).join('\n')}`
       );
     } catch (error) {
-      spinner.fail('Failed to create ABL list');
+      spinner.fail('Failed to fetch ABL lists');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
