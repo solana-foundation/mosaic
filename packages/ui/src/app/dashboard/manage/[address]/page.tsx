@@ -98,7 +98,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     setTimeout(() => {
       loadedAccessListRef.current = null;
       setRefreshTrigger(prev => prev + 1);
-    }, 500); // 500ms delay to allow blockchain/indexer to update
+    }, 600); // 600ms delay to allow blockchain/indexer to update
   };
 
   // Create transaction sending signer if wallet is connected

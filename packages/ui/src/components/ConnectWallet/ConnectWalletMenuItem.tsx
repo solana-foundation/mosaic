@@ -70,11 +70,6 @@ export function ConnectWalletMenuItem({
         onClick={!isConnected ? handleConnectClick : undefined}
       >
         <WalletMenuItemContent loading={isPending} wallet={wallet} />
-        {!isConnected && (
-          <span className="text-xs text-muted-foreground">
-            Click to connect
-          </span>
-        )}
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent className="w-56">
         <DropdownMenuLabel className="flex items-center gap-2 px-2 py-1.5">

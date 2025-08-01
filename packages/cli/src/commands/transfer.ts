@@ -13,6 +13,7 @@ import {
   getTransferCheckedInstruction,
   TOKEN_2022_PROGRAM_ADDRESS,
 } from 'gill/programs/token';
+import { getAddMemoInstruction } from 'gill/programs';
 import {
   decimalAmountToRaw,
   getMintDecimals,
@@ -26,6 +27,7 @@ interface TransferOptions {
   amount: string;
   rpcUrl?: string;
   keypair?: string;
+  memo?: string;
 }
 
 export const transferCommand = new Command('transfer')
@@ -39,6 +41,7 @@ export const transferCommand = new Command('transfer')
     '-a, --amount <amount>',
     'The decimal amount to transfer (e.g., 1.5)'
   )
+  .option('-n, --memo <memo>', 'The memo to include in the transaction')
   .action(async (options: TransferOptions, command) => {
     const spinner = ora('Transferring tokens...').start();
 
@@ -107,6 +110,13 @@ export const transferCommand = new Command('transfer')
               tokenAccountOwner: options.recipient as Address,
               rpc,
             })
+          : []),
+        ...(options.memo
+          ? [
+              getAddMemoInstruction({
+                memo: options.memo,
+              }),
+            ]
           : [])
       );
 
@@ -173,7 +183,7 @@ export const transferCommand = new Command('transfer')
       spinner.fail('Failed to transfer tokens');
       console.error(
         chalk.red('❌ Error:'),
-        error instanceof Error ? error.message : 'Unknown error'
+        error instanceof Error ? error : 'Unknown error'
       );
 
       // Provide helpful error context for common issues
