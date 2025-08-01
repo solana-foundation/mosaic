@@ -13,7 +13,7 @@ export const ABL_PROGRAM_ID =
 export const getListConfigPda = async (input: {
   authority: Address;
   mint: Address;
-}) => {
+}): Promise<Address> => {
   const listConfigPda = await findListConfigPda(
     {
       authority: input.authority,

@@ -19,7 +19,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronRightIcon, Plus, LogOut, User } from 'lucide-react';
+import { Plus, LogOut, User } from 'lucide-react';
 
 type Props = Readonly<{
   onAccountSelect(account: UiWalletAccount | undefined): void;

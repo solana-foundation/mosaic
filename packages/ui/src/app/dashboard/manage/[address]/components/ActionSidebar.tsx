@@ -6,7 +6,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Edit, Settings, Coins, Ban, Trash2 } from 'lucide-react';
+import { Coins, Ban, Trash2 } from 'lucide-react';
 
 interface ActionSidebarProps {
   isPaused: boolean;
