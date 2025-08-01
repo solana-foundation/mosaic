@@ -63,7 +63,10 @@ export const transferCommand = new Command('transfer')
       spinner.text = 'Fetching mint information...';
 
       // Get mint info for decimals
-      const decimals = await getMintDecimals(rpc, options.mintAddress as Address);
+      const decimals = await getMintDecimals(
+        rpc,
+        options.mintAddress as Address
+      );
 
       // Convert decimal amount to raw amount
       const rawAmount = decimalAmountToRaw(decimalAmount, decimals);

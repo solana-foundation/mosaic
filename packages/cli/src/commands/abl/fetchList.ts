@@ -32,7 +32,9 @@ export const fetchList = new Command('fetch-list')
       console.log(`   ${chalk.bold('Mode:')} ${list.mode}`);
       console.log(`   ${chalk.bold('Seed:')} ${list.seed}`);
       console.log(`   ${chalk.bold('Authority:')} ${list.authority}`);
-      console.log(`   ${chalk.bold('Wallets:')} ${list.wallets.length > 0 ? list.wallets.join('\n') : 'none'}`);
+      console.log(
+        `   ${chalk.bold('Wallets:')} ${list.wallets.length > 0 ? list.wallets.join('\n') : 'none'}`
+      );
     } catch (error) {
       spinner.fail('Failed to fetch ABL list');
       console.error(

@@ -15,7 +15,11 @@ import {
   getCreateAssociatedTokenIdempotentInstruction,
 } from 'gill/programs/token';
 import { getThawPermissionlessInstructions } from '../ebalts';
-import { decimalAmountToRaw, getMintDecimals, resolveTokenAccount } from '../transactionUtil';
+import {
+  decimalAmountToRaw,
+  getMintDecimals,
+  resolveTokenAccount,
+} from '../transactionUtil';
 
 /**
  * Creates a transaction to mint tokens to a recipient's associated token account.

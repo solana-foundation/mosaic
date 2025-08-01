@@ -35,19 +35,19 @@ export const getFreezeInstructions = async (input: {
   if (!accountInfo) {
     throw new Error('Token account not found');
   }
-  
+
   // Use jsonParsed data which works for both regular SPL and Token-2022 accounts
   if (!('parsed' in accountInfo.data) || !accountInfo.data.parsed?.info) {
     throw new Error('Failed to parse token account data');
   }
-  
+
   const tokenInfo = accountInfo.data.parsed.info as {
     mint: Address;
     owner: Address;
     tokenAmount: { amount: string };
     state: string;
   };
-  
+
   const token = {
     mint: tokenInfo.mint,
     owner: tokenInfo.owner,
