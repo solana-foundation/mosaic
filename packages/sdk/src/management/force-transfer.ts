@@ -103,14 +103,14 @@ export const createForceTransferTransaction = async (
   );
   const {
     tokenAccount: destTokenAccount,
-    wasOwnerAddress: destWasOwner,
+    isInitialized: destIsInitialized,
     isFrozen,
   } = await resolveTokenAccount(rpc, toAccount, mint);
 
   const instructions = [];
 
   // Create destination ATA if needed (from wallet address)
-  if (destWasOwner) {
+  if (!destIsInitialized) {
     instructions.push(
       getCreateAssociatedTokenIdempotentInstruction({
         payer: feePayerSigner,
@@ -118,17 +118,19 @@ export const createForceTransferTransaction = async (
         owner: toAccount,
         mint,
         tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
-      }),
-      ...(isFrozen
-        ? await getThawPermissionlessInstructions({
-            authority: feePayerSigner,
-            mint,
-            tokenAccount: destTokenAccount,
-            tokenAccountOwner: toAccount,
-            rpc,
-          })
-        : [])
+      })
     );
+  }
+
+  if (isFrozen) {
+    const thawInstructions = await getThawPermissionlessInstructions({
+      authority: feePayerSigner,
+      mint,
+      tokenAccount: destTokenAccount,
+      tokenAccountOwner: toAccount,
+      rpc,
+    });
+    instructions.push(...thawInstructions);
   }
 
   // Add force transfer instruction using permanent delegate authority

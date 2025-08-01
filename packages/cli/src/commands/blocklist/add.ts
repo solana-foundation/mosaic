@@ -1,12 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { getAddWalletTransaction } from '@mosaic/sdk';
+import { createAddToBlocklistTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
-import { ABL_PROGRAM_ID } from '@mosaic/sdk';
-import { findListConfigPda } from '@mosaic/abl';
 
 interface AddOptions {
   mintAddress: string;
@@ -16,7 +14,7 @@ interface AddOptions {
 }
 
 export const addCommand = new Command('add')
-  .description('Add an account to the access list')
+  .description('Add an account to the blocklist')
   .requiredOption(
     '-m, --mint-address <mint-address>',
     'The mint address of the token'
@@ -31,7 +29,7 @@ export const addCommand = new Command('add')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: AddOptions, command) => {
-    const spinner = ora('Adding account to access list...').start();
+    const spinner = ora('Adding account to blocklist...').start();
 
     try {
       // Get global options from parent command
@@ -47,22 +45,13 @@ export const addCommand = new Command('add')
 
       spinner.text = 'Building add transaction...';
 
-      const listConfigPda = await findListConfigPda(
-        {
-          authority: authorityKeypair.address,
-          seed: options.mintAddress as Address,
-        },
-        { programAddress: ABL_PROGRAM_ID }
-      );
-
       // Create add transaction
-      const transaction = await getAddWalletTransaction({
+      const transaction = await createAddToBlocklistTransaction(
         rpc,
-        payer: authorityKeypair,
-        authority: authorityKeypair,
-        wallet: options.account as Address,
-        list: listConfigPda[0],
-      });
+        options.mintAddress as Address,
+        options.account as Address,
+        authorityKeypair
+      );
 
       spinner.text = 'Signing transaction...';
 
@@ -75,19 +64,19 @@ export const addCommand = new Command('add')
       // Send and confirm transaction
       const signature = await sendAndConfirmTransaction(signedTransaction);
 
-      spinner.succeed('Account added to access list successfully!');
+      spinner.succeed('Account added to blocklist successfully!');
 
       // Display results
-      console.log(chalk.green('✅ Added account to access list'));
+      console.log(chalk.green('✅ Added account to blocklist'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
       console.log(`   ${chalk.bold('Input Account:')} ${options.account}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
       console.log(`   ${chalk.bold('Authority:')} ${authorityKeypair.address}`);
     } catch (error) {
-      spinner.fail('Failed to add account to access list');
+      spinner.fail('Failed to add account to blocklist');
       console.error(
-        chalk.red('\\n❌ Error:'),
+        chalk.red('❌ Error:'),
         error instanceof Error ? error : 'Unknown error'
       );
       process.exit(1);

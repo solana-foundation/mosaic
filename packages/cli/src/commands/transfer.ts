@@ -184,9 +184,9 @@ export const transferCommand = new Command('transfer')
       console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
 
-      console.log(chalk.cyan('\\n⚡ Result:'));
+      console.log(chalk.cyan('⚡ Result:'));
       console.log(`   ${chalk.green('✓')} Tokens transferred successfully`);
-      if (recipientTokenAccountInfo.wasOwnerAddress) {
+      if (!recipientTokenAccountInfo.isInitialized) {
         console.log(
           `   ${chalk.green('✓')} Created Associated Token Account for recipient`
         );
@@ -194,7 +194,7 @@ export const transferCommand = new Command('transfer')
     } catch (error) {
       spinner.fail('Failed to transfer tokens');
       console.error(
-        chalk.red('\\n❌ Error:'),
+        chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
       );
 
@@ -202,12 +202,12 @@ export const transferCommand = new Command('transfer')
       if (error instanceof Error) {
         if (error.message.includes('insufficient funds')) {
           console.error(
-            chalk.yellow('\\n💡 Tip:'),
+            chalk.yellow('💡 Tip:'),
             'You may not have enough tokens to transfer, or insufficient SOL for transaction fees.'
           );
         } else if (error.message.includes('Account does not exist')) {
           console.error(
-            chalk.yellow('\\n💡 Tip:'),
+            chalk.yellow('💡 Tip:'),
             'Your token account may not exist. You need to have tokens first before you can transfer them.'
           );
         }

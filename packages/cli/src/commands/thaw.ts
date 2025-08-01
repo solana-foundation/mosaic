@@ -41,7 +41,7 @@ export const thawCommand = new Command('thaw')
       spinner.text = 'Resolving token account...';
 
       // Resolve the token account (check if ATA or direct token account)
-      const { tokenAccount, wasOwnerAddress } = await resolveTokenAccount(
+      const { tokenAccount } = await resolveTokenAccount(
         rpc,
         options.account as Address,
         options.mintAddress as Address
@@ -77,21 +77,12 @@ export const thawCommand = new Command('thaw')
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
       console.log(`   ${chalk.bold('Input Account:')} ${options.account}`);
       console.log(`   ${chalk.bold('Token Account:')} ${tokenAccount}`);
-      if (wasOwnerAddress) {
-        console.log(
-          `   ${chalk.bold('Account Type:')} Derived ATA from wallet address`
-        );
-      } else {
-        console.log(
-          `   ${chalk.bold('Account Type:')} Direct token account address`
-        );
-      }
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
       console.log(
         `   ${chalk.bold('Freeze Authority:')} ${freezeAuthorityKeypair.address}`
       );
 
-      console.log(chalk.cyan('\\n🌡️ Result:'));
+      console.log(chalk.cyan('🌡️ Result:'));
       console.log(`   ${chalk.green('✓')} Token account is now thawed`);
       console.log(
         `   ${chalk.green('✓')} Tokens can now be transferred from this account`
@@ -99,7 +90,7 @@ export const thawCommand = new Command('thaw')
     } catch (error) {
       spinner.fail('Failed to thaw account');
       console.error(
-        chalk.red('\\n❌ Error:'),
+        chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
       );
       process.exit(1);

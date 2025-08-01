@@ -16,7 +16,7 @@ interface RemoveOptions {
 }
 
 export const removeCommand = new Command('remove')
-  .description('Remove an account from the access list')
+  .description('Remove an account from the blocklist')
   .requiredOption(
     '-m, --mint-address <mint-address>',
     'The mint address of the token'
@@ -31,7 +31,7 @@ export const removeCommand = new Command('remove')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: RemoveOptions, command) => {
-    const spinner = ora('Removing account from access list...').start();
+    const spinner = ora('Removing account from blocklist...').start();
 
     try {
       // Get global options from parent command
@@ -75,17 +75,17 @@ export const removeCommand = new Command('remove')
       // Send and confirm transaction
       const signature = await sendAndConfirmTransaction(signedTransaction);
 
-      spinner.succeed('Account removed from access list successfully!');
+      spinner.succeed('Account removed from blocklist successfully!');
 
       // Display results
-      console.log(chalk.green('✅ Removed account from access list'));
+      console.log(chalk.green('✅ Removed account from blocklist'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
       console.log(`   ${chalk.bold('Input Account:')} ${options.account}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
       console.log(`   ${chalk.bold('Authority:')} ${authorityKeypair.address}`);
     } catch (error) {
-      spinner.fail('Failed to remove account from access list');
+      spinner.fail('Failed to remove account from blocklist');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error : 'Unknown error'
