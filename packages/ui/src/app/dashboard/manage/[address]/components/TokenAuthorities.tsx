@@ -232,9 +232,7 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
         <CardDescription>
           Manage the authorities for this token. Click edit to change an authority.
           <br />
-          <span className="text-xs text-muted-foreground">
-            Note: Extension authorities (Metadata, Pausable, etc.) require separate RPC calls and are not yet implemented.
-          </span>
+          
         </CardDescription>
       </CardHeader>
       {isDropdownOpen && (
