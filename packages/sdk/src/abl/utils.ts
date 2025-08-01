@@ -1,3 +1,4 @@
+import { findListConfigPda } from '@mosaic/abl';
 import type { Address } from 'gill';
 
 /**
@@ -8,3 +9,17 @@ import type { Address } from 'gill';
  */
 export const ABL_PROGRAM_ID =
   '8hNxmWetsVptuZ5LGYC6fM4xTpoUfPijz3NyYctyM79N' as Address;
+
+export const getListConfigPda = async (input: {
+  authority: Address;
+  mint: Address;
+}) => {
+  const listConfigPda = await findListConfigPda(
+    {
+      authority: input.authority,
+      seed: input.mint,
+    },
+    { programAddress: ABL_PROGRAM_ID }
+  );
+  return listConfigPda[0]
+};

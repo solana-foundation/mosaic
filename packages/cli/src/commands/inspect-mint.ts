@@ -86,15 +86,6 @@ export const inspectMintCommand = new Command('inspect-mint')
         }
       }
 
-      // Check if token is pausable (has freeze authority)
-      const isPausable =
-        decodedMint.data.freezeAuthority &&
-        decodedMint.data.freezeAuthority.__option === 'Some';
-
-      if (isPausable && !presentExtensions.includes('Pausable')) {
-        presentExtensions.push('Pausable');
-      }
-
       spinner.succeed('Mint information loaded!');
 
       // Display results
@@ -169,13 +160,11 @@ export const inspectMintCommand = new Command('inspect-mint')
       console.log(chalk.cyan('\n🎯 Token Type Detection:'));
 
       const isStablecoin =
-        STABLECOIN_EXTENSIONS.every(ext => presentExtensions.includes(ext)) &&
-        isPausable;
+        STABLECOIN_EXTENSIONS.every(ext => presentExtensions.includes(ext))
 
       const isArcadeToken =
         ARCADE_TOKEN_EXTENSIONS.every(ext => presentExtensions.includes(ext)) &&
-        !presentExtensions.includes('ConfidentialTransferMint') &&
-        isPausable;
+        !presentExtensions.includes('ConfidentialTransferMint')
 
       if (isStablecoin) {
         console.log(
@@ -183,8 +172,7 @@ export const inspectMintCommand = new Command('inspect-mint')
         );
       } else {
         console.log(`   ${chalk.red('✗')} Stablecoin`);
-        const requiredWithPausable = [...STABLECOIN_EXTENSIONS, 'Pausable'];
-        const missingStablecoin = requiredWithPausable.filter(
+        const missingStablecoin = STABLECOIN_EXTENSIONS.filter(
           ext => !presentExtensions.includes(ext)
         );
         if (missingStablecoin.length > 0) {
@@ -200,8 +188,7 @@ export const inspectMintCommand = new Command('inspect-mint')
         );
       } else {
         console.log(`   ${chalk.red('✗')} Arcade Token`);
-        const requiredWithPausable = [...ARCADE_TOKEN_EXTENSIONS, 'Pausable'];
-        const missingArcade = requiredWithPausable.filter(
+        const missingArcade = ARCADE_TOKEN_EXTENSIONS.filter(
           ext => !presentExtensions.includes(ext)
         );
         if (missingArcade.length > 0) {
@@ -288,16 +275,6 @@ export const inspectMintCommand = new Command('inspect-mint')
               }
               if ('uri' in ext) {
                 console.log(`     URI: ${ext.uri}`);
-              }
-              break;
-            case 'PausableConfig':
-              if ('authority' in ext && ext.authority) {
-                console.log(
-                  `     Authority: ${ext.authority.__option === 'Some' ? ext.authority.value : 'None'}`
-                );
-              }
-              if ('paused' in ext) {
-                console.log(`     Paused: ${ext.paused}`);
               }
               break;
           }

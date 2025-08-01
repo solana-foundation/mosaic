@@ -12,6 +12,7 @@ import {
   ABL_PROGRAM_ID,
   getAddWalletInstructions,
   getList,
+  getListConfigPda,
   getRemoveWalletInstructions,
 } from '../abl';
 import { findListConfigPda, Mode } from '@mosaic/abl';
@@ -32,29 +33,27 @@ export const getAddToAllowlistInstructions = async (
   account: Address,
   authority: Address | TransactionSigner<string>
 ): Promise<Instruction[]> => {
-  const { tokenAccount, isFrozen } = await resolveTokenAccount(
+  const { tokenAccount, isInitialized, isFrozen } = await resolveTokenAccount(
     rpc,
     account,
     mint
   );
   const accountSigner =
     typeof authority === 'string' ? createNoopSigner(authority) : authority;
-  const listConfigPda = await findListConfigPda(
-    {
-      authority: accountSigner.address,
-      seed: mint,
-    },
-    { programAddress: ABL_PROGRAM_ID }
-  );
-  if (!(await isAblAllowlist(rpc, listConfigPda[0]))) {
+  const listConfigPda = await getListConfigPda({
+    authority: accountSigner.address,
+    mint,
+  });
+  console.log('listConfigPda', listConfigPda);
+  if (!(await isAblAllowlist(rpc, listConfigPda))) {
     throw new Error('This is not an ABL allowlist');
   }
   const addToAllowlistInstructions = await getAddWalletInstructions({
     authority: accountSigner,
     wallet: account,
-    list: listConfigPda[0],
+    list: listConfigPda,
   });
-  const thawInstructions = !isFrozen
+  const thawInstructions = isFrozen && isInitialized
     ? await getThawPermissionlessInstructions({
         authority: accountSigner,
         mint,

@@ -194,7 +194,8 @@ export const getList = async (input: {
     .send();
 
   const list = accounts.map(account => {
-    const data = Uint8Array.from(account.account.data[0]);
+    console.log(account);
+    const data = new Uint8Array(Buffer.from(account.account.data[0], 'base64'));
     const abWallet = getABWalletDecoder().decode(data);
     return abWallet.wallet;
   });
