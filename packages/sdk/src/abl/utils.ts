@@ -21,5 +21,5 @@ export const getListConfigPda = async (input: {
     },
     { programAddress: ABL_PROGRAM_ID }
   );
-  return listConfigPda[0]
+  return listConfigPda[0];
 };

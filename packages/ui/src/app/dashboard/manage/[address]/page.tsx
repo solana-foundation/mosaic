@@ -107,8 +107,13 @@ function ManageTokenConnected({ address }: { address: string }) {
     currentChain!
   );
 
-  const addTokenExtensionsToFoundToken = async (foundToken: TokenDisplay): Promise<void> => {
-    const extensions = await getTokenExtensions(rpc, foundToken.address as Address);
+  const addTokenExtensionsToFoundToken = async (
+    foundToken: TokenDisplay
+  ): Promise<void> => {
+    const extensions = await getTokenExtensions(
+      rpc,
+      foundToken.address as Address
+    );
     foundToken.extensions = extensions;
     setToken(foundToken);
   };

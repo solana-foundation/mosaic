@@ -53,15 +53,16 @@ export const getAddToAllowlistInstructions = async (
     wallet: account,
     list: listConfigPda,
   });
-  const thawInstructions = isFrozen && isInitialized
-    ? await getThawPermissionlessInstructions({
-        authority: accountSigner,
-        mint,
-        tokenAccount,
-        tokenAccountOwner: account,
-        rpc,
-      })
-    : [];
+  const thawInstructions =
+    isFrozen && isInitialized
+      ? await getThawPermissionlessInstructions({
+          authority: accountSigner,
+          mint,
+          tokenAccount,
+          tokenAccountOwner: account,
+          rpc,
+        })
+      : [];
   return [...addToAllowlistInstructions, ...thawInstructions];
 };
 

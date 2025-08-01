@@ -7,20 +7,14 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  Settings,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react';
+import { Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 
 interface TokenExtensionsProps {
   token: TokenDisplay;
 }
 
-export function TokenExtensions({
-  token,
-}: TokenExtensionsProps) {
+export function TokenExtensions({ token }: TokenExtensionsProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   return (

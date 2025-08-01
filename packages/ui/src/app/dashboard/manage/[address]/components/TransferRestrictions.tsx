@@ -49,7 +49,8 @@ export function TransferRestrictions({
       badgeText: 'Arcade Token',
       badgeClasses: 'bg-green-100 text-green-800',
       iconClasses: 'text-green-600',
-      description: 'Allow only specific addresses to transfer this arcade token',
+      description:
+        'Allow only specific addresses to transfer this arcade token',
       emptyMessage: 'No addresses in allowlist',
     },
   };
@@ -60,9 +61,7 @@ export function TransferRestrictions({
   const renderAddressList = () => {
     if (accessList.length === 0) {
       return (
-        <p className="text-sm text-muted-foreground">
-          {config.emptyMessage}
-        </p>
+        <p className="text-sm text-muted-foreground">{config.emptyMessage}</p>
       );
     }
 
@@ -115,17 +114,17 @@ export function TransferRestrictions({
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center">
-                  <IconComponent className={`h-4 w-4 mr-2 ${config.iconClasses}`} />
+                  <IconComponent
+                    className={`h-4 w-4 mr-2 ${config.iconClasses}`}
+                  />
                   <h5 className="font-medium">{config.title}</h5>
-                  <span className={`ml-2 text-xs px-2 py-1 rounded ${config.badgeClasses}`}>
+                  <span
+                    className={`ml-2 text-xs px-2 py-1 rounded ${config.badgeClasses}`}
+                  >
                     {config.badgeText}
                   </span>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={onAddToAccessList}
-                >
+                <Button variant="outline" size="sm" onClick={onAddToAccessList}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Address
                 </Button>

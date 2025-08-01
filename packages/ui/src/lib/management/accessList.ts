@@ -6,7 +6,12 @@ import {
   TransactionSendingSigner,
   isAddress,
 } from 'gill';
-import { createAddToBlocklistTransaction, createRemoveFromBlocklistTransaction, createAddToAllowlistTransaction, createRemoveFromAllowlistTransaction } from '@mosaic/sdk';
+import {
+  createAddToBlocklistTransaction,
+  createRemoveFromBlocklistTransaction,
+  createAddToAllowlistTransaction,
+  createRemoveFromAllowlistTransaction,
+} from '@mosaic/sdk';
 import bs58 from 'bs58';
 
 export interface BlocklistOptions {
@@ -62,7 +67,7 @@ export const addAddressToBlocklist = async (
       rpc,
       options.mintAddress as Address,
       options.walletAddress as Address,
-      signer,
+      signer
     );
 
     // Sign and send the transaction
@@ -94,7 +99,7 @@ export const removeAddressFromBlocklist = async (
       rpc,
       options.mintAddress as Address,
       options.walletAddress as Address,
-      signer,
+      signer
     );
 
     // Sign and send the transaction
@@ -126,7 +131,7 @@ export const addAddressToAllowlist = async (
       rpc,
       options.mintAddress as Address,
       options.walletAddress as Address,
-      signer,
+      signer
     );
 
     // Sign and send the transaction
@@ -158,7 +163,7 @@ export const removeAddressFromAllowlist = async (
       rpc,
       options.mintAddress as Address,
       options.walletAddress as Address,
-      signer,
+      signer
     );
 
     // Sign and send the transaction
