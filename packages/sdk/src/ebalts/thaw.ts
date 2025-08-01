@@ -10,22 +10,21 @@ import {
   type TransactionVersion,
   type TransactionWithBlockhashLifetime,
 } from 'gill';
-import { findMintConfigPda, getFreezeInstruction } from '@mosaic/ebalts';
+import { findMintConfigPda, getThawInstruction } from '@mosaic/ebalts';
 import { EBALTS_PROGRAM_ID } from './utils';
 import { getTokenDecoder } from 'gill/programs';
 
 /**
- * Generates instructions for freezing a token account.
+ * Generates instructions for thawing a token account.
  *
- * This function creates instructions to freeze a token account.
+ * This function creates instructions to thaw a token account.
  *
- * @param input - Configuration parameters for freezing a token account
- * @param input.authority - The authority signer who can freeze the token account
- * @param input.mint - The mint address of the token account
- * @param input.tokenAccount - The token account address to freeze
- * @returns Promise containing the instructions for freezing a token account
+ * @param input - Configuration parameters for thawing a token account
+ * @param input.authority - The authority signer who can thaw the token account
+ * @param input.tokenAccount - The token account address to thaw
+ * @returns Promise containing the instructions for thawing a token account
  */
-export const getFreezeInstructions = async (input: {
+export const getThawInstructions = async (input: {
   rpc: Rpc<SolanaRpcApi>;
   authority: TransactionSigner<string>;
   tokenAccount: Address;
@@ -43,7 +42,7 @@ export const getFreezeInstructions = async (input: {
     { programAddress: EBALTS_PROGRAM_ID }
   );
 
-  const freezeInstruction = getFreezeInstruction(
+  const thawInstruction = getThawInstruction(
     {
       authority: input.authority,
       mintConfig: mintConfigPda[0],
@@ -53,24 +52,23 @@ export const getFreezeInstructions = async (input: {
     { programAddress: EBALTS_PROGRAM_ID }
   );
 
-  return [freezeInstruction];
+  return [thawInstruction];
 };
 
 /**
- * Creates a complete transaction for freezing a token account.
+ * Creates a complete transaction for thawing a token account.
  *
- * This function builds a full transaction that can be signed and sent to freeze a token account.
+ * This function builds a full transaction that can be signed and sent to thaw a token account.
  * The transaction includes the necessary instructions and uses the latest blockhash for proper construction.
  *
  * @param input - Configuration parameters for the transaction
  * @param input.rpc - The Solana RPC client instance
  * @param input.payer - The transaction fee payer signer
- * @param input.authority - The authority signer who can freeze the token account
- * @param input.mint - The mint address of the token account
- * @param input.tokenAccount - The token account address to freeze
- * @returns Promise containing the full transaction for freezing a token account
+ * @param input.authority - The authority signer who can thaw the token account
+ * @param input.tokenAccount - The token account address to thaw
+ * @returns Promise containing the full transaction for thawing a token account
  */
-export const getFreezeTransaction = async (input: {
+export const getThawTransaction = async (input: {
   rpc: Rpc<SolanaRpcApi>;
   payer: TransactionSigner<string>;
   authority: TransactionSigner<string>;
@@ -82,7 +80,7 @@ export const getFreezeTransaction = async (input: {
     TransactionWithBlockhashLifetime
   >
 > => {
-  const instructions = await getFreezeInstructions(input);
+  const instructions = await getThawInstructions(input);
   const { value: latestBlockhash } = await input.rpc
     .getLatestBlockhash()
     .send();

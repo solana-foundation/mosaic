@@ -17,6 +17,7 @@ import {
   findListConfigPda,
   getABWalletDecoder,
   getInitializeListConfigInstruction,
+  getListConfigDecoder,
   Mode,
 } from '@mosaic/abl';
 
@@ -200,4 +201,44 @@ export const getList = async (input: {
     ...listConfig,
     wallets: list,
   };
+};
+
+/**
+ * Fetches the configuration data for all existing allowlist or blocklist.
+ *
+ * This function retrieves the configuration information for a list from the blockchain,
+ * including its mode, seed, and authority. It does not fetch the actual wallet
+ * addresses that are part of the list.
+ *
+ * @param input - Parameters for fetching the list configuration
+ * @param input.rpc - The Solana RPC client instance
+ * @param input.listConfig - The address of the list configuration account
+ * @returns Promise containing the list configuration data
+ */
+export const getAllListConfigs = async (input: {
+  rpc: Rpc<SolanaRpcApi>;
+}): Promise<ListConfig[]> => {
+  const accounts = await input.rpc
+    .getProgramAccounts(ABL_PROGRAM_ID, {
+      encoding: 'base64',
+      filters: [
+        {
+          dataSize: 74n,
+        },
+      ],
+    })
+    .send();
+
+  const list = accounts.map(account => {
+    const data = Uint8Array.from(account.account.data[0]);
+    const listConfig = getListConfigDecoder().decode(data);
+    return {
+      listConfig: account.pubkey,
+      mode: listConfig.mode,
+      seed: listConfig.seed,
+      authority: listConfig.authority,
+    };
+  });
+
+  return list;
 };

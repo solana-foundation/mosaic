@@ -25,6 +25,13 @@ import { getThawPermissionlessInstructions } from '../ebalts';
  * @returns Promise with mint information including decimals
  */
 async function getMintInfo(rpc: Rpc<SolanaRpcApi>, mint: Address) {
+  const { value: tokenAccounts } = await rpc
+    .getTokenAccountsByOwner(mint, { mint: mint })
+    .send();
+
+  if (tokenAccounts.length === 0) {
+    throw new Error(`No token accounts found for mint ${mint}`);
+  }
   const accountInfo = await rpc
     .getAccountInfo(mint, { encoding: 'jsonParsed' })
     .send();
