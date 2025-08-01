@@ -95,10 +95,6 @@ function ManageTokenConnected({ address }: { address: string }) {
     );
   };
 
-  const openInSolscan = () => {
-    window.open(`https://solscan.io/token/${address}?cluster=devnet`, '_blank');
-  };
-
   const addToAllowlist = () => {
     if (newAddress.trim() && !allowlist.includes(newAddress.trim())) {
       setAllowlist([...allowlist, newAddress.trim()]);
@@ -200,10 +196,6 @@ function ManageTokenConnected({ address }: { address: string }) {
             </div>
           </div>
           <div className="flex space-x-2">
-            <Button variant="outline" onClick={openInSolscan}>
-              <ExternalLink className="h-4 w-4 mr-2" />
-              View on Solscan
-            </Button>
             <Button variant="outline" onClick={openInExplorer}>
               <ExternalLink className="h-4 w-4 mr-2" />
               View on Explorer

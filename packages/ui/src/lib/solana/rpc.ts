@@ -1,4 +1,6 @@
-import { createSolanaRpc, type Rpc, type SolanaRpcApi } from 'gill';
+import { createSolanaRpc, type Rpc, type SolanaRpcApi, type Address } from 'gill';
+import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from 'gill/programs/token';
+import { fetchEncodedAccount } from '@solana/accounts';
 
 export interface TokenAuthorities {
   mintAuthority?: string;
@@ -32,38 +34,71 @@ export async function getTokenAuthorities(
   try {
     const rpc = createRpcClient(rpcUrl);
     
-    // Get mint account data using RPC
-    const accountInfo = await rpc
-      .getAccountInfo(mintAddress as any, { encoding: 'jsonParsed' })
-      .send();
+    // Fetch account using @solana/kit like inspect-mint does
+    const mintAddressTyped = mintAddress as Address;
+    const encodedAccount = await fetchEncodedAccount(rpc, mintAddressTyped);
 
-    if (!accountInfo.value) {
+    if (!encodedAccount.exists) {
       throw new Error('Mint account not found');
     }
 
-    const data = accountInfo.value.data;
-    if (!('parsed' in data) || !data.parsed?.info) {
-      throw new Error('Unable to parse mint data');
+    // Check if this is a Token-2022 mint
+    if (encodedAccount.programAddress !== TOKEN_2022_PROGRAM_ADDRESS) {
+      throw new Error(
+        `Not a Token-2022 mint (owner: ${encodedAccount.programAddress})`
+      );
     }
 
-    const mintInfo = data.parsed.info as {
-      decimals: number;
-      freezeAuthority?: string;
-      mintAuthority?: string;
-      extensions?: any[];
+    // Decode mint data using gill's decodeMint
+    const decodedMint = decodeMint(encodedAccount);
+
+    // Extract basic authorities
+    const authorities: TokenAuthorities = {
+      mintAuthority: decodedMint.data.mintAuthority?.__option === 'Some' 
+        ? decodedMint.data.mintAuthority.value 
+        : undefined,
+      freezeAuthority: decodedMint.data.freezeAuthority?.__option === 'Some' 
+        ? decodedMint.data.freezeAuthority.value 
+        : undefined,
     };
 
-    return {
-      mintAuthority: mintInfo.mintAuthority,
-      freezeAuthority: mintInfo.freezeAuthority,
-      // Extension authorities are stored in separate extension accounts
-      // and require different RPC calls to fetch. For now, we'll return
-      // undefined as these need to be implemented separately.
-      metadataAuthority: undefined,
-      pausableAuthority: undefined,
-      confidentialBalancesAuthority: undefined,
-      permanentDelegateAuthority: undefined,
-    };
+    // Extract extension authorities
+    if (decodedMint.data.extensions && decodedMint.data.extensions.__option === 'Some') {
+      for (const ext of decodedMint.data.extensions.value) {
+        if (!ext.__kind) continue;
+
+        switch (ext.__kind) {
+          case 'TokenMetadata':
+            if ('updateAuthority' in ext && ext.updateAuthority) {
+              authorities.metadataAuthority = ext.updateAuthority.__option === 'Some' 
+                ? ext.updateAuthority.value 
+                : undefined;
+            }
+            break;
+          case 'PermanentDelegate':
+            if ('delegate' in ext) {
+              authorities.permanentDelegateAuthority = ext.delegate;
+            }
+            break;
+          case 'ConfidentialTransferMint':
+            if ('authority' in ext && ext.authority) {
+              authorities.confidentialBalancesAuthority = ext.authority.__option === 'Some' 
+                ? ext.authority.value 
+                : undefined;
+            }
+            break;
+          case 'PausableConfig':
+            if ('authority' in ext && ext.authority) {
+              authorities.pausableAuthority = ext.authority.__option === 'Some' 
+                ? ext.authority.value 
+                : undefined;
+            }
+            break;
+        }
+      }
+    }
+
+    return authorities;
   } catch (error) {
     console.error('Error fetching token authorities:', error);
     throw error;

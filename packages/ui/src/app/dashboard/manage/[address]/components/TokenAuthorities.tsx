@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Edit, Check, X, Loader2 } from 'lucide-react';
+import { Settings, Edit, Check, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 import { updateTokenAuthority } from '@/lib/management/authority';
 import { getTokenAuthorities } from '@/lib/solana/rpc';
@@ -32,7 +32,8 @@ interface AuthorityInfo {
 }
 
 export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
-  const [authorities, setAuthorities] = useState<AuthorityInfo[]>([
+  // Create base authorities array
+  const baseAuthorities: AuthorityInfo[] = [
     {
       label: 'Mint Authority',
       role: AuthorityType.MintTokens,
@@ -81,7 +82,22 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
       newAuthority: '',
       isLoading: false,
     },
-  ]);
+  ];
+
+  // Filter out confidential balances authority for arcade tokens
+  const filteredAuthorities = baseAuthorities.filter(authority => {
+    if (authority.role === AuthorityType.ConfidentialTransferMint && token.type === 'arcade-token') {
+      return false;
+    }
+    // Remove pausable authority from UI
+    if (authority.role === AuthorityType.Pause) {
+      return false;
+    }
+    return true;
+  });
+
+  const [authorities, setAuthorities] = useState<AuthorityInfo[]>(filteredAuthorities);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const [isLoadingAuthorities, setIsLoadingAuthorities] = useState(false);
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
@@ -197,11 +213,22 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center">
-          <Settings className="h-5 w-5 mr-2" />
-          Token Authorities
-          {isLoadingAuthorities && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
-        </CardTitle>
+        <button
+          type="button"
+          onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+          className="flex items-center justify-between w-full text-left"
+        >
+          <CardTitle className="flex items-center">
+            <Settings className="h-5 w-5 mr-2" />
+            Token Authorities
+            {isLoadingAuthorities && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
+          </CardTitle>
+          {isDropdownOpen ? (
+            <ChevronUp className="h-5 w-5" />
+          ) : (
+            <ChevronDown className="h-5 w-5" />
+          )}
+        </button>
         <CardDescription>
           Manage the authorities for this token. Click edit to change an authority.
           <br />
@@ -210,88 +237,90 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
           </span>
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {authorities.map((authority, index) => (
-            <div key={authority.role} className="border rounded-lg p-4">
-                             <div className="flex items-center justify-between mb-2">
-                 <label className="text-sm font-medium text-muted-foreground">
-                   {authority.label}
-                 </label>
-                {!authority.isEditing && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => startEditing(index)}
-                    disabled={!selectedWalletAccount}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-              
-              {authority.isEditing ? (
-                <div className="space-y-2">
-                                     <div className="flex items-center space-x-2">
-                     <input
-                       type="text"
-                       placeholder="Enter new authority address"
-                       value={authority.newAuthority}
-                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAuthorities(prev => prev.map((auth, i) => 
-                         i === index ? { ...auth, newAuthority: e.target.value } : auth
-                       ))}
-                       className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                     />
+      {isDropdownOpen && (
+        <CardContent>
+          <div className="space-y-4">
+            {authorities.map((authority, index) => (
+              <div key={authority.role} className="border rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-medium text-muted-foreground">
+                    {authority.label}
+                  </label>
+                  {!authority.isEditing && (
                     <Button
+                      variant="ghost"
                       size="sm"
-                      onClick={() => updateAuthority(index)}
-                      disabled={authority.isLoading || !validateSolanaAddress(authority.newAuthority)}
+                      onClick={() => startEditing(index)}
+                      disabled={!selectedWalletAccount}
                     >
-                      {authority.isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Check className="h-4 w-4" />
-                      )}
+                      <Edit className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => cancelEditing(index)}
-                      disabled={authority.isLoading}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  {authority.newAuthority && !validateSolanaAddress(authority.newAuthority) && (
-                    <p className="text-sm text-red-500">
-                      Please enter a valid Solana address
-                    </p>
                   )}
                 </div>
-              ) : (
-                <code className="block text-sm bg-muted px-2 py-1 rounded font-mono">
-                  {authority.currentAuthority ? (
-                    <>
-                      {authority.currentAuthority.slice(0, 8)}...
-                      {authority.currentAuthority.slice(-8)}
-                    </>
-                  ) : (
-                    <span className="text-muted-foreground">No authority set</span>
-                  )}
-                </code>
-              )}
-            </div>
-          ))}
-        </div>
-        
-        {!selectedWalletAccount && (
-          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <p className="text-sm text-yellow-800">
-              Connect your wallet to manage authorities
-            </p>
+                
+                {authority.isEditing ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="text"
+                        placeholder="Enter new authority address"
+                        value={authority.newAuthority}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAuthorities(prev => prev.map((auth, i) => 
+                          i === index ? { ...auth, newAuthority: e.target.value } : auth
+                        ))}
+                        className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={() => updateAuthority(index)}
+                        disabled={authority.isLoading || !validateSolanaAddress(authority.newAuthority)}
+                      >
+                        {authority.isLoading ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Check className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => cancelEditing(index)}
+                        disabled={authority.isLoading}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {authority.newAuthority && !validateSolanaAddress(authority.newAuthority) && (
+                      <p className="text-sm text-red-500">
+                        Please enter a valid Solana address
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <code className="block text-sm bg-muted px-2 py-1 rounded font-mono">
+                    {authority.currentAuthority ? (
+                      <>
+                        {authority.currentAuthority.slice(0, 8)}...
+                        {authority.currentAuthority.slice(-8)}
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">No authority set</span>
+                    )}
+                  </code>
+                )}
+              </div>
+            ))}
           </div>
-        )}
-      </CardContent>
+          
+          {!selectedWalletAccount && (
+            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm text-yellow-800">
+                Connect your wallet to manage authorities
+              </p>
+            </div>
+          )}
+        </CardContent>
+      )}
     </Card>
   );
 }
