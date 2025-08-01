@@ -6,7 +6,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Edit, Settings, Coins, Ban, Trash2 } from 'lucide-react';
+import { Coins, Ban, Trash2 } from 'lucide-react';
 
 interface ActionSidebarProps {
   isPaused: boolean;
@@ -26,14 +26,14 @@ export function ActionSidebar({
           <CardTitle>Quick Actions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <Button className="w-full" variant="outline">
+          {/* <Button className="w-full" variant="outline">
             <Edit className="h-4 w-4 mr-2" />
             Edit Token
-          </Button>
-          <Button className="w-full" variant="outline">
+          </Button> */}
+          {/* <Button className="w-full" variant="outline">
             <Settings className="h-4 w-4 mr-2" />
             Configure Extensions
-          </Button>
+          </Button> */}
           <Button className="w-full" variant="outline" onClick={onMintTokens}>
             <Coins className="h-4 w-4 mr-2" />
             Mint Tokens

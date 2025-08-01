@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
@@ -13,10 +13,21 @@ import { ChainContext } from '@/context/ChainContext';
 import { TokenOverview } from './components/TokenOverview';
 import { TokenAuthorities } from './components/TokenAuthorities';
 import { TokenExtensions } from './components/TokenExtensions';
+import { TransferRestrictions } from './components/TransferRestrictions';
 import { ActionSidebar } from './components/ActionSidebar';
 import { AddressModal } from './components/AddressModal';
 import { MintModal } from './components/MintModal';
+import { ActionResultModal } from './components/ActionResultModal';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
+import {
+  addAddressToBlocklist,
+  addAddressToAllowlist,
+  removeAddressFromBlocklist,
+  removeAddressFromAllowlist,
+} from '@/lib/management/accessList';
+import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
+import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
+import { Mode } from '@mosaic/abl';
 
 export default function ManageTokenPage() {
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
@@ -39,25 +50,73 @@ export default function ManageTokenPage() {
   return <ManageTokenConnected address={address} />;
 }
 
+const getAccessList = async (
+  rpc: Rpc<SolanaRpcApi>,
+  authority: Address,
+  mint: Address
+): Promise<{ type: 'allowlist' | 'blocklist'; wallets: string[] }> => {
+  const listConfigPda = await getListConfigPda({
+    authority,
+    mint,
+  });
+  const list = await getList({ rpc, listConfig: listConfigPda });
+  return {
+    type: list.mode === Mode.Allow ? 'allowlist' : 'blocklist',
+    wallets: list.wallets,
+  };
+};
+
 function ManageTokenConnected({ address }: { address: string }) {
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
-  const { chain: currentChain } = useContext(ChainContext);
+  const { chain: currentChain, solanaRpcUrl } = useContext(ChainContext);
   const [token, setToken] = useState<TokenDisplay | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [allowlist, setAllowlist] = useState<string[]>([]);
-  const [blocklist, setBlocklist] = useState<string[]>([]);
+  const [accessList, setAccessList] = useState<string[]>([]);
+  const [listType, setListType] = useState<'allowlist' | 'blocklist'>(
+    'blocklist'
+  );
   const [newAddress, setNewAddress] = useState('');
-  const [showAllowlistModal, setShowAllowlistModal] = useState(false);
-  const [showBlocklistModal, setShowBlocklistModal] = useState(false);
+  const [showAccessListModal, setShowAccessListModal] = useState(false);
   const [showMintModal, setShowMintModal] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [actionInProgress, setActionInProgress] = useState(false);
+  const [error, setError] = useState('');
+  const [transactionSignature, setTransactionSignature] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const rpc = useMemo(
+    () => createSolanaRpc(solanaRpcUrl) as Rpc<SolanaRpcApi>,
+    [solanaRpcUrl]
+  );
+
+  // Track if we've already loaded the access list for current dependencies
+  const loadedAccessListRef = useRef<string | null>(null);
+
+  // Function to force refresh the access list with a small delay
+  const refreshAccessList = () => {
+    setTimeout(() => {
+      loadedAccessListRef.current = null;
+      setRefreshTrigger(prev => prev + 1);
+    }, 500); // 500ms delay to allow blockchain/indexer to update
+  };
 
   // Create transaction sending signer if wallet is connected
   const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
     selectedWalletAccount!,
     currentChain!
   );
+
+  const addTokenExtensionsToFoundToken = async (
+    foundToken: TokenDisplay
+  ): Promise<void> => {
+    const extensions = await getTokenExtensions(
+      rpc,
+      foundToken.address as Address
+    );
+    foundToken.extensions = extensions;
+    setToken(foundToken);
+  };
 
   useEffect(() => {
     // Load token data from local storage
@@ -66,10 +125,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
       if (foundToken) {
         setToken(foundToken);
-
-        // Initialize empty lists - in a real app, these would be loaded from the blockchain
-        setAllowlist([]);
-        setBlocklist([]);
+        addTokenExtensionsToFoundToken(foundToken);
       }
 
       setLoading(false);
@@ -77,6 +133,36 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     loadTokenData();
   }, [address]);
+
+  useEffect(() => {
+    const loadAccessList = async () => {
+      const currentKey = `${selectedWalletAccount?.address}-${token?.address}-${solanaRpcUrl}-${refreshTrigger}`;
+
+      // Only load if we haven't already loaded for these dependencies
+      if (loadedAccessListRef.current === currentKey) {
+        return;
+      }
+
+      const accessList = await getAccessList(
+        rpc,
+        selectedWalletAccount?.address as Address,
+        token?.address as Address
+      );
+      setAccessList(accessList.wallets);
+      setListType(accessList.type);
+      loadedAccessListRef.current = currentKey;
+    };
+
+    if (rpc && selectedWalletAccount?.address && token?.address) {
+      loadAccessList();
+    }
+  }, [
+    rpc,
+    selectedWalletAccount?.address,
+    token?.address,
+    solanaRpcUrl,
+    refreshTrigger,
+  ]);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -95,33 +181,114 @@ function ManageTokenConnected({ address }: { address: string }) {
     );
   };
 
-  const addToAllowlist = () => {
-    if (newAddress.trim() && !allowlist.includes(newAddress.trim())) {
-      setAllowlist([...allowlist, newAddress.trim()]);
-      setNewAddress('');
-      setShowAllowlistModal(false);
+  const addToAccessList = async () => {
+    setShowAccessListModal(false);
+    if (newAddress.trim() && accessList.includes(newAddress.trim())) {
+      setError('Address already in list');
+      return;
+    }
+
+    await handleAddToAccessList(token?.address || '', newAddress.trim());
+    setNewAddress('');
+  };
+
+  const removeFromAccessList = async (address: string) => {
+    if (
+      !selectedWalletAccount?.address ||
+      !token?.address ||
+      !transactionSendingSigner
+    ) {
+      setError('Required parameters not available');
+      return;
+    }
+
+    setActionInProgress(true);
+    setError('');
+
+    try {
+      let result;
+      if (listType === 'blocklist') {
+        result = await removeAddressFromBlocklist(
+          rpc,
+          {
+            mintAddress: token.address,
+            walletAddress: address,
+          },
+          transactionSendingSigner
+        );
+      } else {
+        result = await removeAddressFromAllowlist(
+          rpc,
+          {
+            mintAddress: token.address,
+            walletAddress: address,
+          },
+          transactionSendingSigner
+        );
+      }
+
+      if (result.success) {
+        setTransactionSignature(result.transactionSignature || '');
+        refreshAccessList(); // Refresh access list after successful removal
+      } else {
+        setError(result.error || 'Removal failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setActionInProgress(false);
     }
   };
 
-  const removeFromAllowlist = (address: string) => {
-    setAllowlist(allowlist.filter(addr => addr !== address));
-  };
-
-  const addToBlocklist = () => {
-    if (newAddress.trim() && !blocklist.includes(newAddress.trim())) {
-      setBlocklist([...blocklist, newAddress.trim()]);
-      setNewAddress('');
-      setShowBlocklistModal(false);
+  const handleAddToAccessList = async (
+    mintAddress: string,
+    address: string
+  ) => {
+    if (!selectedWalletAccount?.address) {
+      setError('Wallet not connected');
+      return;
     }
-  };
 
-  const removeFromBlocklist = (address: string) => {
-    setBlocklist(blocklist.filter(addr => addr !== address));
-  };
+    setActionInProgress(true);
+    setError('');
 
-  const validateSolanaAddress = (address: string) => {
-    // Basic Solana address validation (44 characters, base58)
-    return /^[1-9A-HJ-NP-Za-km-z]{44}$/.test(address);
+    try {
+      if (!transactionSendingSigner) {
+        throw new Error('Transaction signer not available');
+      }
+
+      let result;
+      if (listType === 'blocklist') {
+        result = await addAddressToBlocklist(
+          rpc,
+          {
+            mintAddress,
+            walletAddress: address,
+          },
+          transactionSendingSigner
+        );
+      } else {
+        result = await addAddressToAllowlist(
+          rpc,
+          {
+            mintAddress,
+            walletAddress: address,
+          },
+          transactionSendingSigner
+        );
+      }
+
+      if (result.success) {
+        setTransactionSignature(result.transactionSignature || '');
+        refreshAccessList(); // Refresh access list after successful addition
+      } else {
+        setError(result.error || 'Operation failed');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setActionInProgress(false);
+    }
   };
 
   const togglePause = () => {
@@ -212,15 +379,13 @@ function ManageTokenConnected({ address }: { address: string }) {
               onCopy={copyToClipboard}
             />
             <TokenAuthorities token={token} />
-            <TokenExtensions
-              token={token}
-              allowlist={allowlist}
-              blocklist={blocklist}
-              onAddToAllowlist={() => setShowAllowlistModal(true)}
-              onRemoveFromAllowlist={removeFromAllowlist}
-              onAddToBlocklist={() => setShowBlocklistModal(true)}
-              onRemoveFromBlocklist={removeFromBlocklist}
+            <TransferRestrictions
+              accessList={accessList}
+              listType={listType}
+              onAddToAccessList={() => setShowAccessListModal(true)}
+              onRemoveFromAccessList={removeFromAccessList}
             />
+            <TokenExtensions token={token} />
           </div>
 
           {/* Sidebar */}
@@ -233,34 +398,30 @@ function ManageTokenConnected({ address }: { address: string }) {
       </div>
 
       {/* Modals */}
-      <AddressModal
-        isOpen={showAllowlistModal}
+      <ActionResultModal
+        isOpen={!!error || !!transactionSignature || !!actionInProgress}
         onClose={() => {
-          setShowAllowlistModal(false);
-          setNewAddress('');
+          setError('');
+          setTransactionSignature('');
+          setActionInProgress(false);
         }}
-        onAdd={addToAllowlist}
-        newAddress={newAddress}
-        onAddressChange={setNewAddress}
-        title={`Add to Allowlist ${token && token.type !== 'stablecoin' ? '(Arcade Token)' : ''}`}
-        placeholder="Enter Solana address..."
-        buttonText="Add to Allowlist"
-        isAddressValid={validateSolanaAddress(newAddress)}
+        actionInProgress={actionInProgress}
+        error={error}
+        transactionSignature={transactionSignature}
       />
 
       <AddressModal
-        isOpen={showBlocklistModal}
+        isOpen={showAccessListModal}
         onClose={() => {
-          setShowBlocklistModal(false);
+          setShowAccessListModal(false);
           setNewAddress('');
         }}
-        onAdd={addToBlocklist}
+        onAdd={addToAccessList}
         newAddress={newAddress}
         onAddressChange={setNewAddress}
-        title={`Add to Blocklist ${token && token.type === 'stablecoin' ? '(Stablecoin)' : ''}`}
+        title={`Add to ${listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}`}
         placeholder="Enter Solana address..."
-        buttonText="Add to Blocklist"
-        isAddressValid={validateSolanaAddress(newAddress)}
+        buttonText={`Add to ${listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}`}
       />
 
       {transactionSendingSigner && (

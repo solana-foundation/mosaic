@@ -9,7 +9,6 @@ interface AddressModalProps {
   title: string;
   placeholder: string;
   buttonText: string;
-  isAddressValid: boolean;
 }
 
 export function AddressModal({
@@ -21,7 +20,6 @@ export function AddressModal({
   title,
   placeholder,
   buttonText,
-  isAddressValid,
 }: AddressModalProps) {
   if (!isOpen) return null;
 
@@ -41,16 +39,11 @@ export function AddressModal({
               placeholder={placeholder}
               className="w-full p-2 border rounded-md"
             />
-            {newAddress && !isAddressValid && (
-              <p className="text-sm text-red-600 mt-1">
-                Please enter a valid Solana address
-              </p>
-            )}
           </div>
           <div className="flex space-x-2">
             <Button
               onClick={onAdd}
-              disabled={!newAddress.trim() || !isAddressValid}
+              disabled={!newAddress.trim()}
               className="flex-1"
             >
               {buttonText}
