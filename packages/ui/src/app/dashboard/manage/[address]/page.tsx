@@ -26,7 +26,7 @@ import {
   removeAddressFromAllowlist,
 } from '@/lib/management/accessList';
 import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
-import { getList, getListConfigPda } from '@mosaic/sdk';
+import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
 import { Mode } from '@mosaic/abl';
 
 export default function ManageTokenPage() {
@@ -107,6 +107,12 @@ function ManageTokenConnected({ address }: { address: string }) {
     currentChain!
   );
 
+  const addTokenExtensionsToFoundToken = async (foundToken: TokenDisplay): Promise<void> => {
+    const extensions = await getTokenExtensions(rpc, foundToken.address as Address);
+    foundToken.extensions = extensions;
+    setToken(foundToken);
+  };
+
   useEffect(() => {
     // Load token data from local storage
     const loadTokenData = () => {
@@ -114,6 +120,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
       if (foundToken) {
         setToken(foundToken);
+        addTokenExtensionsToFoundToken(foundToken);
       }
 
       setLoading(false);
@@ -256,9 +263,6 @@ function ManageTokenConnected({ address }: { address: string }) {
           transactionSendingSigner
         );
       } else {
-        console.log('Adding to allowlist');
-        console.log(mintAddress, address);
-        console.log(transactionSendingSigner);
         result = await addAddressToAllowlist(
           rpc,
           {
