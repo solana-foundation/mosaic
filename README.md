@@ -1,15 +1,17 @@
 # Mosaic
 
-A comprehensive TypeScript SDK, CLI, and UI for managing standard token types on Solana, specifically designed for Stablecoin and Arcade Token use cases to start.
+A comprehensive TypeScript monorepo for managing Token-2022 tokens with extensions on Solana, specifically designed for Stablecoin and Arcade Token use cases with advanced access control features.
 
 ## 🏗️ Project Structure
 
-This monorepo contains scaffolding for the following packages:
+This monorepo contains the following packages:
 
-- **@mosaic/core** - Core library wrapping Solana/Kit & Token-2022 with hooks for issuance and management
-- **@mosaic/sdk** - SDK with token templates and exported functionality for CLI & UI
-- **@mosaic/cli** - Command-line interface for token management
-- **@mosaic/ui** - Web interface for token management
+- **[@mosaic/sdk](packages/sdk/)** - Core SDK with token templates, management utilities, and Token-2022 integration
+- **[@mosaic/cli](packages/cli/)** - Command-line interface for token creation and management
+- **[@mosaic/ui](packages/ui/)** - Modern web interface for token management with wallet integration
+- **[@mosaic/abl](packages/abl/)** - Address-Based List implementation for SRFC-37 compliance
+- **[@mosaic/ebalts](packages/ebalts/)** - Enhanced Balance and Transfer Security for advanced freeze/thaw functionality
+- **[@mosaic/tlv-account-resolution](packages/tlv-account-resolution/)** - TLV account resolution utilities for transfer hooks
 
 ## 🪙 Token Types
 
@@ -54,60 +56,218 @@ pnpm install
 
 ```
 packages/
-├── core/           # Core Token-2022 wrapper library
-│   └── src/       # TypeScript source files (to be implemented)
-├── sdk/            # Token templates and SDK functionality
+├── sdk/                    # Core SDK with token templates
 │   └── src/
-│       ├── templates/  # Token type templates
-│       ├── factories/  # Token creation factories
-│       └── managers/   # Token management utilities
-├── cli/            # Command-line interface
+│       ├── templates/      # Stablecoin and arcade token templates
+│       ├── issuance/       # Token creation utilities
+│       ├── management/     # Token operation utilities
+│       ├── administration/ # Authority management
+│       ├── abl/           # ABL integration utilities
+│       └── ebalts/        # EBALTS integration utilities
+├── cli/                   # Command-line interface
 │   └── src/
-│       └── commands/   # CLI command implementations
-└── ui/             # Web interface
+│       ├── commands/      # CLI command implementations
+│       │   ├── create/    # Token creation commands
+│       │   ├── allowlist/ # Allowlist management
+│       │   ├── blocklist/ # Blocklist management
+│       │   ├── ebalts/    # EBALTS commands
+│       │   └── abl/       # ABL commands
+│       └── utils/         # CLI utilities
+├── ui/                    # Web interface
+│   └── src/
+│       ├── app/           # Next.js app directory
+│       │   └── dashboard/ # Token management dashboard
+│       ├── components/    # React components
+│       ├── lib/          # Utility functions and integrations
+│       └── context/      # React context providers
+├── abl/                   # Address-Based Lists (SRFC-37)
+│   └── src/
+│       ├── generated/     # Auto-generated from IDL
+│       └── index.ts       # PDA utilities and exports
+├── ebalts/               # Enhanced Balance and Transfer Security
+│   └── src/
+│       ├── generated/     # Auto-generated from IDL
+│       └── index.ts       # EBALTS utilities and exports
+└── tlv-account-resolution/ # TLV account resolution
     └── src/
-        ├── app/        # Next.js app directory
-        └── components/ # React components
+        ├── state.ts       # Core resolution logic
+        ├── seeds.ts       # Seed resolution utilities
+        └── pubkeyData.ts  # Pubkey data extraction
+```
+
+## 🚀 Quick Start
+
+### Using the CLI
+
+```bash
+# Install dependencies
+pnpm install
+
+# Build all packages
+pnpm build
+
+# Create a stablecoin
+cd packages/cli
+pnpm start create stablecoin \
+  --name "My Stable Coin" \
+  --symbol "MSC" \
+  --decimals 6 \
+  --uri "https://example.com/metadata.json"
+
+# Create an arcade token
+pnpm start create arcade-token \
+  --name "Game Points" \
+  --symbol "POINTS" \
+  --decimals 0 \
+  --uri "https://example.com/game-metadata.json"
+```
+
+### Using the Web UI
+
+```bash
+# Start the development server
+cd packages/ui
+pnpm dev
+
+# Open http://localhost:3000 in your browser
+```
+
+### Using the SDK
+
+```typescript
+import { createStablecoinInitTransaction, createArcadeTokenInitTransaction } from '@mosaic/sdk';
+import { createSolanaRpc, generateKeyPairSigner } from 'gill';
+
+const rpc = createSolanaRpc('https://api.devnet.solana.com');
+const authority = await generateKeyPairSigner();
+const mint = await generateKeyPairSigner();
+
+// Create a stablecoin with compliance features
+const tx = await createStablecoinInitTransaction(
+  rpc,
+  'USD Coin',
+  'USDC',
+  6,
+  'https://example.com/metadata.json',
+  authority.address,
+  mint,
+  authority
+);
 ```
 
 ## 🔧 Development
 
-Each package can be developed independently:
+### Monorepo Commands
+
+```bash
+# Install dependencies for all packages
+pnpm install
+
+# Build all packages
+pnpm build
+
+# Run development mode for all packages
+pnpm dev
+
+# Run tests across all packages
+pnpm test
+
+# Lint all packages
+pnpm lint
+pnpm lint:fix
+
+# Format code
+pnpm format
+pnpm format:check
+
+# Type checking
+pnpm type-check
+
+# Clean build artifacts
+pnpm clean
+
+# Pre-commit checks
+pnpm precommit
+```
+
+### Package-Specific Development
 
 ```bash
 # Enter a specific package
-cd packages/core  # or sdk, cli, ui
+cd packages/sdk  # or cli, ui, abl, ebalts, tlv-account-resolution
 
-# Install package-specific dependencies
-pnpm install
-
-# Start development
-pnpm dev
+# Run package-specific commands
+pnpm dev        # Development mode
+pnpm build      # Build package
+pnpm test       # Run tests
+pnpm lint       # Lint code
 ```
 
-## ⚠️ Development Status
+## 🎯 Implementation Status
 
-This project is currently **scaffolded** and ready for implementation. The actual functionality depends on:
+✅ **Fully Implemented**:
+- **SDK**: Complete token templates with Token-2022 integration
+- **CLI**: Full command-line interface with all operations
+- **Web UI**: Modern React application with wallet integration
+- **ABL**: SRFC-37 compliant address-based lists
+- **EBALTS**: Enhanced freeze/thaw functionality
+- **TLV Resolution**: Account resolution for transfer hooks
 
-- Token-2022 program stabilization
-- SRFC 37 specification finalization
-- Solana Kit integration availability
+## 🏗️ Architecture Overview
 
-## 📋 Implementation Roadmap
+The project implements a layered architecture:
 
-1. **Core Library** - Implement Token-2022 extension wrappers
-2. **SDK Templates** - Create stablecoin and arcade token templates
-3. **CLI Tool** - Build command-line interface
-4. **Web UI** - Develop modern web interface
-5. **Integration** - Connect with SRFC 37 when available
+1. **Low-level Packages**: `@mosaic/abl`, `@mosaic/ebalts`, `@mosaic/tlv-account-resolution`
+2. **Core SDK**: `@mosaic/sdk` integrates all low-level packages
+3. **User Interfaces**: `@mosaic/cli` and `@mosaic/ui` provide different ways to interact with the SDK
+
+## 📋 Key Features
+
+### Token-2022 Extensions Support
+- **Metadata**: On-chain token metadata with rich information
+- **Default Account State**: Configurable account state for compliance
+- **Confidential Balances**: Privacy-preserving transaction amounts
+- **Pausable**: Emergency pause/unpause functionality for all operations
+- **Permanent Delegate**: Regulatory compliance and game mechanics control
+
+### Access Control (SRFC-37)
+- **Allowlists**: Restrict token operations to approved addresses
+- **Blocklists**: Block specific addresses from token operations
+- **Dynamic Resolution**: Runtime account resolution for complex access patterns
+- **Programmable Gating**: Custom program integration for access control
+
+### Advanced Security (EBALTS)
+- **Enhanced Freeze/Thaw**: Advanced freeze functionality beyond standard Token-2022
+- **Permissionless Operations**: Controlled permissionless operations for user experience
+- **Gating Program Integration**: External program validation for operations
+- **Authority Management**: Granular control over different security functions
+
+## 🔗 Package Dependencies
+
+```
+@mosaic/ui
+    └── @mosaic/sdk
+            ├── @mosaic/abl
+            ├── @mosaic/ebalts
+            │   └── @mosaic/tlv-account-resolution
+            └── @mosaic/tlv-account-resolution
+
+@mosaic/cli
+    └── @mosaic/sdk (same as above)
+```
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Implement functionality in the appropriate package
-4. Add tests and documentation
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes in the appropriate package
+4. Add tests for new functionality
+5. Run the full test suite (`pnpm test`)
+6. Ensure code quality (`pnpm check`)
+7. Update documentation as needed
+8. Commit your changes (`git commit -m 'Add amazing feature'`)
+9. Push to the branch (`git push origin feature/amazing-feature`)
+10. Open a Pull Request
 
 ## 📄 License
 
