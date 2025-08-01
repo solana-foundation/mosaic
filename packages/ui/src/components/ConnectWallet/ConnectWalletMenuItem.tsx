@@ -19,7 +19,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronRightIcon } from 'lucide-react';
+import { ChevronRightIcon, Plus, LogOut, User } from 'lucide-react';
 
 type Props = Readonly<{
   onAccountSelect(account: UiWalletAccount | undefined): void;
@@ -65,49 +65,49 @@ export function ConnectWalletMenuItem({
   return (
     <DropdownMenuSub open={!isConnected ? false : undefined}>
       <DropdownMenuSubTrigger
-        asChild={false}
-        className={[
-          'rt-BaseMenuItem',
-          'rt-BaseMenuSubTrigger',
-          'rt-DropdownMenuItem',
-          'rt-DropdownMenuSubTrigger',
-        ].join(' ')}
+        className="flex items-center justify-between w-full px-2 py-2 text-sm rounded-md hover:bg-accent focus:bg-accent data-[disabled]:opacity-50"
         disabled={isPending}
         onClick={!isConnected ? handleConnectClick : undefined}
       >
         <WalletMenuItemContent loading={isPending} wallet={wallet} />
-        {isConnected ? (
-          <div className="rt-BaseMenuShortcut rt-DropdownMenuShortcut">
-            <ChevronRightIcon />
-          </div>
-        ) : null}
+        {!isConnected && (
+          <span className="text-xs text-muted-foreground">Click to connect</span>
+        )}
       </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent>
-        <DropdownMenuLabel>Accounts</DropdownMenuLabel>
+      <DropdownMenuSubContent className="w-56">
+        <DropdownMenuLabel className="flex items-center gap-2 px-2 py-1.5">
+          <User className="h-4 w-4" />
+          <span>Accounts ({wallet.accounts.length})</span>
+        </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={selectedWalletAccount?.address}>
           {wallet.accounts.map(account => (
             <DropdownMenuRadioItem
               key={account.address}
               value={account.address}
+              className="px-4 py-2"
               onSelect={() => {
                 onAccountSelect(account);
               }}
             >
-              {account.address.slice(0, 8)}&hellip;
+              <span className="font-mono text-sm ml-2">
+                {account.address.slice(0, 8)}...{account.address.slice(-4)}
+              </span>
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
+          className="flex items-center gap-2 px-3 py-2"
           onSelect={async e => {
             e.preventDefault();
             await handleConnectClick();
           }}
         >
-          Connect More
+          <Plus className="h-4 w-4" />
+          <span>Connect More</span>
         </DropdownMenuItem>
         <DropdownMenuItem
-          color="red"
+          className="flex items-center gap-2 px-3 py-2 text-destructive focus:text-destructive"
           onSelect={async e => {
             e.preventDefault();
             try {
@@ -118,7 +118,8 @@ export function ConnectWalletMenuItem({
             }
           }}
         >
-          Disconnect
+          <LogOut className="h-4 w-4" />
+          <span>Disconnect</span>
         </DropdownMenuItem>
       </DropdownMenuSubContent>
     </DropdownMenuSub>

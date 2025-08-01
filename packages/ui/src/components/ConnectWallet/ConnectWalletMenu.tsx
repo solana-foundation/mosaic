@@ -11,6 +11,8 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, Wallet } from 'lucide-react';
 
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 import { ConnectWalletMenuItem } from './ConnectWalletMenuItem';
@@ -75,51 +77,71 @@ export function ConnectWalletMenu({ children }: Props) {
         open={forceClose ? false : undefined}
         onOpenChange={() => setForceClose(false)}
       >
-        <DropdownMenuTrigger>
-          <div>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="outline"
+            className="flex items-center gap-2 px-3 py-2 h-10"
+          >
             {selectedWalletAccount ? (
               <>
                 <WalletAccountIcon
                   account={selectedWalletAccount}
-                  width="18"
-                  height="18"
+                  width="20"
+                  height="20"
                 />
-                {selectedWalletAccount.address.slice(0, 8)}
+                <span className="font-mono text-sm">
+                  {selectedWalletAccount.address.slice(0, 8)}...
+                </span>
+                <ChevronDown className="h-4 w-4 opacity-60" />
               </>
             ) : (
-              children
+              <>
+                <Wallet className="h-4 w-4" />
+                {children}
+                <ChevronDown className="h-4 w-4 opacity-60" />
+              </>
             )}
-          </div>
+          </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent>
+        <DropdownMenuContent align="end" className="w-56">
           {wallets.length === 0 ? (
-            <div className="bg-orange-500 text-orange-500">
-              This browser has no wallets installed.
+            <div className="p-4 text-center">
+              <Wallet className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground font-medium">
+                No wallets found
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Install a Solana wallet to get started
+              </p>
             </div>
           ) : (
-            <>
-              {walletsThatSupportStandardConnect.map((wallet, index) => (
-                <div key={`${wallet.name}-${index}`}>
-                  <WalletMenuItem
-                    wallet={wallet}
-                    error={error}
-                    onAccountSelect={account => {
-                      setSelectedWalletAccount(account);
-                      setForceClose(true);
-                    }}
-                    onDisconnect={wallet => {
-                      if (
-                        selectedWalletAccount &&
-                        uiWalletAccountBelongsToUiWallet(selectedWalletAccount, wallet)
-                      ) {
-                        setSelectedWalletAccount(undefined);
-                      }
-                    }}
-                    onError={setError}
-                  />
+            <div className="p-1">
+              {!selectedWalletAccount && (
+                <div className="px-3 py-2 text-xs font-medium text-muted-foreground border-b mb-1">
+                  Available Wallets
                 </div>
+              )}
+              {walletsThatSupportStandardConnect.map((wallet, index) => (
+                <WalletMenuItem
+                  key={`${wallet.name}-${index}`}
+                  wallet={wallet}
+                  error={error}
+                  onAccountSelect={account => {
+                    setSelectedWalletAccount(account);
+                    setForceClose(true);
+                  }}
+                  onDisconnect={wallet => {
+                    if (
+                      selectedWalletAccount &&
+                      uiWalletAccountBelongsToUiWallet(selectedWalletAccount, wallet)
+                    ) {
+                      setSelectedWalletAccount(undefined);
+                    }
+                  }}
+                  onError={setError}
+                />
               ))}
-            </>
+            </div>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

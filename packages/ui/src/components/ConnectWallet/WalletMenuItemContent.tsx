@@ -11,24 +11,31 @@ type Props = Readonly<{
 export function WalletMenuItemContent({ children, loading, wallet }: Props) {
   if (loading) {
     return (
-      <div className="flex items-center gap-2">
-        <Loader2Icon className="animate-spin" />
+      <div className="flex items-center gap-3">
+        <div className="flex items-center justify-center w-5 h-5">
+          <Loader2Icon className="h-4 w-4 animate-spin text-muted-foreground" />
+        </div>
+        <span className="text-sm text-muted-foreground">Connecting...</span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center gap-3">
+      <div className="flex items-center justify-center w-5 h-5">
         <Image
           src={wallet.icon}
           alt={wallet.name}
-          width={18}
-          height={18}
+          width={20}
+          height={20}
           className="rounded-full"
         />
       </div>
-      <div className="truncate">{children ?? wallet.name}</div>
+      <div className="flex flex-col min-w-0">
+        <span className="text-sm font-medium truncate">
+          {children ?? wallet.name}
+        </span>
+      </div>
     </div>
   );
 }
