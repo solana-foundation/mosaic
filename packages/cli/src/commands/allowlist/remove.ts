@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createRemoveFromBlocklistTransaction } from '@mosaic/sdk';
+import { createRemoveFromAllowlistTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
@@ -14,14 +14,14 @@ interface RemoveOptions {
 }
 
 export const removeCommand = new Command('remove')
-  .description('Remove an account from the blocklist')
+  .description('Remove an account from the allowlist')
   .requiredOption(
     '-m, --mint-address <mint-address>',
     'The mint address of the token'
   )
   .requiredOption(
     '-a, --account <account>',
-    'The account to freeze (wallet address)'
+    'The account to remove from the allowlist (wallet address)'
   )
   .showHelpAfterError()
   .configureHelp({
@@ -29,7 +29,7 @@ export const removeCommand = new Command('remove')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: RemoveOptions, command) => {
-    const spinner = ora('Removing account from blocklist...').start();
+    const spinner = ora('Removing account from allowlist...').start();
 
     try {
       // Get global options from parent command
@@ -46,7 +46,7 @@ export const removeCommand = new Command('remove')
       spinner.text = 'Building remove transaction...';
 
       // Create remove transaction
-      const transaction = await createRemoveFromBlocklistTransaction(
+      const transaction = await createRemoveFromAllowlistTransaction(
         rpc,
         options.mintAddress as Address,
         options.account as Address,
@@ -64,17 +64,17 @@ export const removeCommand = new Command('remove')
       // Send and confirm transaction
       const signature = await sendAndConfirmTransaction(signedTransaction);
 
-      spinner.succeed('Account removed from blocklist successfully!');
+      spinner.succeed('Account removed from allowlist successfully!');
 
       // Display results
-      console.log(chalk.green('✅ Removed account from blocklist'));
+      console.log(chalk.green('✅ Removed account from allowlist'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
       console.log(`   ${chalk.bold('Input Account:')} ${options.account}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
       console.log(`   ${chalk.bold('Authority:')} ${authorityKeypair.address}`);
     } catch (error) {
-      spinner.fail('Failed to remove account from blocklist');
+      spinner.fail('Failed to remove account from allowlist');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error : 'Unknown error'

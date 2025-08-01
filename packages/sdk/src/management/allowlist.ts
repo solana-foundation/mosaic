@@ -18,15 +18,15 @@ import { findListConfigPda, Mode } from '@mosaic/abl';
 import { getFreezeInstructions } from '../ebalts/freeze';
 import { getThawPermissionlessInstructions } from '../ebalts/thawPermissionless';
 
-export const isAblBlocklist = async (
+export const isAblAllowlist = async (
   rpc: Rpc<SolanaRpcApi>,
   listConfig: Address
 ) => {
   const list = await getList({ rpc, listConfig });
-  return list.mode === Mode.Block;
+  return list.mode === Mode.Allow;
 };
 
-export const getAddToBlocklistInstructions = async (
+export const getAddToAllowlistInstructions = async (
   rpc: Rpc<SolanaRpcApi>,
   mint: Address,
   account: Address,
@@ -46,31 +46,33 @@ export const getAddToBlocklistInstructions = async (
     },
     { programAddress: ABL_PROGRAM_ID }
   );
-  if (!(await isAblBlocklist(rpc, listConfigPda[0]))) {
-    throw new Error('This is not an ABL blocklist');
+  if (!(await isAblAllowlist(rpc, listConfigPda[0]))) {
+    throw new Error('This is not an ABL allowlist');
   }
-  const addToBlocklistInstructions = await getAddWalletInstructions({
+  const addToAllowlistInstructions = await getAddWalletInstructions({
     authority: accountSigner,
     wallet: account,
     list: listConfigPda[0],
   });
-  const freezeInstructions = !isFrozen
-    ? await getFreezeInstructions({
-        rpc,
+  const thawInstructions = !isFrozen
+    ? await getThawPermissionlessInstructions({
         authority: accountSigner,
+        mint,
         tokenAccount,
+        tokenAccountOwner: account,
+        rpc,
       })
     : [];
-  return [...freezeInstructions, ...addToBlocklistInstructions];
+  return [...addToAllowlistInstructions, ...thawInstructions];
 };
 
-export const createAddToBlocklistTransaction = async (
+export const createAddToAllowlistTransaction = async (
   rpc: Rpc<SolanaRpcApi>,
   mint: Address,
   account: Address,
   authority: Address | TransactionSigner<string>
 ) => {
-  const instructions = await getAddToBlocklistInstructions(
+  const instructions = await getAddToAllowlistInstructions(
     rpc,
     mint,
     account,
@@ -87,7 +89,7 @@ export const createAddToBlocklistTransaction = async (
   });
 };
 
-export const getRemoveFromBlocklistInstructions = async (
+export const getRemoveFromAllowlistInstructions = async (
   rpc: Rpc<SolanaRpcApi>,
   mint: Address,
   account: Address,
@@ -108,38 +110,36 @@ export const getRemoveFromBlocklistInstructions = async (
     },
     { programAddress: ABL_PROGRAM_ID }
   );
-  if (!(await isAblBlocklist(rpc, listConfigPda[0]))) {
-    throw new Error('This is not an ABL blocklist');
+  if (!(await isAblAllowlist(rpc, listConfigPda[0]))) {
+    throw new Error('This is not an ABL allowlist');
   }
   const instructions = [];
-  const removeFromBlocklistInstructions = await getRemoveWalletInstructions({
+  const removeFromAllowlistInstructions = await getRemoveWalletInstructions({
     authority: accountSigner,
     wallet: account,
     list: listConfigPda[0],
   });
-  instructions.push(...removeFromBlocklistInstructions);
+  instructions.push(...removeFromAllowlistInstructions);
 
   if (isInitialized && isFrozen) {
-    // TODO: this should unfreeze all accounts owned by the wallet
-    const thawInstructions = await getThawPermissionlessInstructions({
-      authority: accountSigner,
-      mint,
-      tokenAccount: destinationAta,
-      tokenAccountOwner: account,
+    // TODO: this should freeze all accounts owned by the wallet
+    const freezeInstructions = await getFreezeInstructions({
       rpc,
+      authority: accountSigner,
+      tokenAccount: destinationAta,
     });
-    instructions.push(...thawInstructions);
+    instructions.push(...freezeInstructions);
   }
   return instructions;
 };
 
-export const createRemoveFromBlocklistTransaction = async (
+export const createRemoveFromAllowlistTransaction = async (
   rpc: Rpc<SolanaRpcApi>,
   mint: Address,
   account: Address,
   authority: Address | TransactionSigner<string>
 ) => {
-  const instructions = await getRemoveFromBlocklistInstructions(
+  const instructions = await getRemoveFromAllowlistInstructions(
     rpc,
     mint,
     account,

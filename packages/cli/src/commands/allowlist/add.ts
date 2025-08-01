@@ -1,30 +1,35 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createFreezeAccountTransaction } from '@mosaic/sdk';
-import { createSolanaClient } from '../utils/rpc.js';
-import { loadKeypair } from '../utils/solana.js';
+import { createAddToAllowlistTransaction } from '@mosaic/sdk';
+import { createSolanaClient } from '../../utils/rpc.js';
+import { loadKeypair } from '../../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
 
-interface FreezeOptions {
+interface AddOptions {
   mintAddress: string;
   account: string;
   rpcUrl?: string;
   keypair?: string;
 }
 
-export const freezeCommand = new Command('freeze')
-  .description('Freeze a token account')
+export const addCommand = new Command('add')
+  .description('Add an account to the allowlist')
   .requiredOption(
     '-m, --mint-address <mint-address>',
     'The mint address of the token'
   )
   .requiredOption(
     '-a, --account <account>',
-    'The account to freeze (wallet address or ATA address)'
+    'The account to add to the allowlist (wallet address)'
   )
-  .action(async (options: FreezeOptions, command) => {
-    const spinner = ora('Freezing account...').start();
+  .showHelpAfterError()
+  .configureHelp({
+    sortSubcommands: true,
+    subcommandTerm: cmd => cmd.name(),
+  })
+  .action(async (options: AddOptions, command) => {
+    const spinner = ora('Adding account to allowlist...').start();
 
     try {
       // Get global options from parent command
@@ -35,18 +40,17 @@ export const freezeCommand = new Command('freeze')
       // Create Solana client
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
-      // Load freeze authority keypair (assuming it's the configured keypair)
-      const freezeAuthorityKeypair = await loadKeypair(keypairPath);
+      // Load authority keypair (assuming it's the configured keypair)
+      const authorityKeypair = await loadKeypair(keypairPath);
 
-      spinner.text = 'Building freeze transaction...';
+      spinner.text = 'Building add transaction...';
 
-      // Create freeze transaction
-      const transaction = await createFreezeAccountTransaction(
+      // Create add transaction
+      const transaction = await createAddToAllowlistTransaction(
         rpc,
         options.mintAddress as Address,
         options.account as Address,
-        freezeAuthorityKeypair,
-        freezeAuthorityKeypair // Use same keypair as fee payer
+        authorityKeypair
       );
 
       spinner.text = 'Signing transaction...';
@@ -60,27 +64,19 @@ export const freezeCommand = new Command('freeze')
       // Send and confirm transaction
       const signature = await sendAndConfirmTransaction(signedTransaction);
 
-      spinner.succeed('Account frozen successfully!');
+      spinner.succeed('Account added to allowlist successfully!');
 
       // Display results
-      console.log(chalk.green('✅ Freeze Transaction Successful'));
+      console.log(chalk.green('✅ Added account to allowlist'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
       console.log(`   ${chalk.bold('Input Account:')} ${options.account}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-      console.log(
-        `   ${chalk.bold('Freeze Authority:')} ${freezeAuthorityKeypair.address}`
-      );
-
-      console.log(chalk.cyan('\\n🥶 Result:'));
-      console.log(`   ${chalk.green('✓')} Token account is now frozen`);
-      console.log(
-        `   ${chalk.yellow('⚠️')}  No tokens can be transferred from this account until thawed`
-      );
+      console.log(`   ${chalk.bold('Authority:')} ${authorityKeypair.address}`);
     } catch (error) {
-      spinner.fail('Failed to freeze account');
+      spinner.fail('Failed to add account to allowlist');
       console.error(
-        chalk.red('\\n❌ Error:'),
+        chalk.red('❌ Error:'),
         error instanceof Error ? error : 'Unknown error'
       );
       process.exit(1);
