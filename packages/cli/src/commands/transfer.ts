@@ -183,7 +183,7 @@ export const transferCommand = new Command('transfer')
       spinner.fail('Failed to transfer tokens');
       console.error(
         chalk.red('❌ Error:'),
-        error instanceof Error ? error.message : 'Unknown error'
+        error instanceof Error ? error : 'Unknown error'
       );
 
       // Provide helpful error context for common issues
