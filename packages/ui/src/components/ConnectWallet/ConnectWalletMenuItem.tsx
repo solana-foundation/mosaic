@@ -71,7 +71,9 @@ export function ConnectWalletMenuItem({
       >
         <WalletMenuItemContent loading={isPending} wallet={wallet} />
         {!isConnected && (
-          <span className="text-xs text-muted-foreground">Click to connect</span>
+          <span className="text-xs text-muted-foreground">
+            Click to connect
+          </span>
         )}
       </DropdownMenuSubTrigger>
       <DropdownMenuSubContent className="w-56">

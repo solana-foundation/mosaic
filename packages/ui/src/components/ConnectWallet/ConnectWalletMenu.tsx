@@ -133,7 +133,10 @@ export function ConnectWalletMenu({ children }: Props) {
                   onDisconnect={wallet => {
                     if (
                       selectedWalletAccount &&
-                      uiWalletAccountBelongsToUiWallet(selectedWalletAccount, wallet)
+                      uiWalletAccountBelongsToUiWallet(
+                        selectedWalletAccount,
+                        wallet
+                      )
                     ) {
                       setSelectedWalletAccount(undefined);
                     }
