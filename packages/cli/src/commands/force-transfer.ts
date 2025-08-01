@@ -104,7 +104,7 @@ export const forceTransferCommand = new Command('force-transfer')
         `   ${chalk.bold('Permanent Delegate:')} ${permanentDelegateKeypair.address}`
       );
 
-      console.log(chalk.cyan('\\n⚡ Result:'));
+      console.log(chalk.cyan('⚡ Result:'));
       console.log(
         `   ${chalk.green('✓')} Tokens force transferred using permanent delegate authority`
       );
@@ -117,8 +117,8 @@ export const forceTransferCommand = new Command('force-transfer')
     } catch (error) {
       spinner.fail('Failed to force transfer tokens');
       console.error(
-        chalk.red('\\n❌ Error:'),
-        error instanceof Error ? error.message : 'Unknown error'
+        chalk.red('❌ Error:'),
+        error instanceof Error ? error : 'Unknown error'
       );
 
       // Provide helpful error context for common issues

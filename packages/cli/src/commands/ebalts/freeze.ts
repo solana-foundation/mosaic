@@ -1,22 +1,25 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { getCreateListTransaction } from '@mosaic/sdk';
+import { getFreezeTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
-import { type Address, signTransactionMessageWithSigners } from 'gill';
+import { signTransactionMessageWithSigners, type Address } from 'gill';
 
 interface CreateConfigOptions {
-  mint: string;
-  gatingProgram: string;
+  tokenAccount: string;
   rpcUrl?: string;
   keypair?: string;
 }
 
-export const createList = new Command('create-list')
-  .description('Create a new list for an existing mint')
+export const freeze = new Command('freeze')
+  .description('Freeze a token account')
+  .requiredOption(
+    '-t, --token-account <token-account>',
+    'Token account address'
+  )
   .action(async (options: CreateConfigOptions, command) => {
-    const spinner = ora('Creating ebalts config...').start();
+    const spinner = ora('Freezing token account...').start();
 
     try {
       const parentOpts = command.parent?.parent?.opts() || {};
@@ -24,11 +27,11 @@ export const createList = new Command('create-list')
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
       const kp = await loadKeypair(options.keypair);
 
-      const { transaction, listConfig } = await getCreateListTransaction({
+      const transaction = await getFreezeTransaction({
         rpc,
         payer: kp,
         authority: kp,
-        mint: options.mint as Address,
+        tokenAccount: options.tokenAccount as Address,
       });
 
       spinner.text = 'Signing transaction...';
@@ -45,15 +48,15 @@ export const createList = new Command('create-list')
         commitment: 'confirmed',
       });
 
-      spinner.succeed('ABL list created successfully!');
+      spinner.succeed('Token account frozen successfully!');
 
       // Display results
-      console.log(chalk.green('✅ ABL list created successfully!'));
+      console.log(chalk.green('✅ Token account frozen successfully!'));
       console.log(chalk.cyan('📋 Details:'));
-      console.log(`   ${chalk.bold('List Config:')} ${listConfig}`);
+      console.log(`   ${chalk.bold('Token Account:')} ${options.tokenAccount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
     } catch (error) {
-      spinner.fail('Failed to create ABL list');
+      spinner.fail('Failed to freeze token account');
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'

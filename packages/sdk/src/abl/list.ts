@@ -1,6 +1,5 @@
 import {
   createTransaction,
-  generateKeyPairSigner,
   type Address,
   type Base58EncodedBytes,
   type FullTransaction,
@@ -18,6 +17,7 @@ import {
   findListConfigPda,
   getABWalletDecoder,
   getInitializeListConfigInstruction,
+  getListConfigDecoder,
   Mode,
 } from '@mosaic/abl';
 
@@ -34,11 +34,11 @@ import {
  */
 export const getCreateListInstructions = async (input: {
   authority: TransactionSigner<string>;
+  mint: Address;
+  mode?: Mode;
 }): Promise<{ instructions: Instruction<string>[]; listConfig: Address }> => {
-  const seed = await generateKeyPairSigner();
-
   const listConfigPda = await findListConfigPda(
-    { authority: input.authority.address, seed: seed.address },
+    { authority: input.authority.address, seed: input.mint },
     { programAddress: ABL_PROGRAM_ID }
   );
 
@@ -46,8 +46,8 @@ export const getCreateListInstructions = async (input: {
     {
       authority: input.authority,
       listConfig: listConfigPda[0],
-      mode: Mode.AllowWithPermissionlessEOAs,
-      seed: seed.address,
+      mode: input.mode || Mode.Allow,
+      seed: input.mint,
     },
     { programAddress: ABL_PROGRAM_ID }
   );
@@ -75,6 +75,7 @@ export const getCreateListTransaction = async (input: {
   rpc: Rpc<SolanaRpcApi>;
   payer: TransactionSigner<string>;
   authority: TransactionSigner<string>;
+  mint: Address;
 }): Promise<{
   transaction: FullTransaction<
     TransactionVersion,
@@ -83,7 +84,10 @@ export const getCreateListTransaction = async (input: {
   >;
   listConfig: Address;
 }> => {
-  const { instructions, listConfig } = await getCreateListInstructions(input);
+  const { instructions, listConfig } = await getCreateListInstructions({
+    authority: input.authority,
+    mint: input.mint,
+  });
   const { value: latestBlockhash } = await input.rpc
     .getLatestBlockhash()
     .send();
@@ -197,4 +201,44 @@ export const getList = async (input: {
     ...listConfig,
     wallets: list,
   };
+};
+
+/**
+ * Fetches the configuration data for all existing allowlist or blocklist.
+ *
+ * This function retrieves the configuration information for a list from the blockchain,
+ * including its mode, seed, and authority. It does not fetch the actual wallet
+ * addresses that are part of the list.
+ *
+ * @param input - Parameters for fetching the list configuration
+ * @param input.rpc - The Solana RPC client instance
+ * @param input.listConfig - The address of the list configuration account
+ * @returns Promise containing the list configuration data
+ */
+export const getAllListConfigs = async (input: {
+  rpc: Rpc<SolanaRpcApi>;
+}): Promise<ListConfig[]> => {
+  const accounts = await input.rpc
+    .getProgramAccounts(ABL_PROGRAM_ID, {
+      encoding: 'base64',
+      filters: [
+        {
+          dataSize: 74n,
+        },
+      ],
+    })
+    .send();
+
+  const list = accounts.map(account => {
+    const data = Uint8Array.from(account.account.data[0]);
+    const listConfig = getListConfigDecoder().decode(data);
+    return {
+      listConfig: account.pubkey,
+      mode: listConfig.mode,
+      seed: listConfig.seed,
+      authority: listConfig.authority,
+    };
+  });
+
+  return list;
 };
