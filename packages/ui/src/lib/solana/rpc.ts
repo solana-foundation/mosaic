@@ -1,4 +1,9 @@
-import { createSolanaRpc, type Rpc, type SolanaRpcApi, type Address } from 'gill';
+import {
+  createSolanaRpc,
+  type Rpc,
+  type SolanaRpcApi,
+  type Address,
+} from 'gill';
 import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from 'gill/programs/token';
 import { fetchEncodedAccount } from '@solana/accounts';
 
@@ -33,7 +38,7 @@ export async function getTokenAuthorities(
 ): Promise<TokenAuthorities> {
   try {
     const rpc = createRpcClient(rpcUrl);
-    
+
     // Fetch account using @solana/kit like inspect-mint does
     const mintAddressTyped = mintAddress as Address;
     const encodedAccount = await fetchEncodedAccount(rpc, mintAddressTyped);
@@ -54,25 +59,31 @@ export async function getTokenAuthorities(
 
     // Extract basic authorities
     const authorities: TokenAuthorities = {
-      mintAuthority: decodedMint.data.mintAuthority?.__option === 'Some' 
-        ? decodedMint.data.mintAuthority.value 
-        : undefined,
-      freezeAuthority: decodedMint.data.freezeAuthority?.__option === 'Some' 
-        ? decodedMint.data.freezeAuthority.value 
-        : undefined,
+      mintAuthority:
+        decodedMint.data.mintAuthority?.__option === 'Some'
+          ? decodedMint.data.mintAuthority.value
+          : undefined,
+      freezeAuthority:
+        decodedMint.data.freezeAuthority?.__option === 'Some'
+          ? decodedMint.data.freezeAuthority.value
+          : undefined,
     };
 
     // Extract extension authorities
-    if (decodedMint.data.extensions && decodedMint.data.extensions.__option === 'Some') {
+    if (
+      decodedMint.data.extensions &&
+      decodedMint.data.extensions.__option === 'Some'
+    ) {
       for (const ext of decodedMint.data.extensions.value) {
         if (!ext.__kind) continue;
 
         switch (ext.__kind) {
           case 'TokenMetadata':
             if ('updateAuthority' in ext && ext.updateAuthority) {
-              authorities.metadataAuthority = ext.updateAuthority.__option === 'Some' 
-                ? ext.updateAuthority.value 
-                : undefined;
+              authorities.metadataAuthority =
+                ext.updateAuthority.__option === 'Some'
+                  ? ext.updateAuthority.value
+                  : undefined;
             }
             break;
           case 'PermanentDelegate':
@@ -82,16 +93,18 @@ export async function getTokenAuthorities(
             break;
           case 'ConfidentialTransferMint':
             if ('authority' in ext && ext.authority) {
-              authorities.confidentialBalancesAuthority = ext.authority.__option === 'Some' 
-                ? ext.authority.value 
-                : undefined;
+              authorities.confidentialBalancesAuthority =
+                ext.authority.__option === 'Some'
+                  ? ext.authority.value
+                  : undefined;
             }
             break;
           case 'PausableConfig':
             if ('authority' in ext && ext.authority) {
-              authorities.pausableAuthority = ext.authority.__option === 'Some' 
-                ? ext.authority.value 
-                : undefined;
+              authorities.pausableAuthority =
+                ext.authority.__option === 'Some'
+                  ? ext.authority.value
+                  : undefined;
             }
             break;
         }
@@ -111,16 +124,14 @@ export async function getTokenAuthorities(
  * In a real implementation, you would need to fetch each extension's data separately
  */
 export async function getExtensionAuthorities(
-  mintAddress: string,
-  rpcUrl?: string
+  _mintAddress: string,
+  _rpcUrl?: string
 ): Promise<Partial<TokenAuthorities>> {
   try {
-    const rpc = createRpcClient(rpcUrl);
-    
     // TODO: Implement extension-specific authority fetching
     // This would require fetching each extension's account data
     // For now, return empty object as placeholder
-    
+
     return {
       metadataAuthority: undefined,
       pausableAuthority: undefined,
@@ -131,4 +142,4 @@ export async function getExtensionAuthorities(
     console.error('Error fetching extension authorities:', error);
     throw error;
   }
-} 
+}

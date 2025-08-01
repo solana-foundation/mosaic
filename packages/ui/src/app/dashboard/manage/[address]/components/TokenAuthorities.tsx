@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import {
   Card,
   CardContent,
@@ -7,14 +7,21 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Edit, Check, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Settings,
+  Edit,
+  Check,
+  X,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 import { updateTokenAuthority } from '@/lib/management/authority';
 import { getTokenAuthorities } from '@/lib/solana/rpc';
 import { AuthorityType } from 'gill/programs/token';
 import { isAddress } from 'gill';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
-import { useContext } from 'react';
 import { ChainContext } from '@/context/ChainContext';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 
@@ -86,7 +93,10 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
 
   // Filter out confidential balances authority for arcade tokens
   const filteredAuthorities = baseAuthorities.filter(authority => {
-    if (authority.role === AuthorityType.ConfidentialTransferMint && token.type === 'arcade-token') {
+    if (
+      authority.role === AuthorityType.ConfidentialTransferMint &&
+      token.type === 'arcade-token'
+    ) {
       return false;
     }
     // Remove pausable authority from UI
@@ -96,7 +106,8 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
     return true;
   });
 
-  const [authorities, setAuthorities] = useState<AuthorityInfo[]>(filteredAuthorities);
+  const [authorities, setAuthorities] =
+    useState<AuthorityInfo[]>(filteredAuthorities);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const [isLoadingAuthorities, setIsLoadingAuthorities] = useState(false);
@@ -113,22 +124,30 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
   useEffect(() => {
     const fetchAuthorities = async () => {
       if (!token.address) return;
-      
+
       setIsLoadingAuthorities(true);
       try {
         const blockchainAuthorities = await getTokenAuthorities(token.address);
-        
-        setAuthorities(prev => prev.map(auth => ({
-          ...auth,
-          currentAuthority: 
-            auth.role === AuthorityType.MintTokens ? blockchainAuthorities.mintAuthority :
-            auth.role === AuthorityType.FreezeAccount ? blockchainAuthorities.freezeAuthority :
-            auth.role === 'Metadata' ? blockchainAuthorities.metadataAuthority :
-            auth.role === AuthorityType.Pause ? blockchainAuthorities.pausableAuthority :
-            auth.role === AuthorityType.ConfidentialTransferMint ? blockchainAuthorities.confidentialBalancesAuthority :
-            auth.role === AuthorityType.PermanentDelegate ? blockchainAuthorities.permanentDelegateAuthority :
-            auth.currentAuthority
-        })));
+
+        setAuthorities(prev =>
+          prev.map(auth => ({
+            ...auth,
+            currentAuthority:
+              auth.role === AuthorityType.MintTokens
+                ? blockchainAuthorities.mintAuthority
+                : auth.role === AuthorityType.FreezeAccount
+                  ? blockchainAuthorities.freezeAuthority
+                  : auth.role === 'Metadata'
+                    ? blockchainAuthorities.metadataAuthority
+                    : auth.role === AuthorityType.Pause
+                      ? blockchainAuthorities.pausableAuthority
+                      : auth.role === AuthorityType.ConfidentialTransferMint
+                        ? blockchainAuthorities.confidentialBalancesAuthority
+                        : auth.role === AuthorityType.PermanentDelegate
+                          ? blockchainAuthorities.permanentDelegateAuthority
+                          : auth.currentAuthority,
+          }))
+        );
       } catch (error) {
         console.error('Error fetching authorities:', error);
       } finally {
@@ -140,19 +159,25 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
   }, [token.address]);
 
   const startEditing = (index: number) => {
-    setAuthorities(prev => prev.map((auth, i) => 
-      i === index 
-        ? { ...auth, isEditing: true, newAuthority: auth.currentAuthority || '' }
-        : auth
-    ));
+    setAuthorities(prev =>
+      prev.map((auth, i) =>
+        i === index
+          ? {
+              ...auth,
+              isEditing: true,
+              newAuthority: auth.currentAuthority || '',
+            }
+          : auth
+      )
+    );
   };
 
   const cancelEditing = (index: number) => {
-    setAuthorities(prev => prev.map((auth, i) => 
-      i === index 
-        ? { ...auth, isEditing: false, newAuthority: '' }
-        : auth
-    ));
+    setAuthorities(prev =>
+      prev.map((auth, i) =>
+        i === index ? { ...auth, isEditing: false, newAuthority: '' } : auth
+      )
+    );
   };
 
   const updateAuthority = async (index: number) => {
@@ -166,33 +191,38 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
       index,
       role: authority.role,
       newAuthority: authority.newAuthority.trim(),
-      mint: token.address
+      mint: token.address,
     });
 
-    setAuthorities(prev => prev.map((auth, i) => 
-      i === index ? { ...auth, isLoading: true } : auth
-    ));
+    setAuthorities(prev =>
+      prev.map((auth, i) => (i === index ? { ...auth, isLoading: true } : auth))
+    );
 
     try {
-      const result = await updateTokenAuthority({
-        mint: token.address,
-        role: authority.role,
-        newAuthority: authority.newAuthority.trim(),
-        rpcUrl: 'https://api.devnet.solana.com',
-      }, transactionSendingSigner);
+      const result = await updateTokenAuthority(
+        {
+          mint: token.address,
+          role: authority.role,
+          newAuthority: authority.newAuthority.trim(),
+          rpcUrl: 'https://api.devnet.solana.com',
+        },
+        transactionSendingSigner
+      );
 
       if (result.success) {
-        setAuthorities(prev => prev.map((auth, i) => 
-          i === index 
-            ? { 
-                ...auth, 
-                currentAuthority: authority.newAuthority.trim(),
-                isEditing: false, 
-                newAuthority: '',
-                isLoading: false 
-              }
-            : auth
-        ));
+        setAuthorities(prev =>
+          prev.map((auth, i) =>
+            i === index
+              ? {
+                  ...auth,
+                  currentAuthority: authority.newAuthority.trim(),
+                  isEditing: false,
+                  newAuthority: '',
+                  isLoading: false,
+                }
+              : auth
+          )
+        );
       } else {
         alert(`Failed to update authority: ${result.error}`);
       }
@@ -200,9 +230,11 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
       console.error('Error updating authority:', error);
       alert('Failed to update authority. Please try again.');
     } finally {
-      setAuthorities(prev => prev.map((auth, i) => 
-        i === index ? { ...auth, isLoading: false } : auth
-      ));
+      setAuthorities(prev =>
+        prev.map((auth, i) =>
+          i === index ? { ...auth, isLoading: false } : auth
+        )
+      );
     }
   };
 
@@ -221,7 +253,9 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
           <CardTitle className="flex items-center">
             <Settings className="h-5 w-5 mr-2" />
             Token Authorities
-            {isLoadingAuthorities && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
+            {isLoadingAuthorities && (
+              <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+            )}
           </CardTitle>
           {isDropdownOpen ? (
             <ChevronUp className="h-5 w-5" />
@@ -230,9 +264,9 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
           )}
         </button>
         <CardDescription>
-          Manage the authorities for this token. Click edit to change an authority.
+          Manage the authorities for this token. Click edit to change an
+          authority.
           <br />
-          
         </CardDescription>
       </CardHeader>
       {isDropdownOpen && (
@@ -255,7 +289,7 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
                     </Button>
                   )}
                 </div>
-                
+
                 {authority.isEditing ? (
                   <div className="space-y-2">
                     <div className="flex items-center space-x-2">
@@ -263,15 +297,24 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
                         type="text"
                         placeholder="Enter new authority address"
                         value={authority.newAuthority}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAuthorities(prev => prev.map((auth, i) => 
-                          i === index ? { ...auth, newAuthority: e.target.value } : auth
-                        ))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                          setAuthorities(prev =>
+                            prev.map((auth, i) =>
+                              i === index
+                                ? { ...auth, newAuthority: e.target.value }
+                                : auth
+                            )
+                          )
+                        }
                         className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                       />
                       <Button
                         size="sm"
                         onClick={() => updateAuthority(index)}
-                        disabled={authority.isLoading || !validateSolanaAddress(authority.newAuthority)}
+                        disabled={
+                          authority.isLoading ||
+                          !validateSolanaAddress(authority.newAuthority)
+                        }
                       >
                         {authority.isLoading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
@@ -288,11 +331,12 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
                         <X className="h-4 w-4" />
                       </Button>
                     </div>
-                    {authority.newAuthority && !validateSolanaAddress(authority.newAuthority) && (
-                      <p className="text-sm text-red-500">
-                        Please enter a valid Solana address
-                      </p>
-                    )}
+                    {authority.newAuthority &&
+                      !validateSolanaAddress(authority.newAuthority) && (
+                        <p className="text-sm text-red-500">
+                          Please enter a valid Solana address
+                        </p>
+                      )}
                   </div>
                 ) : (
                   <code className="block text-sm bg-muted px-2 py-1 rounded font-mono">
@@ -302,14 +346,16 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
                         {authority.currentAuthority.slice(-8)}
                       </>
                     ) : (
-                      <span className="text-muted-foreground">No authority set</span>
+                      <span className="text-muted-foreground">
+                        No authority set
+                      </span>
                     )}
                   </code>
                 )}
               </div>
             ))}
           </div>
-          
+
           {!selectedWalletAccount && (
             <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm text-yellow-800">

@@ -7,7 +7,15 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Plus, X, Shield, Ban, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  Settings,
+  Plus,
+  X,
+  Shield,
+  Ban,
+  ChevronDown,
+  ChevronUp,
+} from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 
 interface TokenExtensionsProps {

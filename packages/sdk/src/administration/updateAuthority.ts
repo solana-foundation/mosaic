@@ -85,7 +85,11 @@ export const getUpdateAuthorityTransaction = async (input: {
   currentAuthority: TransactionSigner<string>;
   newAuthority: Address;
 }): Promise<
-  FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>
+  FullTransaction<
+    TransactionVersion,
+    TransactionMessageWithFeePayer,
+    TransactionWithBlockhashLifetime
+  >
 > => {
   const instructions = getUpdateAuthorityInstructions({
     mint: input.mint,

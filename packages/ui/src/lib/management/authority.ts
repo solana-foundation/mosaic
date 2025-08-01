@@ -50,7 +50,7 @@ function validateUpdateAuthorityOptions(options: UpdateAuthorityOptions): void {
   console.log('Validating authority options:', {
     mint: options.mint,
     role: options.role,
-    newAuthority: options.newAuthority
+    newAuthority: options.newAuthority,
   });
 
   // Basic address format validation (you might want more sophisticated validation)
@@ -95,7 +95,8 @@ export const updateTokenAuthority = async (
     });
 
     // Sign and send the transaction
-    const signature = await signAndSendTransactionMessageWithSigners(transaction);
+    const signature =
+      await signAndSendTransactionMessageWithSigners(transaction);
 
     return {
       success: true,
