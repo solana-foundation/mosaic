@@ -61,7 +61,7 @@ export const getAddToBlocklistInstructions = async (
         tokenAccount,
       })
     : [];
-  return [...freezeInstructions, ...addToBlocklistInstructions];
+  return [...addToBlocklistInstructions, ...freezeInstructions];
 };
 
 export const createAddToBlocklistTransaction = async (

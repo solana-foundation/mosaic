@@ -116,7 +116,7 @@ export const mintCommand = new Command('mint')
     } catch (error) {
       spinner.fail('Failed to mint tokens');
       console.error(
-        chalk.red('\\n❌ Error:'),
+        chalk.red('❌ Error:'),
         error instanceof Error ? error : 'Unknown error'
       );
       process.exit(1);
