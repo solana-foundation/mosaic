@@ -15,7 +15,7 @@ import {
   getCreateAssociatedTokenIdempotentInstruction,
 } from 'gill/programs/token';
 import { getThawPermissionlessInstructions } from '../ebalts';
-import { resolveTokenAccount } from '../transactionUtil';
+import { decimalAmountToRaw, getMintDecimals, resolveTokenAccount } from '../transactionUtil';
 
 /**
  * Creates a transaction to mint tokens to a recipient's associated token account.
@@ -33,7 +33,7 @@ export const createMintToTransaction = async (
   rpc: Rpc<SolanaRpcApi>,
   mint: Address,
   recipient: Address,
-  amount: bigint,
+  amount: number,
   mintAuthority: Address | TransactionSigner<string>,
   feePayer: Address | TransactionSigner<string>
 ): Promise<
@@ -55,6 +55,9 @@ export const createMintToTransaction = async (
     recipient,
     mint
   );
+
+  const decimals = await getMintDecimals(rpc, mint);
+  const rawAmount = decimalAmountToRaw(amount, decimals);
 
   const instructions = [
     // create idempotent will gracefully fail if the ata already exists. this is the gold standard!
@@ -79,7 +82,7 @@ export const createMintToTransaction = async (
         mint: mint,
         mintAuthority: mintAuthority,
         token: destinationAta,
-        amount: amount,
+        amount: rawAmount,
       },
       {
         programAddress: TOKEN_2022_PROGRAM_ADDRESS,

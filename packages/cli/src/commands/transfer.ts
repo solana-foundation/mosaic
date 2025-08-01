@@ -15,6 +15,7 @@ import {
 } from 'gill/programs/token';
 import {
   decimalAmountToRaw,
+  getMintDecimals,
   getThawPermissionlessInstructions,
   resolveTokenAccount,
 } from '@mosaic/sdk';
@@ -25,32 +26,6 @@ interface TransferOptions {
   amount: string;
   rpcUrl?: string;
   keypair?: string;
-}
-
-async function getMintInfo(
-  rpc: ReturnType<typeof createSolanaClient>['rpc'],
-  mint: Address
-): Promise<{ decimals: number }> {
-  const accountInfo = await rpc
-    .getAccountInfo(mint, { encoding: 'jsonParsed' })
-    .send();
-
-  if (!accountInfo.value) {
-    throw new Error(`Mint account ${mint} not found`);
-  }
-
-  const data = accountInfo.value.data;
-  if (!('parsed' in data) || !data.parsed?.info) {
-    throw new Error(`Unable to parse mint data for ${mint}`);
-  }
-
-  const mintInfo = data.parsed.info as {
-    decimals: number;
-  };
-
-  return {
-    decimals: mintInfo.decimals,
-  };
 }
 
 export const transferCommand = new Command('transfer')
@@ -88,10 +63,10 @@ export const transferCommand = new Command('transfer')
       spinner.text = 'Fetching mint information...';
 
       // Get mint info for decimals
-      const mintInfo = await getMintInfo(rpc, options.mintAddress as Address);
+      const decimals = await getMintDecimals(rpc, options.mintAddress as Address);
 
       // Convert decimal amount to raw amount
-      const rawAmount = decimalAmountToRaw(decimalAmount, mintInfo.decimals);
+      const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
 
       spinner.text = 'Resolving token accounts...';
 
@@ -140,7 +115,7 @@ export const transferCommand = new Command('transfer')
           mint: options.mintAddress as Address,
           authority: senderKeypair,
           amount: rawAmount,
-          decimals: mintInfo.decimals,
+          decimals,
         })
       );
 

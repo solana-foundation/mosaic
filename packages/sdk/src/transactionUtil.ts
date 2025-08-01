@@ -153,3 +153,27 @@ export async function resolveTokenAccount(
   // if the ATA doesn't exist yet, consider it frozen as it will be created through EBALTS
   return { tokenAccount: ata, isInitialized: false, isFrozen: true };
 }
+
+export async function getMintDecimals(
+  rpc: Rpc<SolanaRpcApi>,
+  mint: Address
+): Promise<number> {
+  const accountInfo = await rpc
+    .getAccountInfo(mint, { encoding: 'jsonParsed' })
+    .send();
+
+  if (!accountInfo.value) {
+    throw new Error(`Mint account ${mint} not found`);
+  }
+
+  const data = accountInfo.value.data;
+  if (!('parsed' in data) || !data.parsed?.info) {
+    throw new Error(`Unable to parse mint data for ${mint}`);
+  }
+
+  const mintInfo = data.parsed.info as {
+    decimals: number;
+  };
+
+  return mintInfo.decimals;
+}
