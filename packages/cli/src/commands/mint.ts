@@ -1,11 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import {
-  createMintToTransaction,
-  getMintInfo,
-  decimalAmountToRaw,
-} from '@mosaic/sdk';
+import { createMintToTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../utils/rpc.js';
 import { loadKeypair } from '../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
@@ -54,10 +50,6 @@ export const mintCommand = new Command('mint')
 
       spinner.text = 'Getting mint information...';
 
-      // Get mint info to determine decimals
-      const mintInfo = await getMintInfo(rpc, options.mintAddress as Address);
-      const decimals = mintInfo.decimals;
-
       // Parse and validate amount
       const decimalAmount = parseFloat(options.amount);
       if (isNaN(decimalAmount) || decimalAmount <= 0) {
@@ -65,7 +57,6 @@ export const mintCommand = new Command('mint')
       }
 
       // Convert decimal amount to raw amount
-      const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
 
       spinner.text = 'Building mint transaction...';
 
@@ -74,7 +65,7 @@ export const mintCommand = new Command('mint')
         rpc,
         options.mintAddress as Address,
         options.recipient as Address,
-        rawAmount,
+        decimalAmount,
         mintAuthorityKeypair,
         mintAuthorityKeypair // Use same keypair as fee payer
       );
@@ -97,10 +88,7 @@ export const mintCommand = new Command('mint')
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
       console.log(`   ${chalk.bold('Recipient:')} ${options.recipient}`);
-      console.log(
-        `   ${chalk.bold('Amount:')} ${decimalAmount} (${rawAmount.toString()} raw units)`
-      );
-      console.log(`   ${chalk.bold('Decimals:')} ${decimals}`);
+      console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
       console.log(
         `   ${chalk.bold('Mint Authority:')} ${mintAuthorityKeypair.address}`
@@ -116,7 +104,7 @@ export const mintCommand = new Command('mint')
     } catch (error) {
       spinner.fail('Failed to mint tokens');
       console.error(
-        chalk.red('\\n❌ Error:'),
+        chalk.red('❌ Error:'),
         error instanceof Error ? error : 'Unknown error'
       );
       process.exit(1);

@@ -93,7 +93,7 @@ export async function resolveTokenAccount(
   mint: Address
 ): Promise<{
   tokenAccount: Address;
-  wasOwnerAddress: boolean;
+  isInitialized: boolean;
   isFrozen: boolean;
 }> {
   const accountInfo = await rpc
@@ -108,7 +108,7 @@ export async function resolveTokenAccount(
       if (ataInfo.mint === mint) {
         return {
           tokenAccount: account,
-          wasOwnerAddress: false,
+          isInitialized: true,
           isFrozen: ataInfo.state === 'frozen',
         };
       }
@@ -145,11 +145,35 @@ export async function resolveTokenAccount(
       .state;
     return {
       tokenAccount: ata,
-      wasOwnerAddress: false,
+      isInitialized: true,
       isFrozen: tokenState === 'frozen',
     };
   }
 
   // if the ATA doesn't exist yet, consider it frozen as it will be created through EBALTS
-  return { tokenAccount: ata, wasOwnerAddress: true, isFrozen: true };
+  return { tokenAccount: ata, isInitialized: false, isFrozen: true };
+}
+
+export async function getMintDecimals(
+  rpc: Rpc<SolanaRpcApi>,
+  mint: Address
+): Promise<number> {
+  const accountInfo = await rpc
+    .getAccountInfo(mint, { encoding: 'jsonParsed' })
+    .send();
+
+  if (!accountInfo.value) {
+    throw new Error(`Mint account ${mint} not found`);
+  }
+
+  const data = accountInfo.value.data;
+  if (!('parsed' in data) || !data.parsed?.info) {
+    throw new Error(`Unable to parse mint data for ${mint}`);
+  }
+
+  const mintInfo = data.parsed.info as {
+    decimals: number;
+  };
+
+  return mintInfo.decimals;
 }

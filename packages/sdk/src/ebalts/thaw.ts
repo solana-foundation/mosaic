@@ -12,7 +12,6 @@ import {
 } from 'gill';
 import { findMintConfigPda, getThawInstruction } from '@mosaic/ebalts';
 import { EBALTS_PROGRAM_ID } from './utils';
-import { getTokenDecoder } from 'gill/programs';
 
 /**
  * Generates instructions for thawing a token account.
@@ -30,12 +29,30 @@ export const getThawInstructions = async (input: {
   tokenAccount: Address;
 }): Promise<Instruction<string>[]> => {
   const { value: accountInfo } = await input.rpc
-    .getAccountInfo(input.tokenAccount, { encoding: 'base64' })
+    .getAccountInfo(input.tokenAccount, { encoding: 'jsonParsed' })
     .send();
   if (!accountInfo) {
     throw new Error('Token account not found');
   }
-  const token = getTokenDecoder().decode(Uint8Array.from(accountInfo.data[0]));
+
+  // Use jsonParsed data which works for both regular SPL and Token-2022 accounts
+  if (!('parsed' in accountInfo.data) || !accountInfo.data.parsed?.info) {
+    throw new Error('Failed to parse token account data');
+  }
+
+  const tokenInfo = accountInfo.data.parsed.info as {
+    mint: Address;
+    owner: Address;
+    tokenAmount: { amount: string };
+    state: string;
+  };
+
+  const token = {
+    mint: tokenInfo.mint,
+    owner: tokenInfo.owner,
+    amount: BigInt(tokenInfo.tokenAmount.amount),
+    state: tokenInfo.state,
+  };
 
   const mintConfigPda = await findMintConfigPda(
     { mint: token.mint },

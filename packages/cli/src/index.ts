@@ -4,15 +4,15 @@ import { Command } from 'commander';
 import { createStablecoinCommand } from './commands/create/stablecoin.js';
 import { createArcadeTokenCommand } from './commands/create/arcade-token.js';
 import { mintCommand } from './commands/mint.js';
-import { freezeCommand } from './commands/freeze.js';
-import { thawCommand } from './commands/thaw.js';
 import { forceTransferCommand } from './commands/force-transfer.js';
 import { transferCommand } from './commands/transfer.js';
 import { inspectMintCommand } from './commands/inspect-mint.js';
 import { ebaltsCommand } from './commands/ebalts/ebalts.js';
 import { ablCommand } from './commands/abl/abl.js';
-import { addCommand } from './commands/access-list/add.js';
-import { removeCommand } from './commands/access-list/remove.js';
+import { addCommand as addToBlocklistCommand } from './commands/blocklist/add.js';
+import { removeCommand as removeFromBlocklistCommand } from './commands/blocklist/remove.js';
+import { addCommand as addToAllowlistCommand } from './commands/allowlist/add.js';
+import { removeCommand as removeFromAllowlistCommand } from './commands/allowlist/remove.js';
 
 const program = new Command();
 
@@ -30,17 +30,22 @@ const createCommand = program
 createCommand.addCommand(createStablecoinCommand);
 createCommand.addCommand(createArcadeTokenCommand);
 
-// Add access list commands
-const accessListCommand = program
-  .command('access-list')
-  .description('Manage access lists');
-accessListCommand.addCommand(addCommand);
-accessListCommand.addCommand(removeCommand);
+// Add allowlist commands
+const allowlistCommand = program
+  .command('allowlist')
+  .description('Manage allowlists');
+allowlistCommand.addCommand(addToAllowlistCommand);
+allowlistCommand.addCommand(removeFromAllowlistCommand);
+
+// Add blocklist commands
+const blocklistCommand = program
+  .command('blocklist')
+  .description('Manage blocklists');
+blocklistCommand.addCommand(addToBlocklistCommand);
+blocklistCommand.addCommand(removeFromBlocklistCommand);
 
 // Add token management commands
 program.addCommand(mintCommand);
-program.addCommand(freezeCommand);
-program.addCommand(thawCommand);
 program.addCommand(transferCommand);
 program.addCommand(forceTransferCommand);
 program.addCommand(inspectMintCommand);

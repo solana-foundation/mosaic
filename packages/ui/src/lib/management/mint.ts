@@ -7,7 +7,7 @@ import {
   TransactionSendingSigner,
   isAddress,
 } from 'gill';
-import { createMintToTransaction, getMintInfo } from '@mosaic/sdk';
+import { createMintToTransaction } from '@mosaic/sdk';
 import bs58 from 'bs58';
 
 export interface MintOptions {
@@ -56,21 +56,6 @@ function validateMintOptions(options: MintOptions): bigint {
 }
 
 /**
- * Converts human-readable amount to raw token amount using mint decimals
- * @param amount - Human-readable amount as string
- * @param decimals - Number of decimal places for the mint
- * @returns Raw token amount as bigint
- */
-function convertAmountToRaw(amount: string, decimals: number): bigint {
-  const numericAmount = parseFloat(amount);
-  if (isNaN(numericAmount) || numericAmount <= 0) {
-    throw new Error('Amount must be a positive number');
-  }
-
-  return BigInt(Math.floor(numericAmount * Math.pow(10, decimals)));
-}
-
-/**
  * Mints tokens to a recipient using the wallet standard transaction signer
  * @param options - Configuration options for minting
  * @param signer - Transaction sending signer instance
@@ -112,19 +97,12 @@ export const mintTokens = async (
     const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
     const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
 
-    // Get mint info to determine decimals
-    const mintInfo = await getMintInfo(rpc, options.mintAddress as Address);
-    const decimals = mintInfo.decimals;
-
-    // Convert amount to raw token amount
-    const rawAmount = convertAmountToRaw(options.amount, decimals);
-
     // Create mint transaction using SDK
     const transaction = await createMintToTransaction(
       rpc,
       options.mintAddress as Address,
       options.recipient as Address,
-      rawAmount,
+      parseFloat(options.amount),
       mintAuthority,
       feePayer
     );

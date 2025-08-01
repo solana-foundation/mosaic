@@ -1,37 +1,35 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { getAddWalletTransaction } from '@mosaic/sdk';
+import { createRemoveFromAllowlistTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
-import { ABL_PROGRAM_ID } from '@mosaic/sdk';
-import { findListConfigPda } from '@mosaic/abl';
 
-interface AddOptions {
+interface RemoveOptions {
   mintAddress: string;
   account: string;
   rpcUrl?: string;
   keypair?: string;
 }
 
-export const addCommand = new Command('add')
-  .description('Add an account to the access list')
+export const removeCommand = new Command('remove')
+  .description('Remove an account from the allowlist')
   .requiredOption(
     '-m, --mint-address <mint-address>',
     'The mint address of the token'
   )
   .requiredOption(
     '-a, --account <account>',
-    'The account to freeze (wallet address)'
+    'The account to remove from the allowlist (wallet address)'
   )
   .showHelpAfterError()
   .configureHelp({
     sortSubcommands: true,
     subcommandTerm: cmd => cmd.name(),
   })
-  .action(async (options: AddOptions, command) => {
-    const spinner = ora('Adding account to access list...').start();
+  .action(async (options: RemoveOptions, command) => {
+    const spinner = ora('Removing account from allowlist...').start();
 
     try {
       // Get global options from parent command
@@ -45,24 +43,15 @@ export const addCommand = new Command('add')
       // Load authority keypair (assuming it's the configured keypair)
       const authorityKeypair = await loadKeypair(keypairPath);
 
-      spinner.text = 'Building add transaction...';
+      spinner.text = 'Building remove transaction...';
 
-      const listConfigPda = await findListConfigPda(
-        {
-          authority: authorityKeypair.address,
-          seed: options.mintAddress as Address,
-        },
-        { programAddress: ABL_PROGRAM_ID }
-      );
-
-      // Create add transaction
-      const transaction = await getAddWalletTransaction({
+      // Create remove transaction
+      const transaction = await createRemoveFromAllowlistTransaction(
         rpc,
-        payer: authorityKeypair,
-        authority: authorityKeypair,
-        wallet: options.account as Address,
-        list: listConfigPda[0],
-      });
+        options.mintAddress as Address,
+        options.account as Address,
+        authorityKeypair
+      );
 
       spinner.text = 'Signing transaction...';
 
@@ -75,19 +64,19 @@ export const addCommand = new Command('add')
       // Send and confirm transaction
       const signature = await sendAndConfirmTransaction(signedTransaction);
 
-      spinner.succeed('Account added to access list successfully!');
+      spinner.succeed('Account removed from allowlist successfully!');
 
       // Display results
-      console.log(chalk.green('✅ Added account to access list'));
+      console.log(chalk.green('✅ Removed account from allowlist'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
       console.log(`   ${chalk.bold('Input Account:')} ${options.account}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
       console.log(`   ${chalk.bold('Authority:')} ${authorityKeypair.address}`);
     } catch (error) {
-      spinner.fail('Failed to add account to access list');
+      spinner.fail('Failed to remove account from allowlist');
       console.error(
-        chalk.red('\\n❌ Error:'),
+        chalk.red('❌ Error:'),
         error instanceof Error ? error : 'Unknown error'
       );
       process.exit(1);

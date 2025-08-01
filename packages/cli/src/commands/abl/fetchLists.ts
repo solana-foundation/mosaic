@@ -19,6 +19,7 @@ export const fetchLists = new Command('fetch-lists')
       const { rpc } = createSolanaClient(rpcUrl);
 
       const lists = await getAllListConfigs({ rpc });
+      spinner.succeed('Fetched lists successfully!');
 
       // Display results
       console.log(chalk.green('✅ Lists fetched successfully!'));

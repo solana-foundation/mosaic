@@ -181,6 +181,8 @@ export const getList = async (input: {
       filters: [
         {
           dataSize: 72n,
+        },
+        {
           memcmp: {
             bytes: input.listConfig as unknown as Base58EncodedBytes,
             encoding: 'base58',
