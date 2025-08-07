@@ -76,7 +76,6 @@ export const createArcadeTokenInitTransaction = async (
     })
     .withPausable(pausableAuthority || mintAuthority)
     .withDefaultAccountState(false)
-    .withConfidentialBalances(confidentialBalancesAuthority || mintAuthority)
     .withPermanentDelegate(permanentDelegateAuthority || mintAuthority)
     .buildInstructions({
       rpc,

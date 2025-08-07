@@ -22,6 +22,7 @@ export interface StablecoinOptions {
   symbol: string;
   decimals: string;
   uri?: string;
+  aclMode?: 'allowlist' | 'blocklist';
   mintAuthority?: string;
   metadataAuthority?: string;
   pausableAuthority?: string;
@@ -39,6 +40,7 @@ export interface StablecoinCreationResult {
     name: string;
     symbol: string;
     decimals: number;
+    aclMode?: 'allowlist' | 'blocklist';
     mintAuthority: string;
     metadataAuthority: string;
     pausableAuthority: string;

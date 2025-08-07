@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Gamepad2, CheckCircle, Settings } from 'lucide-react';
+import { CopyableExplorerField } from '@/components/CopyableExplorerField';
 import { ArcadeTokenCreationResult } from '@/types/token';
 import Link from 'next/link';
 
@@ -38,18 +39,18 @@ export function ArcadeTokenCreationResultDisplay({
                 dashboard
               </span>
             </div>
-            <div>
-              <strong>Mint Address:</strong>
-              <code className="ml-2 bg-muted px-2 py-1 rounded text-sm">
-                {result.mintAddress}
-              </code>
-            </div>
-            <div>
-              <strong>Transaction:</strong>
-              <code className="ml-2 bg-muted px-2 py-1 rounded text-sm">
-                {result.transactionSignature}
-              </code>
-            </div>
+            <CopyableExplorerField
+              label="Mint Address"
+              value={result.mintAddress}
+              kind="address"
+              cluster="devnet"
+            />
+            <CopyableExplorerField
+              label="Transaction"
+              value={result.transactionSignature}
+              kind="tx"
+              cluster="devnet"
+            />
             <div className="text-sm text-muted-foreground">
               Your arcade token has been successfully created with the following
               parameters:
@@ -63,6 +64,9 @@ export function ArcadeTokenCreationResultDisplay({
               </div>
               <div>
                 <strong>Decimals:</strong> {result.details?.decimals}
+              </div>
+              <div>
+                <strong>ACL Mode:</strong> Allowlist
               </div>
               <div>
                 <strong>Extensions:</strong>{' '}

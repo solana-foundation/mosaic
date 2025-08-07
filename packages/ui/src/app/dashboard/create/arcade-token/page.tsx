@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import Link from 'next/link';
+import { CreateTemplateSidebar } from '@/components/CreateTemplateSidebar';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 import { ChainContext } from '@/context/ChainContext';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
@@ -32,7 +33,7 @@ function ArcadeTokenCreateWithWallet({
 
   return (
     <div className="flex-1 p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="flex items-center mb-8">
           <Link href="/dashboard/create">
             <Button variant="ghost" className="mr-4">
@@ -47,9 +48,36 @@ function ArcadeTokenCreateWithWallet({
           </div>
         </div>
 
-        <ArcadeTokenCreateForm
-          transactionSendingSigner={transactionSendingSigner}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 min-w-0">
+            <ArcadeTokenCreateForm
+              transactionSendingSigner={transactionSendingSigner}
+            />
+          </div>
+          <aside className="space-y-4">
+            <CreateTemplateSidebar
+              description={
+                <>
+                  Arcade tokens are closed-loop tokens suitable for in-app or
+                  game economies that require an allowlist.
+                </>
+              }
+              coreCapabilityKeys={[
+                'closedLoopAllowlistOnly',
+                'pausable',
+                'metadata',
+                'permanentDelegate',
+              ]}
+              enabledExtensionKeys={[
+                'extMetadata',
+                'extPausable',
+                'extDefaultAccountStateAllow',
+                'extPermanentDelegate',
+              ]}
+              standardKeys={['sRFC37', 'gatingProgram']}
+            />
+          </aside>
+        </div>
       </div>
     </div>
   );
