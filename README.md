@@ -1,6 +1,6 @@
 # Mosaic
 
-A comprehensive TypeScript monorepo for managing Token-2022 tokens with extensions on Solana, specifically designed for Stablecoin and Arcade Token use cases with advanced access control features.
+A comprehensive TypeScript monorepo for managing Token-2022 tokens with extensions on Solana, specifically designed for different token templates for Stablecoins, RWAs, and Arcade Token. It includes built in advanced access control features such as integration with sRFC-37.
 
 ## 🏗️ Project Structure
 
@@ -11,9 +11,11 @@ This monorepo contains the following packages:
 - **[@mosaic/ui](packages/ui/)** - UI for a full featured tokenization engine for token management with wallet integration and sRFC-37 administration
 - **[@mosaic/abl](packages/abl/)** - Allowlist/Blocklist implementation for sRFC-37 compliance
 - **[@mosaic/ebalts](packages/ebalts/)** - Efficient Block/Allow List Token Standard (sRFC-37) for advanced blocklist / allowlist functionality
-- **[@mosaic/tlv-account-resolution](packages/tlv-account-resolution/)** - TLV account resolution utilities for transfer hooks
+- **[@mosaic/tlv-account-resolution](packages/tlv-account-resolution/)** - TLV account resolution utilities
 
-## 🪙 Token Types
+## Token Templates
+
+The majority of tokens fit into a few different templates. This includes Stablecoins, RWAs, Arcade Tokens, Tokenized Equities, and ICOs / App tokens. Generally tokens need the ability to manage access to the token via a blocklist or allowlist, and for compliance reasons also be able to seize & freeze assets. The following breaks down the templates for each token type and corresponds to the templates in the SDK.
 
 ### Stablecoin
 
