@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { DollarSign, CheckCircle, Settings } from 'lucide-react';
 import { StablecoinCreationResult } from '@/types/token';
 import Link from 'next/link';
+import { CopyableExplorerField } from '@/components/CopyableExplorerField';
 
 interface StablecoinCreationResultProps {
   result: StablecoinCreationResult;
@@ -38,18 +39,18 @@ export function StablecoinCreationResultDisplay({
                 dashboard
               </span>
             </div>
-            <div>
-              <strong>Mint Address:</strong>
-              <code className="ml-2 bg-muted px-2 py-1 rounded text-sm">
-                {result.mintAddress}
-              </code>
-            </div>
-            <div>
-              <strong>Transaction:</strong>
-              <code className="ml-2 bg-muted px-2 py-1 rounded text-sm">
-                {result.transactionSignature}
-              </code>
-            </div>
+            <CopyableExplorerField
+              label="Mint Address"
+              value={result.mintAddress}
+              kind="address"
+              cluster="devnet"
+            />
+            <CopyableExplorerField
+              label="Transaction"
+              value={result.transactionSignature}
+              kind="tx"
+              cluster="devnet"
+            />
             <div className="text-sm text-muted-foreground">
               Your stablecoin has been successfully created with the following
               parameters:
@@ -65,8 +66,45 @@ export function StablecoinCreationResultDisplay({
                 <strong>Decimals:</strong> {result.details?.decimals}
               </div>
               <div>
+                <strong>ACL Mode:</strong> {result.details?.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+              </div>
+              <div>
                 <strong>Extensions:</strong>{' '}
                 {result.details?.extensions?.join(', ')}
+              </div>
+            </div>
+
+            <div className="pt-2 text-sm text-muted-foreground">Authorities</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <div>
+                <strong>Mint Authority:</strong>{' '}
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                  {result.details?.mintAuthority}
+                </code>
+              </div>
+              <div>
+                <strong>Metadata Authority:</strong>{' '}
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                  {result.details?.metadataAuthority}
+                </code>
+              </div>
+              <div>
+                <strong>Pausable Authority:</strong>{' '}
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                  {result.details?.pausableAuthority}
+                </code>
+              </div>
+              <div>
+                <strong>Confidential Balances Authority:</strong>{' '}
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                  {result.details?.confidentialBalancesAuthority}
+                </code>
+              </div>
+              <div className="md:col-span-2">
+                <strong>Permanent Delegate Authority:</strong>{' '}
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                  {result.details?.permanentDelegateAuthority}
+                </code>
               </div>
             </div>
 

@@ -84,6 +84,7 @@ export const createStablecoin = async (
       mintAuthority,
       mintKeypair,
       signer, // Use wallet as fee payer
+      options.aclMode || 'blocklist',
       metadataAuthority,
       pausableAuthority,
       confidentialBalancesAuthority,

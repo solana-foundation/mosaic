@@ -24,6 +24,7 @@ export function StablecoinCreateForm({
       symbol: '',
       decimals: '6',
       uri: '',
+      aclMode: 'blocklist',
       mintAuthority: '',
       metadataAuthority: '',
       pausableAuthority: '',
@@ -51,6 +52,25 @@ export function StablecoinCreateForm({
       );
 
       if (result.success && result.mintAddress) {
+        const addrValue: unknown = (transactionSendingSigner as {
+          address?: unknown;
+        }).address;
+        const defaultAuthority =
+          typeof addrValue === 'string'
+            ? addrValue
+            : typeof addrValue === 'object' && addrValue !== null && 'toString' in addrValue
+            ? String((addrValue as { toString: () => string }).toString())
+            : '';
+
+        const derivedMintAuthority = stablecoinOptions.mintAuthority || defaultAuthority;
+        const derivedMetadataAuthority =
+          stablecoinOptions.metadataAuthority || derivedMintAuthority;
+        const derivedPausableAuthority =
+          stablecoinOptions.pausableAuthority || derivedMintAuthority;
+        const derivedConfidentialBalancesAuthority =
+          stablecoinOptions.confidentialBalancesAuthority || derivedMintAuthority;
+        const derivedPermanentDelegateAuthority =
+          stablecoinOptions.permanentDelegateAuthority || derivedMintAuthority;
         // Create token display object
         const tokenDisplay = createTokenDisplayFromResult(
           result,
@@ -68,17 +88,16 @@ export function StablecoinCreateForm({
           details: {
             ...stablecoinOptions,
             decimals: parseInt(stablecoinOptions.decimals),
-            mintAuthority: stablecoinOptions.mintAuthority || '',
-            metadataAuthority: stablecoinOptions.metadataAuthority || '',
-            pausableAuthority: stablecoinOptions.pausableAuthority || '',
-            confidentialBalancesAuthority:
-              stablecoinOptions.confidentialBalancesAuthority || '',
-            permanentDelegateAuthority:
-              stablecoinOptions.permanentDelegateAuthority || '',
+            aclMode: stablecoinOptions.aclMode,
+            mintAuthority: derivedMintAuthority,
+            metadataAuthority: derivedMetadataAuthority,
+            pausableAuthority: derivedPausableAuthority,
+            confidentialBalancesAuthority: derivedConfidentialBalancesAuthority,
+            permanentDelegateAuthority: derivedPermanentDelegateAuthority,
             extensions: [
               'Metadata',
               'Pausable',
-              'Default Account State (Blocklist)',
+              `Default Account State (${stablecoinOptions.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'})`,
               'Confidential Balances',
               'Permanent Delegate',
             ],
@@ -107,6 +126,7 @@ export function StablecoinCreateForm({
       symbol: '',
       decimals: '6',
       uri: '',
+      aclMode: 'blocklist',
       mintAuthority: '',
       metadataAuthority: '',
       pausableAuthority: '',
@@ -118,37 +138,66 @@ export function StablecoinCreateForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <StablecoinBasicParams
-          options={stablecoinOptions}
-          onInputChange={handleInputChange}
-        />
+      {result ? (
+        <>
+          <StablecoinCreationResultDisplay result={result} />
+          <div className="flex gap-4">
+            <Button type="button" variant="outline" onClick={handleReset}>
+              Create another stablecoin
+            </Button>
+          </div>
+        </>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <StablecoinBasicParams
+            options={stablecoinOptions}
+            onInputChange={handleInputChange}
+          />
 
-        <StablecoinAuthorityParams
-          options={stablecoinOptions}
-          onInputChange={handleInputChange}
-        />
+          <div className="rounded-lg border">
+            <div className="p-6 border-b">
+              <h3 className="text-lg font-semibold">Transfer Restrictions</h3>
+              <p className="text-sm text-muted-foreground">
+                Choose whether to use an allowlist (closed-loop) or a blocklist.
+              </p>
+            </div>
+            <div className="p-6 space-y-2">
+              <label className="block text-sm font-medium">Access Control Mode</label>
+              <select
+                className="w-full p-3 border rounded-lg"
+                value={stablecoinOptions.aclMode || 'blocklist'}
+                onChange={e => handleInputChange('aclMode', e.target.value)}
+              >
+                <option value="blocklist">Blocklist (for sanctions, etc)</option>
+                <option value="allowlist">Allowlist (Closed-loop)</option>
+              </select>
+            </div>
+          </div>
 
-        {result && <StablecoinCreationResultDisplay result={result} />}
+          <StablecoinAuthorityParams
+            options={stablecoinOptions}
+            onInputChange={handleInputChange}
+          />
 
-        <div className="flex gap-4">
-          <Button
-            type="submit"
-            className="flex-1"
-            disabled={
-              isCreating ||
-              !stablecoinOptions.name ||
-              !stablecoinOptions.symbol ||
-              !stablecoinOptions.decimals
-            }
-          >
-            {isCreating ? 'Creating Stablecoin...' : 'Create Stablecoin'}
-          </Button>
-          <Button type="button" variant="outline" onClick={handleReset}>
-            Reset
-          </Button>
-        </div>
-      </form>
+          <div className="flex gap-4">
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={
+                isCreating ||
+                !stablecoinOptions.name ||
+                !stablecoinOptions.symbol ||
+                !stablecoinOptions.decimals
+              }
+            >
+              {isCreating ? 'Creating Stablecoin...' : 'Create Stablecoin'}
+            </Button>
+            <Button type="button" variant="outline" onClick={handleReset}>
+              Reset
+            </Button>
+          </div>
+        </form>
+      )}
     </>
   );
 }

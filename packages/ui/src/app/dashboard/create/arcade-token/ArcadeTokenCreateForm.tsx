@@ -59,6 +59,16 @@ export function ArcadeTokenCreateForm({
         // Save to local storage
         TokenStorage.saveToken(tokenDisplay);
 
+        const addrValue: unknown = (transactionSendingSigner as {
+          address?: unknown;
+        }).address;
+        const defaultAuthority =
+          typeof addrValue === 'string'
+            ? addrValue
+            : typeof addrValue === 'object' && addrValue !== null && 'toString' in addrValue
+            ? String((addrValue as { toString: () => string }).toString())
+            : '';
+
         setResult({
           success: true,
           mintAddress: result.mintAddress,
@@ -66,16 +76,17 @@ export function ArcadeTokenCreateForm({
           details: {
             ...arcadeTokenOptions,
             decimals: parseInt(arcadeTokenOptions.decimals),
-            mintAuthority: arcadeTokenOptions.mintAuthority || '',
-            metadataAuthority: arcadeTokenOptions.metadataAuthority || '',
-            pausableAuthority: arcadeTokenOptions.pausableAuthority || '',
+            mintAuthority: arcadeTokenOptions.mintAuthority || defaultAuthority,
+            metadataAuthority:
+              arcadeTokenOptions.metadataAuthority || defaultAuthority,
+            pausableAuthority:
+              arcadeTokenOptions.pausableAuthority || defaultAuthority,
             permanentDelegateAuthority:
-              arcadeTokenOptions.permanentDelegateAuthority || '',
+              arcadeTokenOptions.permanentDelegateAuthority || defaultAuthority,
             extensions: [
               'Metadata',
               'Pausable',
-              'Default Account State (Blocklist)',
-              'Confidential Balances',
+              'Default Account State (Allowlist)',
               'Permanent Delegate',
             ],
           },
@@ -113,37 +124,46 @@ export function ArcadeTokenCreateForm({
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <ArcadeTokenBasicParams
-          options={arcadeTokenOptions}
-          onInputChange={handleInputChange}
-        />
+      {result ? (
+        <>
+          <ArcadeTokenCreationResultDisplay result={result} />
+          <div className="flex gap-4">
+            <Button type="button" variant="outline" onClick={handleReset}>
+              Create another arcade token
+            </Button>
+          </div>
+        </>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <ArcadeTokenBasicParams
+            options={arcadeTokenOptions}
+            onInputChange={handleInputChange}
+          />
 
-        <ArcadeTokenAuthorityParams
-          options={arcadeTokenOptions}
-          onInputChange={handleInputChange}
-        />
+          <ArcadeTokenAuthorityParams
+            options={arcadeTokenOptions}
+            onInputChange={handleInputChange}
+          />
 
-        {result && <ArcadeTokenCreationResultDisplay result={result} />}
-
-        <div className="flex gap-4">
-          <Button
-            type="submit"
-            className="flex-1"
-            disabled={
-              isCreating ||
-              !arcadeTokenOptions.name ||
-              !arcadeTokenOptions.symbol ||
-              !arcadeTokenOptions.decimals
-            }
-          >
-            {isCreating ? 'Creating Arcade Token...' : 'Create Arcade Token'}
-          </Button>
-          <Button type="button" variant="outline" onClick={handleReset}>
-            Reset
-          </Button>
-        </div>
-      </form>
+          <div className="flex gap-4">
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={
+                isCreating ||
+                !arcadeTokenOptions.name ||
+                !arcadeTokenOptions.symbol ||
+                !arcadeTokenOptions.decimals
+              }
+            >
+              {isCreating ? 'Creating Arcade Token...' : 'Create Arcade Token'}
+            </Button>
+            <Button type="button" variant="outline" onClick={handleReset}>
+              Reset
+            </Button>
+          </div>
+        </form>
+      )}
     </>
   );
 }
