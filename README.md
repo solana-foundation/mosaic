@@ -6,11 +6,11 @@ A comprehensive TypeScript monorepo for managing Token-2022 tokens with extensio
 
 This monorepo contains the following packages:
 
-- **[@mosaic/sdk](packages/sdk/)** - Core SDK with token templates, management utilities, and Token-2022 integration
+- **[@mosaic/sdk](packages/sdk/)** - Core SDK with token templates, allowlist / blocklist integrations, management utilities, and Token-2022 integration
 - **[@mosaic/cli](packages/cli/)** - Command-line interface for token creation and management
-- **[@mosaic/ui](packages/ui/)** - Modern web interface for token management with wallet integration
-- **[@mosaic/abl](packages/abl/)** - Address-Based List implementation for SRFC-37 compliance
-- **[@mosaic/ebalts](packages/ebalts/)** - Enhanced Balance and Transfer Security for advanced freeze/thaw functionality
+- **[@mosaic/ui](packages/ui/)** - UI for a full featured tokenization engine for token management with wallet integration and sRFC-37 administration
+- **[@mosaic/abl](packages/abl/)** - Allowlist/Blocklist implementation for sRFC-37 compliance
+- **[@mosaic/ebalts](packages/ebalts/)** - Efficient Block/Allow List Token Standard (sRFC-37) for advanced blocklist / allowlist functionality
 - **[@mosaic/tlv-account-resolution](packages/tlv-account-resolution/)** - TLV account resolution utilities for transfer hooks
 
 ## 🪙 Token Types
