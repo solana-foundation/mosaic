@@ -66,7 +66,10 @@ export function StablecoinCreationResultDisplay({
                 <strong>Decimals:</strong> {result.details?.decimals}
               </div>
               <div>
-                <strong>ACL Mode:</strong> {result.details?.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+                <strong>ACL Mode:</strong>{' '}
+                {result.details?.aclMode === 'allowlist'
+                  ? 'Allowlist'
+                  : 'Blocklist'}
               </div>
               <div>
                 <strong>Extensions:</strong>{' '}
@@ -74,7 +77,9 @@ export function StablecoinCreationResultDisplay({
               </div>
             </div>
 
-            <div className="pt-2 text-sm text-muted-foreground">Authorities</div>
+            <div className="pt-2 text-sm text-muted-foreground">
+              Authorities
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               <div>
                 <strong>Mint Authority:</strong>{' '}

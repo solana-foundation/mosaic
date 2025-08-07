@@ -55,5 +55,3 @@ export function CopyableExplorerField({
     </div>
   );
 }
-
-

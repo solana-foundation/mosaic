@@ -98,7 +98,8 @@ export const capabilityNodes: Record<CapabilityKey, ReactNode> = {
       >
         Standard
       </a>{' '}
-      for allowlist/blocklist management with a gating program for account access. Enables permissionless thaw/freeze for seamless UX flows.
+      for allowlist/blocklist management with a gating program for account
+      access. Enables permissionless thaw/freeze for seamless UX flows.
     </>
   ),
   gatingProgram: (

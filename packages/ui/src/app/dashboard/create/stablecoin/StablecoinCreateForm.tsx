@@ -52,23 +52,29 @@ export function StablecoinCreateForm({
       );
 
       if (result.success && result.mintAddress) {
-        const addrValue: unknown = (transactionSendingSigner as {
-          address?: unknown;
-        }).address;
+        const addrValue: unknown = (
+          transactionSendingSigner as {
+            address?: unknown;
+          }
+        ).address;
         const defaultAuthority =
           typeof addrValue === 'string'
             ? addrValue
-            : typeof addrValue === 'object' && addrValue !== null && 'toString' in addrValue
-            ? String((addrValue as { toString: () => string }).toString())
-            : '';
+            : typeof addrValue === 'object' &&
+                addrValue !== null &&
+                'toString' in addrValue
+              ? String((addrValue as { toString: () => string }).toString())
+              : '';
 
-        const derivedMintAuthority = stablecoinOptions.mintAuthority || defaultAuthority;
+        const derivedMintAuthority =
+          stablecoinOptions.mintAuthority || defaultAuthority;
         const derivedMetadataAuthority =
           stablecoinOptions.metadataAuthority || derivedMintAuthority;
         const derivedPausableAuthority =
           stablecoinOptions.pausableAuthority || derivedMintAuthority;
         const derivedConfidentialBalancesAuthority =
-          stablecoinOptions.confidentialBalancesAuthority || derivedMintAuthority;
+          stablecoinOptions.confidentialBalancesAuthority ||
+          derivedMintAuthority;
         const derivedPermanentDelegateAuthority =
           stablecoinOptions.permanentDelegateAuthority || derivedMintAuthority;
         // Create token display object
@@ -162,13 +168,17 @@ export function StablecoinCreateForm({
               </p>
             </div>
             <div className="p-6 space-y-2">
-              <label className="block text-sm font-medium">Access Control Mode</label>
+              <label className="block text-sm font-medium">
+                Access Control Mode
+              </label>
               <select
                 className="w-full p-3 border rounded-lg"
                 value={stablecoinOptions.aclMode || 'blocklist'}
                 onChange={e => handleInputChange('aclMode', e.target.value)}
               >
-                <option value="blocklist">Blocklist (for sanctions, etc)</option>
+                <option value="blocklist">
+                  Blocklist (for sanctions, etc)
+                </option>
                 <option value="allowlist">Allowlist (Closed-loop)</option>
               </select>
             </div>

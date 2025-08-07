@@ -59,15 +59,19 @@ export function ArcadeTokenCreateForm({
         // Save to local storage
         TokenStorage.saveToken(tokenDisplay);
 
-        const addrValue: unknown = (transactionSendingSigner as {
-          address?: unknown;
-        }).address;
+        const addrValue: unknown = (
+          transactionSendingSigner as {
+            address?: unknown;
+          }
+        ).address;
         const defaultAuthority =
           typeof addrValue === 'string'
             ? addrValue
-            : typeof addrValue === 'object' && addrValue !== null && 'toString' in addrValue
-            ? String((addrValue as { toString: () => string }).toString())
-            : '';
+            : typeof addrValue === 'object' &&
+                addrValue !== null &&
+                'toString' in addrValue
+              ? String((addrValue as { toString: () => string }).toString())
+              : '';
 
         setResult({
           success: true,

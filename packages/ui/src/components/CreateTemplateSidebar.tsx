@@ -62,7 +62,8 @@ export function CreateTemplateSidebar({
             <ul className="list-disc pl-5 mt-2 space-y-1">
               {resolvedExtensions.length > 0 && (
                 <li>
-                  <strong>Token extensions</strong>: {resolvedExtensions.map((n, i) => (
+                  <strong>Token extensions</strong>:{' '}
+                  {resolvedExtensions.map((n, i) => (
                     <span key={i}>
                       {n}
                       {i < resolvedExtensions.length - 1 ? ', ' : ''}
@@ -85,5 +86,3 @@ export function CreateTemplateSidebar({
     </div>
   );
 }
-
-
