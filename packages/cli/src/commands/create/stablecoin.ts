@@ -121,6 +121,7 @@ export const createStablecoinCommand = new Command('stablecoin')
         mintAuthority,
         mintKeypair,
         signerKeypair,
+        'blocklist',
         metadataAuthority,
         pausableAuthority,
         confidentialBalancesAuthority,
