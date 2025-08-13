@@ -7,7 +7,10 @@ import {
   TransactionSendingSigner,
   createTransaction,
 } from 'gill';
-import { getUpdateMultiplierScaledUiMintInstruction } from 'gill/programs/token';
+import {
+  getUpdateMultiplierScaledUiMintInstruction,
+  TOKEN_2022_PROGRAM_ADDRESS,
+} from 'gill/programs/token';
 import bs58 from 'bs58';
 
 export interface UpdateScaledUiMultiplierOptions {
@@ -39,10 +42,11 @@ export const updateScaledUiMultiplier = async (
     const ix = getUpdateMultiplierScaledUiMintInstruction(
       {
         mint: options.mint as Address,
-      },
-      {
+        authority: signer.address,
+        effectiveTimestamp: 0,
         multiplier: options.multiplier,
-      }
+      },
+      { programAddress: TOKEN_2022_PROGRAM_ADDRESS }
     );
 
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();

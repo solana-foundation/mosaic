@@ -74,7 +74,7 @@ function TokenizedSecurityCreateWithWallet({
               standardKeys={['sRFC37', 'gatingProgram']}
             />
           </aside>
-          <div className="oder-last lg:order-1 flex-1">
+          <div className="order-last lg:order-1 flex-1">
             <TokenizedSecurityCreateForm
               transactionSendingSigner={transactionSendingSigner}
             />

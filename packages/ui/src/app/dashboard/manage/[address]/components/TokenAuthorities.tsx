@@ -39,10 +39,7 @@ interface AuthorityInfo {
   isLoading: boolean;
 }
 
-export function TokenAuthorities({
-  setError,
-  token,
-}: TokenAuthoritiesProps) {
+export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
   // Create base authorities array
   const baseAuthorities: AuthorityInfo[] = [
     {

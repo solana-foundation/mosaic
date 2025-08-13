@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useContext } from 'react';
 import {
   Card,
   CardContent,
@@ -9,23 +9,82 @@ import {
 import { Button } from '@/components/ui/button';
 import { updateScaledUiMultiplier } from '@/lib/management/scaledUiAmount';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
-import { useContext, useState as useReactState } from 'react';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 import { Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
+import { ChainContext } from '@/context/ChainContext';
+import Link from 'next/link';
+import { UiWalletAccount } from '@wallet-standard/react';
 
 interface TokenExtensionsProps {
   token: TokenDisplay;
 }
 
 export function TokenExtensions({ token }: TokenExtensionsProps) {
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [showScaledUiEditor, setShowScaledUiEditor] = useReactState(false);
-  const [newMultiplier, setNewMultiplier] = useReactState<string>('');
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+  const { chain: currentChain } = useContext(ChainContext);
+
+  if (selectedWalletAccount && currentChain) {
+    return (
+      <ManageTokenExtensionsWithWallet
+        selectedWalletAccount={selectedWalletAccount}
+        currentChain={currentChain}
+        token={token}
+      />
+    );
+  }
+
+  return (
+    <div className="flex-1 p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center mb-8">
+          <Link href="/dashboard/create">
+            <Button variant="ghost" className="mr-4">
+              ← Back
+            </Button>
+          </Link>
+          <div>
+            <h2 className="text-3xl font-bold mb-2">Manage Token Extensions</h2>
+            <p className="text-muted-foreground">
+              Manage the extensions enabled on this token
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Wallet Required</CardTitle>
+            <CardDescription>
+              Please connect your wallet to create a tokenized security
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">
+              To manage token extensions, you need to connect a wallet first.
+              Please use the wallet connection button in the top navigation.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function ManageTokenExtensionsWithWallet({
+  selectedWalletAccount,
+  currentChain,
+  token,
+}: {
+  selectedWalletAccount: UiWalletAccount;
+  currentChain: string;
+  token: TokenDisplay;
+}) {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [showScaledUiEditor, setShowScaledUiEditor] = useState(false);
+  const [newMultiplier, setNewMultiplier] = useState<string>('');
   const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
     selectedWalletAccount,
-    'solana:devnet'
+    currentChain as `solana:${string}`
   );
 
   return (
