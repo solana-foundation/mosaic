@@ -46,14 +46,7 @@ function validateUpdateAuthorityOptions(options: UpdateAuthorityOptions): void {
     throw new Error('Authority role is required');
   }
 
-  // Debug logging
-  console.log('Validating authority options:', {
-    mint: options.mint,
-    role: options.role,
-    newAuthority: options.newAuthority,
-  });
-
-  // Basic address format validation (you might want more sophisticated validation)
+  // Basic address format validation
   if (options.mint.length < 32 || options.newAuthority.length < 32) {
     throw new Error('Invalid address format');
   }

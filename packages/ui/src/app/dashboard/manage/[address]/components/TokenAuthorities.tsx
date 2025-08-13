@@ -27,6 +27,7 @@ import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountCon
 
 interface TokenAuthoritiesProps {
   token: TokenDisplay;
+  setError: (error: string) => void;
 }
 
 interface AuthorityInfo {
@@ -38,7 +39,10 @@ interface AuthorityInfo {
   isLoading: boolean;
 }
 
-export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
+export function TokenAuthorities({
+  setError,
+  token,
+}: TokenAuthoritiesProps) {
   // Create base authorities array
   const baseAuthorities: AuthorityInfo[] = [
     {
@@ -149,14 +153,16 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
           }))
         );
       } catch (error) {
-        console.error('Error fetching authorities:', error);
+        setError(
+          error instanceof Error ? error.message : 'Failed to fetch authorities'
+        );
       } finally {
         setIsLoadingAuthorities(false);
       }
     };
 
     fetchAuthorities();
-  }, [token.address]);
+  }, [token.address, setError]);
 
   const startEditing = (index: number) => {
     setAuthorities(prev =>
@@ -185,14 +191,6 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
 
     const authority = authorities[index];
     if (!authority.newAuthority.trim()) return;
-
-    // Debug logging
-    console.log('Updating authority:', {
-      index,
-      role: authority.role,
-      newAuthority: authority.newAuthority.trim(),
-      mint: token.address,
-    });
 
     setAuthorities(prev =>
       prev.map((auth, i) => (i === index ? { ...auth, isLoading: true } : auth))
@@ -227,8 +225,9 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
         alert(`Failed to update authority: ${result.error}`);
       }
     } catch (error) {
-      console.error('Error updating authority:', error);
-      alert('Failed to update authority. Please try again.');
+      setError(
+        error instanceof Error ? error.message : 'Failed to update authority'
+      );
     } finally {
       setAuthorities(prev =>
         prev.map((auth, i) =>

@@ -113,7 +113,6 @@ export async function getTokenAuthorities(
 
     return authorities;
   } catch (error) {
-    console.error('Error fetching token authorities:', error);
     throw error;
   }
 }
@@ -139,7 +138,6 @@ export async function getExtensionAuthorities(
       permanentDelegateAuthority: undefined,
     };
   } catch (error) {
-    console.error('Error fetching extension authorities:', error);
     throw error;
   }
 }

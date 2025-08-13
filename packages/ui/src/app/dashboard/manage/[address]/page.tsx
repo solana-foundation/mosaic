@@ -132,7 +132,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     };
 
     loadTokenData();
-  }, [address]);
+  }, [address, addTokenExtensionsToFoundToken]);
 
   useEffect(() => {
     const loadAccessList = async () => {
@@ -378,7 +378,7 @@ function ManageTokenConnected({ address }: { address: string }) {
               copied={copied}
               onCopy={copyToClipboard}
             />
-            <TokenAuthorities token={token} />
+            <TokenAuthorities setError={setError} token={token} />
             <TransferRestrictions
               accessList={accessList}
               listType={listType}
