@@ -33,9 +33,7 @@ interface TokenizedSecuritiesOptions {
   keypair?: string;
 }
 
-export const createTokenizedSecurityCommand = new Command(
-  'tokenized-security'
-)
+export const createTokenizedSecurityCommand = new Command('tokenized-security')
   .description(
     'Create a new tokenized security with Token-2022 extensions (stablecoin set + Scaled UI Amount)'
   )
@@ -43,7 +41,10 @@ export const createTokenizedSecurityCommand = new Command(
   .requiredOption('-s, --symbol <symbol>', 'Token symbol')
   .option('-d, --decimals <decimals>', 'Number of decimals', '6')
   .option('-u, --uri <uri>', 'Metadata URI', '')
-  .option('--mint-authority <address>', 'Mint authority address (defaults to signer)')
+  .option(
+    '--mint-authority <address>',
+    'Mint authority address (defaults to signer)'
+  )
   .option(
     '--metadata-authority <address>',
     'Metadata authority address (defaults to mint authority)'
@@ -107,17 +108,16 @@ export const createTokenizedSecurityCommand = new Command(
       }
 
       const mintAuthority = (options.mintAuthority || signerAddress) as Address;
-      const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
-      const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
-      const confidentialBalancesAuthority = (
-        options.confidentialBalancesAuthority || mintAuthority
-      ) as Address;
-      const permanentDelegateAuthority = (
-        options.permanentDelegateAuthority || mintAuthority
-      ) as Address;
-      const scaledUiAmountAuthority = (
-        options.scaledUiAmountAuthority || mintAuthority
-      ) as Address;
+      const metadataAuthority = (options.metadataAuthority ||
+        mintAuthority) as Address;
+      const pausableAuthority = (options.pausableAuthority ||
+        mintAuthority) as Address;
+      const confidentialBalancesAuthority =
+        (options.confidentialBalancesAuthority || mintAuthority) as Address;
+      const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
+        mintAuthority) as Address;
+      const scaledUiAmountAuthority = (options.scaledUiAmountAuthority ||
+        mintAuthority) as Address;
       spinner.text = 'Building transaction...';
 
       const transaction = await createTokenizedSecurityInitTransaction(
@@ -143,7 +143,8 @@ export const createTokenizedSecurityCommand = new Command(
       );
 
       spinner.text = 'Signing transaction...';
-      const signedTransaction = await signTransactionMessageWithSigners(transaction);
+      const signedTransaction =
+        await signTransactionMessageWithSigners(transaction);
 
       spinner.text = 'Sending transaction...';
       const signature = await sendAndConfirmTransaction(signedTransaction);
@@ -169,8 +170,12 @@ export const createTokenizedSecurityCommand = new Command(
 
       console.log(chalk.cyan('🔐 Authorities:'));
       console.log(`   ${chalk.bold('Mint Authority:')} ${mintAuthority}`);
-      console.log(`   ${chalk.bold('Metadata Authority:')} ${metadataAuthority}`);
-      console.log(`   ${chalk.bold('Pausable Authority:')} ${pausableAuthority}`);
+      console.log(
+        `   ${chalk.bold('Metadata Authority:')} ${metadataAuthority}`
+      );
+      console.log(
+        `   ${chalk.bold('Pausable Authority:')} ${pausableAuthority}`
+      );
       console.log(
         `   ${chalk.bold('Confidential Balances Authority:')} ${confidentialBalancesAuthority}`
       );
@@ -184,14 +189,18 @@ export const createTokenizedSecurityCommand = new Command(
       console.log(`   ${chalk.green('✓')} Default Account State (Blocklist)`);
       console.log(`   ${chalk.green('✓')} Confidential Balances`);
       console.log(`   ${chalk.green('✓')} Permanent Delegate`);
-      console.log(`   ${chalk.green('✓')} Scaled UI Amount (multiplier=${multiplier})`);
+      console.log(
+        `   ${chalk.green('✓')} Scaled UI Amount (multiplier=${multiplier})`
+      );
 
       if (options.uri) {
         console.log(`${chalk.bold('Metadata URI:')} ${options.uri}`);
       }
 
       console.log(chalk.cyan('🔑 Blocklist Initialized:'));
-      console.log(`   ${chalk.green('✓')} Blocklist Address: ${listConfigPda[0]}`);
+      console.log(
+        `   ${chalk.green('✓')} Blocklist Address: ${listConfigPda[0]}`
+      );
       console.log(
         `   ${chalk.green('✓')} EBALTS mint config Address: ${mintConfigPda[0]}`
       );
@@ -212,5 +221,3 @@ export const createTokenizedSecurityCommand = new Command(
       process.exit(1);
     }
   });
-
-

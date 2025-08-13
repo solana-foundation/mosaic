@@ -1,4 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { TokenizedSecurityOptions } from '@/types/token';
 
 export function TokenizedSecurityBasicParams({
@@ -12,12 +18,16 @@ export function TokenizedSecurityBasicParams({
     <Card>
       <CardHeader>
         <CardTitle>Basic Parameters</CardTitle>
-        <CardDescription>Configure the fundamental properties of your tokenized security</CardDescription>
+        <CardDescription>
+          Configure the fundamental properties of your tokenized security
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2">Token Name *</label>
+            <label className="block text-sm font-medium mb-2">
+              Token Name *
+            </label>
             <input
               type="text"
               className="w-full p-3 border rounded-lg"
@@ -54,7 +64,9 @@ export function TokenizedSecurityBasicParams({
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Metadata URI</label>
+            <label className="block text-sm font-medium mb-2">
+              Metadata URI
+            </label>
             <input
               type="url"
               className="w-full p-3 border rounded-lg"
@@ -68,5 +80,3 @@ export function TokenizedSecurityBasicParams({
     </Card>
   );
 }
-
-

@@ -33,7 +33,8 @@ export function TokenizedSecurityCreationResultDisplay({
             <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
               <CheckCircle className="h-5 w-5 text-green-600" />
               <span className="text-green-800 text-sm font-medium">
-                Token saved to your local storage and will appear on your dashboard
+                Token saved to your local storage and will appear on your
+                dashboard
               </span>
             </div>
             <CopyableExplorerField
@@ -49,7 +50,8 @@ export function TokenizedSecurityCreationResultDisplay({
               cluster="devnet"
             />
             <div className="text-sm text-muted-foreground">
-              Your tokenized security has been created with the following parameters:
+              Your tokenized security has been created with the following
+              parameters:
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -63,17 +65,22 @@ export function TokenizedSecurityCreationResultDisplay({
               </div>
               <div>
                 <strong>ACL Mode:</strong>{' '}
-                {result.details?.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+                {result.details?.aclMode === 'allowlist'
+                  ? 'Allowlist'
+                  : 'Blocklist'}
               </div>
               <div>
                 <strong>Multiplier:</strong> {result.details?.multiplier}
               </div>
               <div className="col-span-2">
-                <strong>Extensions:</strong> {result.details?.extensions?.join(', ')}
+                <strong>Extensions:</strong>{' '}
+                {result.details?.extensions?.join(', ')}
               </div>
             </div>
 
-            <div className="pt-2 text-sm text-muted-foreground">Authorities</div>
+            <div className="pt-2 text-sm text-muted-foreground">
+              Authorities
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
               <div>
                 <strong>Mint Authority:</strong>{' '}
@@ -127,5 +134,3 @@ export function TokenizedSecurityCreationResultDisplay({
     </Card>
   );
 }
-
-

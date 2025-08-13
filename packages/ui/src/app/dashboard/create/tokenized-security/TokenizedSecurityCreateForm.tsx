@@ -67,7 +67,8 @@ export function TokenizedSecurityCreateForm({
     } catch (error) {
       setCreationResult({
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        error:
+          error instanceof Error ? error.message : 'Unknown error occurred',
       });
     } finally {
       setIsCreating(false);
@@ -126,47 +127,55 @@ export function TokenizedSecurityCreateForm({
             <div>
               <h3 className="text-lg font-semibold">Optional Settings</h3>
               <p className="text-sm text-muted-foreground">
-                Configure multiplier, access control, and authorities (optional).
+                Configure multiplier, access control, and authorities
+                (optional).
               </p>
             </div>
           </button>
         </div>
         {showOptional && (
           <div id="optional-settings" className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium" htmlFor="multiplier">
-                Scaled UI Amount Multiplier
-              </label>
-              <input
-                id="multiplier"
-                type="number"
-                min={0}
-                step="any"
-                className="w-full p-3 border rounded-lg"
-                value={options.multiplier || '1'}
-                onChange={e => handleInputChange('multiplier', e.target.value)}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label
+                  className="block text-sm font-medium"
+                  htmlFor="multiplier"
+                >
+                  Scaled UI Amount Multiplier
+                </label>
+                <input
+                  id="multiplier"
+                  type="number"
+                  min={0}
+                  step="any"
+                  className="w-full p-3 border rounded-lg"
+                  value={options.multiplier || '1'}
+                  onChange={e =>
+                    handleInputChange('multiplier', e.target.value)
+                  }
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium">
+                  Access Control Mode
+                </label>
+                <select
+                  className="w-full p-3 border rounded-lg"
+                  value={options.aclMode || 'blocklist'}
+                  onChange={e => handleInputChange('aclMode', e.target.value)}
+                >
+                  <option value="blocklist">
+                    Blocklist (for sanctions, etc)
+                  </option>
+                  <option value="allowlist">Allowlist (Closed-loop)</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium">
-                Access Control Mode
-              </label>
-              <select
-                className="w-full p-3 border rounded-lg"
-                value={options.aclMode || 'blocklist'}
-                onChange={e => handleInputChange('aclMode', e.target.value)}
-              >
-                <option value="blocklist">Blocklist (for sanctions, etc)</option>
-                <option value="allowlist">Allowlist (Closed-loop)</option>
-              </select>
-            </div>
-          </div>
 
-          <TokenizedSecurityAuthorityParams
-            options={options}
-            onInputChange={handleInputChange}
-          />
+            <TokenizedSecurityAuthorityParams
+              options={options}
+              onInputChange={handleInputChange}
+            />
           </div>
         )}
       </div>
@@ -179,7 +188,9 @@ export function TokenizedSecurityCreateForm({
             isCreating || !options.name || !options.symbol || !options.decimals
           }
         >
-          {isCreating ? 'Creating Tokenized Security...' : 'Create Tokenized Security'}
+          {isCreating
+            ? 'Creating Tokenized Security...'
+            : 'Create Tokenized Security'}
         </Button>
         <Button type="button" variant="outline" onClick={handleReset}>
           Reset
@@ -188,5 +199,3 @@ export function TokenizedSecurityCreateForm({
     </form>
   );
 }
-
-

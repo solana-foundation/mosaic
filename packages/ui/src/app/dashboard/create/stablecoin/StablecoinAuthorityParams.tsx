@@ -1,9 +1,5 @@
 import { useState } from 'react';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ChevronRight } from 'lucide-react';
 import { StablecoinOptions } from '@/types/token';
 
@@ -33,7 +29,9 @@ export function StablecoinAuthorityParams({
             className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${showOptionalParams ? 'rotate-90' : ''}`}
           />
           <div>
-            <h3 className="text-lg font-semibold">Authority Parameters (Optional)</h3>
+            <h3 className="text-lg font-semibold">
+              Authority Parameters (Optional)
+            </h3>
             <p className="text-sm text-muted-foreground">
               Configure authorities for advanced token management
             </p>

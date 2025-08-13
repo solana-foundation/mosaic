@@ -49,17 +49,16 @@ export const createTokenizedSecurity = async (
 
     // Set authorities (default to signer if not provided)
     const mintAuthority = (options.mintAuthority || signerAddress) as Address;
-    const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
-    const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
-    const confidentialBalancesAuthority = (
-      options.confidentialBalancesAuthority || mintAuthority
-    ) as Address;
-    const permanentDelegateAuthority = (
-      options.permanentDelegateAuthority || mintAuthority
-    ) as Address;
-    const scaledUiAmountAuthority = (
-      options.scaledUiAmountAuthority || mintAuthority
-    ) as Address;
+    const metadataAuthority = (options.metadataAuthority ||
+      mintAuthority) as Address;
+    const pausableAuthority = (options.pausableAuthority ||
+      mintAuthority) as Address;
+    const confidentialBalancesAuthority =
+      (options.confidentialBalancesAuthority || mintAuthority) as Address;
+    const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
+      mintAuthority) as Address;
+    const scaledUiAmountAuthority = (options.scaledUiAmountAuthority ||
+      mintAuthority) as Address;
 
     const multiplier = Number(options.multiplier ?? '1');
 
@@ -89,7 +88,8 @@ export const createTokenizedSecurity = async (
       }
     );
 
-    const signature = await signAndSendTransactionMessageWithSigners(transaction);
+    const signature =
+      await signAndSendTransactionMessageWithSigners(transaction);
 
     return {
       success: true,
@@ -123,5 +123,3 @@ export const createTokenizedSecurity = async (
     };
   }
 };
-
-

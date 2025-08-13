@@ -39,7 +39,9 @@ function TokenizedSecurityCreateWithWallet({
             </Button>
           </Link>
           <div>
-            <h2 className="text-3xl font-bold mb-2">Create Tokenized Security</h2>
+            <h2 className="text-3xl font-bold mb-2">
+              Create Tokenized Security
+            </h2>
             <p className="text-muted-foreground">
               Configure your tokenized security parameters
             </p>
@@ -50,7 +52,10 @@ function TokenizedSecurityCreateWithWallet({
           <aside className="space-y-4 order-first lg:order-2 lg:w-80 shrink-0">
             <CreateTemplateSidebar
               description={
-                <>A security token with the stablecoin feature set plus Scaled UI Amount.</>
+                <>
+                  A security token with the stablecoin feature set plus Scaled
+                  UI Amount.
+                </>
               }
               coreCapabilityKeys={[
                 'metadata',
@@ -103,7 +108,9 @@ export default function TokenizedSecurityCreatePage() {
             </Button>
           </Link>
           <div>
-            <h2 className="text-3xl font-bold mb-2">Create Tokenized Security</h2>
+            <h2 className="text-3xl font-bold mb-2">
+              Create Tokenized Security
+            </h2>
             <p className="text-muted-foreground">
               Configure your tokenized security parameters
             </p>
@@ -119,8 +126,9 @@ export default function TokenizedSecurityCreatePage() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              To create a tokenized security, you need to connect a wallet first.
-              Please use the wallet connection button in the top navigation.
+              To create a tokenized security, you need to connect a wallet
+              first. Please use the wallet connection button in the top
+              navigation.
             </p>
           </CardContent>
         </Card>
@@ -128,5 +136,3 @@ export default function TokenizedSecurityCreatePage() {
     </div>
   );
 }
-
-

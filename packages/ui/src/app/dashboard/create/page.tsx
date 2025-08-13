@@ -66,7 +66,8 @@ export default function CreatePage() {
               </CardHeader>
               <CardContent className="flex-1">
                 <CardDescription>
-                  Create a compliant security token with scaled UI amounts and core controls.
+                  Create a compliant security token with scaled UI amounts and
+                  core controls.
                 </CardDescription>
               </CardContent>
             </Card>
