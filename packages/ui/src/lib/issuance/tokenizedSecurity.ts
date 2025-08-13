@@ -57,6 +57,9 @@ export const createTokenizedSecurity = async (
     const permanentDelegateAuthority = (
       options.permanentDelegateAuthority || mintAuthority
     ) as Address;
+    const scaledUiAmountAuthority = (
+      options.scaledUiAmountAuthority || mintAuthority
+    ) as Address;
 
     const multiplier = Number(options.multiplier ?? '1');
 
@@ -80,7 +83,7 @@ export const createTokenizedSecurity = async (
         confidentialBalancesAuthority,
         permanentDelegateAuthority,
         scaledUiAmount: {
-          authority: mintAuthority,
+          authority: scaledUiAmountAuthority,
           multiplier,
         },
       }

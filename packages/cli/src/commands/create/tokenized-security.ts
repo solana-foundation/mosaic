@@ -27,6 +27,7 @@ interface TokenizedSecuritiesOptions {
   confidentialBalancesAuthority?: string;
   permanentDelegateAuthority?: string;
   multiplier?: string; // scaled UI amount multiplier
+  scaledUiAmountAuthority?: string;
   mintKeypair?: string;
   rpcUrl?: string;
   keypair?: string;
@@ -63,6 +64,10 @@ export const createTokenizedSecurityCommand = new Command(
   .option(
     '--mint-keypair <path>',
     'Path to mint keypair file (generates new one if not provided)'
+  )
+  .option(
+    '--scaled-ui-amount-authority <address>',
+    'Scaled UI amount authority address (defaults to mint authority)'
   )
   .showHelpAfterError()
   .configureHelp({
@@ -110,7 +115,9 @@ export const createTokenizedSecurityCommand = new Command(
       const permanentDelegateAuthority = (
         options.permanentDelegateAuthority || mintAuthority
       ) as Address;
-
+      const scaledUiAmountAuthority = (
+        options.scaledUiAmountAuthority || mintAuthority
+      ) as Address;
       spinner.text = 'Building transaction...';
 
       const transaction = await createTokenizedSecurityInitTransaction(
@@ -129,7 +136,7 @@ export const createTokenizedSecurityCommand = new Command(
           confidentialBalancesAuthority,
           permanentDelegateAuthority,
           scaledUiAmount: {
-            authority: mintAuthority,
+            authority: scaledUiAmountAuthority,
             multiplier,
           },
         }
