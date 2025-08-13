@@ -90,25 +90,18 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
       newAuthority: '',
       isLoading: false,
     },
+    {
+      label: 'Scaled UI Amount Authority',
+      role: AuthorityType.ScaledUiAmount,
+      currentAuthority: token.scaledUiAmountAuthority,
+      isEditing: false,
+      newAuthority: '',
+      isLoading: false,
+    },
   ];
 
-  // Filter out confidential balances authority for arcade tokens
-  const filteredAuthorities = baseAuthorities.filter(authority => {
-    if (
-      authority.role === AuthorityType.ConfidentialTransferMint &&
-      token.type === 'arcade-token'
-    ) {
-      return false;
-    }
-    // Remove pausable authority from UI
-    if (authority.role === AuthorityType.Pause) {
-      return false;
-    }
-    return true;
-  });
-
   const [authorities, setAuthorities] =
-    useState<AuthorityInfo[]>(filteredAuthorities);
+    useState<AuthorityInfo[]>(baseAuthorities);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const [isLoadingAuthorities, setIsLoadingAuthorities] = useState(false);
@@ -146,6 +139,8 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                         ? blockchainAuthorities.confidentialBalancesAuthority
                         : auth.role === AuthorityType.PermanentDelegate
                           ? blockchainAuthorities.permanentDelegateAuthority
+                          : auth.role === AuthorityType.ScaledUiAmount
+                            ? blockchainAuthorities.scaledUiAmountAuthority
                           : auth.currentAuthority,
           }))
         );

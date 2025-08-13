@@ -11,6 +11,7 @@ export interface TokenDisplay {
   pausableAuthority?: string;
   confidentialBalancesAuthority?: string;
   permanentDelegateAuthority?: string;
+  scaledUiAmountAuthority?: string;
   extensions?: string[];
   transactionSignature?: string;
   createdAt?: string;
