@@ -27,6 +27,7 @@ import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountCon
 
 interface TokenAuthoritiesProps {
   token: TokenDisplay;
+  setError: (error: string) => void;
 }
 
 interface AuthorityInfo {
@@ -38,7 +39,7 @@ interface AuthorityInfo {
   isLoading: boolean;
 }
 
-export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
+export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
   // Create base authorities array
   const baseAuthorities: AuthorityInfo[] = [
     {
@@ -89,25 +90,18 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
       newAuthority: '',
       isLoading: false,
     },
+    {
+      label: 'Scaled UI Amount Authority',
+      role: AuthorityType.ScaledUiAmount,
+      currentAuthority: token.scaledUiAmountAuthority,
+      isEditing: false,
+      newAuthority: '',
+      isLoading: false,
+    },
   ];
 
-  // Filter out confidential balances authority for arcade tokens
-  const filteredAuthorities = baseAuthorities.filter(authority => {
-    if (
-      authority.role === AuthorityType.ConfidentialTransferMint &&
-      token.type === 'arcade-token'
-    ) {
-      return false;
-    }
-    // Remove pausable authority from UI
-    if (authority.role === AuthorityType.Pause) {
-      return false;
-    }
-    return true;
-  });
-
   const [authorities, setAuthorities] =
-    useState<AuthorityInfo[]>(filteredAuthorities);
+    useState<AuthorityInfo[]>(baseAuthorities);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const [isLoadingAuthorities, setIsLoadingAuthorities] = useState(false);
@@ -145,18 +139,22 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
                         ? blockchainAuthorities.confidentialBalancesAuthority
                         : auth.role === AuthorityType.PermanentDelegate
                           ? blockchainAuthorities.permanentDelegateAuthority
-                          : auth.currentAuthority,
+                          : auth.role === AuthorityType.ScaledUiAmount
+                            ? blockchainAuthorities.scaledUiAmountAuthority
+                            : auth.currentAuthority,
           }))
         );
       } catch (error) {
-        console.error('Error fetching authorities:', error);
+        setError(
+          error instanceof Error ? error.message : 'Failed to fetch authorities'
+        );
       } finally {
         setIsLoadingAuthorities(false);
       }
     };
 
     fetchAuthorities();
-  }, [token.address]);
+  }, [token.address, setError]);
 
   const startEditing = (index: number) => {
     setAuthorities(prev =>
@@ -185,14 +183,6 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
 
     const authority = authorities[index];
     if (!authority.newAuthority.trim()) return;
-
-    // Debug logging
-    console.log('Updating authority:', {
-      index,
-      role: authority.role,
-      newAuthority: authority.newAuthority.trim(),
-      mint: token.address,
-    });
 
     setAuthorities(prev =>
       prev.map((auth, i) => (i === index ? { ...auth, isLoading: true } : auth))
@@ -227,8 +217,9 @@ export function TokenAuthorities({ token }: TokenAuthoritiesProps) {
         alert(`Failed to update authority: ${result.error}`);
       }
     } catch (error) {
-      console.error('Error updating authority:', error);
-      alert('Failed to update authority. Please try again.');
+      setError(
+        error instanceof Error ? error.message : 'Failed to update authority'
+      );
     } finally {
       setAuthorities(prev =>
         prev.map((auth, i) =>

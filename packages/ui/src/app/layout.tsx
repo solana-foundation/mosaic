@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Fira_Mono } from 'next/font/google';
+// Import globals.css before any other components to avoid FOUC during HMR
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Header } from '@/components/layout/header';

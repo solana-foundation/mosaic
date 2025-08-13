@@ -174,6 +174,12 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                   Arcade Token
                 </Link>
               </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/create/tokenized-security">
+                  <Coins className="h-4 w-4 mr-2" />
+                  Tokenized Security
+                </Link>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -48,13 +48,8 @@ function StablecoinCreateWithWallet({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 min-w-0">
-            <StablecoinCreateForm
-              transactionSendingSigner={transactionSendingSigner}
-            />
-          </div>
-          <aside className="space-y-4">
+        <div className="flex flex-col lg:flex-row gap-6">
+          <aside className="order-first lg:order-2 lg:w-80 shrink-0">
             <CreateTemplateSidebar
               description={
                 <>
@@ -80,6 +75,11 @@ function StablecoinCreateWithWallet({
               standardKeys={['sRFC37', 'gatingProgram']}
             />
           </aside>
+          <div className="order-last lg:order-1 flex-1">
+            <StablecoinCreateForm
+              transactionSendingSigner={transactionSendingSigner}
+            />
+          </div>
         </div>
       </div>
     </div>

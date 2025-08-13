@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { createStablecoinCommand } from './commands/create/stablecoin.js';
 import { createArcadeTokenCommand } from './commands/create/arcade-token.js';
 import { mintCommand } from './commands/mint.js';
+import { createTokenizedSecurityCommand } from './commands/create/tokenized-security.js';
 import { forceTransferCommand } from './commands/force-transfer.js';
 import { transferCommand } from './commands/transfer.js';
 import { inspectMintCommand } from './commands/inspect-mint.js';
@@ -29,6 +30,7 @@ const createCommand = program
 // Add token creation commands
 createCommand.addCommand(createStablecoinCommand);
 createCommand.addCommand(createArcadeTokenCommand);
+createCommand.addCommand(createTokenizedSecurityCommand);
 
 // Add allowlist commands
 const allowlistCommand = program

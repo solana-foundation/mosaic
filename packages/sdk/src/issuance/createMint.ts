@@ -93,6 +93,25 @@ export class Token {
     return this;
   }
 
+  withScaledUiAmount(
+    authority: Address,
+    multiplier: number = 1,
+    newMultiplierEffectiveTimestamp: bigint | number = 0,
+    newMultiplier: number = 1
+  ): Token {
+    const scaledUiAmountExtension = extension('ScaledUiAmountConfig', {
+      authority,
+      multiplier,
+      newMultiplierEffectiveTimestamp:
+        typeof newMultiplierEffectiveTimestamp === 'number'
+          ? BigInt(newMultiplierEffectiveTimestamp)
+          : newMultiplierEffectiveTimestamp,
+      newMultiplier,
+    });
+    this.extensions.push(scaledUiAmountExtension as Extension);
+    return this;
+  }
+
   async buildInstructions({
     rpc,
     decimals,
