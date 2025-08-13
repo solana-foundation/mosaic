@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { DollarSign, Gamepad2 } from 'lucide-react';
+import { DollarSign, Gamepad2, CandlestickChart } from 'lucide-react';
 import Link from 'next/link';
 
 export default function CreatePage() {
@@ -60,7 +60,7 @@ export default function CreatePage() {
             <Card className="h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-center">
-                  <DollarSign className="h-8 w-8 text-primary mr-3" />
+                  <CandlestickChart className="h-8 w-8 text-primary mr-3" />
                   <CardTitle>Tokenized Security</CardTitle>
                 </div>
               </CardHeader>

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, CheckCircle, Settings } from 'lucide-react';
+import { ShieldCheck, CheckCircle, Settings, CandlestickChart } from 'lucide-react';
 import { CopyableExplorerField } from '@/components/CopyableExplorerField';
 import { TokenizedSecurityCreationResult } from '@/types/token';
 import Link from 'next/link';
@@ -16,12 +16,12 @@ export function TokenizedSecurityCreationResultDisplay({
         <CardTitle className="flex items-center gap-2">
           {result.success ? (
             <>
-              <ShieldCheck className="h-6 w-6 text-green-600" />
+              <CandlestickChart className="h-6 w-6 text-green-600" />
               Tokenized Security Created Successfully!
             </>
           ) : (
             <>
-              <ShieldCheck className="h-6 w-6 text-red-600" />
+              <CandlestickChart className="h-6 w-6 text-red-600" />
               Creation Failed
             </>
           )}
