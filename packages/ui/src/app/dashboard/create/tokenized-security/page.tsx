@@ -15,17 +15,15 @@ import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountCon
 import { ChainContext } from '@/context/ChainContext';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
 import { UiWalletAccount } from '@wallet-standard/react';
-import { ArcadeTokenCreateForm } from '@/app/dashboard/create/arcade-token/ArcadeTokenCreateForm';
+import { TokenizedSecurityCreateForm } from './TokenizedSecurityCreateForm';
 
-// Component that only renders when wallet is available
-function ArcadeTokenCreateWithWallet({
+function TokenizedSecurityCreateWithWallet({
   selectedWalletAccount,
   currentChain,
 }: {
   selectedWalletAccount: UiWalletAccount;
   currentChain: string;
 }) {
-  // Now we can safely call the hook because we know we have valid inputs
   const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
     selectedWalletAccount,
     currentChain as `solana:${string}`
@@ -41,9 +39,9 @@ function ArcadeTokenCreateWithWallet({
             </Button>
           </Link>
           <div>
-            <h2 className="text-3xl font-bold mb-2">Create Arcade Token</h2>
+            <h2 className="text-3xl font-bold mb-2">Create Tokenized Security</h2>
             <p className="text-muted-foreground">
-              Configure your arcade token parameters
+              Configure your tokenized security parameters
             </p>
           </div>
         </div>
@@ -52,28 +50,27 @@ function ArcadeTokenCreateWithWallet({
           <aside className="space-y-4 order-first lg:order-2 lg:w-80 shrink-0">
             <CreateTemplateSidebar
               description={
-                <>
-                  Arcade tokens are closed-loop tokens suitable for in-app or
-                  game economies that require an allowlist.
-                </>
+                <>A security token with the stablecoin feature set plus Scaled UI Amount.</>
               }
               coreCapabilityKeys={[
-                'closedLoopAllowlistOnly',
-                'pausable',
                 'metadata',
+                'accessControls',
+                'pausable',
                 'permanentDelegate',
+                'confidentialBalances',
               ]}
               enabledExtensionKeys={[
                 'extMetadata',
                 'extPausable',
-                'extDefaultAccountStateAllow',
+                'extDefaultAccountStateAllowOrBlock',
+                'extConfidentialBalances',
                 'extPermanentDelegate',
               ]}
               standardKeys={['sRFC37', 'gatingProgram']}
             />
           </aside>
-          <div className="order-last lg:order-1 flex-1">
-            <ArcadeTokenCreateForm
+          <div className="oder-last lg:order-1 flex-1">
+            <TokenizedSecurityCreateForm
               transactionSendingSigner={transactionSendingSigner}
             />
           </div>
@@ -83,22 +80,19 @@ function ArcadeTokenCreateWithWallet({
   );
 }
 
-// Simple wrapper component that shows a message when wallet is not connected
-function ArcadeTokenCreatePage() {
+export default function TokenizedSecurityCreatePage() {
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
   const { chain: currentChain } = useContext(ChainContext);
 
-  // If wallet is connected and chain is available, render the full component
   if (selectedWalletAccount && currentChain) {
     return (
-      <ArcadeTokenCreateWithWallet
+      <TokenizedSecurityCreateWithWallet
         selectedWalletAccount={selectedWalletAccount}
         currentChain={currentChain}
       />
     );
   }
 
-  // Otherwise, show a message to connect wallet
   return (
     <div className="flex-1 p-8">
       <div className="max-w-4xl mx-auto">
@@ -109,9 +103,9 @@ function ArcadeTokenCreatePage() {
             </Button>
           </Link>
           <div>
-            <h2 className="text-3xl font-bold mb-2">Create Arcade Token</h2>
+            <h2 className="text-3xl font-bold mb-2">Create Tokenized Security</h2>
             <p className="text-muted-foreground">
-              Configure your arcade token parameters
+              Configure your tokenized security parameters
             </p>
           </div>
         </div>
@@ -120,12 +114,12 @@ function ArcadeTokenCreatePage() {
           <CardHeader>
             <CardTitle>Wallet Required</CardTitle>
             <CardDescription>
-              Please connect your wallet to create an arcade token
+              Please connect your wallet to create a tokenized security
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              To create an arcade token, you need to connect a wallet first.
+              To create a tokenized security, you need to connect a wallet first.
               Please use the wallet connection button in the top navigation.
             </p>
           </CardContent>
@@ -135,4 +129,4 @@ function ArcadeTokenCreatePage() {
   );
 }
 
-export default ArcadeTokenCreatePage;
+

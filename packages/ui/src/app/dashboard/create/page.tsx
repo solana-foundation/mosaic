@@ -21,7 +21,7 @@ export default function CreatePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link href="/dashboard/create/stablecoin" className="block">
             <Card className="h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow">
               <CardHeader>
@@ -51,6 +51,22 @@ export default function CreatePage() {
                 <CardDescription>
                   Deploy a gaming or utility token with custom extensions and
                   features.
+                </CardDescription>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/dashboard/create/tokenized-security" className="block">
+            <Card className="h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow">
+              <CardHeader>
+                <div className="flex items-center">
+                  <DollarSign className="h-8 w-8 text-primary mr-3" />
+                  <CardTitle>Tokenized Security</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <CardDescription>
+                  Create a compliant security token with scaled UI amounts and core controls.
                 </CardDescription>
               </CardContent>
             </Card>

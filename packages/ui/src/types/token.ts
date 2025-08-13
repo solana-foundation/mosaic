@@ -80,3 +80,39 @@ export interface ArcadeTokenCreationResult {
     extensions: string[];
   };
 }
+
+export interface TokenizedSecurityOptions {
+  name: string;
+  symbol: string;
+  decimals: string;
+  uri?: string;
+  aclMode?: 'allowlist' | 'blocklist';
+  mintAuthority?: string;
+  metadataAuthority?: string;
+  pausableAuthority?: string;
+  confidentialBalancesAuthority?: string;
+  permanentDelegateAuthority?: string;
+  scaledUiAmountAuthority?: string;
+  multiplier?: string; // Scaled UI Amount multiplier
+  rpcUrl?: string;
+}
+
+export interface TokenizedSecurityCreationResult {
+  success: boolean;
+  error?: string;
+  transactionSignature?: string;
+  mintAddress?: string;
+  details?: {
+    name: string;
+    symbol: string;
+    decimals: number;
+    aclMode?: 'allowlist' | 'blocklist';
+    mintAuthority: string;
+    metadataAuthority: string;
+    pausableAuthority: string;
+    confidentialBalancesAuthority: string;
+    permanentDelegateAuthority: string;
+    multiplier: number;
+    extensions: string[];
+  };
+}

@@ -2,11 +2,9 @@ import { useState } from 'react';
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { ArcadeTokenOptions } from '@/types/token';
 
 interface ArcadeTokenAuthorityParamsProps {
@@ -26,18 +24,21 @@ export function ArcadeTokenAuthorityParams({
         <button
           type="button"
           onClick={() => setShowOptionalParams(!showOptionalParams)}
+          aria-controls="arcade-token-authority-params"
+          aria-expanded={showOptionalParams}
           className="flex items-center gap-2 text-left"
+          title={showOptionalParams ? 'Collapse' : 'Expand'}
         >
-          <CardTitle>Authority Parameters (Optional)</CardTitle>
-          {showOptionalParams ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
+          <ChevronRight
+            className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${showOptionalParams ? 'rotate-90' : ''}`}
+          />
+          <div>
+            <h3 className="text-lg font-semibold">Authority Parameters (Optional)</h3>
+            <p className="text-sm text-muted-foreground">
+              Configure authorities for advanced token management
+            </p>
+          </div>
         </button>
-        <CardDescription>
-          Configure authorities for advanced token management
-        </CardDescription>
       </CardHeader>
       {showOptionalParams && (
         <CardContent className="space-y-4">
