@@ -111,8 +111,7 @@ export async function getTokenAuthorities(
             break;
           case 'ScaledUiAmountConfig':
             if ('authority' in ext && ext.authority) {
-              authorities.scaledUiAmountAuthority =
-                ext.authority;
+              authorities.scaledUiAmountAuthority = ext.authority;
             }
             break;
         }

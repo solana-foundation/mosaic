@@ -141,7 +141,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                           ? blockchainAuthorities.permanentDelegateAuthority
                           : auth.role === AuthorityType.ScaledUiAmount
                             ? blockchainAuthorities.scaledUiAmountAuthority
-                          : auth.currentAuthority,
+                            : auth.currentAuthority,
           }))
         );
       } catch (error) {
