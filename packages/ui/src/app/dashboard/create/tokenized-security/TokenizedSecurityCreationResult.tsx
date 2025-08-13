@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ShieldCheck, CheckCircle, Settings, CandlestickChart } from 'lucide-react';
+import { CheckCircle, Settings, CandlestickChart } from 'lucide-react';
 import { CopyableExplorerField } from '@/components/CopyableExplorerField';
 import { TokenizedSecurityCreationResult } from '@/types/token';
 import Link from 'next/link';

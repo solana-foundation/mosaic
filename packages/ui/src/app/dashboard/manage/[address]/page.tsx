@@ -107,18 +107,18 @@ function ManageTokenConnected({ address }: { address: string }) {
     currentChain!
   );
 
-  const addTokenExtensionsToFoundToken = async (
-    foundToken: TokenDisplay
-  ): Promise<void> => {
-    const extensions = await getTokenExtensions(
-      rpc,
-      foundToken.address as Address
-    );
-    foundToken.extensions = extensions;
-    setToken(foundToken);
-  };
-
   useEffect(() => {
+    const addTokenExtensionsToFoundToken = async (
+      foundToken: TokenDisplay
+    ): Promise<void> => {
+      const extensions = await getTokenExtensions(
+        rpc,
+        foundToken.address as Address
+      );
+      foundToken.extensions = extensions;
+      setToken(foundToken);
+    };
+
     // Load token data from local storage
     const loadTokenData = () => {
       const foundToken = findTokenByAddress(address);
@@ -132,7 +132,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     };
 
     loadTokenData();
-  }, [address, addTokenExtensionsToFoundToken]);
+  }, [address, rpc]);
 
   useEffect(() => {
     const loadAccessList = async () => {
