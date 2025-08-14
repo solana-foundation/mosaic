@@ -47,6 +47,7 @@ export const createStablecoinInitTransaction = async (
   mintAuthority: Address,
   mint: Address | TransactionSigner<string>,
   feePayer: Address | TransactionSigner<string>,
+  aclMode?: 'allowlist' | 'blocklist',
   metadataAuthority?: Address,
   pausableAuthority?: Address,
   confidentialBalancesAuthority?: Address,
@@ -61,6 +62,8 @@ export const createStablecoinInitTransaction = async (
   const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
   const feePayerSigner =
     typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
+
+  aclMode = aclMode || 'blocklist';
 
   // 1. create token
   const instructions = await new Token()
@@ -126,7 +129,7 @@ export const createStablecoinInitTransaction = async (
     await getCreateListInstructions({
       authority: feePayerSigner,
       mint: mintSigner.address,
-      mode: Mode.Block,
+      mode: aclMode === 'allowlist' ? Mode.Allow : Mode.Block,
     });
 
   // 6. set extra metas (abl): this is how we can change the list associated with a given mint

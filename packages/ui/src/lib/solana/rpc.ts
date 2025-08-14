@@ -14,6 +14,7 @@ export interface TokenAuthorities {
   pausableAuthority?: string;
   confidentialBalancesAuthority?: string;
   permanentDelegateAuthority?: string;
+  scaledUiAmountAuthority?: string;
 }
 
 /**
@@ -75,6 +76,7 @@ export async function getTokenAuthorities(
       decodedMint.data.extensions.__option === 'Some'
     ) {
       for (const ext of decodedMint.data.extensions.value) {
+        console.log(ext);
         if (!ext.__kind) continue;
 
         switch (ext.__kind) {
@@ -107,13 +109,17 @@ export async function getTokenAuthorities(
                   : undefined;
             }
             break;
+          case 'ScaledUiAmountConfig':
+            if ('authority' in ext && ext.authority) {
+              authorities.scaledUiAmountAuthority = ext.authority;
+            }
+            break;
         }
       }
     }
 
     return authorities;
   } catch (error) {
-    console.error('Error fetching token authorities:', error);
     throw error;
   }
 }
@@ -139,7 +145,6 @@ export async function getExtensionAuthorities(
       permanentDelegateAuthority: undefined,
     };
   } catch (error) {
-    console.error('Error fetching extension authorities:', error);
     throw error;
   }
 }

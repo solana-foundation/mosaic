@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import Link from 'next/link';
+import { CreateTemplateSidebar } from '@/components/CreateTemplateSidebar';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 import { ChainContext } from '@/context/ChainContext';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
@@ -32,7 +33,7 @@ function StablecoinCreateWithWallet({
 
   return (
     <div className="flex-1 p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className="flex items-center mb-8">
           <Link href="/dashboard/create">
             <Button variant="ghost" className="mr-4">
@@ -47,9 +48,39 @@ function StablecoinCreateWithWallet({
           </div>
         </div>
 
-        <StablecoinCreateForm
-          transactionSendingSigner={transactionSendingSigner}
-        />
+        <div className="flex flex-col lg:flex-row gap-6">
+          <aside className="order-first lg:order-2 lg:w-80 shrink-0">
+            <CreateTemplateSidebar
+              description={
+                <>
+                  This stablecoin template is designed for regulatory-compliant
+                  issuance with strong controls and safety features.
+                </>
+              }
+              coreCapabilityKeys={[
+                'metadata',
+                'accessControls',
+                'pausable',
+                'permanentDelegate',
+                'confidentialBalances',
+                'confidentialMintBurn',
+              ]}
+              enabledExtensionKeys={[
+                'extMetadata',
+                'extPausable',
+                'extDefaultAccountStateAllowOrBlock',
+                'extConfidentialBalances',
+                'extPermanentDelegate',
+              ]}
+              standardKeys={['sRFC37', 'gatingProgram']}
+            />
+          </aside>
+          <div className="order-last lg:order-1 flex-1">
+            <StablecoinCreateForm
+              transactionSendingSigner={transactionSendingSigner}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -3,8 +3,8 @@ import chalk from 'chalk';
 import ora from 'ora';
 import {
   ABL_PROGRAM_ID,
-  createStablecoinInitTransaction,
   EBALTS_PROGRAM_ID,
+  createTokenizedSecurityInitTransaction,
 } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
@@ -16,7 +16,7 @@ import {
 import { findListConfigPda } from '@mosaic/abl';
 import { findMintConfigPda } from '@mosaic/ebalts';
 
-interface StablecoinOptions {
+interface TokenizedSecuritiesOptions {
   name: string;
   symbol: string;
   decimals: string;
@@ -26,13 +26,17 @@ interface StablecoinOptions {
   pausableAuthority?: string;
   confidentialBalancesAuthority?: string;
   permanentDelegateAuthority?: string;
+  multiplier?: string; // scaled UI amount multiplier
+  scaledUiAmountAuthority?: string;
   mintKeypair?: string;
   rpcUrl?: string;
   keypair?: string;
 }
 
-export const createStablecoinCommand = new Command('stablecoin')
-  .description('Create a new stablecoin with Token-2022 extensions')
+export const createTokenizedSecurityCommand = new Command('tokenized-security')
+  .description(
+    'Create a new tokenized security with Token-2022 extensions (stablecoin set + Scaled UI Amount)'
+  )
   .requiredOption('-n, --name <name>', 'Token name')
   .requiredOption('-s, --symbol <symbol>', 'Token symbol')
   .option('-d, --decimals <decimals>', 'Number of decimals', '6')
@@ -57,34 +61,35 @@ export const createStablecoinCommand = new Command('stablecoin')
     '--permanent-delegate-authority <address>',
     'Permanent delegate authority address (defaults to mint authority)'
   )
+  .option('--multiplier <number>', 'Scaled UI amount multiplier', '1')
   .option(
     '--mint-keypair <path>',
     'Path to mint keypair file (generates new one if not provided)'
+  )
+  .option(
+    '--scaled-ui-amount-authority <address>',
+    'Scaled UI amount authority address (defaults to mint authority)'
   )
   .showHelpAfterError()
   .configureHelp({
     sortSubcommands: true,
     subcommandTerm: cmd => cmd.name(),
   })
-  .action(async (options: StablecoinOptions, command) => {
-    const spinner = ora('Creating stablecoin...').start();
+  .action(async (options: TokenizedSecuritiesOptions, command) => {
+    const spinner = ora('Creating tokenized security...').start();
 
     try {
-      // Get global options from parent command
       const parentOpts = command.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
       const keypairPath = options.keypair || parentOpts.keypair;
 
-      // Create Solana client with sendAndConfirmTransaction
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
-      // Load signer keypair
       const signerKeypair = await loadKeypair(keypairPath);
       const signerAddress = signerKeypair.address;
 
       spinner.text = 'Loading keypairs...';
 
-      // Generate or load mint keypair
       let mintKeypair;
       if (options.mintKeypair) {
         mintKeypair = await loadKeypair(options.mintKeypair);
@@ -92,13 +97,16 @@ export const createStablecoinCommand = new Command('stablecoin')
         mintKeypair = await generateKeyPairSigner();
       }
 
-      // Parse decimals
       const decimals = parseInt(options.decimals, 10);
       if (isNaN(decimals) || decimals < 0 || decimals > 9) {
         throw new Error('Decimals must be a number between 0 and 9');
       }
 
-      // Set authorities (default to signer if not provided)
+      const multiplier = Number(options.multiplier ?? '1');
+      if (!Number.isFinite(multiplier) || multiplier <= 0) {
+        throw new Error('Multiplier must be a positive number');
+      }
+
       const mintAuthority = (options.mintAuthority || signerAddress) as Address;
       const metadataAuthority = (options.metadataAuthority ||
         mintAuthority) as Address;
@@ -108,11 +116,11 @@ export const createStablecoinCommand = new Command('stablecoin')
         (options.confidentialBalancesAuthority || mintAuthority) as Address;
       const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
         mintAuthority) as Address;
-
+      const scaledUiAmountAuthority = (options.scaledUiAmountAuthority ||
+        mintAuthority) as Address;
       spinner.text = 'Building transaction...';
 
-      // Create stablecoin transaction
-      const transaction = await createStablecoinInitTransaction(
+      const transaction = await createTokenizedSecurityInitTransaction(
         rpc,
         options.name,
         options.symbol,
@@ -121,38 +129,38 @@ export const createStablecoinCommand = new Command('stablecoin')
         mintAuthority,
         mintKeypair,
         signerKeypair,
-        'blocklist',
-        metadataAuthority,
-        pausableAuthority,
-        confidentialBalancesAuthority,
-        permanentDelegateAuthority
+        {
+          aclMode: 'blocklist',
+          metadataAuthority,
+          pausableAuthority,
+          confidentialBalancesAuthority,
+          permanentDelegateAuthority,
+          scaledUiAmount: {
+            authority: scaledUiAmountAuthority,
+            multiplier,
+          },
+        }
       );
 
       spinner.text = 'Signing transaction...';
-
-      // Sign the transaction (buildTransaction includes signers but doesn't auto-sign)
       const signedTransaction =
         await signTransactionMessageWithSigners(transaction);
 
       spinner.text = 'Sending transaction...';
-
-      // Send and confirm transaction
       const signature = await sendAndConfirmTransaction(signedTransaction);
 
-      spinner.succeed('Stablecoin created successfully!');
+      spinner.succeed('Tokenized security created successfully!');
 
       const listConfigPda = await findListConfigPda(
         { authority: mintAuthority, seed: mintKeypair.address },
         { programAddress: ABL_PROGRAM_ID }
       );
-
       const mintConfigPda = await findMintConfigPda(
         { mint: mintKeypair.address },
         { programAddress: EBALTS_PROGRAM_ID }
       );
 
-      // Display results
-      console.log(chalk.green('✅ Stablecoin Creation Successful'));
+      console.log(chalk.green('✅ Tokenized Security Creation Successful'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Name:')} ${options.name}`);
       console.log(`   ${chalk.bold('Symbol:')} ${options.symbol}`);
@@ -175,12 +183,15 @@ export const createStablecoinCommand = new Command('stablecoin')
         `   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`
       );
 
-      console.log(chalk.cyan('🛡️ Token Extensions:'));
+      console.log(chalk.cyan('🧩 Token Extensions:'));
       console.log(`   ${chalk.green('✓')} Metadata`);
       console.log(`   ${chalk.green('✓')} Pausable`);
       console.log(`   ${chalk.green('✓')} Default Account State (Blocklist)`);
       console.log(`   ${chalk.green('✓')} Confidential Balances`);
       console.log(`   ${chalk.green('✓')} Permanent Delegate`);
+      console.log(
+        `   ${chalk.green('✓')} Scaled UI Amount (multiplier=${multiplier})`
+      );
 
       if (options.uri) {
         console.log(`${chalk.bold('Metadata URI:')} ${options.uri}`);
@@ -194,7 +205,7 @@ export const createStablecoinCommand = new Command('stablecoin')
         `   ${chalk.green('✓')} EBALTS mint config Address: ${mintConfigPda[0]}`
       );
     } catch (error) {
-      spinner.fail('Failed to create stablecoin');
+      spinner.fail('Failed to create tokenized security');
       if (error && typeof error === 'object' && 'context' in error) {
         const typedError = error as { context: { logs: string[] } };
         console.error(

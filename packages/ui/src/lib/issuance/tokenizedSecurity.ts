@@ -7,46 +7,34 @@ import {
   signAndSendTransactionMessageWithSigners,
   TransactionSendingSigner,
 } from 'gill';
-import { StablecoinOptions } from '@/types/token';
-import { createStablecoinInitTransaction } from '@mosaic/sdk';
+import {
+  TokenizedSecurityOptions,
+  TokenizedSecurityCreationResult,
+} from '@/types/token';
+import { createTokenizedSecurityInitTransaction } from '@mosaic/sdk';
 import bs58 from 'bs58';
 
-/**
- * Validates stablecoin options and returns parsed decimals
- * @param options - Stablecoin configuration options
- * @returns Parsed decimals value
- * @throws Error if validation fails
- */
-function validateStablecoinOptions(options: StablecoinOptions): number {
+function validateOptions(options: TokenizedSecurityOptions): number {
   if (!options.name || !options.symbol) {
     throw new Error('Name and symbol are required');
   }
-
   const decimals = parseInt(options.decimals, 10);
   if (isNaN(decimals) || decimals < 0 || decimals > 9) {
     throw new Error('Decimals must be a number between 0 and 9');
   }
-
+  const multiplier = Number(options.multiplier ?? '1');
+  if (!Number.isFinite(multiplier) || multiplier <= 0) {
+    throw new Error('Multiplier must be a positive number');
+  }
   return decimals;
 }
 
-/**
- * Creates a stablecoin using the wallet standard transaction signer
- * @param options - Configuration options for the stablecoin
- * @param signer - Transaction sending signer instance
- * @returns Promise that resolves to creation result with signature and mint address
- */
-export const createStablecoin = async (
-  options: StablecoinOptions,
+export const createTokenizedSecurity = async (
+  options: TokenizedSecurityOptions,
   signer: TransactionSendingSigner
-): Promise<{
-  success: boolean;
-  error?: string;
-  transactionSignature?: string;
-  mintAddress?: string;
-}> => {
+): Promise<TokenizedSecurityCreationResult> => {
   try {
-    const decimals = validateStablecoinOptions(options);
+    const decimals = validateOptions(options);
 
     // Get wallet public key
     const walletPublicKey = signer.address;
@@ -69,13 +57,16 @@ export const createStablecoin = async (
       (options.confidentialBalancesAuthority || mintAuthority) as Address;
     const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
       mintAuthority) as Address;
+    const scaledUiAmountAuthority = (options.scaledUiAmountAuthority ||
+      mintAuthority) as Address;
+
+    const multiplier = Number(options.multiplier ?? '1');
 
     // Create RPC client
     const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
     const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
 
-    // Create stablecoin transaction using SDK
-    const transaction = await createStablecoinInitTransaction(
+    const transaction = await createTokenizedSecurityInitTransaction(
       rpc,
       options.name,
       options.symbol,
@@ -83,15 +74,20 @@ export const createStablecoin = async (
       options.uri || '',
       mintAuthority,
       mintKeypair,
-      signer, // Use wallet as fee payer
-      options.aclMode || 'blocklist',
-      metadataAuthority,
-      pausableAuthority,
-      confidentialBalancesAuthority,
-      permanentDelegateAuthority
+      signer,
+      {
+        aclMode: options.aclMode || 'blocklist',
+        metadataAuthority,
+        pausableAuthority,
+        confidentialBalancesAuthority,
+        permanentDelegateAuthority,
+        scaledUiAmount: {
+          authority: scaledUiAmountAuthority,
+          multiplier,
+        },
+      }
     );
 
-    // Sign the transaction
     const signature =
       await signAndSendTransactionMessageWithSigners(transaction);
 
@@ -99,6 +95,26 @@ export const createStablecoin = async (
       success: true,
       transactionSignature: bs58.encode(signature),
       mintAddress: mintKeypair.address,
+      details: {
+        name: options.name,
+        symbol: options.symbol,
+        decimals,
+        aclMode: options.aclMode || 'blocklist',
+        mintAuthority,
+        metadataAuthority,
+        pausableAuthority,
+        confidentialBalancesAuthority,
+        permanentDelegateAuthority,
+        multiplier,
+        extensions: [
+          'Metadata',
+          'Pausable',
+          `Default Account State (${(options.aclMode || 'blocklist') === 'allowlist' ? 'Allowlist' : 'Blocklist'})`,
+          'Confidential Balances',
+          'Permanent Delegate',
+          'Scaled UI Amount',
+        ],
+      },
     };
   } catch (error) {
     return {

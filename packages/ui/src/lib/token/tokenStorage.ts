@@ -155,7 +155,7 @@ export const createTokenDisplayFromResult = (
       extensions?: string[];
     };
   },
-  type: 'stablecoin' | 'arcade-token',
+  type: 'stablecoin' | 'arcade-token' | 'tokenized-security',
   options: {
     name: string;
     symbol: string;
