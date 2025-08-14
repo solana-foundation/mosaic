@@ -1,161 +1,102 @@
 # @mosaic/ui
 
-Web interface for managing Token-2022 tokens with extensions.
+UI for creating and managing Token-2022 mints with Mosaic. It’s a Next.js app that connects to Solana wallets, guides you through mint creation (Stablecoin, Arcade Token, Tokenized Security), and provides a dashboard to manage authorities, access lists, and account state.
 
-## Purpose
+## What you can do
 
-A beautiful and modern web application for creating and managing Token-2022 tokens:
+- **Create tokens**: Step-by-step flows for Stablecoin, Arcade Token, and Tokenized Security
+- **Manage tokens**: Mint, transfer, freeze/thaw, force-transfer, update authorities
+- **Control access**: Manage allowlists/blocklists and link them to mints
+- **Wallet-ready**: Connect a Solana wallet and sign transactions
 
-- 🎨 **Modern UI**: Beautiful, responsive interface built with best UX practices
-- 🪙 **Token Creation**: Visual workflow for creating stablecoins and arcade tokens
-- 🔧 **Token Management**: User-friendly token management interface
-- 📋 **SRFC Management**: Visual management of allowlists and blocklists
-- 🔗 **Wallet Integration**: Seamless Solana wallet connectivity
+## Getting started
 
-## Features
+```bash
+pnpm i
+pnpm dev
+# open http://localhost:3000
+```
 
-### Token Creation Wizard
+By default the app uses Devnet. Cluster is selectable in-app via `ChainContextProvider`.
 
-- ✅ Step-by-step token creation process
-- ✅ Template selection (Stablecoin vs Arcade Token)
-- ✅ Extension configuration with visual guides
-- ✅ Real-time preview of token properties
-- ✅ Form validation and error handling
+## User guide
 
-### Token Management Dashboard
+- **Home**: Overview and entry points to the dashboard
+- **Dashboard** (`/dashboard`)
+  - Connect a wallet to see your locally saved tokens
+  - Create new tokens from the dropdown (Stablecoin, Arcade Token, Tokenized Security)
+  - Click any token to manage it
+- **Create flows** (`/dashboard/create/*`)
+  - Fill in name, symbol, decimals, and metadata URI
+  - Choose access control: allowlist (closed-loop) or blocklist
+  - Optionally customize authorities; if you don’t, the connected wallet is used
+  - Submit to create the mint; results are saved locally for quick access
+- **Manage token** (`/dashboard/manage/[address]`)
+  - View overview, authorities, extensions, and transfer restrictions
+  - Mint and transfer tokens (ATA auto-created; permissionless thaw if enabled)
+  - Freeze/thaw accounts
+  - Manage allowlists/blocklists and set extra metas on the mint
 
-- ✅ Overview of all created tokens
-- ✅ Token balance and supply information
-- ✅ Extension status indicators
-- ✅ Quick actions for common operations
-- ✅ Wallet connection status
+Notes:
 
-### SRFC List Management
-
-- ✅ Visual allowlist/blocklist editor
-- ✅ Address validation for Solana addresses
-- ✅ Add/remove addresses from lists
-- ✅ Different list types based on token type (allowlist for arcade tokens, blocklist for stablecoins)
-
-### Wallet Integration
-
-- ✅ Support for popular Solana wallets
-- ✅ Connection status indicators
-- ✅ Wallet adapter integration
-- ✅ Account switching support
-
-## Tech Stack
-
-### Frontend Framework
-
-- **React 18** with TypeScript
-- **Next.js 15** for SSR and routing
-- **Tailwind CSS** for styling
-- **Lucide React** for icons
-
-### Solana Integration
-
-- **@solana/wallet-adapter** for wallet connectivity
-- **@solana/web3.js** for blockchain interactions
-- **@mosaic/sdk** for token operations
-
-### UI Components
-
-- **Radix UI** for accessible components
-- **Lucide React** for icons
-- **Class Variance Authority** for component variants
-- **Tailwind Merge** for class merging
+- If fee payer equals mint authority, the app also sets up EBALTS config, gating program, ABL list, extra metas, and enables permissionless thaw.
+- Token entries are persisted in local storage (`TokenStorage`).
 
 ## Architecture
 
 ```
-ui/
-├── src/
-│   ├── app/             # Next.js app directory
-│   │   ├── dashboard/   # Main dashboard
-│   │   │   ├── create/  # Token creation pages
-│   │   │   │   ├── stablecoin/    # Stablecoin creation
-│   │   │   │   └── arcade-token/  # Arcade token creation
-│   │   │   └── manage/  # Token management pages
-│   │   │       └── [address]/     # Individual token management
-│   │   └── globals.css  # Global styles
-│   ├── components/      # Reusable UI components
-│   │   ├── ui/         # Base UI components
-│   │   ├── layout/     # Layout components
-│   │   └── sections/   # Page sections
-│   ├── lib/            # Utility functions
-│   │   ├── stablecoin.ts    # Stablecoin creation logic
-│   │   ├── arcadeToken.ts   # Arcade token creation logic
-│   │   ├── mockFunctions.ts # Mock implementations
-│   │   └── tokenData.ts     # Token data management
-│   └── types/          # TypeScript types
-│       ├── token.ts    # Token-related types
-│       └── wallet.ts   # Wallet-related types
-<!-- ├── public/             # Static assets
-└── styles/             # Global styles -->
+src/
+├─ app/
+│  ├─ page.tsx                    # Landing
+│  ├─ dashboard/
+│  │  ├─ page.tsx                 # Dashboard (token list, create entry points)
+│  │  ├─ create/
+│  │  │  ├─ stablecoin/*          # Stablecoin create form
+│  │  │  ├─ arcade-token/*        # Arcade create form
+│  │  │  └─ tokenized-security/*  # Security create form
+│  │  └─ manage/[address]/*       # Token management views
+│  └─ layout.tsx                  # Providers and layout
+├─ components/
+│  ├─ solana-provider.tsx         # Wallet adapter providers
+│  ├─ layout/*                    # Header/Footer
+│  ├─ ui/*                        # Reusable UI
+│  └─ sections/hero.tsx           # Landing hero
+├─ context/
+│  ├─ ChainContextProvider.tsx    # Cluster selection (devnet/testnet/mainnet)
+│  ├─ RpcContextProvider.tsx      # gill RPC + subscriptions
+│  └─ SelectedWalletAccount*      # Selected wallet state
+├─ lib/
+│  ├─ issuance/*                  # High-level create flows using @mosaic/sdk
+│  ├─ management/*                # Mint/transfer/freeze/thaw helpers
+│  ├─ management/accessList.ts    # Allowlist/blocklist helpers
+│  ├─ token/*                     # Local storage + token data
+│  └─ solana/rpc.ts               # RPC utils
+└─ types/*                        # App types
 ```
 
-## Dependencies
+## Configuration
 
-- `@mosaic/sdk` - Token templates and functionality
-- `next` - React framework
-- `react` & `react-dom` - React library
-- `@solana/wallet-adapter-*` - Wallet integration
-- `tailwindcss` - CSS framework
-- `@radix-ui/react-*` - UI components
-- `lucide-react` - Icon library
-- `class-variance-authority` - Component variants
+- Wallets: configured in `components/solana-provider.tsx` (uses Devnet endpoint by default)
+- RPC/cluster: provided by `ChainContextProvider` and `RpcContextProvider` (Devnet/Testnet/Mainnet)
+- SDK: all blockchain operations use `@mosaic/sdk`
 
-## Implementation Status
+## Development
 
-✅ **Fully Implemented** - The web application provides:
+```bash
+pnpm type-check
+pnpm lint
+pnpm build
+pnpm start
+```
 
-- ✅ Intuitive token creation workflows for both stablecoins and arcade tokens
-- ✅ Comprehensive token management interface with individual token pages
-- ✅ Beautiful, responsive design with modern UI components and dark/light themes
-- ✅ Seamless Solana wallet integration with multiple wallet support
-- ✅ Real-time form validation and error handling
-- ✅ Production-ready implementations using @mosaic/sdk
-- ✅ Allowlist/blocklist management with address validation
-- ✅ Token mint, transfer, and force transfer functionality
-- ✅ Freeze/thaw account management
-- ✅ Authority management and updates
-- ✅ Extension status indicators and management
+## Troubleshooting
 
-### Current Features
+- Ensure the connected wallet has SOL for fees on the selected cluster
+- If a transfer destination ATA doesn’t exist, the app will create it idempotently
+- Permissionless thaw requires EBALTS config and ABL list correctly set on the mint
 
-#### Token Creation
-- **Multi-step Forms**: Guided token creation with parameter validation
-- **Template Selection**: Choose between stablecoin and arcade token templates
-- **Authority Configuration**: Set different authorities for various token functions
-- **Extension Preview**: Real-time preview of selected Token-2022 extensions
-- **Transaction Confirmation**: Clear feedback on transaction status
+## Tech stack
 
-#### Token Management
-- **Dashboard Overview**: Visual representation of all created tokens
-- **Individual Token Pages**: Detailed management for each token
-- **Mint Operations**: Create new tokens for specified recipients
-- **Transfer Operations**: Standard and force transfer functionality
-- **Account Freeze/Thaw**: Control account access to tokens
-- **Authority Updates**: Modify token authorities as needed
-
-#### Access Control
-- **Visual List Management**: Intuitive interface for allowlists and blocklists
-- **Address Validation**: Real-time validation of Solana addresses
-- **Bulk Operations**: Add or remove multiple addresses at once
-- **List Type Detection**: Automatic detection of list type based on token template
-
-#### Wallet Integration
-- **Multi-wallet Support**: Compatible with major Solana wallets
-- **Connection Status**: Clear indication of wallet connection state
-- **Account Switching**: Handle multiple wallet accounts
-- **Transaction Signing**: Seamless transaction signing workflow
-
-### Technical Implementation
-
-- **Production Ready**: Uses actual @mosaic/sdk functions for all operations
-- **Error Handling**: Comprehensive error handling with user-friendly messages
-- **TypeScript**: Fully typed with comprehensive type definitions
-- **Responsive Design**: Mobile-first design with Tailwind CSS
-- **Performance**: Optimized with React 18 features and Next.js 15
-- **Accessibility**: Built with Radix UI for accessible components
+- Next.js 15, React 18, TailwindCSS
+- Wallet adapters (`@solana/wallet-adapter-*`)
+- Mosaic SDK (`@mosaic/sdk`) and `gill` (`@solana/kit`)

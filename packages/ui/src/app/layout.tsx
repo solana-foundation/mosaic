@@ -5,7 +5,6 @@ import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
-import { SolanaProvider } from '@/components/solana-provider';
 import { cn } from '@/lib/utils';
 import { ChainContextProvider } from '@/context/ChainContextProvider';
 import { SelectedWalletAccountContextProvider } from '@/context/SelectedWalletAccountContextProvider';
@@ -34,35 +33,33 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <SolanaProvider>
-      <html lang="en" suppressHydrationWarning>
-        <body
-          className={cn(
-            fontSans.variable,
-            fontMono.variable,
-            'font-sans antialiased'
-          )}
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={cn(
+          fontSans.variable,
+          fontMono.variable,
+          'font-sans antialiased'
+        )}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
         >
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <ChainContextProvider>
-              <SelectedWalletAccountContextProvider>
-                <RpcContextProvider>
-                  <div className="flex min-h-screen flex-col bg-background">
-                    <Header />
-                    <main className="flex-1">{children}</main>
-                    <Footer />
-                  </div>
-                </RpcContextProvider>
-              </SelectedWalletAccountContextProvider>
-            </ChainContextProvider>
-          </ThemeProvider>
-        </body>
-      </html>
-    </SolanaProvider>
+          <ChainContextProvider>
+            <SelectedWalletAccountContextProvider>
+              <RpcContextProvider>
+                <div className="flex min-h-screen flex-col bg-background">
+                  <Header />
+                  <main className="flex-1">{children}</main>
+                  <Footer />
+                </div>
+              </RpcContextProvider>
+            </SelectedWalletAccountContextProvider>
+          </ChainContextProvider>
+        </ThemeProvider>
+      </body>
+    </html>
   );
 }

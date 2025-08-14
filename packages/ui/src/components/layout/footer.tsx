@@ -7,7 +7,7 @@ export function Footer() {
       <div className="container flex h-16 items-center justify-between">
         <p className="text-sm text-muted-foreground">
           <a
-            href="https://github.com/YOUR_ORG/mosaic/blob/main/LICENSE"
+            href="https://github.com/solana-foundation/mosaic/blob/main/LICENSE"
             className="underline hover:text-primary"
             target="_blank"
             rel="noopener noreferrer"
@@ -17,7 +17,7 @@ export function Footer() {
         </p>
         <div className="flex gap-4 text-muted-foreground">
           <a
-            href="https://github.com/gitteri/mosaic"
+            href="https://github.com/solana-foundation/mosaic"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
@@ -26,7 +26,7 @@ export function Footer() {
             <GithubIcon className="w-5 h-5" />
           </a>
           <a
-            href="https://x.com/solana"
+            href="https://x.com/solana_devs"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Twitter"

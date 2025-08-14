@@ -8,6 +8,7 @@ export type CapabilityKey =
   | 'permanentDelegate'
   | 'confidentialBalances'
   | 'confidentialMintBurn'
+  | 'scaledUIAmount'
   | 'sRFC37'
   | 'gatingProgram';
 
@@ -17,7 +18,8 @@ export type ExtensionKey =
   | 'extDefaultAccountStateAllowOrBlock'
   | 'extDefaultAccountStateAllow'
   | 'extPermanentDelegate'
-  | 'extConfidentialBalances';
+  | 'extConfidentialBalances'
+  | 'extScaledUIAmount';
 
 export const capabilityNodes: Record<CapabilityKey, ReactNode> = {
   metadata: (
@@ -86,6 +88,13 @@ export const capabilityNodes: Record<CapabilityKey, ReactNode> = {
       <strong>Confidential mint/burn</strong>: Feature under audit enabling
       mint/burn with encrypted amounts. Amounts are not revealed to anyone but
       the token owner and an optional auditor.
+    </>
+  ),
+  scaledUIAmount: (
+    <>
+      <strong>Scaled UI Amount</strong>: Display UI-friendly scaled amounts for
+      dividends, stock splits, and reverse stock splits while keeping on-chain
+      units consistent for accounting.
     </>
   ),
   sRFC37: (
@@ -164,6 +173,15 @@ export const extensionNodes: Record<ExtensionKey, ReactNode> = {
       rel="noopener noreferrer"
     >
       Confidential Balances
+    </a>
+  ),
+  extScaledUIAmount: (
+    <a
+      href="https://solana.com/docs/tokens/extensions/scaled-ui-amount"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      Scaled UI Amount
     </a>
   ),
 };

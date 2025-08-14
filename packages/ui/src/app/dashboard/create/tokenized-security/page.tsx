@@ -63,6 +63,7 @@ function TokenizedSecurityCreateWithWallet({
                 'pausable',
                 'permanentDelegate',
                 'confidentialBalances',
+                'scaledUIAmount',
               ]}
               enabledExtensionKeys={[
                 'extMetadata',

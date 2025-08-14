@@ -21,6 +21,7 @@ interface TokenizedSecuritiesOptions {
   symbol: string;
   decimals: string;
   uri?: string;
+  aclMode?: 'allowlist' | 'blocklist';
   mintAuthority?: string;
   metadataAuthority?: string;
   pausableAuthority?: string;
@@ -41,6 +42,11 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
   .requiredOption('-s, --symbol <symbol>', 'Token symbol')
   .option('-d, --decimals <decimals>', 'Number of decimals', '6')
   .option('-u, --uri <uri>', 'Metadata URI', '')
+  .option(
+    '--acl-mode <allowlist|blocklist>',
+    'Access control mode (defaults to blocklist)',
+    'blocklist'
+  )
   .option(
     '--mint-authority <address>',
     'Mint authority address (defaults to signer)'
@@ -130,7 +136,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
         mintKeypair,
         signerKeypair,
         {
-          aclMode: 'blocklist',
+          aclMode: options.aclMode,
           metadataAuthority,
           pausableAuthority,
           confidentialBalancesAuthority,

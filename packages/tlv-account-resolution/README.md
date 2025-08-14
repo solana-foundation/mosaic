@@ -9,11 +9,12 @@ This package provides utilities for resolving extra account metadata in Solana p
 ## Features
 
 - = **Extra Account Resolution**: Resolve additional accounts required for Token-2022 transfer hooks
-- =Ê **TLV Encoding Support**: Handle Type-Length-Value encoded account metadata
+- =ï¿½ **TLV Encoding Support**: Handle Type-Length-Value encoded account metadata
 - <1 **Seed Resolution**: Support for Program Derived Address (PDA) seed resolution
-- =Á **Account Data Parsing**: Extract account information from instruction data and account states
-- =à **Flexible Configuration**: Support multiple account resolution strategies
-- = **Dynamic Discovery**: Runtime account discovery based on instruction context
+- =ï¿½ **Account Data Parsing**: Extract account information from instruction data and account states
+- =ï¿½ **Flexible Configuration**: Support multiple account resolution strategies
+- =
+  **Dynamic Discovery**: Runtime account discovery based on instruction context
 
 ## Installation
 
@@ -26,15 +27,17 @@ pnpm add @mosaic/tlv-account-resolution
 ## Quick Start
 
 ```typescript
-import { 
+import {
   resolveExtraMetas,
   getExtraAccountMetas,
-  unpackExtraAccountMetas 
+  unpackExtraAccountMetas,
 } from '@mosaic/tlv-account-resolution';
 import type { Address, AccountMeta, MaybeEncodedAccount } from '@solana/kit';
 
 // Account retriever function
-const accountRetriever = async (address: Address): Promise<MaybeEncodedAccount<string>> => {
+const accountRetriever = async (
+  address: Address
+): Promise<MaybeEncodedAccount<string>> => {
   // Implement your account retrieval logic
   return await rpc.getAccount(address);
 };
@@ -42,10 +45,10 @@ const accountRetriever = async (address: Address): Promise<MaybeEncodedAccount<s
 // Resolve extra account metas for a transfer hook
 const extraMetas = await resolveExtraMetas(
   accountRetriever,
-  extraMetasAddress,    // Address containing extra account metadata
-  previousMetas,        // Previously resolved account metas
-  instructionData,      // Raw instruction data buffer
-  programId            // Program ID for PDA resolution
+  extraMetasAddress, // Address containing extra account metadata
+  previousMetas, // Previously resolved account metas
+  instructionData, // Raw instruction data buffer
+  programId // Program ID for PDA resolution
 );
 ```
 
@@ -82,10 +85,11 @@ async function resolveExtraMetas(
   previousMetas: AccountMeta[],
   instructionData: Buffer,
   programId: Address
-): Promise<AccountMeta[]>
+): Promise<AccountMeta[]>;
 ```
 
 **Parameters:**
+
 - `accountRetriever`: Function to fetch account data
 - `extraMetasAddress`: Address containing the extra metadata
 - `previousMetas`: Previously resolved account metas
@@ -101,7 +105,7 @@ Extract extra account metadata from an account.
 ```typescript
 function getExtraAccountMetas(
   account: MaybeEncodedAccount<string>
-): ExtraAccountMeta[]
+): ExtraAccountMeta[];
 ```
 
 #### `unpackExtraAccountMetas()`
@@ -109,7 +113,7 @@ function getExtraAccountMetas(
 Parse raw account data into extra account metadata.
 
 ```typescript
-function unpackExtraAccountMetas(data: Uint8Array): ExtraAccountMeta[]
+function unpackExtraAccountMetas(data: Uint8Array): ExtraAccountMeta[];
 ```
 
 ### Account Resolution Types
@@ -129,7 +133,12 @@ Resolve a Program Derived Address using seeds.
 
 ```typescript
 // Seeds are resolved and used to derive PDA
-const seeds = await unpackSeeds(addressConfig, previousMetas, instructionData, accountRetriever);
+const seeds = await unpackSeeds(
+  addressConfig,
+  previousMetas,
+  instructionData,
+  accountRetriever
+);
 const [pda] = await getProgramDerivedAddress({
   programAddress: programId,
   seeds,
@@ -158,10 +167,10 @@ Represents a single extra account metadata entry.
 
 ```typescript
 interface ExtraAccountMeta {
-  discriminator: number;    // How to resolve the account
+  discriminator: number; // How to resolve the account
   addressConfig: Uint8Array; // Configuration data
-  isSigner: boolean;       // Whether account must sign
-  isWritable: boolean;     // Whether account is writable
+  isSigner: boolean; // Whether account must sign
+  isWritable: boolean; // Whether account is writable
 }
 ```
 
@@ -186,7 +195,7 @@ Static byte sequences embedded in the configuration.
 
 ```typescript
 // Fixed string or byte array
-const seed = Buffer.from("my_seed", "utf8");
+const seed = Buffer.from('my_seed', 'utf8');
 ```
 
 ### Instruction Data Seeds
@@ -227,16 +236,16 @@ import {
   TokenTransferHookInvalidPubkeyData,
   TokenTransferHookAccountDataNotFound,
   TokenTransferHookInvalidSeed,
-  TokenTransferHookPubkeyDataTooSmall
+  TokenTransferHookPubkeyDataTooSmall,
 } from '@mosaic/tlv-account-resolution';
 
 try {
   const metas = await resolveExtraMetas(/* ... */);
 } catch (error) {
   if (error instanceof TokenTransferHookAccountNotFound) {
-    console.error("Required account not found");
+    console.error('Required account not found');
   } else if (error instanceof TokenTransferHookInvalidPubkeyData) {
-    console.error("Invalid pubkey data format");
+    console.error('Invalid pubkey data format');
   }
   // Handle other error types...
 }
@@ -269,7 +278,7 @@ async function buildTransferWithHooks(
 
   // Add resolved accounts to the instruction
   transferInstruction.accounts.push(...extraMetas);
-  
+
   return transferInstruction;
 }
 ```
@@ -285,7 +294,7 @@ async function resolveCustomProgramAccounts(
 ) {
   // Find the extra metas address (program-specific logic)
   const extraMetasAddress = await findExtraMetasAddress(programId);
-  
+
   const resolvedMetas = await resolveExtraMetas(
     accountRetriever,
     extraMetasAddress,
@@ -293,7 +302,7 @@ async function resolveCustomProgramAccounts(
     instructionData,
     programId
   );
-  
+
   return [...baseAccounts, ...resolvedMetas];
 }
 ```

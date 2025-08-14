@@ -9,10 +9,10 @@ EBALTS provides enhanced balance and transfer security features for Token-2022 t
 ## Features
 
 - = **Enhanced Freeze Control**: Advanced freeze/thaw mechanisms beyond standard Token-2022
-- <® **Programmable Gating**: Integration with external programs for dynamic access control
+- <ï¿½ **Programmable Gating**: Integration with external programs for dynamic access control
 - = **Permissionless Operations**: Allow certain operations without explicit authority signatures
-- =á **Security Extensions**: Additional security layers for token operations
-- =Ê **Mint Configuration**: Flexible configuration per token mint
+- =ï¿½ **Security Extensions**: Additional security layers for token operations
+- =ï¿½ **Mint Configuration**: Flexible configuration per token mint
 - =' **Authority Management**: Granular authority control for different operations
 
 ## Installation
@@ -31,7 +31,7 @@ import {
   getSetGatingProgramInstructionAsync,
   getFreezeInstructionAsync,
   getThawInstructionAsync,
-  getTogglePermissionlessInstructionsInstructionAsync
+  getTogglePermissionlessInstructionsInstructionAsync,
 } from '@mosaic/ebalts';
 import { generateKeyPairSigner } from '@solana/kit';
 
@@ -94,9 +94,9 @@ Create an EBALTS configuration for a mint.
 
 ```typescript
 const instruction = await getCreateConfigInstructionAsync({
-  authority: Address,      // Authority that manages the configuration
-  mint: Address,          // Token mint address
-  payer: Address,         // Transaction payer
+  authority: Address, // Authority that manages the configuration
+  mint: Address, // Token mint address
+  payer: Address, // Transaction payer
 });
 ```
 
@@ -106,8 +106,8 @@ Set or update the gating program for a mint.
 
 ```typescript
 const instruction = await getSetGatingProgramInstructionAsync({
-  authority: Address,      // Configuration authority
-  mint: Address,          // Token mint address
+  authority: Address, // Configuration authority
+  mint: Address, // Token mint address
   gatingProgram: Address, // Program that will gate operations
 });
 ```
@@ -118,9 +118,9 @@ Transfer authority for the EBALTS configuration.
 
 ```typescript
 const instruction = await getSetAuthorityInstructionAsync({
-  authority: Address,      // Current authority
-  mint: Address,          // Token mint address
-  newAuthority: Address,  // New authority address
+  authority: Address, // Current authority
+  mint: Address, // Token mint address
+  newAuthority: Address, // New authority address
 });
 ```
 
@@ -133,10 +133,10 @@ Freeze a token account using EBALTS authority.
 ```typescript
 const instruction = await getFreezeInstructionAsync({
   authority: TransactionSigner, // Freeze authority
-  tokenAccount: Address,        // Account to freeze
-  mint: Address,               // Token mint
-  mintConfig: Address,         // EBALTS configuration
-  tokenAccountOwner: Address,  // Owner of the token account
+  tokenAccount: Address, // Account to freeze
+  mint: Address, // Token mint
+  mintConfig: Address, // EBALTS configuration
+  tokenAccountOwner: Address, // Owner of the token account
 });
 ```
 
@@ -147,10 +147,10 @@ Thaw a frozen token account using EBALTS authority.
 ```typescript
 const instruction = await getThawInstructionAsync({
   authority: TransactionSigner, // Thaw authority
-  tokenAccount: Address,        // Account to thaw
-  mint: Address,               // Token mint
-  mintConfig: Address,         // EBALTS configuration
-  tokenAccountOwner: Address,  // Owner of the token account
+  tokenAccount: Address, // Account to thaw
+  mint: Address, // Token mint
+  mintConfig: Address, // EBALTS configuration
+  tokenAccountOwner: Address, // Owner of the token account
 });
 ```
 
@@ -162,12 +162,12 @@ Freeze an account without authority signature (if enabled).
 
 ```typescript
 const instruction = await getFreezePermissionlessInstructionAsync({
-  authority: Address,          // Authority address (no signature required)
-  tokenAccount: Address,       // Account to freeze
-  mint: Address,              // Token mint
-  mintConfig: Address,        // EBALTS configuration
+  authority: Address, // Authority address (no signature required)
+  tokenAccount: Address, // Account to freeze
+  mint: Address, // Token mint
+  mintConfig: Address, // EBALTS configuration
   tokenAccountOwner: Address, // Owner of the token account
-  gatingProgram: Address,     // Gating program address
+  gatingProgram: Address, // Gating program address
 });
 ```
 
@@ -177,12 +177,12 @@ Thaw an account without authority signature (if enabled).
 
 ```typescript
 const instruction = await getThawPermissionlessInstructionAsync({
-  authority: Address,          // Authority address (no signature required)
-  tokenAccount: Address,       // Account to thaw
-  mint: Address,              // Token mint
-  mintConfig: Address,        // EBALTS configuration
+  authority: Address, // Authority address (no signature required)
+  tokenAccount: Address, // Account to thaw
+  mint: Address, // Token mint
+  mintConfig: Address, // EBALTS configuration
   tokenAccountOwner: Address, // Owner of the token account
-  gatingProgram: Address,     // Gating program address
+  gatingProgram: Address, // Gating program address
 });
 ```
 
@@ -192,9 +192,9 @@ Enable or disable permissionless operations.
 
 ```typescript
 const instruction = await getTogglePermissionlessInstructionsInstructionAsync({
-  authority: Address,          // Configuration authority
-  mint: Address,              // Token mint
-  enablePermissionlessThaw: boolean,   // Enable/disable permissionless thaw
+  authority: Address, // Configuration authority
+  mint: Address, // Token mint
+  enablePermissionlessThaw: boolean, // Enable/disable permissionless thaw
   enablePermissionlessFreeze: boolean, // Enable/disable permissionless freeze
 });
 ```
@@ -233,7 +233,10 @@ const instruction = await createThawPermissionlessInstructionWithExtraMetas(
 
 ```typescript
 import { Mode } from '@mosaic/abl';
-import { getCreateConfigInstructionAsync, getSetGatingProgramInstructionAsync } from '@mosaic/ebalts';
+import {
+  getCreateConfigInstructionAsync,
+  getSetGatingProgramInstructionAsync,
+} from '@mosaic/ebalts';
 
 // Setup EBALTS with ABL integration
 const instructions = [
@@ -243,14 +246,14 @@ const instructions = [
     mint: mintAddress,
     payer: authority.address,
   }),
-  
+
   // Set ABL as gating program
   await getSetGatingProgramInstructionAsync({
     authority: authority.address,
     mint: mintAddress,
     gatingProgram: ABL_PROGRAM_ID,
   }),
-  
+
   // Enable permissionless thaw for user-friendly experience
   await getTogglePermissionlessInstructionsInstructionAsync({
     authority: authority.address,
@@ -272,14 +275,14 @@ const setupInstructions = [
     mint: arcadeTokenMint,
     payer: gameAuthority.address,
   }),
-  
+
   // Set game program as gating authority
   await getSetGatingProgramInstructionAsync({
     authority: gameAuthority.address,
     mint: arcadeTokenMint,
     gatingProgram: gameProgram,
   }),
-  
+
   // Enable permissionless operations for smooth gameplay
   await getTogglePermissionlessInstructionsInstructionAsync({
     authority: gameAuthority.address,
