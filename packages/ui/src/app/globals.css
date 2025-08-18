@@ -62,6 +62,23 @@
     font-weight: 300;
   }
 
+  /* Docs typography */
+  .prose h1 {
+    @apply text-3xl md:text-4xl font-bold mb-4;
+  }
+  .prose h2 {
+    @apply text-2xl font-semibold mt-8 mb-3;
+  }
+  .prose h3 {
+    @apply text-xl font-semibold mt-6 mb-2;
+  }
+  .prose p {
+    @apply leading-relaxed;
+  }
+  .prose ul {
+    @apply list-disc pl-5;
+  }
+
   input,
   textarea,
   select {

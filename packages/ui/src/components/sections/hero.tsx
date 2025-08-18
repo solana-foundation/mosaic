@@ -14,13 +14,17 @@ export function Hero() {
           </h1>
           <p className="mt-6 text-lg leading-8 text-muted-foreground">
             Create, manage, and deploy stablecoins and tokenized assets on
-            Solana with enterprise-grade security and compliance features.
+            Solana with compliance features and full control over your token.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
             <Button size="lg" onClick={() => router.push('/dashboard')}>
               Tokenize!
             </Button>
-            <Button variant="outline" size="lg">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => router.push('/docs')}
+            >
               Learn More
             </Button>
           </div>

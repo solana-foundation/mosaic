@@ -7,6 +7,7 @@
   "scripts": {
     "build": "pnpm --recursive run build",
     "dev": "pnpm --recursive run dev",
+    "ui": "pnpm --filter @mosaic/ui run dev",
     "test": "pnpm --recursive run test --passWithNoTests",
     "lint": "pnpm --recursive run lint",
     "lint:fix": "pnpm --recursive run lint:fix",
