@@ -14,51 +14,16 @@ import {
   getTransferCheckedInstruction,
   TOKEN_2022_PROGRAM_ADDRESS,
 } from 'gill/programs/token';
-import { resolveTokenAccount, decimalAmountToRaw } from '../transactionUtil';
-import { getThawPermissionlessInstructions } from '../ebalts';
-
-/**
- * Gets mint information including decimals from the blockchain
- *
- * @param rpc - The Solana RPC client instance
- * @param mint - The mint address
- * @returns Promise with mint information including decimals
- */
-async function getMintInfo(rpc: Rpc<SolanaRpcApi>, mint: Address) {
-  const { value: tokenAccounts } = await rpc
-    .getTokenAccountsByOwner(mint, { mint: mint })
-    .send();
-
-  if (tokenAccounts.length === 0) {
-    throw new Error(`No token accounts found for mint ${mint}`);
-  }
-  const accountInfo = await rpc
-    .getAccountInfo(mint, { encoding: 'jsonParsed' })
-    .send();
-
-  if (!accountInfo.value) {
-    throw new Error(`Mint account ${mint} not found`);
-  }
-
-  const data = accountInfo.value.data;
-  if (!('parsed' in data) || !data.parsed?.info) {
-    throw new Error(`Unable to parse mint data for ${mint}`);
-  }
-
-  const mintInfo = data.parsed.info as {
-    decimals: number;
-    freezeAuthority?: string;
-    mintAuthority?: string;
-    extensions?: any[];
-  };
-
-  return {
-    decimals: mintInfo.decimals,
-    freezeAuthority: mintInfo.freezeAuthority,
-    mintAuthority: mintInfo.mintAuthority,
-    extensions: mintInfo.extensions || [],
-  };
-}
+import {
+  resolveTokenAccount,
+  decimalAmountToRaw,
+  getMintDetails,
+  isDefaultAccountStateSetFrozen,
+} from '../transactionUtil';
+import {
+  EBALTS_PROGRAM_ID,
+  getThawPermissionlessInstructions,
+} from '../ebalts';
 
 /**
  * Creates a transaction to force transfer tokens using the permanent delegate extension.
@@ -96,8 +61,13 @@ export const createForceTransferTransaction = async (
       : permanentDelegate;
 
   // Get mint info to determine decimals
-  const mintInfo = await getMintInfo(rpc, mint);
-  const decimals = mintInfo.decimals;
+  const { decimals, freezeAuthority, extensions } = await getMintDetails(
+    rpc,
+    mint
+  );
+  const enableSrfc37 =
+    freezeAuthority === EBALTS_PROGRAM_ID &&
+    isDefaultAccountStateSetFrozen(extensions);
 
   // Convert decimal amount to raw amount
   const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
@@ -129,7 +99,7 @@ export const createForceTransferTransaction = async (
     );
   }
 
-  if (isFrozen) {
+  if (isFrozen && (enableSrfc37 ?? false)) {
     const thawInstructions = await getThawPermissionlessInstructions({
       authority: feePayerSigner,
       mint,
@@ -182,10 +152,10 @@ export async function validatePermanentDelegate(
   mint: Address,
   permanentDelegateAddress: Address
 ): Promise<void> {
-  const mintInfo = await getMintInfo(rpc, mint);
+  const { extensions } = await getMintDetails(rpc, mint);
 
   // Check if permanent delegate extension exists
-  const permanentDelegateExtension = mintInfo.extensions.find(
+  const permanentDelegateExtension = extensions.find(
     (ext: any) => ext.extension === 'permanentDelegate'
   );
 

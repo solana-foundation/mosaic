@@ -37,6 +37,7 @@ export const createTokenizedSecurityInitTransaction = async (
     pausableAuthority?: Address;
     confidentialBalancesAuthority?: Address;
     permanentDelegateAuthority?: Address;
+    enableSrfc37?: boolean;
     scaledUiAmount?: {
       authority?: Address;
       multiplier?: number;
@@ -56,6 +57,7 @@ export const createTokenizedSecurityInitTransaction = async (
     typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
 
   const aclMode = options?.aclMode ?? 'blocklist';
+  const useSrfc37 = options?.enableSrfc37 ?? false;
   const metadataAuthority = options?.metadataAuthority || mintAuthority;
   const pausableAuthority = options?.pausableAuthority || mintAuthority;
   const confidentialBalancesAuthority =
@@ -95,7 +97,7 @@ export const createTokenizedSecurityInitTransaction = async (
     feePayer: feePayerSigner,
   });
 
-  if (mintAuthority !== feePayerSigner.address) {
+  if (mintAuthority !== feePayerSigner.address || !useSrfc37) {
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
     return createTransaction({
       feePayer,

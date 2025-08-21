@@ -14,10 +14,14 @@ import {
   getMintToInstruction,
   getCreateAssociatedTokenIdempotentInstruction,
 } from 'gill/programs/token';
-import { getThawPermissionlessInstructions } from '../ebalts';
+import {
+  EBALTS_PROGRAM_ID,
+  getThawPermissionlessInstructions,
+} from '../ebalts';
 import {
   decimalAmountToRaw,
-  getMintDecimals,
+  getMintDetails,
+  isDefaultAccountStateSetFrozen,
   resolveTokenAccount,
 } from '../transactionUtil';
 
@@ -60,7 +64,14 @@ export const createMintToTransaction = async (
     mint
   );
 
-  const decimals = await getMintDecimals(rpc, mint);
+  const { decimals, freezeAuthority, extensions } = await getMintDetails(
+    rpc,
+    mint
+  );
+  const enableSrfc37 =
+    freezeAuthority === EBALTS_PROGRAM_ID &&
+    isDefaultAccountStateSetFrozen(extensions);
+
   const rawAmount = decimalAmountToRaw(amount, decimals);
 
   const instructions = [
@@ -72,7 +83,7 @@ export const createMintToTransaction = async (
       payer: feePayerSigner,
       tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
     }),
-    ...(isFrozen
+    ...(isFrozen && enableSrfc37
       ? await getThawPermissionlessInstructions({
           authority: mintAuthoritySigner,
           mint: mint,

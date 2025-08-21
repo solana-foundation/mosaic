@@ -51,7 +51,8 @@ export const createStablecoinInitTransaction = async (
   metadataAuthority?: Address,
   pausableAuthority?: Address,
   confidentialBalancesAuthority?: Address,
-  permanentDelegateAuthority?: Address
+  permanentDelegateAuthority?: Address,
+  enableSrfc37?: boolean
 ): Promise<
   FullTransaction<
     TransactionVersion,
@@ -64,6 +65,7 @@ export const createStablecoinInitTransaction = async (
     typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
 
   aclMode = aclMode || 'blocklist';
+  const useSrfc37 = enableSrfc37 ?? false;
 
   // 1. create token
   const instructions = await new Token()
@@ -90,8 +92,8 @@ export const createStablecoinInitTransaction = async (
       feePayer: feePayerSigner,
     });
 
-  // 2. create mintConfig (ebalts)
-  if (mintAuthority !== feePayerSigner.address) {
+  // 2. create mintConfig (ebalts) - only if SRFC-37 is enabled
+  if (mintAuthority !== feePayerSigner.address || !useSrfc37) {
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
