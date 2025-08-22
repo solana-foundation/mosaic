@@ -74,7 +74,6 @@ export const getAddToAllowlistInstructions = async (
     authority: accountSigner.address,
     mint,
   });
-  console.log('listConfigPda', listConfigPda);
   if (!(await isAblAllowlist(rpc, listConfigPda))) {
     throw new Error('This is not an ABL allowlist');
   }

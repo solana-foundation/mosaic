@@ -81,7 +81,7 @@ export const createStablecoinInitTransaction = async (
       additionalMetadata: new Map(),
     })
     .withPausable(pausableAuthority || mintAuthority)
-    .withDefaultAccountState(false)
+    .withDefaultAccountState(!useSrfc37)
     .withConfidentialBalances(confidentialBalancesAuthority || mintAuthority)
     .withPermanentDelegate(permanentDelegateAuthority || mintAuthority)
     .buildInstructions({

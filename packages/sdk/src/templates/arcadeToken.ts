@@ -77,7 +77,7 @@ export const createArcadeTokenInitTransaction = async (
       additionalMetadata: new Map(),
     })
     .withPausable(pausableAuthority || mintAuthority)
-    .withDefaultAccountState(false)
+    .withDefaultAccountState(!useSrfc37)
     .withPermanentDelegate(permanentDelegateAuthority || mintAuthority)
     .buildInstructions({
       rpc,

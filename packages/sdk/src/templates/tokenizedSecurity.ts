@@ -77,7 +77,7 @@ export const createTokenizedSecurityInitTransaction = async (
       additionalMetadata: new Map(),
     })
     .withPausable(pausableAuthority)
-    .withDefaultAccountState(false)
+    .withDefaultAccountState(!useSrfc37)
     .withConfidentialBalances(confidentialBalancesAuthority)
     .withPermanentDelegate(permanentDelegateAuthority);
 
