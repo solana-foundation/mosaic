@@ -7,7 +7,11 @@ import {
   type SolanaRpcApi,
   type TransactionSigner,
 } from 'gill';
-import { resolveTokenAccount } from '../transactionUtil';
+import {
+  getMintDetails,
+  isDefaultAccountStateSetFrozen,
+  resolveTokenAccount,
+} from '../transactionUtil';
 import {
   ABL_PROGRAM_ID,
   getAddWalletInstructions,
@@ -18,6 +22,12 @@ import {
 import { findListConfigPda, Mode } from '@mosaic/abl';
 import { getFreezeInstructions } from '../ebalts/freeze';
 import { getThawPermissionlessInstructions } from '../ebalts/thawPermissionless';
+import { EBALTS_PROGRAM_ID } from '../ebalts';
+import {
+  getFreezeAccountInstruction,
+  getThawAccountInstruction,
+  TOKEN_2022_PROGRAM_ADDRESS,
+} from 'gill/programs';
 
 export const isAblAllowlist = async (
   rpc: Rpc<SolanaRpcApi>,
@@ -40,11 +50,30 @@ export const getAddToAllowlistInstructions = async (
   );
   const accountSigner =
     typeof authority === 'string' ? createNoopSigner(authority) : authority;
+  const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
+  const enableSrfc37 =
+    freezeAuthority === EBALTS_PROGRAM_ID &&
+    isDefaultAccountStateSetFrozen(extensions);
+
+  if (!enableSrfc37) {
+    return [
+      getThawAccountInstruction(
+        {
+          account: tokenAccount,
+          mint,
+          owner: accountSigner,
+        },
+        {
+          programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+        }
+      ),
+    ];
+  }
+
   const listConfigPda = await getListConfigPda({
     authority: accountSigner.address,
     mint,
   });
-  console.log('listConfigPda', listConfigPda);
   if (!(await isAblAllowlist(rpc, listConfigPda))) {
     throw new Error('This is not an ABL allowlist');
   }
@@ -103,6 +132,26 @@ export const getRemoveFromAllowlistInstructions = async (
   const accountSigner =
     typeof authority === 'string' ? createNoopSigner(authority) : authority;
 
+  const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
+  const enableSrfc37 =
+    freezeAuthority === EBALTS_PROGRAM_ID &&
+    isDefaultAccountStateSetFrozen(extensions);
+
+  if (!enableSrfc37) {
+    return [
+      getFreezeAccountInstruction(
+        {
+          account: destinationAta,
+          mint,
+          owner: accountSigner,
+        },
+        {
+          programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+        }
+      ),
+    ];
+  }
+
   const listConfigPda = await findListConfigPda(
     {
       authority: accountSigner.address,
@@ -121,7 +170,8 @@ export const getRemoveFromAllowlistInstructions = async (
   });
   instructions.push(...removeFromAllowlistInstructions);
 
-  if (isInitialized && isFrozen) {
+  const useSrfc37 = enableSrfc37 ?? false;
+  if (isInitialized && isFrozen && useSrfc37) {
     // TODO: this should freeze all accounts owned by the wallet
     const freezeInstructions = await getFreezeInstructions({
       rpc,

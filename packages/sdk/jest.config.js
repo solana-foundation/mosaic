@@ -23,6 +23,8 @@ export default {
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@mosaic/abl$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',
+    '^@mosaic/ebalts$': '<rootDir>/src/__mocks__/@mosaic/ebalts.ts',
   },
   moduleFileExtensions: ['ts', 'js', 'json'],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],

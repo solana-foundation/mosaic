@@ -154,6 +154,61 @@ export async function resolveTokenAccount(
   return { tokenAccount: ata, isInitialized: false, isFrozen: true };
 }
 
+/**
+ * Gets mint information including decimals
+ *
+ * @param rpc - The Solana RPC client instance
+ * @param mint - The mint address
+ * @returns Promise with mint information including decimals
+ */
+export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address) {
+  const accountInfo = await rpc
+    .getAccountInfo(mint, { encoding: 'jsonParsed' })
+    .send();
+
+  if (!accountInfo.value) {
+    throw new Error(`Mint account ${mint} not found`);
+  }
+
+  const data = accountInfo.value.data;
+  if (!('parsed' in data) || !data.parsed?.info) {
+    throw new Error(`Unable to parse mint data for ${mint}`);
+  }
+
+  const mintInfo = data.parsed.info as {
+    decimals: number;
+    freezeAuthority?: string;
+    mintAuthority?: string;
+    extensions?: any[];
+  };
+
+  return {
+    decimals: mintInfo.decimals,
+    freezeAuthority: mintInfo.freezeAuthority,
+    mintAuthority: mintInfo.mintAuthority,
+    extensions: mintInfo.extensions || [],
+  };
+}
+
+/**
+ * Checks if the default account state is set to frozen
+ *
+ * @param extensions - The extensions of the mint
+ * @returns True if the default account state is set to frozen, false otherwise
+ */
+export function isDefaultAccountStateSetFrozen(extensions: any[]): boolean {
+  return extensions.some(
+    ext => ext.__kind === 'DefaultAccountState' && ext.state === 'frozen'
+  );
+}
+
+/**
+ * Gets the decimals of a mint
+ *
+ * @param rpc - The Solana RPC client instance
+ * @param mint - The mint address
+ * @returns Promise with the decimals of the mint
+ */
 export async function getMintDecimals(
   rpc: Rpc<SolanaRpcApi>,
   mint: Address

@@ -7,16 +7,26 @@ import {
   type SolanaRpcApi,
   type TransactionSigner,
 } from 'gill';
-import { resolveTokenAccount } from '../transactionUtil';
+import {
+  getFreezeAccountInstruction,
+  getThawAccountInstruction,
+  TOKEN_2022_PROGRAM_ADDRESS,
+} from 'gill/programs';
+import { findListConfigPda, Mode } from '@mosaic/abl';
+import {
+  getMintDetails,
+  isDefaultAccountStateSetFrozen,
+  resolveTokenAccount,
+} from '../transactionUtil';
 import {
   ABL_PROGRAM_ID,
   getAddWalletInstructions,
   getList,
   getRemoveWalletInstructions,
 } from '../abl';
-import { findListConfigPda, Mode } from '@mosaic/abl';
 import { getFreezeInstructions } from '../ebalts/freeze';
 import { getThawPermissionlessInstructions } from '../ebalts/thawPermissionless';
+import { EBALTS_PROGRAM_ID } from '../ebalts';
 
 export const isAblBlocklist = async (
   rpc: Rpc<SolanaRpcApi>,
@@ -26,6 +36,16 @@ export const isAblBlocklist = async (
   return list.mode === Mode.Block;
 };
 
+/**
+ * Gets the instructions to add an account to a blocklist
+ * If the mint has SRFC37 enabled, the account will be added to the blocklist and frozen
+ * If the mint does not have SRFC37 enabled, the account will only be frozen
+ *
+ * @param rpc - The Solana RPC client instance
+ * @param mint - The mint address
+ * @param account - The account address to add to the blocklist
+ * @param authority - The authority signer
+ */
 export const getAddToBlocklistInstructions = async (
   rpc: Rpc<SolanaRpcApi>,
   mint: Address,
@@ -39,6 +59,27 @@ export const getAddToBlocklistInstructions = async (
   );
   const accountSigner =
     typeof authority === 'string' ? createNoopSigner(authority) : authority;
+
+  const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
+  const enableSrfc37 =
+    freezeAuthority === EBALTS_PROGRAM_ID &&
+    isDefaultAccountStateSetFrozen(extensions);
+
+  if (!enableSrfc37) {
+    return [
+      getFreezeAccountInstruction(
+        {
+          account: tokenAccount,
+          mint,
+          owner: accountSigner,
+        },
+        {
+          programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+        }
+      ),
+    ];
+  }
+
   const listConfigPda = await findListConfigPda(
     {
       authority: accountSigner.address,
@@ -101,6 +142,26 @@ export const getRemoveFromBlocklistInstructions = async (
   const accountSigner =
     typeof authority === 'string' ? createNoopSigner(authority) : authority;
 
+  const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
+  const enableSrfc37 =
+    freezeAuthority === EBALTS_PROGRAM_ID &&
+    isDefaultAccountStateSetFrozen(extensions);
+
+  if (!enableSrfc37) {
+    return [
+      getThawAccountInstruction(
+        {
+          account: destinationAta,
+          mint,
+          owner: accountSigner,
+        },
+        {
+          programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+        }
+      ),
+    ];
+  }
+
   const listConfigPda = await findListConfigPda(
     {
       authority: accountSigner.address,
@@ -119,7 +180,8 @@ export const getRemoveFromBlocklistInstructions = async (
   });
   instructions.push(...removeFromBlocklistInstructions);
 
-  if (isInitialized && isFrozen) {
+  const useSrfc37 = enableSrfc37 ?? false;
+  if (isInitialized && isFrozen && useSrfc37) {
     // TODO: this should unfreeze all accounts owned by the wallet
     const thawInstructions = await getThawPermissionlessInstructions({
       authority: accountSigner,

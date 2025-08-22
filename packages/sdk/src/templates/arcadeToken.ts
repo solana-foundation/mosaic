@@ -51,7 +51,8 @@ export const createArcadeTokenInitTransaction = async (
   metadataAuthority?: Address,
   pausableAuthority?: Address,
   confidentialBalancesAuthority?: Address,
-  permanentDelegateAuthority?: Address
+  permanentDelegateAuthority?: Address,
+  enableSrfc37?: boolean
 ): Promise<
   FullTransaction<
     TransactionVersion,
@@ -62,6 +63,7 @@ export const createArcadeTokenInitTransaction = async (
   const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
   const feePayerSigner =
     typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
+  const useSrfc37 = enableSrfc37 ?? false;
   const instructions = await new Token()
     .withMetadata({
       mintAddress: mintSigner.address,
@@ -75,7 +77,7 @@ export const createArcadeTokenInitTransaction = async (
       additionalMetadata: new Map(),
     })
     .withPausable(pausableAuthority || mintAuthority)
-    .withDefaultAccountState(false)
+    .withDefaultAccountState(!useSrfc37)
     .withPermanentDelegate(permanentDelegateAuthority || mintAuthority)
     .buildInstructions({
       rpc,
@@ -85,8 +87,8 @@ export const createArcadeTokenInitTransaction = async (
       feePayer: feePayerSigner,
     });
 
-  // 2. create mintConfig (ebalts)
-  if (mintAuthority !== feePayerSigner.address) {
+  // 2. create mintConfig (ebalts) - only if SRFC-37 is enabled
+  if (mintAuthority !== feePayerSigner.address || !useSrfc37) {
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
