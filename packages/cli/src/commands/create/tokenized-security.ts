@@ -29,6 +29,7 @@ interface TokenizedSecuritiesOptions {
   permanentDelegateAuthority?: string;
   multiplier?: string; // scaled UI amount multiplier
   scaledUiAmountAuthority?: string;
+  enableSrfc37?: boolean;
   mintKeypair?: string;
   rpcUrl?: string;
   keypair?: string;
@@ -75,6 +76,11 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
   .option(
     '--scaled-ui-amount-authority <address>',
     'Scaled UI amount authority address (defaults to mint authority)'
+  )
+  .option(
+    '--enable-srfc37 <boolean>',
+    'Enable SRFC-37 (defaults to false)',
+    false
   )
   .showHelpAfterError()
   .configureHelp({
@@ -145,6 +151,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             authority: scaledUiAmountAuthority,
             multiplier,
           },
+          enableSrfc37: options.enableSrfc37,
         }
       );
 
@@ -203,13 +210,25 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
         console.log(`${chalk.bold('Metadata URI:')} ${options.uri}`);
       }
 
-      console.log(chalk.cyan('🔑 Blocklist Initialized:'));
-      console.log(
-        `   ${chalk.green('✓')} Blocklist Address: ${listConfigPda[0]}`
-      );
-      console.log(
-        `   ${chalk.green('✓')} EBALTS mint config Address: ${mintConfigPda[0]}`
-      );
+      const isAllowlist = options.aclMode === 'allowlist';
+      const mode = isAllowlist ? 'Allowlist' : 'Blocklist';
+
+      if (options.enableSrfc37) {
+        console.log(chalk.cyan(`🔑 ${mode} Initialized via SRFC-37:`));
+        console.log(
+          `   ${chalk.green('✓')} ${mode} Address: ${listConfigPda[0]}`
+        );
+        console.log(
+          `   ${chalk.green('✓')} SRFC-37 ${mode.toLowerCase()} mint config Address: ${mintConfigPda[0]}`
+        );
+      } else {
+        console.log(chalk.cyan(`🔑 ${mode} Initialized:`));
+        console.log(
+          isAllowlist
+            ? 'Allowlist managed via manual thawing of addresses'
+            : 'Blocklist managed via manual feezing of addresses'
+        );
+      }
     } catch (error) {
       spinner.fail('Failed to create tokenized security');
       if (error && typeof error === 'object' && 'context' in error) {

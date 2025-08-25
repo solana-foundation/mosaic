@@ -24,6 +24,7 @@ export function ArcadeTokenCreateForm({
       symbol: '',
       decimals: '6',
       uri: '',
+      enableSrfc37: false,
       mintAuthority: '',
       metadataAuthority: '',
       pausableAuthority: '',
@@ -80,6 +81,7 @@ export function ArcadeTokenCreateForm({
           details: {
             ...arcadeTokenOptions,
             decimals: parseInt(arcadeTokenOptions.decimals),
+            enableSrfc37: arcadeTokenOptions.enableSrfc37 || false,
             mintAuthority: arcadeTokenOptions.mintAuthority || defaultAuthority,
             metadataAuthority:
               arcadeTokenOptions.metadataAuthority || defaultAuthority,
@@ -118,6 +120,7 @@ export function ArcadeTokenCreateForm({
       symbol: '',
       decimals: '6',
       uri: '',
+      enableSrfc37: false,
       mintAuthority: '',
       metadataAuthority: '',
       pausableAuthority: '',

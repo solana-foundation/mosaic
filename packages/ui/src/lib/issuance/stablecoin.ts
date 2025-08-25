@@ -47,6 +47,9 @@ export const createStablecoin = async (
 }> => {
   try {
     const decimals = validateStablecoinOptions(options);
+    const enableSrfc37 =
+      (options.enableSrfc37 as unknown) === true ||
+      (options.enableSrfc37 as unknown) === 'true';
 
     // Get wallet public key
     const walletPublicKey = signer.address;
@@ -88,7 +91,8 @@ export const createStablecoin = async (
       metadataAuthority,
       pausableAuthority,
       confidentialBalancesAuthority,
-      permanentDelegateAuthority
+      permanentDelegateAuthority,
+      enableSrfc37
     );
 
     // Sign the transaction

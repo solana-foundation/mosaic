@@ -35,8 +35,8 @@ import { Mode } from '@mosaic/abl';
  * @param feePayer - The address that will pay the transaction fees.
  * @param metadataAuthority - The address with authority over the metadata.
  * @param pausableAuthority - The address with authority over the pausable functionality.
- * @param confidentialBalancesAuthority - The address with authority over the confidential balances extension.
  * @param permanentDelegateAuthority - The address with authority over the permanent delegate.
+ * @param enableSrfc37 - Whether to enable SRFC-37.
  * @returns A promise that resolves to a FullTransaction object for initializing the arcade token mint.
  */
 export const createArcadeTokenInitTransaction = async (
@@ -50,7 +50,6 @@ export const createArcadeTokenInitTransaction = async (
   feePayer: Address | TransactionSigner<string>,
   metadataAuthority?: Address,
   pausableAuthority?: Address,
-  confidentialBalancesAuthority?: Address,
   permanentDelegateAuthority?: Address,
   enableSrfc37?: boolean
 ): Promise<
