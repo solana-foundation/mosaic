@@ -22,7 +22,7 @@ export default function DocsWebsitePage() {
         <li>Arcade Token: metadata, pausable, permanent delegate, allowlist</li>
         <li>Tokenized Security: stablecoin set + scaled UI amount</li>
         <li>ACL mode: choose allowlist (closed-loop) or blocklist</li>
-        <li>Single-signer side-effects: EBALTS + ABL set up automatically</li>
+        <li>Single-signer side-effects: Token ACL + ABL set up automatically</li>
       </ul>
       <h2>Clusters and RPC</h2>
       <p>

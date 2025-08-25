@@ -98,7 +98,7 @@ This monorepo contains the following packages:
 - **[@mosaic/cli](packages/cli/)** - Command-line interface for token creation and management
 - **[@mosaic/ui](packages/ui/)** - UI for a full featured tokenization engine for token management with wallet integration and sRFC-37 administration
 - **[@mosaic/abl](packages/abl/)** - Allowlist/Blocklist implementation for sRFC-37 compliance
-- **[@mosaic/ebalts](packages/ebalts/)** - Efficient Block/Allow List Token Standard (sRFC-37) for advanced blocklist / allowlist functionality
+- **[@mosaic/ebalts](packages/ebalts/)** - Token ACL (sRFC-37). This standard provides management of access control lists for Solana Tokens.
 - **[@mosaic/tlv-account-resolution](packages/tlv-account-resolution/)** - TLV account resolution utilities
 
 ## Token Templates
@@ -207,7 +207,7 @@ The project implements a layered architecture:
 - **Allowlists**: Restrict token operations to approved addresses
 - **Blocklists**: Block specific addresses from token operations
 
-### Efficient Block/Allow List Token Standard (EBALTS / sRFC-37)
+### Token ACL (sRFC-37)
 
 - **Freeze/Thaw**: Access to underlying freeze functionality in Token-2022
 - **Permissionless Operations**: Permissionless freeze / thaw for enhanced onboarding UX

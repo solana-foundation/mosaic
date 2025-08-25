@@ -1,19 +1,19 @@
 # @mosaic/ebalts
 
-Enhanced Balance and Transfer Security (EBALTS) package for advanced Token-2022 freeze/thaw functionality with programmable access control.
+Token ACL (Access Control Lists for Solana Tokens). This standard provides management of access control lists for Solana Tokens, enabling advanced Token-2022 freeze/thaw functionality with programmable access control.
 
 ## Overview
 
-EBALTS provides enhanced balance and transfer security features for Token-2022 tokens, enabling sophisticated freeze/thaw mechanisms with programmable gating through external programs. This package is essential for implementing complex access control patterns that go beyond simple authority-based freezing.
+Token ACL provides enhanced balance and transfer security features for Token-2022 tokens, enabling sophisticated freeze/thaw mechanisms with programmable gating through external programs. This package is essential for implementing complex access control patterns that go beyond simple authority-based freezing.
 
 ## Features
 
-- = **Enhanced Freeze Control**: Advanced freeze/thaw mechanisms beyond standard Token-2022
-- <� **Programmable Gating**: Integration with external programs for dynamic access control
-- = **Permissionless Operations**: Allow certain operations without explicit authority signatures
-- =� **Security Extensions**: Additional security layers for token operations
-- =� **Mint Configuration**: Flexible configuration per token mint
-- =' **Authority Management**: Granular authority control for different operations
+- **Enhanced Freeze Control**: Advanced freeze/thaw mechanisms beyond standard Token-2022
+- **Programmable Gating**: Integration with external programs for dynamic access control
+- **Permissionless Operations**: Allow certain operations without explicit authority signatures
+- **Security Extensions**: Additional security layers for token operations
+- **Mint Configuration**: Flexible configuration per token mint
+- **Authority Management**: Granular authority control for different operations
 
 ## Installation
 
@@ -35,7 +35,7 @@ import {
 } from '@mosaic/ebalts';
 import { generateKeyPairSigner } from '@solana/kit';
 
-// Create EBALTS configuration for a mint
+// Create Token ACL configuration for a mint
 const authority = await generateKeyPairSigner();
 const mint = 'YourMintAddress...';
 
@@ -58,7 +58,7 @@ const setGatingInstruction = await getSetGatingProgramInstructionAsync({
 
 ### Mint Configuration
 
-Each token mint can have an EBALTS configuration that defines:
+Each token mint can have a Token ACL configuration that defines:
 
 - **Freeze Authority**: Who can freeze/thaw accounts
 - **Gating Program**: External program that validates operations
@@ -78,7 +78,7 @@ type MintConfig = {
 
 ### Gating Programs
 
-EBALTS integrates with external programs to provide dynamic access control:
+Token ACL integrates with external programs to provide dynamic access control:
 
 - **ABL Integration**: Use address-based lists for allowlist/blocklist functionality
 - **Custom Programs**: Implement custom logic for access control
@@ -90,7 +90,7 @@ EBALTS integrates with external programs to provide dynamic access control:
 
 #### `getCreateConfigInstructionAsync()`
 
-Create an EBALTS configuration for a mint.
+Create a Token ACL configuration for a mint.
 
 ```typescript
 const instruction = await getCreateConfigInstructionAsync({
@@ -114,7 +114,7 @@ const instruction = await getSetGatingProgramInstructionAsync({
 
 #### `getSetAuthorityInstructionAsync()`
 
-Transfer authority for the EBALTS configuration.
+Transfer authority for the Token ACL configuration.
 
 ```typescript
 const instruction = await getSetAuthorityInstructionAsync({
@@ -128,7 +128,7 @@ const instruction = await getSetAuthorityInstructionAsync({
 
 #### `getFreezeInstructionAsync()`
 
-Freeze a token account using EBALTS authority.
+Freeze a token account using Token ACL authority.
 
 ```typescript
 const instruction = await getFreezeInstructionAsync({
@@ -142,14 +142,14 @@ const instruction = await getFreezeInstructionAsync({
 
 #### `getThawInstructionAsync()`
 
-Thaw a frozen token account using EBALTS authority.
+Thaw a frozen token account using Token ACL authority.
 
 ```typescript
 const instruction = await getThawInstructionAsync({
   authority: TransactionSigner, // Thaw authority
   tokenAccount: Address, // Account to thaw
   mint: Address, // Token mint
-  mintConfig: Address, // EBALTS configuration
+  mintConfig: Address, // Token ACL configuration
   tokenAccountOwner: Address, // Owner of the token account
 });
 ```
@@ -165,7 +165,7 @@ const instruction = await getFreezePermissionlessInstructionAsync({
   authority: Address, // Authority address (no signature required)
   tokenAccount: Address, // Account to freeze
   mint: Address, // Token mint
-  mintConfig: Address, // EBALTS configuration
+  mintConfig: Address, // Token ACL configuration
   tokenAccountOwner: Address, // Owner of the token account
   gatingProgram: Address, // Gating program address
 });
@@ -180,7 +180,7 @@ const instruction = await getThawPermissionlessInstructionAsync({
   authority: Address, // Authority address (no signature required)
   tokenAccount: Address, // Account to thaw
   mint: Address, // Token mint
-  mintConfig: Address, // EBALTS configuration
+  mintConfig: Address, // Token ACL configuration
   tokenAccountOwner: Address, // Owner of the token account
   gatingProgram: Address, // Gating program address
 });
@@ -238,7 +238,7 @@ import {
   getSetGatingProgramInstructionAsync,
 } from '@mosaic/ebalts';
 
-// Setup EBALTS with ABL integration
+// Setup Token ACL with ABL integration
 const instructions = [
   // Create EBALTS config
   await getCreateConfigInstructionAsync({
@@ -267,7 +267,7 @@ const instructions = [
 ### Gaming Token Example
 
 ```typescript
-// Configure EBALTS for an arcade token
+// Configure Token ACL for an arcade token
 const setupInstructions = [
   // Create configuration
   await getCreateConfigInstructionAsync({
@@ -321,7 +321,7 @@ src/
 
 Common errors and their meanings:
 
-- **MintConfigNotFound**: EBALTS configuration doesn't exist for the mint
+- **MintConfigNotFound**: Token ACL configuration doesn't exist for the mint
 - **InvalidAuthority**: Provided authority doesn't match configuration
 - **GatingProgramRejection**: External gating program rejected the operation
 - **PermissionlessDisabled**: Attempting permissionless operation when disabled

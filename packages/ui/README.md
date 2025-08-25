@@ -39,7 +39,7 @@ By default the app uses Devnet. Cluster is selectable in-app via `ChainContextPr
 
 Notes:
 
-- If fee payer equals mint authority, the app also sets up EBALTS config, gating program, ABL list, extra metas, and enables permissionless thaw.
+- If fee payer equals mint authority, the app also sets up Token ACL config, gating program, ABL list, extra metas, and enables permissionless thaw.
 - Token entries are persisted in local storage (`TokenStorage`).
 
 ## Architecture
@@ -93,7 +93,7 @@ pnpm start
 
 - Ensure the connected wallet has SOL for fees on the selected cluster
 - If a transfer destination ATA doesn’t exist, the app will create it idempotently
-- Permissionless thaw requires EBALTS config and ABL list correctly set on the mint
+- Permissionless thaw requires Token ACL config and ABL list correctly set on the mint
 
 ## Tech stack
 

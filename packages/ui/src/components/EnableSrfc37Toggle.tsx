@@ -17,7 +17,7 @@ export function EnableSrfc37Toggle({
         />
         <span>
           <span className="font-medium">
-            Enable advanced allowlist/blocklist (EBALTS)
+            Enable advanced allowlist/blocklist (Token ACL)
           </span>
           <span className="block text-xs text-muted-foreground">
             Beta: under active development. Behavior may change; use on devnet

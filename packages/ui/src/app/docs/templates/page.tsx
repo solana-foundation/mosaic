@@ -22,7 +22,7 @@ export default function DocsTemplatesPage() {
       <p>
         Mosaic provides three templates that compose Token-2022 extensions for
         common use-cases. New token accounts start frozen and are thawed
-        according to your access-control rules (sRFC-37 EBALTS + standard
+        according to your access-control rules (sRFC-37 Token ACL + standard
         allow/block list program).
       </p>
 
@@ -31,8 +31,8 @@ export default function DocsTemplatesPage() {
       <h2 className="mt-10">Single-signer side-effects</h2>
       <p>
         If the fee payer equals the mint authority, creation flows also set up
-        EBALTS config, set the gating program to ABL, create the ABL list, set
-        extra metas on the mint, and enable permissionless thaw.
+        Token ACL config, set the gating program to ABL, create the ABL list,
+        set extra metas on the mint, and enable permissionless thaw.
       </p>
     </div>
   );

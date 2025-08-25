@@ -7,7 +7,7 @@ CLI for building and operating Token-2022 mints with modern extensions on Solana
 - **Templates**: Create Stablecoin, Arcade Token, and Tokenized Security mints
 - **Operations**: Mint, transfer, force-transfer (permanent delegate), inspect mints
 - **Access control**: Manage allowlists/blocklists
-- **EBALTS**: Create config, set gating program, enable permissionless thaw, thaw/freeze
+- **Token ACL**: Create config, set gating program, enable permissionless thaw, thaw/freeze
 
 ## Installation
 
@@ -46,10 +46,10 @@ mosaic mint \
 
 If your signer (fee payer) is also the mint authority, the create commands will additionally:
 
-- create EBALTS config and set gating program to the ABL program
-- create an ABL list (allowlist for Arcade, blocklist for Stablecoin and configurable for Tokenized Security)
+- create Token ACL config and set gating program to the ABL program
+- create an ABL list (allowlist for Arcade, configurable for Stablecoin and Tokenized Security)
 - set ABL extra metas on the mint
-- enable EBALTS permissionless thaw
+- enable Token ACL permissionless thaw
 
 ## Command reference
 
@@ -149,10 +149,10 @@ mosaic blocklist add --mint-address <mint> --account <wallet>
 mosaic blocklist remove --mint-address <mint> --account <wallet>
 ```
 
-### EBALTS (Efficient Block/Allow List Token Standard)
+### Token ACL (Access Control Lists for Solana Tokens)
 
 ```bash
-# Create EBALTS config for a mint (supply gating program; use ABL program for ABL gating)
+# Create Token ACL config for a mint (supply gating program; use ABL program for ABL gating)
 mosaic ebalts create --mint <mint> [--gating-program <address>]
 
 # Set/Update the gating program
