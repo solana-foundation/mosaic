@@ -27,7 +27,7 @@
       "@mosaic/tlv-account-resolution": [
         "./packages/tlv-account-resolution/src"
       ],
-      "@mosaic/ebalts": ["./packages/ebalts/src"],
+      "@mosaic/token-acl": ["./packages/token-acl/src"],
       "@mosaic/cli": ["./packages/cli/src"],
       "@mosaic/ui": ["./packages/ui/src"],
       "@mosaic/abl": ["./packages/abl/src"]

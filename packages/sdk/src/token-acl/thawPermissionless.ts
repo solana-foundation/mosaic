@@ -15,8 +15,8 @@ import {
 import {
   createThawPermissionlessInstructionWithExtraMetas,
   findMintConfigPda,
-} from '@mosaic/ebalts';
-import { EBALTS_PROGRAM_ID } from './utils';
+} from '../../../token-acl/src';
+import { TOKEN_ACL_PROGRAM_ID } from './utils';
 import {
   getTokenEncoder,
   AccountState,
@@ -48,7 +48,7 @@ export const getThawPermissionlessInstructions = async (input: {
 }): Promise<Instruction<string>[]> => {
   const mintConfigPda = await findMintConfigPda(
     { mint: input.mint },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
 
   const thawPermissionlessInstruction =
@@ -58,7 +58,7 @@ export const getThawPermissionlessInstructions = async (input: {
       input.mint,
       mintConfigPda[0],
       input.tokenAccountOwner,
-      EBALTS_PROGRAM_ID,
+      TOKEN_ACL_PROGRAM_ID,
       async (address: Address) => {
         const data = getTokenEncoder().encode({
           amount: 0,

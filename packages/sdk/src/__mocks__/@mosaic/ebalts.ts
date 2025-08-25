@@ -1,7 +1,7 @@
 import type {
   SetGatingProgramInstruction,
   TogglePermissionlessInstructionsInstruction,
-} from '@mosaic/ebalts';
+} from '@mosaic/token-acl';
 import { AccountRole, type Address, type TransactionSigner } from 'gill';
 
 export async function findMintConfigPda(): Promise<[string, string]> {
@@ -21,15 +21,15 @@ export async function findFreezeExtraMetasAccountPda(): Promise<
   return ['FreezeExtraMock11111111111111111111111111111', 'bump'];
 }
 
-// EBALTS program address (matches utils.ts)
-const EBALTS_PROGRAM_ID = '81H44JYqk1p8RUks7pNJjhQG4Pj8FcaJeTUxZKN3JfLc';
+// Token ACL program address (matches utils.ts)
+const TOKEN_ACL_PROGRAM_ID = '81H44JYqk1p8RUks7pNJjhQG4Pj8FcaJeTUxZKN3JfLc';
 
 export function getFreezeInstruction(
   _args: any,
   ctx: { programAddress: string }
 ) {
   return {
-    programAddress: ctx.programAddress ?? EBALTS_PROGRAM_ID,
+    programAddress: ctx.programAddress ?? TOKEN_ACL_PROGRAM_ID,
     accounts: [],
     data: new Uint8Array([10]),
   };

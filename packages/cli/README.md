@@ -153,19 +153,19 @@ mosaic blocklist remove --mint-address <mint> --account <wallet>
 
 ```bash
 # Create Token ACL config for a mint (supply gating program; use ABL program for ABL gating)
-mosaic ebalts create --mint <mint> [--gating-program <address>]
+mosaic token-acl create --mint <mint> [--gating-program <address>]
 
 # Set/Update the gating program
-mosaic ebalts set-gating-program --mint <mint> --gating-program <address>
+mosaic token-acl set-gating-program --mint <mint> --gating-program <address>
 
 # Enable permissionless thaw on a mint
-mosaic ebalts enable-permissionless-thaw --mint <mint>
+mosaic token-acl enable-permissionless-thaw --mint <mint>
 
 # Thaw a frozen token account (authority required)
-mosaic ebalts thaw --token-account <ata>
+mosaic token-acl thaw --token-account <ata>
 
 # Permissionless thaw for your own ATA (if enabled)
-mosaic ebalts thaw-permissionless --mint <mint>
+mosaic token-acl thaw-permissionless --mint <mint>
 ```
 
 ## Configuration and keys
@@ -191,7 +191,7 @@ mosaic create arcade-token \
 mosaic allowlist add --mint-address <MINT> --account <WALLET>
 
 # Enable permissionless thaw for a mint
-mosaic ebalts enable-permissionless-thaw --mint <MINT>
+mosaic token-acl enable-permissionless-thaw --mint <MINT>
 ```
 
 ## Development

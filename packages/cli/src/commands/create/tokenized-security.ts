@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import {
   ABL_PROGRAM_ID,
-  EBALTS_PROGRAM_ID,
+  TOKEN_ACL_PROGRAM_ID,
   createTokenizedSecurityInitTransaction,
 } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
@@ -14,7 +14,7 @@ import {
   type Address,
 } from 'gill';
 import { findListConfigPda } from '@mosaic/abl';
-import { findMintConfigPda } from '@mosaic/ebalts';
+import { findMintConfigPda } from '@mosaic/token-acl';
 
 interface TokenizedSecuritiesOptions {
   name: string;
@@ -170,7 +170,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
       );
       const mintConfigPda = await findMintConfigPda(
         { mint: mintKeypair.address },
-        { programAddress: EBALTS_PROGRAM_ID }
+        { programAddress: TOKEN_ACL_PROGRAM_ID }
       );
 
       console.log(chalk.green('✅ Tokenized Security Creation Successful'));

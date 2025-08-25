@@ -13,8 +13,8 @@ import {
 import {
   findMintConfigPda,
   getSetGatingProgramInstruction,
-} from '@mosaic/ebalts';
-import { EBALTS_PROGRAM_ID } from './utils';
+} from '../../../token-acl/src';
+import { TOKEN_ACL_PROGRAM_ID } from './utils';
 
 /**
  * Generates instructions for setting or updating the gating program for a mint.
@@ -36,7 +36,7 @@ export const getSetGatingProgramInstructions = async (input: {
 }): Promise<Instruction<string>[]> => {
   const mintConfigPda = await findMintConfigPda(
     { mint: input.mint },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
   const gatingProgram = (input.gatingProgram ||
     '11111111111111111111111111111111') as Address;
@@ -47,7 +47,7 @@ export const getSetGatingProgramInstructions = async (input: {
       mintConfig: mintConfigPda[0],
       newGatingProgram: gatingProgram,
     },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
 
   return [setGatingProgramInstruction];

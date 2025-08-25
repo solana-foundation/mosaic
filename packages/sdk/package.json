@@ -28,7 +28,7 @@
   "dependencies": {
     "gill": "^0.10.2",
     "@mosaic/tlv-account-resolution": "workspace:*",
-    "@mosaic/ebalts": "workspace:*",
+    "@mosaic/token-acl": "workspace:*",
     "@mosaic/abl": "workspace:*"
   },
   "devDependencies": {

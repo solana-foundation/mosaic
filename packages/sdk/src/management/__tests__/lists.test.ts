@@ -1,7 +1,7 @@
 import type { Address, Rpc, SolanaRpcApi } from 'gill';
 import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
 import { TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
-import { EBALTS_PROGRAM_ID } from '../../ebalts';
+import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
 import { ABL_PROGRAM_ID } from '../../abl/utils';
 import { seedTokenAccount } from '../../__tests__/test-utils';
 
@@ -25,7 +25,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
       }),
       getMintDetails: jest.fn().mockResolvedValue({
         decimals: 6,
-        freezeAuthority: 'NotEbalts11111111111111111111111111111111',
+        freezeAuthority: 'NotTokenACL111111111111111111111111111111',
         extensions: [],
       }),
       isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
@@ -50,7 +50,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
       }),
       getMintDetails: jest.fn().mockResolvedValue({
         decimals: 6,
-        freezeAuthority: 'NotEbalts11111111111111111111111111111111',
+        freezeAuthority: 'NotTokenACL111111111111111111111111111111',
         extensions: [],
       }),
       isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
@@ -91,7 +91,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
       }),
       getMintDetails: jest.fn().mockResolvedValue({
         decimals: 6,
-        freezeAuthority: EBALTS_PROGRAM_ID,
+        freezeAuthority: TOKEN_ACL_PROGRAM_ID,
         extensions: [{ __kind: 'DefaultAccountState', state: 'frozen' }],
       }),
       isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
@@ -106,7 +106,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
     // 1 for add to blocklist, 1 for freeze
     expect(ix).toHaveLength(2);
     expect(ix[0].programAddress).toBe(ABL_PROGRAM_ID);
-    expect(ix[1].programAddress).toBe(EBALTS_PROGRAM_ID);
+    expect(ix[1].programAddress).toBe(TOKEN_ACL_PROGRAM_ID);
   });
 
   test('allowlist add returns thaw instruction and add to allowlist when SRFC-37 is enabled', async () => {
@@ -131,7 +131,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
       }),
       getMintDetails: jest.fn().mockResolvedValue({
         decimals: 6,
-        freezeAuthority: EBALTS_PROGRAM_ID,
+        freezeAuthority: TOKEN_ACL_PROGRAM_ID,
         extensions: [{ __kind: 'DefaultAccountState', state: 'frozen' }],
       }),
       isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
@@ -146,6 +146,6 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
     // 1 for add to allowlist, 1 for thaw permissionless
     expect(ix).toHaveLength(2);
     expect(ix[0].programAddress).toBe(ABL_PROGRAM_ID);
-    expect(ix[1].programAddress).toBe(EBALTS_PROGRAM_ID);
+    expect(ix[1].programAddress).toBe(TOKEN_ACL_PROGRAM_ID);
   });
 });

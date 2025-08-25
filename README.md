@@ -98,7 +98,7 @@ This monorepo contains the following packages:
 - **[@mosaic/cli](packages/cli/)** - Command-line interface for token creation and management
 - **[@mosaic/ui](packages/ui/)** - UI for a full featured tokenization engine for token management with wallet integration and sRFC-37 administration
 - **[@mosaic/abl](packages/abl/)** - Allowlist/Blocklist implementation for sRFC-37 compliance
-- **[@mosaic/ebalts](packages/ebalts/)** - Token ACL (sRFC-37). This standard provides management of access control lists for Solana Tokens.
+- **[@mosaic/token-acl](packages/token-acl/)** - Token ACL (sRFC-37). This standard provides management of access control lists for Solana Tokens.
 - **[@mosaic/tlv-account-resolution](packages/tlv-account-resolution/)** - TLV account resolution utilities
 
 ## Token Templates
@@ -174,7 +174,7 @@ pnpm precommit
 
 ```bash
 # Enter a specific package
-cd packages/sdk  # or cli, ui, abl, ebalts, tlv-account-resolution
+cd packages/sdk  # or cli, ui, abl, token-acl, tlv-account-resolution
 
 # Run package-specific commands
 pnpm dev        # Development mode
@@ -187,7 +187,7 @@ pnpm lint       # Lint code
 
 The project implements a layered architecture:
 
-1. **Low-level Packages**: `@mosaic/abl`, `@mosaic/ebalts`, `@mosaic/tlv-account-resolution`
+1. **Low-level Packages**: `@mosaic/abl`, `@mosaic/token-acl`, `@mosaic/tlv-account-resolution`
 2. **Core SDK**: `@mosaic/sdk` integrates all low-level packages
 3. **User Interfaces**: `@mosaic/cli` and `@mosaic/ui` provide different ways to interact with the SDK
 

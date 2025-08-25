@@ -4,7 +4,7 @@ import ora from 'ora';
 import {
   ABL_PROGRAM_ID,
   createArcadeTokenInitTransaction,
-  EBALTS_PROGRAM_ID,
+  TOKEN_ACL_PROGRAM_ID,
 } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
@@ -14,7 +14,7 @@ import {
   type Address,
 } from 'gill';
 import { findListConfigPda } from '@mosaic/abl';
-import { findMintConfigPda } from '@mosaic/ebalts';
+import { findMintConfigPda } from '@mosaic/token-acl';
 
 interface ArcadeTokenOptions {
   name: string;
@@ -148,7 +148,7 @@ export const createArcadeTokenCommand = new Command('arcade-token')
       );
       const mintConfigPda = await findMintConfigPda(
         { mint: mintKeypair.address },
-        { programAddress: EBALTS_PROGRAM_ID }
+        { programAddress: TOKEN_ACL_PROGRAM_ID }
       );
 
       // Display results

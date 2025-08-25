@@ -12,9 +12,9 @@ import type {
 import { createNoopSigner, createTransaction } from 'gill';
 import { Mode } from '@mosaic/abl';
 import { ABL_PROGRAM_ID } from '../abl/utils';
-import { getCreateConfigInstructions } from '../ebalts/createConfig';
-import { getSetGatingProgramInstructions } from '../ebalts/setGatingProgram';
-import { getEnablePermissionlessThawInstructions } from '../ebalts/enablePermissionlessThaw';
+import { getCreateConfigInstructions } from '../token-acl/createConfig';
+import { getSetGatingProgramInstructions } from '../token-acl/setGatingProgram';
+import { getEnablePermissionlessThawInstructions } from '../token-acl/enablePermissionlessThaw';
 import { getCreateListInstructions } from '../abl/list';
 import { getSetExtraMetasInstructions } from '../abl/setExtraMetas';
 
@@ -92,7 +92,7 @@ export const createStablecoinInitTransaction = async (
       feePayer: feePayerSigner,
     });
 
-  // 2. create mintConfig (ebalts) - only if SRFC-37 is enabled
+  // 2. create mintConfig (Token ACL) - only if SRFC-37 is enabled
   if (mintAuthority !== feePayerSigner.address || !useSrfc37) {
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
@@ -112,14 +112,14 @@ export const createStablecoinInitTransaction = async (
       gatingProgram: ABL_PROGRAM_ID,
     });
 
-  // 3. set gating program to ABL (ebalts)
+  // 3. set gating program to ABL (for Token ACL)
   const setGatingProgramInstructions = await getSetGatingProgramInstructions({
     authority: feePayerSigner,
     mint: mintSigner.address,
     gatingProgram: ABL_PROGRAM_ID,
   });
 
-  // 4. enable permissionless thaw (Ebalts)
+  // 4. enable permissionless thaw (Token ACL)
   const enablePermissionlessThawInstructions =
     await getEnablePermissionlessThawInstructions({
       authority: feePayerSigner,

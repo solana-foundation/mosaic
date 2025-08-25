@@ -24,9 +24,9 @@ import {
   getList,
   getRemoveWalletInstructions,
 } from '../abl';
-import { getFreezeInstructions } from '../ebalts/freeze';
-import { getThawPermissionlessInstructions } from '../ebalts/thawPermissionless';
-import { EBALTS_PROGRAM_ID } from '../ebalts';
+import { getFreezeInstructions } from '../token-acl/freeze';
+import { getThawPermissionlessInstructions } from '../token-acl/thawPermissionless';
+import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 
 export const isAblBlocklist = async (
   rpc: Rpc<SolanaRpcApi>,
@@ -62,7 +62,7 @@ export const getAddToBlocklistInstructions = async (
 
   const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
   const enableSrfc37 =
-    freezeAuthority === EBALTS_PROGRAM_ID &&
+    freezeAuthority === TOKEN_ACL_PROGRAM_ID &&
     isDefaultAccountStateSetFrozen(extensions);
 
   if (!enableSrfc37) {
@@ -144,7 +144,7 @@ export const getRemoveFromBlocklistInstructions = async (
 
   const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
   const enableSrfc37 =
-    freezeAuthority === EBALTS_PROGRAM_ID &&
+    freezeAuthority === TOKEN_ACL_PROGRAM_ID &&
     isDefaultAccountStateSetFrozen(extensions);
 
   if (!enableSrfc37) {

@@ -15,15 +15,15 @@ import { getSetExtraMetasThawInstruction } from '@mosaic/abl';
 import {
   findMintConfigPda,
   findThawExtraMetasAccountPda,
-} from '@mosaic/ebalts';
-import { EBALTS_PROGRAM_ID } from '../ebalts';
+} from '../../../token-acl/src';
+import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 
 /**
  * Generates instructions for setting extra metadata thaw configuration for a token.
  *
  * This function creates instructions to configure the extra accounts metadata
  * on a specific mint, effectively assigning a specific allow / block list to a token account.
- * This is used in conjunction with the EBALTS program to permissionlessly thaw token accounts.
+ * This is used in conjunction with the Token ACL program to permissionlessly thaw token accounts.
  *
  * @param input - Configuration parameters for setting extra metadata thaw
  * @param input.authority - The authority signer who can modify the thaw configuration
@@ -38,7 +38,7 @@ export const getSetExtraMetasInstructions = async (input: {
 }): Promise<Instruction<string>[]> => {
   const mintConfigPda = await findMintConfigPda(
     { mint: input.mint },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
   const extraMetasThaw = await findThawExtraMetasAccountPda(
     { mint: input.mint },

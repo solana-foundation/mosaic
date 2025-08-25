@@ -12,9 +12,9 @@ import type {
 import { createNoopSigner, createTransaction } from 'gill';
 import { Mode } from '@mosaic/abl';
 import { ABL_PROGRAM_ID } from '../abl/utils';
-import { getCreateConfigInstructions } from '../ebalts/createConfig';
-import { getSetGatingProgramInstructions } from '../ebalts/setGatingProgram';
-import { getEnablePermissionlessThawInstructions } from '../ebalts/enablePermissionlessThaw';
+import { getCreateConfigInstructions } from '../token-acl/createConfig';
+import { getSetGatingProgramInstructions } from '../token-acl/setGatingProgram';
+import { getEnablePermissionlessThawInstructions } from '../token-acl/enablePermissionlessThaw';
 import { getCreateListInstructions } from '../abl/list';
 import { getSetExtraMetasInstructions } from '../abl/setExtraMetas';
 

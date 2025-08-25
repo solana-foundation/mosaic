@@ -150,7 +150,7 @@ export async function resolveTokenAccount(
     };
   }
 
-  // if the ATA doesn't exist yet, consider it frozen as it will be created through EBALTS
+  // if the ATA doesn't exist yet, consider it frozen as it will be created through Token ACL
   return { tokenAccount: ata, isInitialized: false, isFrozen: true };
 }
 

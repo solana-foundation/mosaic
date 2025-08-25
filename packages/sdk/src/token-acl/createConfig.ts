@@ -10,17 +10,20 @@ import {
   type TransactionVersion,
   type TransactionWithBlockhashLifetime,
 } from 'gill';
-import { findMintConfigPda, getCreateConfigInstruction } from '@mosaic/ebalts';
-import { EBALTS_PROGRAM_ID } from './utils';
+import {
+  findMintConfigPda,
+  getCreateConfigInstruction,
+} from '../../../token-acl/src';
+import { TOKEN_ACL_PROGRAM_ID } from './utils';
 
 /**
- * Generates instructions for creating a new EBALTS mint configuration.
+ * Generates instructions for creating a new Token ACL mint configuration.
  *
  * This function creates the necessary instructions to initialize a mint configuration
- * for the EBALTS program. This configuration enables enhanced balance features like
+ * for the Token ACL program. This configuration enables enhanced balance features like
  * gating programs and permissionless thaw operations for a specific mint.
  *
- * @param input - Configuration parameters for EBALTS mint config creation
+ * @param input - Configuration parameters for Token ACL mint config creation
  * @param input.authority - The authority signer who will control the mint configuration
  * @param input.mint - The mint address for which to create the configuration
  * @param input.gatingProgram - The program address that will gate operations on this mint
@@ -33,7 +36,7 @@ export const getCreateConfigInstructions = async (input: {
 }): Promise<{ instructions: Instruction<string>[]; mintConfig: Address }> => {
   const mintConfigPda = await findMintConfigPda(
     { mint: input.mint },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
 
   const createConfigInstruction = getCreateConfigInstruction(
@@ -44,7 +47,7 @@ export const getCreateConfigInstructions = async (input: {
       mintConfig: mintConfigPda[0],
       gatingProgram: input.gatingProgram,
     },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
 
   return {
@@ -54,10 +57,10 @@ export const getCreateConfigInstructions = async (input: {
 };
 
 /**
- * Creates a complete transaction for initializing a new EBALTS mint configuration.
+ * Creates a complete transaction for initializing a new Token ACL mint configuration.
  *
  * This function builds a full transaction that can be signed and sent to create
- * an EBALTS mint configuration. The transaction includes the necessary instructions
+ * an Token ACL mint configuration. The transaction includes the necessary instructions
  * and uses the latest blockhash for proper transaction construction.
  *
  * @param input - Configuration parameters for the transaction

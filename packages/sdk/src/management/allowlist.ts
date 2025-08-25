@@ -20,9 +20,9 @@ import {
   getRemoveWalletInstructions,
 } from '../abl';
 import { findListConfigPda, Mode } from '@mosaic/abl';
-import { getFreezeInstructions } from '../ebalts/freeze';
-import { getThawPermissionlessInstructions } from '../ebalts/thawPermissionless';
-import { EBALTS_PROGRAM_ID } from '../ebalts';
+import { getFreezeInstructions } from '../token-acl/freeze';
+import { getThawPermissionlessInstructions } from '../token-acl/thawPermissionless';
+import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 import {
   getFreezeAccountInstruction,
   getThawAccountInstruction,
@@ -52,7 +52,7 @@ export const getAddToAllowlistInstructions = async (
     typeof authority === 'string' ? createNoopSigner(authority) : authority;
   const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
   const enableSrfc37 =
-    freezeAuthority === EBALTS_PROGRAM_ID &&
+    freezeAuthority === TOKEN_ACL_PROGRAM_ID &&
     isDefaultAccountStateSetFrozen(extensions);
 
   if (!enableSrfc37) {
@@ -134,7 +134,7 @@ export const getRemoveFromAllowlistInstructions = async (
 
   const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
   const enableSrfc37 =
-    freezeAuthority === EBALTS_PROGRAM_ID &&
+    freezeAuthority === TOKEN_ACL_PROGRAM_ID &&
     isDefaultAccountStateSetFrozen(extensions);
 
   if (!enableSrfc37) {
