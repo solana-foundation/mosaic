@@ -34,7 +34,6 @@ describe('templates enableSrfc37 option', () => {
       undefined,
       undefined,
       undefined,
-      undefined,
       false
     );
 
@@ -90,7 +89,6 @@ describe('templates enableSrfc37 option', () => {
       mintAuthority,
       mint,
       feePayer,
-      undefined,
       undefined,
       undefined,
       undefined,

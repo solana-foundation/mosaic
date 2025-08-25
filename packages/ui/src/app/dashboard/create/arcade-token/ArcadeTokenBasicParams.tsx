@@ -1,3 +1,4 @@
+import { EnableSrfc37Toggle } from '@/components/EnableSrfc37Toggle';
 import {
   Card,
   CardContent,
@@ -78,6 +79,11 @@ export function ArcadeTokenBasicParams({
             />
           </div>
         </div>
+
+        <EnableSrfc37Toggle
+          enabled={options.enableSrfc37}
+          setEnabled={value => onInputChange('enableSrfc37', value)}
+        />
       </CardContent>
     </Card>
   );

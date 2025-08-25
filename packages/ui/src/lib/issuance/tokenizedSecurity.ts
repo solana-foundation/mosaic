@@ -35,6 +35,9 @@ export const createTokenizedSecurity = async (
 ): Promise<TokenizedSecurityCreationResult> => {
   try {
     const decimals = validateOptions(options);
+    const enableSrfc37 =
+      (options.enableSrfc37 as unknown) === true ||
+      (options.enableSrfc37 as unknown) === 'true';
 
     // Get wallet public key
     const walletPublicKey = signer.address;
@@ -77,6 +80,7 @@ export const createTokenizedSecurity = async (
       signer,
       {
         aclMode: options.aclMode || 'blocklist',
+        enableSrfc37,
         metadataAuthority,
         pausableAuthority,
         confidentialBalancesAuthority,

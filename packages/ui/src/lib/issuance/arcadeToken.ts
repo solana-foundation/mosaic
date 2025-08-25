@@ -7,7 +7,7 @@ import {
   signAndSendTransactionMessageWithSigners,
   TransactionSendingSigner,
 } from 'gill';
-import { ArcadeTokenOptions, ArcadeTokenCreationResult } from '@/types/token';
+import { ArcadeTokenOptions } from '@/types/token';
 import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
 import bs58 from 'bs58';
 
@@ -47,6 +47,9 @@ export const createArcadeToken = async (
 }> => {
   try {
     const decimals = validateArcadeTokenOptions(options);
+    const enableSrfc37 =
+      (options.enableSrfc37 as unknown) === true ||
+      (options.enableSrfc37 as unknown) === 'true';
 
     // Get wallet public key
     const walletPublicKey = signer.address;
@@ -84,7 +87,8 @@ export const createArcadeToken = async (
       signer,
       metadataAuthority,
       pausableAuthority,
-      permanentDelegateAuthority
+      permanentDelegateAuthority,
+      enableSrfc37
     );
 
     // Sign the transaction
@@ -95,87 +99,6 @@ export const createArcadeToken = async (
       success: true,
       transactionSignature: bs58.encode(signature),
       mintAddress: mintKeypair.address,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
-};
-
-/**
- * Simplified version for UI integration that handles the transaction conversion
- * This version works with the existing UI structure
- */
-export const createArcadeTokenForUI = async (
-  options: ArcadeTokenOptions,
-  wallet: { publicKey: string; connected: boolean }
-): Promise<ArcadeTokenCreationResult> => {
-  try {
-    const decimals = validateArcadeTokenOptions(options);
-
-    if (!wallet.connected || !wallet.publicKey) {
-      throw new Error('Wallet not connected');
-    }
-
-    const signerAddress = wallet.publicKey;
-
-    // Generate mint keypair
-    const mintKeypair = await generateKeyPairSigner();
-
-    // Set authorities (default to signer if not provided)
-    const mintAuthority = (options.mintAuthority || signerAddress) as Address;
-    const metadataAuthority = (options.metadataAuthority ||
-      mintAuthority) as Address;
-    const pausableAuthority = (options.pausableAuthority ||
-      mintAuthority) as Address;
-    const permanentDelegateAuthority = (options.permanentDelegateAuthority ||
-      mintAuthority) as Address;
-
-    // Create RPC client
-    const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
-    const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-
-    // Create arcade token transaction using SDK
-    await createArcadeTokenInitTransaction(
-      rpc,
-      options.name,
-      options.symbol,
-      decimals,
-      options.uri || '',
-      mintAuthority,
-      mintKeypair.address,
-      signerAddress as Address,
-      metadataAuthority,
-      pausableAuthority,
-      permanentDelegateAuthority
-    );
-
-    // For UI version, we'll simulate the transaction signature
-    // In a real implementation, this would use the wallet to sign
-    const mockSignature = bs58.encode(new Uint8Array(64).fill(1));
-
-    // Return success result with all details
-    return {
-      success: true,
-      transactionSignature: mockSignature,
-      mintAddress: mintKeypair.address,
-      details: {
-        name: options.name,
-        symbol: options.symbol,
-        decimals: decimals,
-        mintAuthority: mintAuthority,
-        metadataAuthority: metadataAuthority,
-        pausableAuthority: pausableAuthority,
-        permanentDelegateAuthority: permanentDelegateAuthority,
-        extensions: [
-          'Metadata',
-          'Pausable',
-          'Default Account State (Blocklist)',
-          'Permanent Delegate',
-        ],
-      },
     };
   } catch (error) {
     return {

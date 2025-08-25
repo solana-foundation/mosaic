@@ -24,6 +24,7 @@ export interface StablecoinOptions {
   decimals: string;
   uri?: string;
   aclMode?: 'allowlist' | 'blocklist';
+  enableSrfc37?: boolean;
   mintAuthority?: string;
   metadataAuthority?: string;
   pausableAuthority?: string;
@@ -56,6 +57,7 @@ export interface ArcadeTokenOptions {
   symbol: string;
   decimals: string;
   uri?: string;
+  enableSrfc37?: boolean;
   mintAuthority?: string;
   metadataAuthority?: string;
   pausableAuthority?: string;
@@ -78,6 +80,7 @@ export interface ArcadeTokenCreationResult {
     metadataAuthority: string;
     pausableAuthority: string;
     permanentDelegateAuthority: string;
+    enableSrfc37: boolean;
     extensions: string[];
   };
 }
@@ -88,6 +91,7 @@ export interface TokenizedSecurityOptions {
   decimals: string;
   uri?: string;
   aclMode?: 'allowlist' | 'blocklist';
+  enableSrfc37?: boolean;
   mintAuthority?: string;
   metadataAuthority?: string;
   pausableAuthority?: string;

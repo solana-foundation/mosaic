@@ -24,8 +24,10 @@ interface StablecoinOptions {
   mintAuthority?: string;
   metadataAuthority?: string;
   pausableAuthority?: string;
+  aclMode?: 'allowlist' | 'blocklist';
   confidentialBalancesAuthority?: string;
   permanentDelegateAuthority?: string;
+  enableSrfc37?: boolean;
   mintKeypair?: string;
   rpcUrl?: string;
   keypair?: string;
@@ -37,6 +39,11 @@ export const createStablecoinCommand = new Command('stablecoin')
   .requiredOption('-s, --symbol <symbol>', 'Token symbol')
   .option('-d, --decimals <decimals>', 'Number of decimals', '6')
   .option('-u, --uri <uri>', 'Metadata URI', '')
+  .option(
+    '-a, --acl-mode <aclMode>',
+    'ACL mode (allowlist or blocklist)',
+    'blocklist'
+  )
   .option(
     '--mint-authority <address>',
     'Mint authority address (defaults to signer)'
@@ -60,6 +67,11 @@ export const createStablecoinCommand = new Command('stablecoin')
   .option(
     '--mint-keypair <path>',
     'Path to mint keypair file (generates new one if not provided)'
+  )
+  .option(
+    '--enable-srfc37 <boolean>',
+    'Enable SRFC-37 (defaults to false)',
+    false
   )
   .showHelpAfterError()
   .configureHelp({
@@ -121,11 +133,12 @@ export const createStablecoinCommand = new Command('stablecoin')
         mintAuthority,
         mintKeypair,
         signerKeypair,
-        'blocklist',
+        options.aclMode || 'blocklist',
         metadataAuthority,
         pausableAuthority,
         confidentialBalancesAuthority,
-        permanentDelegateAuthority
+        permanentDelegateAuthority,
+        options.enableSrfc37
       );
 
       spinner.text = 'Signing transaction...';
@@ -186,13 +199,25 @@ export const createStablecoinCommand = new Command('stablecoin')
         console.log(`${chalk.bold('Metadata URI:')} ${options.uri}`);
       }
 
-      console.log(chalk.cyan('🔑 Blocklist Initialized:'));
-      console.log(
-        `   ${chalk.green('✓')} Blocklist Address: ${listConfigPda[0]}`
-      );
-      console.log(
-        `   ${chalk.green('✓')} EBALTS mint config Address: ${mintConfigPda[0]}`
-      );
+      const isAllowlist = options.aclMode === 'allowlist';
+      const mode = isAllowlist ? 'Allowlist' : 'Blocklist';
+
+      if (options.enableSrfc37) {
+        console.log(chalk.cyan(`🔑 ${mode} Initialized via SRFC-37:`));
+        console.log(
+          `   ${chalk.green('✓')} ${mode} Address: ${listConfigPda[0]}`
+        );
+        console.log(
+          `   ${chalk.green('✓')} SRFC-37 ${mode.toLowerCase()} mint config Address: ${mintConfigPda[0]}`
+        );
+      } else {
+        console.log(chalk.cyan(`🔑 ${mode} Initialized:`));
+        console.log(
+          isAllowlist
+            ? 'Allowlist managed via manual thawing of addresses'
+            : 'Blocklist managed via manual feezing of addresses'
+        );
+      }
     } catch (error) {
       spinner.fail('Failed to create stablecoin');
       if (error && typeof error === 'object' && 'context' in error) {

@@ -25,6 +25,7 @@ interface ArcadeTokenOptions {
   metadataAuthority?: string;
   pausableAuthority?: string;
   permanentDelegateAuthority?: string;
+  enableSrfc37?: boolean;
   mintKeypair?: string;
   rpcUrl?: string;
   keypair?: string;
@@ -55,6 +56,11 @@ export const createArcadeTokenCommand = new Command('arcade-token')
   .option(
     '--mint-keypair <path>',
     'Path to mint keypair file (generates new one if not provided)'
+  )
+  .option(
+    '--enable-srfc37 <boolean>',
+    'Enable SRFC-37 (defaults to false)',
+    false
   )
   .showHelpAfterError()
   .configureHelp({
@@ -116,8 +122,8 @@ export const createArcadeTokenCommand = new Command('arcade-token')
         signerKeypair,
         metadataAuthority,
         pausableAuthority,
-        undefined, // Arcade tokens don't use confidential balances
-        permanentDelegateAuthority
+        permanentDelegateAuthority,
+        options.enableSrfc37
       );
 
       spinner.text = 'Signing transaction...';
@@ -181,13 +187,18 @@ export const createArcadeTokenCommand = new Command('arcade-token')
         console.log(`${chalk.bold('Metadata URI:')} ${options.uri}`);
       }
 
-      console.log(chalk.cyan('🔑 Allowlist Initialized:'));
-      console.log(
-        `   ${chalk.green('✓')} Allowlist Address: ${listConfigPda[0]}`
-      );
-      console.log(
-        `   ${chalk.green('✓')} EBALTS mint config Address: ${mintConfigPda[0]}`
-      );
+      if (options.enableSrfc37) {
+        console.log(chalk.cyan(`🔑 Allowlist Initialized via SRFC-37:`));
+        console.log(
+          `   ${chalk.green('✓')} Allowlist Address: ${listConfigPda[0]}`
+        );
+        console.log(
+          `   ${chalk.green('✓')} SRFC-37 Allowlist mint config Address: ${mintConfigPda[0]}`
+        );
+      } else {
+        console.log(chalk.cyan(`🔑 Allowlist Initialized:`));
+        console.log('Allowlist managed via manual thawing of addresses');
+      }
     } catch (error) {
       spinner.fail('Failed to create arcade token');
       console.error(
