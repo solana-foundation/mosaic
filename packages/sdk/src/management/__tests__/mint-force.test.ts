@@ -5,7 +5,7 @@ import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
 describe('non-SRFC-37: mint/force-transfer should not include permissionless thaw', () => {
   let rpc: Rpc<SolanaRpcApi>;
   const mint = 'Mint777777777777777777777777777777777777777' as Address;
-  const wallet = 'Wall77777777777777777777777777777777777777' as Address;
+  const wallet = 'Wall777777777777777777777777777777777777777' as Address;
   const feePayer = createMockSigner('Fee777777777777777777777777777777777777');
   const mintAuthority = createMockSigner(
     'MintAuth77777777777777777777777777777777777'

@@ -15,7 +15,7 @@ import {
 import {
   createThawPermissionlessInstructionWithExtraMetas,
   findMintConfigPda,
-} from '../../../token-acl/src';
+} from '@mosaic/token-acl';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
 import {
   getTokenEncoder,
@@ -60,19 +60,18 @@ export const getThawPermissionlessInstructions = async (input: {
       input.tokenAccountOwner,
       TOKEN_ACL_PROGRAM_ID,
       async (address: Address) => {
-        const data = getTokenEncoder().encode({
-          amount: 0,
-          closeAuthority: null,
-          delegate: null,
-          delegatedAmount: 0,
-          extensions: null,
-          isNative: null,
-          mint: input.mint,
-          owner: input.tokenAccountOwner,
-          state: AccountState.Frozen,
-        });
-
         if (address === input.tokenAccount) {
+          const data = getTokenEncoder().encode({
+            amount: 0,
+            closeAuthority: null,
+            delegate: null,
+            delegatedAmount: 0,
+            extensions: null,
+            isNative: null,
+            mint: input.mint,
+            owner: input.tokenAccountOwner,
+            state: AccountState.Frozen,
+          });
           return {
             exists: true,
             address,

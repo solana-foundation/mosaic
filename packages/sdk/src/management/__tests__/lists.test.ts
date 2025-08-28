@@ -8,7 +8,7 @@ import { seedTokenAccount } from '../../__tests__/test-utils';
 describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
   let rpc: Rpc<SolanaRpcApi>;
   const mint = 'Mint555555555555555555555555555555555555555' as Address;
-  const wallet = 'Wall55555555555555555555555555555555555555' as Address;
+  const wallet = 'Wall555555555555555555555555555555555555555' as Address;
   const authority = createMockSigner('Auth55555555555555555555555555555555555');
 
   beforeEach(() => {
