@@ -13,8 +13,8 @@ import {
 import {
   findMintConfigPda,
   getTogglePermissionlessInstructionsInstruction,
-} from '@mosaic/ebalts';
-import { EBALTS_PROGRAM_ID } from './utils';
+} from '../../../token-acl/src';
+import { TOKEN_ACL_PROGRAM_ID } from './utils';
 
 /**
  * Generates instructions for enabling permissionless thaw operations on a mint.
@@ -35,7 +35,7 @@ export const getEnablePermissionlessThawInstructions = async (input: {
 }): Promise<Instruction<string>[]> => {
   const mintConfigPda = await findMintConfigPda(
     { mint: input.mint },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
 
   const enablePermissionlessThawInstruction =
@@ -46,7 +46,7 @@ export const getEnablePermissionlessThawInstructions = async (input: {
         thawEnabled: true,
         freezeEnabled: false,
       },
-      { programAddress: EBALTS_PROGRAM_ID }
+      { programAddress: TOKEN_ACL_PROGRAM_ID }
     );
 
   return [enablePermissionlessThawInstruction];

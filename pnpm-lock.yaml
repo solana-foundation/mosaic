@@ -66,9 +66,9 @@ importers:
       '@mosaic/abl':
         specifier: workspace:*
         version: link:../abl
-      '@mosaic/ebalts':
+      '@mosaic/token-acl':
         specifier: workspace:*
-        version: link:../ebalts
+        version: link:../token-acl
       '@mosaic/sdk':
         specifier: workspace:*
         version: link:../sdk
@@ -116,7 +116,7 @@ importers:
         specifier: ^5.0.0
         version: 5.8.3
 
-  packages/ebalts:
+  packages/token-acl:
     dependencies:
       '@mosaic/tlv-account-resolution':
         specifier: workspace:*
@@ -155,9 +155,9 @@ importers:
       '@mosaic/abl':
         specifier: workspace:*
         version: link:../abl
-      '@mosaic/ebalts':
+      '@mosaic/token-acl':
         specifier: workspace:*
-        version: link:../ebalts
+        version: link:../token-acl
       '@mosaic/tlv-account-resolution':
         specifier: workspace:*
         version: link:../tlv-account-resolution

@@ -21,9 +21,9 @@ import {
   isDefaultAccountStateSetFrozen,
 } from '../transactionUtil';
 import {
-  EBALTS_PROGRAM_ID,
+  TOKEN_ACL_PROGRAM_ID,
   getThawPermissionlessInstructions,
-} from '../ebalts';
+} from '../token-acl';
 
 /**
  * Creates a transaction to force transfer tokens using the permanent delegate extension.
@@ -66,7 +66,7 @@ export const createForceTransferTransaction = async (
     mint
   );
   const enableSrfc37 =
-    freezeAuthority === EBALTS_PROGRAM_ID &&
+    freezeAuthority === TOKEN_ACL_PROGRAM_ID &&
     isDefaultAccountStateSetFrozen(extensions);
 
   // Convert decimal amount to raw amount

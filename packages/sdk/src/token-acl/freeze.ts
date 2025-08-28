@@ -10,8 +10,11 @@ import {
   type TransactionVersion,
   type TransactionWithBlockhashLifetime,
 } from 'gill';
-import { findMintConfigPda, getFreezeInstruction } from '@mosaic/ebalts';
-import { EBALTS_PROGRAM_ID } from './utils';
+import {
+  findMintConfigPda,
+  getFreezeInstruction,
+} from '../../../token-acl/src';
+import { TOKEN_ACL_PROGRAM_ID } from './utils';
 
 /**
  * Generates instructions for freezing a token account.
@@ -57,7 +60,7 @@ export const getFreezeInstructions = async (input: {
 
   const mintConfigPda = await findMintConfigPda(
     { mint: token.mint },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
 
   const freezeInstruction = getFreezeInstruction(
@@ -67,7 +70,7 @@ export const getFreezeInstructions = async (input: {
       mint: token.mint,
       tokenAccount: input.tokenAccount,
     },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
 
   return [freezeInstruction];

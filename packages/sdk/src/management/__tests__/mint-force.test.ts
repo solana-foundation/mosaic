@@ -1,11 +1,11 @@
 import type { Address, Rpc, SolanaRpcApi } from 'gill';
 import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
-import { EBALTS_PROGRAM_ID } from '../../ebalts';
+import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
 
 describe('non-SRFC-37: mint/force-transfer should not include permissionless thaw', () => {
   let rpc: Rpc<SolanaRpcApi>;
   const mint = 'Mint777777777777777777777777777777777777777' as Address;
-  const wallet = 'Wall77777777777777777777777777777777777777' as Address;
+  const wallet = 'Wall777777777777777777777777777777777777777' as Address;
   const feePayer = createMockSigner('Fee777777777777777777777777777777777777');
   const mintAuthority = createMockSigner(
     'MintAuth77777777777777777777777777777777777'
@@ -27,7 +27,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
       decimalAmountToRaw: jest.fn().mockReturnValue(1n),
       getMintDetails: jest.fn().mockResolvedValue({
         decimals: 6,
-        freezeAuthority: 'NotEbalts11111111111111111111111111111111',
+        freezeAuthority: 'NotTokenACL111111111111111111111111111111',
         extensions: [],
       }),
       isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
@@ -64,7 +64,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
       decimalAmountToRaw: jest.fn().mockReturnValue(1n),
       getMintDetails: jest.fn().mockResolvedValue({
         decimals: 6,
-        freezeAuthority: 'NotEbalts11111111111111111111111111111111',
+        freezeAuthority: 'NotTokenACL111111111111111111111111111111',
         extensions: [],
       }),
       isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
@@ -95,7 +95,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
       decimalAmountToRaw: jest.fn().mockReturnValue(1n),
       getMintDetails: jest.fn().mockResolvedValue({
         decimals: 6,
-        freezeAuthority: EBALTS_PROGRAM_ID,
+        freezeAuthority: TOKEN_ACL_PROGRAM_ID,
         extensions: [{ __kind: 'DefaultAccountState', state: 'frozen' }],
       }),
       isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
@@ -130,7 +130,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
       decimalAmountToRaw: jest.fn().mockReturnValue(1n),
       getMintDetails: jest.fn().mockResolvedValue({
         decimals: 6,
-        freezeAuthority: EBALTS_PROGRAM_ID,
+        freezeAuthority: TOKEN_ACL_PROGRAM_ID,
         extensions: [{ __kind: 'DefaultAccountState', state: 'frozen' }],
       }),
       isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),

@@ -15,8 +15,8 @@ import {
 import {
   createThawPermissionlessInstructionWithExtraMetas,
   findMintConfigPda,
-} from '@mosaic/ebalts';
-import { EBALTS_PROGRAM_ID } from './utils';
+} from '@mosaic/token-acl';
+import { TOKEN_ACL_PROGRAM_ID } from './utils';
 import {
   getTokenEncoder,
   AccountState,
@@ -48,7 +48,7 @@ export const getThawPermissionlessInstructions = async (input: {
 }): Promise<Instruction<string>[]> => {
   const mintConfigPda = await findMintConfigPda(
     { mint: input.mint },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
 
   const thawPermissionlessInstruction =
@@ -58,21 +58,20 @@ export const getThawPermissionlessInstructions = async (input: {
       input.mint,
       mintConfigPda[0],
       input.tokenAccountOwner,
-      EBALTS_PROGRAM_ID,
+      TOKEN_ACL_PROGRAM_ID,
       async (address: Address) => {
-        const data = getTokenEncoder().encode({
-          amount: 0,
-          closeAuthority: null,
-          delegate: null,
-          delegatedAmount: 0,
-          extensions: null,
-          isNative: null,
-          mint: input.mint,
-          owner: input.tokenAccountOwner,
-          state: AccountState.Frozen,
-        });
-
         if (address === input.tokenAccount) {
+          const data = getTokenEncoder().encode({
+            amount: 0,
+            closeAuthority: null,
+            delegate: null,
+            delegatedAmount: 0,
+            extensions: null,
+            isNative: null,
+            mint: input.mint,
+            owner: input.tokenAccountOwner,
+            state: AccountState.Frozen,
+          });
           return {
             exists: true,
             address,

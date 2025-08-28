@@ -15,9 +15,9 @@ import {
   getCreateAssociatedTokenIdempotentInstruction,
 } from 'gill/programs/token';
 import {
-  EBALTS_PROGRAM_ID,
+  TOKEN_ACL_PROGRAM_ID,
   getThawPermissionlessInstructions,
-} from '../ebalts';
+} from '../token-acl';
 import {
   decimalAmountToRaw,
   getMintDetails,
@@ -69,7 +69,7 @@ export const createMintToTransaction = async (
     mint
   );
   const enableSrfc37 =
-    freezeAuthority === EBALTS_PROGRAM_ID &&
+    freezeAuthority === TOKEN_ACL_PROGRAM_ID &&
     isDefaultAccountStateSetFrozen(extensions);
 
   const rawAmount = decimalAmountToRaw(amount, decimals);

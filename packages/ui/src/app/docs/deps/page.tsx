@@ -20,7 +20,7 @@ export default function DocsDepsPage() {
           bindings
         </li>
         <li>
-          <code>packages/ebalts/README.md</code> — EBALTS program bindings
+          <code>packages/token-acl/README.md</code> — Token ACL program bindings
         </li>
         <li>
           <code>packages/tlv-account-resolution/README.md</code> — TLV helpers
@@ -36,7 +36,8 @@ export default function DocsDepsPage() {
           Access lists (allow/block): <code>@mosaic/abl</code>
         </li>
         <li>
-          Freeze/thaw and permissionless thaw: <code>@mosaic/ebalts</code>
+          Freeze/thaw and permissionless thaw: <code>@mosaic/token-acl</code>
+          (Token ACL)
         </li>
         <li>
           RPC and types: <code>gill</code> and wallet adapters

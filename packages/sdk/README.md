@@ -1,12 +1,12 @@
 # @mosaic/sdk
 
-TypeScript SDK for building and operating Token-2022 mints with modern extensions. Batteries-included templates (Stablecoin, Arcade Token, Tokenized Security), access-control via ABL (SRFC-37), and operations via EBALTS. It is unopinionated about what kind of signer you use, whether that's a connected wallet, filesystem wallet, or 3rd party key management system.
+TypeScript SDK for building and operating Token-2022 mints with modern extensions. Batteries-included templates (Stablecoin, Arcade Token, Tokenized Security), and access-control management via Token ACL (SRFC-37). It is unopinionated about what kind of signer you use, whether that's a connected wallet, filesystem wallet, or 3rd party key management system.
 
 ## Key features
 
 - **Templates**: One-call mint initialization for Stablecoin, Arcade Token, and Tokenized Security
 - **Access control**: Create and manage allowlists/blocklists (ABL, SRFC-37 compliant)
-- **Operations**: Mint, force-transfer (via permanent delegate), freeze/thaw, permissionless thaw (EBALTS)
+- **Operations**: Mint, force-transfer (via permanent delegate), freeze/thaw, permissionless thaw (Token ACL)
 - **Authorities**: Update mint, freeze, metadata, and other authorities
 - **Utilities**: Resolve ATAs, decimal math, transaction B64/B58 encoding
 
@@ -31,7 +31,7 @@ const mint = await generateKeyPairSigner();
 const feePayer = YOUR_FEEPAYER_ADDRESS;
 
 // Single-signer path: when the fee payer is also the mint authority,
-// the template also configures EBALTS + ABL for you.
+// the template also configures Token ACL + ABL for you.
 const tx = await createStablecoinInitTransaction(
   rpc,
   'USD Coin', // name
@@ -50,15 +50,15 @@ const b64 = transactionToB64(tx);
 ### Notes on templates and authorities
 
 - If `mintAuthority === feePayer.address`, templates will also:
-  - create EBALTS mint config, set gating program to ABL
+  - create Token ACL mint config, set gating program to ABL
   - create an ABL list (allowlist for Arcade, blocklist by default for Stablecoin)
   - set ABL extra metas on the mint
-  - enable EBALTS permissionless thaw
-- If authorities differ, the template returns a transaction with just the Token-2022 mint setup. Run the EBALTS/ABL steps yourself (see examples below).
+  - enable Token ACL permissionless thaw
+- If authorities differ, the template returns a transaction with just the Token-2022 mint setup. Run the Token ACL management yourself (see examples below).
 
 ## Templates (issuance)
 
-All templates freeze new accounts by default and rely on EBALTS permissionless thaw and ABL allow/block lists to control who can hold tokens.
+All templates freeze new accounts by default and rely on Token ACL permissionless thaw and ABL allow/block lists to control who can hold tokens.
 
 ```ts
 import {
@@ -199,7 +199,7 @@ await getRemoveWalletTransaction({
 const list = await getList({ rpc, listConfig });
 ```
 
-## EBALTS operations
+## Token ACL operations
 
 Enable permissionless thaw and perform freeze/thaw operations.
 
@@ -213,7 +213,7 @@ import {
 } from '@mosaic/sdk';
 import { ABL_PROGRAM_ID } from '@mosaic/sdk';
 
-// One-time: create EBALTS mint config and set ABL as gating program (templates do this for single-signer flow)
+// One-time: create Token ACL mint config and set ABL as gating program (templates do this for single-signer flow)
 await getCreateConfigTransaction({
   rpc,
   payer: feePayer,

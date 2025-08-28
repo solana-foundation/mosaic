@@ -16,7 +16,7 @@ interface CreateConfigOptions {
 export const createList = new Command('create-list')
   .description('Create a new list for an existing mint')
   .action(async (options: CreateConfigOptions, command) => {
-    const spinner = ora('Creating ebalts config...').start();
+    const spinner = ora('Creating Token ACL config...').start();
 
     try {
       const parentOpts = command.parent?.parent?.opts() || {};

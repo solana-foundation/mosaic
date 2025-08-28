@@ -23,7 +23,7 @@
       "@/*": ["./src/*"],
       "@mosaic/sdk": ["../sdk/src"],
       "@mosaic/abl": ["../abl/src"],
-      "@mosaic/ebalts": ["../ebalts/src"],
+      "@mosaic/token-acl": ["../token-acl/src"],
       "@mosaic/tlv-account-resolution": ["../tlv-account-resolution/src"]
     }
   },

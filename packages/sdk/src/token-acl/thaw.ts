@@ -10,8 +10,8 @@ import {
   type TransactionVersion,
   type TransactionWithBlockhashLifetime,
 } from 'gill';
-import { findMintConfigPda, getThawInstruction } from '@mosaic/ebalts';
-import { EBALTS_PROGRAM_ID } from './utils';
+import { findMintConfigPda, getThawInstruction } from '../../../token-acl/src';
+import { TOKEN_ACL_PROGRAM_ID } from './utils';
 
 /**
  * Generates instructions for thawing a token account.
@@ -56,7 +56,7 @@ export const getThawInstructions = async (input: {
 
   const mintConfigPda = await findMintConfigPda(
     { mint: token.mint },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
 
   const thawInstruction = getThawInstruction(
@@ -66,7 +66,7 @@ export const getThawInstructions = async (input: {
       mint: token.mint,
       tokenAccount: input.tokenAccount,
     },
-    { programAddress: EBALTS_PROGRAM_ID }
+    { programAddress: TOKEN_ACL_PROGRAM_ID }
   );
 
   return [thawInstruction];

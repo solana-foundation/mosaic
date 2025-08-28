@@ -24,7 +24,9 @@ export default {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@mosaic/abl$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',
-    '^@mosaic/ebalts$': '<rootDir>/src/__mocks__/@mosaic/ebalts.ts',
+    '^@mosaic/token-acl$': '<rootDir>/src/__mocks__/@mosaic/token-acl.ts',
+    '^@mosaic/tlv-account-resolution$':
+      '<rootDir>/../tlv-account-resolution/src',
   },
   moduleFileExtensions: ['ts', 'js', 'json'],
   setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
