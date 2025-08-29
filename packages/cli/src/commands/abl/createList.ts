@@ -3,14 +3,17 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { getCreateListTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
+import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import { type Address, signTransactionMessageWithSigners } from 'gill';
+import { maybeOutputRawTx } from '../../utils/rawTx.js';
 
 interface CreateConfigOptions {
   mint: string;
   gatingProgram: string;
   rpcUrl?: string;
   keypair?: string;
+  payer?: string;
+  authority?: string;
 }
 
 export const createList = new Command('create-list')
@@ -21,15 +24,28 @@ export const createList = new Command('create-list')
     try {
       const parentOpts = command.parent?.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
+      const rawTx: string | undefined = parentOpts.rawTx;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = await loadKeypair(options.keypair);
+      const kp = rawTx ? null : await loadKeypair(options.keypair);
+
+      const payer = (rawTx
+        ? ((options.payer || (await getAddressFromKeypair(options.keypair))) as Address)
+        : kp) as any;
+      const authority = (rawTx
+        ? ((options.authority || (await getAddressFromKeypair(options.keypair))) as Address)
+        : kp) as any;
 
       const { transaction, listConfig } = await getCreateListTransaction({
         rpc,
-        payer: kp,
-        authority: kp,
+        payer,
+        authority,
         mint: options.mint as Address,
       });
+
+      if (maybeOutputRawTx(rawTx, transaction)) {
+        spinner.succeed('Built unsigned transaction');
+        return;
+      }
 
       spinner.text = 'Signing transaction...';
 

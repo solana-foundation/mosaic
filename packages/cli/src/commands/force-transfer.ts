@@ -6,8 +6,9 @@ import {
   validatePermanentDelegate,
 } from '@mosaic/sdk';
 import { createSolanaClient } from '../utils/rpc.js';
-import { loadKeypair } from '../utils/solana.js';
+import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { maybeOutputRawTx } from '../utils/rawTx.js';
 
 interface ForceTransferOptions {
   mintAddress: string;
@@ -16,6 +17,8 @@ interface ForceTransferOptions {
   amount: string;
   rpcUrl?: string;
   keypair?: string;
+  authority?: string;
+  feePayer?: string;
 }
 
 export const forceTransferCommand = new Command('force-transfer')
@@ -44,12 +47,23 @@ export const forceTransferCommand = new Command('force-transfer')
       const parentOpts = command.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
       const keypairPath = options.keypair || parentOpts.keypair;
+      const rawTx: string | undefined = parentOpts.rawTx;
 
       // Create Solana client
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
-      // Load permanent delegate keypair (assuming it's the configured keypair)
-      const permanentDelegateKeypair = await loadKeypair(keypairPath);
+      // Resolve authorities
+      let authorityAddr: Address;
+      let feePayerAddr: Address;
+      let kp: any | null = null;
+      if (rawTx) {
+        authorityAddr = (options.authority || (await getAddressFromKeypair(keypairPath))) as Address;
+        feePayerAddr = (options.feePayer || authorityAddr) as Address;
+      } else {
+        kp = await loadKeypair(keypairPath);
+        authorityAddr = kp.address as Address;
+        feePayerAddr = kp.address as Address;
+      }
 
       // Parse and validate amount
       const decimalAmount = parseFloat(options.amount);
@@ -60,11 +74,7 @@ export const forceTransferCommand = new Command('force-transfer')
       spinner.text = 'Validating permanent delegate authority...';
 
       // Validate that the mint has permanent delegate extension and our keypair is the delegate
-      await validatePermanentDelegate(
-        rpc,
-        options.mintAddress as Address,
-        permanentDelegateKeypair.address
-      );
+      await validatePermanentDelegate(rpc, options.mintAddress as Address, authorityAddr);
 
       spinner.text = 'Building force transfer transaction...';
 
@@ -75,9 +85,14 @@ export const forceTransferCommand = new Command('force-transfer')
         options.fromAccount as Address,
         options.recipient as Address,
         decimalAmount,
-        permanentDelegateKeypair,
-        permanentDelegateKeypair // Use same keypair as fee payer
+        rawTx ? (authorityAddr as Address) : kp,
+        rawTx ? (feePayerAddr as Address) : kp
       );
+
+      if (maybeOutputRawTx(rawTx, transaction)) {
+        spinner.succeed('Built unsigned transaction');
+        return;
+      }
 
       spinner.text = 'Signing transaction...';
 
@@ -100,9 +115,7 @@ export const forceTransferCommand = new Command('force-transfer')
       console.log(`   ${chalk.bold('To Account:')} ${options.recipient}`);
       console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-      console.log(
-        `   ${chalk.bold('Permanent Delegate:')} ${permanentDelegateKeypair.address}`
-      );
+      console.log(`   ${chalk.bold('Permanent Delegate:')} ${authorityAddr}`);
 
       console.log(chalk.cyan('⚡ Result:'));
       console.log(

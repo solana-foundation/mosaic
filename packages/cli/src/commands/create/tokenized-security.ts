@@ -7,7 +7,7 @@ import {
   createTokenizedSecurityInitTransaction,
 } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
+import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import {
   generateKeyPairSigner,
   signTransactionMessageWithSigners,
@@ -94,11 +94,14 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
       const parentOpts = command.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
       const keypairPath = options.keypair || parentOpts.keypair;
+      const rawTx: string | undefined = parentOpts.rawTx;
 
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
-      const signerKeypair = await loadKeypair(keypairPath);
-      const signerAddress = signerKeypair.address;
+      const signerKeypair = rawTx ? null : await loadKeypair(keypairPath);
+      const signerAddress = (rawTx
+        ? ((await getAddressFromKeypair(keypairPath)) as Address)
+        : (signerKeypair!.address as Address));
 
       spinner.text = 'Loading keypairs...';
 
@@ -139,8 +142,8 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
         decimals,
         options.uri || '',
         mintAuthority,
-        mintKeypair,
-        signerKeypair,
+        rawTx ? (mintKeypair.address as Address) : mintKeypair,
+        rawTx ? (signerAddress as Address) : (signerKeypair as any),
         {
           aclMode: options.aclMode,
           metadataAuthority,
@@ -154,6 +157,14 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
           enableSrfc37: options.enableSrfc37,
         }
       );
+
+      if (rawTx) {
+        const { maybeOutputRawTx } = await import('../../utils/rawTx.js');
+        if (maybeOutputRawTx(rawTx, transaction)) {
+          spinner.succeed('Built unsigned transaction');
+          return;
+        }
+      }
 
       spinner.text = 'Signing transaction...';
       const signedTransaction =

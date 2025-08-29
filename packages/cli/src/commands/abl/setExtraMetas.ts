@@ -3,14 +3,17 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { getSetExtraMetasTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
+import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { maybeOutputRawTx } from '../../utils/rawTx.js';
 
 interface CreateConfigOptions {
   mint: string;
   list: string;
   rpcUrl?: string;
   keypair?: string;
+  payer?: string;
+  authority?: string;
 }
 
 export const setExtraMetas = new Command('set-extra-metas')
@@ -23,17 +26,30 @@ export const setExtraMetas = new Command('set-extra-metas')
     try {
       const parentOpts = command.parent?.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
+      const rawTx: string | undefined = parentOpts.rawTx;
       const keypairPath = options.keypair || parentOpts.keypair;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = await loadKeypair(keypairPath);
+      const kp = rawTx ? null : await loadKeypair(keypairPath);
+
+      const payer = (rawTx
+        ? ((options.payer || (await getAddressFromKeypair(keypairPath))) as Address)
+        : kp) as any;
+      const authority = (rawTx
+        ? ((options.authority || (await getAddressFromKeypair(keypairPath))) as Address)
+        : kp) as any;
 
       const transaction = await getSetExtraMetasTransaction({
         rpc,
-        payer: kp,
-        authority: kp,
+        payer,
+        authority,
         mint: options.mint as Address,
         list: options.list as Address,
       });
+
+      if (maybeOutputRawTx(rawTx, transaction)) {
+        spinner.succeed('Built unsigned transaction');
+        return;
+      }
 
       spinner.text = 'Signing transaction...';
 

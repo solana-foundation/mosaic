@@ -7,7 +7,7 @@ import {
   TOKEN_ACL_PROGRAM_ID,
 } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
+import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import {
   generateKeyPairSigner,
   signTransactionMessageWithSigners,
@@ -86,17 +86,20 @@ export const createStablecoinCommand = new Command('stablecoin')
       const parentOpts = command.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
       const keypairPath = options.keypair || parentOpts.keypair;
+      const rawTx: string | undefined = parentOpts.rawTx;
 
       // Create Solana client with sendAndConfirmTransaction
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
-      // Load signer keypair
-      const signerKeypair = await loadKeypair(keypairPath);
-      const signerAddress = signerKeypair.address;
+      // Load signer keypair unless in raw mode
+      const signerKeypair = rawTx ? null : await loadKeypair(keypairPath);
+      const signerAddress = (rawTx
+        ? ((await getAddressFromKeypair(keypairPath)) as Address)
+        : (signerKeypair!.address as Address));
 
       spinner.text = 'Loading keypairs...';
 
-      // Generate or load mint keypair
+      // Generate or load mint keypair (must be a signer if not raw)
       let mintKeypair;
       if (options.mintKeypair) {
         mintKeypair = await loadKeypair(options.mintKeypair);
@@ -131,8 +134,8 @@ export const createStablecoinCommand = new Command('stablecoin')
         decimals,
         options.uri || '',
         mintAuthority,
-        mintKeypair,
-        signerKeypair,
+        rawTx ? (mintKeypair.address as Address) : mintKeypair,
+        rawTx ? (signerAddress as Address) : (signerKeypair as any),
         options.aclMode || 'blocklist',
         metadataAuthority,
         pausableAuthority,
@@ -141,11 +144,18 @@ export const createStablecoinCommand = new Command('stablecoin')
         options.enableSrfc37
       );
 
+      if (rawTx) {
+        const { maybeOutputRawTx } = await import('../../utils/rawTx.js');
+        if (maybeOutputRawTx(rawTx, transaction)) {
+          spinner.succeed('Built unsigned transaction');
+          return;
+        }
+      }
+
       spinner.text = 'Signing transaction...';
 
       // Sign the transaction (buildTransaction includes signers but doesn't auto-sign)
-      const signedTransaction =
-        await signTransactionMessageWithSigners(transaction);
+      const signedTransaction = await signTransactionMessageWithSigners(transaction);
 
       spinner.text = 'Sending transaction...';
 

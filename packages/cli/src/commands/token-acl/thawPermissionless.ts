@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { getThawPermissionlessTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
+import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
 import {
   getAssociatedTokenAccountAddress,
@@ -14,6 +14,8 @@ interface CreateConfigOptions {
   mint: string;
   rpcUrl?: string;
   keypair?: string;
+  payer?: string;
+  authority?: string;
 }
 
 export const thawPermissionless = new Command('thaw-permissionless')
@@ -25,13 +27,16 @@ export const thawPermissionless = new Command('thaw-permissionless')
     try {
       const parentOpts = command.parent?.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
+      const rawTx: string | undefined = parentOpts.rawTx;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = await loadKeypair(options.keypair);
+      const kp = rawTx ? null : await loadKeypair(options.keypair);
 
       console.log(options);
       console.log(parentOpts);
 
-      const signerAddress = kp.address;
+      const signerAddress = rawTx
+        ? ((options.authority || (await getAddressFromKeypair(options.keypair))) as Address)
+        : (kp!.address as Address);
       const mint = options.mint as Address;
 
       spinner.text = 'Building transaction...';
@@ -44,12 +49,17 @@ export const thawPermissionless = new Command('thaw-permissionless')
 
       const transaction = await getThawPermissionlessTransaction({
         rpc,
-        payer: kp,
-        authority: kp,
+        payer: (rawTx ? (signerAddress as Address) : kp) as any,
+        authority: (rawTx ? (signerAddress as Address) : kp) as any,
         mint,
         tokenAccount: ata,
         tokenAccountOwner: signerAddress,
       });
+
+      if (maybeOutputRawTx(rawTx, transaction)) {
+        spinner.succeed('Built unsigned transaction');
+        return;
+      }
 
       spinner.text = 'Signing transaction...';
 

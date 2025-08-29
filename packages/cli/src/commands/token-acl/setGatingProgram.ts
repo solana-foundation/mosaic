@@ -3,8 +3,9 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { getSetGatingProgramTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
+import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { maybeOutputRawTx } from '../../utils/rawTx.js';
 import { findMintConfigPda } from '@mosaic/token-acl';
 import { TOKEN_ACL_PROGRAM_ID } from './util.js';
 
@@ -13,6 +14,8 @@ interface CreateConfigOptions {
   gatingProgram: string;
   rpcUrl?: string;
   keypair?: string;
+  payer?: string;
+  authority?: string;
 }
 
 export const setGatingProgram = new Command('set-gating-program')
@@ -28,8 +31,9 @@ export const setGatingProgram = new Command('set-gating-program')
     try {
       const parentOpts = command.parent?.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
+      const rawTx: string | undefined = parentOpts.rawTx;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = await loadKeypair(options.keypair);
+      const kp = rawTx ? null : await loadKeypair(options.keypair);
 
       const mintConfigPda = await findMintConfigPda(
         { mint: options.mint as Address },
@@ -38,13 +42,25 @@ export const setGatingProgram = new Command('set-gating-program')
       const gatingProgram = (options.gatingProgram ||
         '11111111111111111111111111111111') as Address;
 
+      const payer = (rawTx
+        ? ((options.payer || (await getAddressFromKeypair(options.keypair))) as Address)
+        : kp) as any;
+      const authority = (rawTx
+        ? ((options.authority || (await getAddressFromKeypair(options.keypair))) as Address)
+        : kp) as any;
+
       const transaction = await getSetGatingProgramTransaction({
         rpc,
-        payer: kp,
-        authority: kp,
+        payer,
+        authority,
         mint: options.mint as Address,
         gatingProgram: gatingProgram,
       });
+
+      if (maybeOutputRawTx(rawTx, transaction)) {
+        spinner.succeed('Built unsigned transaction');
+        return;
+      }
 
       spinner.text = 'Signing transaction...';
 

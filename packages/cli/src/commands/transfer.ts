@@ -2,12 +2,9 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import { createSolanaClient } from '../utils/rpc.js';
-import { loadKeypair } from '../utils/solana.js';
-import {
-  signTransactionMessageWithSigners,
-  type Address,
-  createTransaction,
-} from 'gill';
+import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
+import { signTransactionMessageWithSigners, type Address, createTransaction, createNoopSigner } from 'gill';
+import { maybeOutputRawTx } from '../utils/rawTx.js';
 import {
   getCreateAssociatedTokenIdempotentInstruction,
   getTransferCheckedInstruction,
@@ -28,6 +25,8 @@ interface TransferOptions {
   rpcUrl?: string;
   keypair?: string;
   memo?: string;
+  sender?: string;
+  feePayer?: string;
 }
 
 export const transferCommand = new Command('transfer')
@@ -50,12 +49,19 @@ export const transferCommand = new Command('transfer')
       const parentOpts = command.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
       const keypairPath = options.keypair || parentOpts.keypair;
+      const rawTx: string | undefined = parentOpts.rawTx;
 
       // Create Solana client
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
-      // Load sender keypair
-      const senderKeypair = await loadKeypair(keypairPath);
+      // Load or resolve sender address
+      let senderAddress: Address;
+      if (rawTx) {
+        senderAddress = (options.sender || (await getAddressFromKeypair(keypairPath))) as Address;
+      } else {
+        const kp = await loadKeypair(keypairPath);
+        senderAddress = kp.address as Address;
+      }
 
       // Parse and validate amount
       const decimalAmount = parseFloat(options.amount);
@@ -79,7 +85,7 @@ export const transferCommand = new Command('transfer')
       // Resolve sender's token account
       const senderTokenAccountInfo = await resolveTokenAccount(
         rpc,
-        senderKeypair.address,
+        senderAddress,
         options.mintAddress as Address
       );
 
@@ -99,12 +105,12 @@ export const transferCommand = new Command('transfer')
           ata: recipientTokenAccountInfo.tokenAccount,
           owner: options.recipient as Address,
           mint: options.mintAddress as Address,
-          payer: senderKeypair,
+          payer: rawTx ? createNoopSigner(senderAddress) : createNoopSigner(senderAddress),
           tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
         }),
         ...(recipientTokenAccountInfo.isFrozen
           ? await getThawPermissionlessInstructions({
-              authority: senderKeypair,
+              authority: rawTx ? createNoopSigner(senderAddress) : createNoopSigner(senderAddress),
               mint: options.mintAddress as Address,
               tokenAccount: recipientTokenAccountInfo.tokenAccount,
               tokenAccountOwner: options.recipient as Address,
@@ -126,7 +132,7 @@ export const transferCommand = new Command('transfer')
           source: senderTokenAccountInfo.tokenAccount,
           destination: recipientTokenAccountInfo.tokenAccount,
           mint: options.mintAddress as Address,
-          authority: senderKeypair,
+          authority: rawTx ? createNoopSigner(senderAddress) : createNoopSigner(senderAddress),
           amount: rawAmount,
           decimals,
         })
@@ -140,10 +146,15 @@ export const transferCommand = new Command('transfer')
       // Create transaction
       const transaction = createTransaction({
         version: 'legacy',
-        feePayer: senderKeypair,
+        feePayer: rawTx ? createNoopSigner(senderAddress) : createNoopSigner(senderAddress),
         latestBlockhash,
         instructions,
       });
+
+      if (maybeOutputRawTx(rawTx, transaction)) {
+        spinner.succeed('Built unsigned transaction');
+        return;
+      }
 
       spinner.text = 'Signing transaction...';
 

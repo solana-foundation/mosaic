@@ -3,13 +3,16 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { getFreezeTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
+import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { maybeOutputRawTx } from '../../utils/rawTx.js';
 
 interface CreateConfigOptions {
   tokenAccount: string;
   rpcUrl?: string;
   keypair?: string;
+  payer?: string;
+  authority?: string;
 }
 
 export const freeze = new Command('freeze')
@@ -24,15 +27,28 @@ export const freeze = new Command('freeze')
     try {
       const parentOpts = command.parent?.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
+      const rawTx: string | undefined = parentOpts.rawTx;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = await loadKeypair(options.keypair);
+      const kp = rawTx ? null : await loadKeypair(options.keypair);
+
+      const payer = (rawTx
+        ? ((options.payer || (await getAddressFromKeypair(options.keypair))) as Address)
+        : kp) as any;
+      const authority = (rawTx
+        ? ((options.authority || (await getAddressFromKeypair(options.keypair))) as Address)
+        : kp) as any;
 
       const transaction = await getFreezeTransaction({
         rpc,
-        payer: kp,
-        authority: kp,
+        payer,
+        authority,
         tokenAccount: options.tokenAccount as Address,
       });
+
+      if (maybeOutputRawTx(rawTx, transaction)) {
+        spinner.succeed('Built unsigned transaction');
+        return;
+      }
 
       spinner.text = 'Signing transaction...';
 

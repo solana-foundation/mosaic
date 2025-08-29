@@ -3,8 +3,9 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { createMintToTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../utils/rpc.js';
-import { loadKeypair } from '../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
+import { createNoopSigner, signTransactionMessageWithSigners, type Address } from 'gill';
+import { maybeOutputRawTx } from '../utils/rawTx.js';
 
 interface MintOptions {
   mintAddress: string;
@@ -12,6 +13,8 @@ interface MintOptions {
   amount: string;
   rpcUrl?: string;
   keypair?: string;
+  authority?: string;
+  feePayer?: string;
 }
 
 export const mintCommand = new Command('mint')
@@ -28,6 +31,8 @@ export const mintCommand = new Command('mint')
     '-a, --amount <amount>',
     'The decimal amount to mint (e.g., 1.5)'
   )
+  .option('--authority <address>', 'Mint authority address (for --raw-tx)')
+  .option('--fee-payer <address>', 'Fee payer address (for --raw-tx)')
   .showHelpAfterError()
   .configureHelp({
     sortSubcommands: true,
@@ -41,12 +46,23 @@ export const mintCommand = new Command('mint')
       const parentOpts = command.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
       const keypairPath = options.keypair || parentOpts.keypair;
+      const rawTx: string | undefined = parentOpts.rawTx;
 
       // Create Solana client
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
-      // Load mint authority keypair (assuming it's the configured keypair)
-      const mintAuthorityKeypair = await loadKeypair(keypairPath);
+      // Resolve authorities: support address-based for raw mode
+      let mintAuthority: Address;
+      let feePayer: Address;
+      let signerKp: any | null = null;
+      if (rawTx) {
+        mintAuthority = (options.authority || (await getAddressFromKeypair(keypairPath))) as Address;
+        feePayer = (options.feePayer || mintAuthority) as Address;
+      } else {
+        signerKp = await loadKeypair(keypairPath);
+        mintAuthority = signerKp.address as Address;
+        feePayer = signerKp.address as Address;
+      }
 
       spinner.text = 'Getting mint information...';
 
@@ -60,21 +76,26 @@ export const mintCommand = new Command('mint')
 
       spinner.text = 'Building mint transaction...';
 
-      // Create mint transaction
+      // Create mint transaction (accepts Address or signer)
       const transaction = await createMintToTransaction(
         rpc,
         options.mintAddress as Address,
         options.recipient as Address,
         decimalAmount,
-        mintAuthorityKeypair,
-        mintAuthorityKeypair // Use same keypair as fee payer
+        rawTx ? (mintAuthority as Address) : signerKp,
+        rawTx ? (feePayer as Address) : signerKp
       );
+
+      // If raw requested, output and exit
+      if (maybeOutputRawTx(rawTx, transaction)) {
+        spinner.succeed('Built unsigned transaction');
+        return;
+      }
 
       spinner.text = 'Signing transaction...';
 
       // Sign the transaction
-      const signedTransaction =
-        await signTransactionMessageWithSigners(transaction);
+      const signedTransaction = await signTransactionMessageWithSigners(transaction);
 
       spinner.text = 'Sending transaction...';
 
@@ -90,9 +111,7 @@ export const mintCommand = new Command('mint')
       console.log(`   ${chalk.bold('Recipient:')} ${options.recipient}`);
       console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-      console.log(
-        `   ${chalk.bold('Mint Authority:')} ${mintAuthorityKeypair.address}`
-      );
+      console.log(`   ${chalk.bold('Mint Authority:')} ${mintAuthority}`);
 
       console.log(chalk.cyan('\\n🎯 Result:'));
       console.log(

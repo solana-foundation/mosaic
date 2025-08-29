@@ -60,6 +60,11 @@ program
   .option(
     '--keypair <path>',
     'Path to keypair file (defaults to Solana CLI default)'
+  )
+  .option(
+    '--raw-tx <encoding>',
+    'Output unsigned transaction instead of sending (b64|b58)',
+    'b64'
   );
 
 program.parse(process.argv);
