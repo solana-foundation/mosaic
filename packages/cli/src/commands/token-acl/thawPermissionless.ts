@@ -1,14 +1,15 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import { getThawPermissionlessTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { maybeOutputRawTx } from '../../utils/rawTx.js';
+import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner } from 'gill';
 import {
   getAssociatedTokenAccountAddress,
   TOKEN_2022_PROGRAM_ADDRESS,
 } from 'gill/programs/token';
+import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface CreateConfigOptions {
   mint: string;
@@ -21,22 +22,32 @@ interface CreateConfigOptions {
 export const thawPermissionless = new Command('thaw-permissionless')
   .description('Thaw permissionless eoas for an existing mint')
   .requiredOption('-m, --mint <mint>', 'Mint address')
+  .showHelpAfterError()
   .action(async (options: CreateConfigOptions, command) => {
-    const spinner = ora('Thawing permissionless...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Thawing permissionless...', rawTx);
 
     try {
-      const parentOpts = command.parent?.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const rawTx: string | undefined = parentOpts.rawTx;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = rawTx ? null : await loadKeypair(options.keypair);
+      spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-      console.log(options);
-      console.log(parentOpts);
+      let authority: TransactionSigner<string>;
+      let payer: TransactionSigner<string>;
+      if (rawTx) {
+        const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
+        authority = createNoopSigner(parentOpts.authority as Address || defaultAddr);
+        payer = createNoopSigner(parentOpts.feePayer as Address || authority.address);
+      } else {
+        const kp = await loadKeypair(parentOpts.keypair);
+        authority = kp;
+        payer = kp;
+      }
 
       const signerAddress = rawTx
-        ? ((options.authority || (await getAddressFromKeypair(options.keypair))) as Address)
-        : (kp!.address as Address);
+        ? ((options.authority || authority.address) as Address)
+        : (authority.address as Address);
       const mint = options.mint as Address;
 
       spinner.text = 'Building transaction...';
@@ -49,15 +60,14 @@ export const thawPermissionless = new Command('thaw-permissionless')
 
       const transaction = await getThawPermissionlessTransaction({
         rpc,
-        payer: (rawTx ? (signerAddress as Address) : kp) as any,
-        authority: (rawTx ? (signerAddress as Address) : kp) as any,
+        payer,
+        authority,
         mint,
         tokenAccount: ata,
         tokenAccountOwner: signerAddress,
       });
 
       if (maybeOutputRawTx(rawTx, transaction)) {
-        spinner.succeed('Built unsigned transaction');
         return;
       }
 
@@ -83,7 +93,9 @@ export const thawPermissionless = new Command('thaw-permissionless')
       console.log(`   ${chalk.bold('Token Account:')} ${ata}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
     } catch (error) {
-      spinner.fail('Failed to thaw permissionless');
+      if (!rawTx) {
+        spinner.fail('Failed to thaw permissionless');
+      }
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'

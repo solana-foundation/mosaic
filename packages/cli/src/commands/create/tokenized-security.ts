@@ -1,20 +1,21 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import {
   ABL_PROGRAM_ID,
   TOKEN_ACL_PROGRAM_ID,
   createTokenizedSecurityInitTransaction,
 } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
+import { loadKeypair } from '../../utils/solana.js';
 import {
   generateKeyPairSigner,
   signTransactionMessageWithSigners,
   type Address,
+  type TransactionSigner,
 } from 'gill';
 import { findListConfigPda } from '@mosaic/abl';
 import { findMintConfigPda } from '@mosaic/token-acl';
+import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface TokenizedSecuritiesOptions {
   name: string;
@@ -88,24 +89,22 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: TokenizedSecuritiesOptions, command) => {
-    const spinner = ora('Creating tokenized security...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Creating tokenized security...', rawTx);
+
 
     try {
-      const parentOpts = command.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
-      const rawTx: string | undefined = parentOpts.rawTx;
-
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+      spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-      const signerKeypair = rawTx ? null : await loadKeypair(keypairPath);
+      const signerKeypair = rawTx ? null : await loadKeypair(parentOpts.keypair);
       const signerAddress = (rawTx
-        ? ((await getAddressFromKeypair(keypairPath)) as Address)
+        ? (options.mintAuthority as Address)
         : (signerKeypair!.address as Address));
 
-      spinner.text = 'Loading keypairs...';
-
-      let mintKeypair;
+      let mintKeypair: TransactionSigner<string>;
       if (options.mintKeypair) {
         mintKeypair = await loadKeypair(options.mintKeypair);
       } else {
@@ -161,7 +160,6 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
       if (rawTx) {
         const { maybeOutputRawTx } = await import('../../utils/rawTx.js');
         if (maybeOutputRawTx(rawTx, transaction)) {
-          spinner.succeed('Built unsigned transaction');
           return;
         }
       }

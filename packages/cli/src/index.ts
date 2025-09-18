@@ -61,6 +61,8 @@ program
     '--keypair <path>',
     'Path to keypair file (defaults to Solana CLI default)'
   )
+  .option('--authority <address>', 'Authority address (for --raw-tx)')
+  .option('--fee-payer <address>', 'Fee payer address (for --raw-tx)')
   .option(
     '--raw-tx <encoding>',
     'Output unsigned transaction instead of sending (b64|b58)',

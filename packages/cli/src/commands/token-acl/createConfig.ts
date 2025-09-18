@@ -1,11 +1,11 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import { getCreateConfigTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner } from 'gill';
 import { maybeOutputRawTx } from '../../utils/rawTx.js';
+import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface CreateConfigOptions {
   mint: string;
@@ -20,25 +20,31 @@ export const createConfig = new Command('create')
   .description('Create a new Token ACL config for an existing mint')
   .requiredOption('-m, --mint <mint>', 'Mint address')
   .option('-g, --gating-program <gating-program>', 'Gating program address')
+  .showHelpAfterError()
   .action(async (options: CreateConfigOptions, command) => {
-    const spinner = ora('Creating Token ACL config...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Creating Token ACL config...', rawTx);
 
     try {
-      const parentOpts = command.parent?.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const rawTx: string | undefined = parentOpts.rawTx;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = rawTx ? null : await loadKeypair(options.keypair);
+      spinner.text = `Using RPC URL: ${rpcUrl}`;
+
+      let authority: TransactionSigner<string>;
+      let payer: TransactionSigner<string>;
+      if (rawTx) {
+        const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
+        authority = createNoopSigner(parentOpts.authority as Address || defaultAddr);
+        payer = createNoopSigner(parentOpts.feePayer as Address || authority.address);
+      } else {
+        const kp = await loadKeypair(parentOpts.keypair);
+        authority = kp;
+        payer = kp;
+      }
 
       const gatingProgram = (options.gatingProgram ||
         '11111111111111111111111111111111') as Address;
-
-      const payer = (rawTx
-        ? ((options.payer || (await getAddressFromKeypair(options.keypair))) as Address)
-        : kp) as any;
-      const authority = (rawTx
-        ? ((options.authority || (await getAddressFromKeypair(options.keypair))) as Address)
-        : kp) as any;
 
       const { transaction, mintConfig } = await getCreateConfigTransaction({
         rpc,
@@ -49,7 +55,6 @@ export const createConfig = new Command('create')
       });
 
       if (maybeOutputRawTx(rawTx, transaction)) {
-        spinner.succeed('Built unsigned transaction');
         return;
       }
 

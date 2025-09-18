@@ -1,24 +1,19 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import {
   createForceTransferTransaction,
   validatePermanentDelegate,
 } from '@mosaic/sdk';
 import { createSolanaClient } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
-import { maybeOutputRawTx } from '../utils/rawTx.js';
+import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
+import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../utils/cli.js';
 
 interface ForceTransferOptions {
   mintAddress: string;
   fromAccount: string;
   recipient: string;
   amount: string;
-  rpcUrl?: string;
-  keypair?: string;
-  authority?: string;
-  feePayer?: string;
 }
 
 export const forceTransferCommand = new Command('force-transfer')
@@ -39,30 +34,27 @@ export const forceTransferCommand = new Command('force-transfer')
     '-a, --amount <amount>',
     'The decimal amount to transfer (e.g., 1.5)'
   )
+  .showHelpAfterError()
   .action(async (options: ForceTransferOptions, command) => {
-    const spinner = ora('Force transferring tokens...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Force transferring tokens...', parentOpts.rawTx);
 
     try {
-      // Get global options from parent command
-      const parentOpts = command.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
-      const rawTx: string | undefined = parentOpts.rawTx;
-
       // Create Solana client
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
-      // Resolve authorities
-      let authorityAddr: Address;
-      let feePayerAddr: Address;
-      let kp: any | null = null;
+      let authority: TransactionSigner<string>;
+      let payer: TransactionSigner<string>;
       if (rawTx) {
-        authorityAddr = (options.authority || (await getAddressFromKeypair(keypairPath))) as Address;
-        feePayerAddr = (options.feePayer || authorityAddr) as Address;
+        const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
+        authority = createNoopSigner(parentOpts.authority as Address || defaultAddr);
+        payer = createNoopSigner(parentOpts.feePayer as Address || authority.address);
       } else {
-        kp = await loadKeypair(keypairPath);
-        authorityAddr = kp.address as Address;
-        feePayerAddr = kp.address as Address;
+        const kp = await loadKeypair(parentOpts.keypair);
+        authority = kp;
+        payer = kp;
       }
 
       // Parse and validate amount
@@ -74,7 +66,7 @@ export const forceTransferCommand = new Command('force-transfer')
       spinner.text = 'Validating permanent delegate authority...';
 
       // Validate that the mint has permanent delegate extension and our keypair is the delegate
-      await validatePermanentDelegate(rpc, options.mintAddress as Address, authorityAddr);
+      await validatePermanentDelegate(rpc, options.mintAddress as Address, authority.address);
 
       spinner.text = 'Building force transfer transaction...';
 
@@ -85,25 +77,21 @@ export const forceTransferCommand = new Command('force-transfer')
         options.fromAccount as Address,
         options.recipient as Address,
         decimalAmount,
-        rawTx ? (authorityAddr as Address) : kp,
-        rawTx ? (feePayerAddr as Address) : kp
+        authority.address,
+        payer.address
       );
 
-      if (maybeOutputRawTx(rawTx, transaction)) {
-        spinner.succeed('Built unsigned transaction');
-        return;
-      }
-
-      spinner.text = 'Signing transaction...';
-
-      // Sign the transaction
-      const signedTransaction =
-        await signTransactionMessageWithSigners(transaction);
-
-      spinner.text = 'Sending transaction...';
-
-      // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction);
+      const { raw, signature } = await sendOrOutputTransaction(
+        transaction,
+        rawTx,
+        spinner,
+        (tx) =>
+          sendAndConfirmTransaction(tx, {
+            skipPreflight: true,
+            commitment: 'confirmed',
+          })
+      );
+      if (raw) return;
 
       spinner.succeed('Force transfer completed successfully!');
 
@@ -115,7 +103,7 @@ export const forceTransferCommand = new Command('force-transfer')
       console.log(`   ${chalk.bold('To Account:')} ${options.recipient}`);
       console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-      console.log(`   ${chalk.bold('Permanent Delegate:')} ${authorityAddr}`);
+      console.log(`   ${chalk.bold('Permanent Delegate:')} ${authority.address}`);
 
       console.log(chalk.cyan('⚡ Result:'));
       console.log(

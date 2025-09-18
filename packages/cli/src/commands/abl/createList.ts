@@ -1,65 +1,60 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import { getCreateListTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import { type Address, signTransactionMessageWithSigners } from 'gill';
-import { maybeOutputRawTx } from '../../utils/rawTx.js';
+import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
+import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface CreateConfigOptions {
   mint: string;
   gatingProgram: string;
-  rpcUrl?: string;
-  keypair?: string;
-  payer?: string;
-  authority?: string;
 }
 
 export const createList = new Command('create-list')
   .description('Create a new list for an existing mint')
+  .requiredOption('-m, --mint <mint>', 'Mint address')
+  .requiredOption('-g, --gating-program <gating-program>', 'Gating program address')
+  .showHelpAfterError()
   .action(async (options: CreateConfigOptions, command) => {
-    const spinner = ora('Creating Token ACL config...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Creating Token ACL config...', rawTx);
 
     try {
-      const parentOpts = command.parent?.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const rawTx: string | undefined = parentOpts.rawTx;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = rawTx ? null : await loadKeypair(options.keypair);
-
-      const payer = (rawTx
-        ? ((options.payer || (await getAddressFromKeypair(options.keypair))) as Address)
-        : kp) as any;
-      const authority = (rawTx
-        ? ((options.authority || (await getAddressFromKeypair(options.keypair))) as Address)
-        : kp) as any;
+      
+      let authority: TransactionSigner<string>;
+      let payer: TransactionSigner<string>;
+      if (rawTx) {
+        const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
+        authority = createNoopSigner(parentOpts.authority as Address || defaultAddr);
+        payer = createNoopSigner(parentOpts.feePayer as Address || authority.address);
+      } else {
+        const kp = await loadKeypair(parentOpts.keypair);
+        authority = kp;
+        payer = kp;
+      }
 
       const { transaction, listConfig } = await getCreateListTransaction({
         rpc,
-        payer,
-        authority,
+        payer: payer,
+        authority: authority,
         mint: options.mint as Address,
       });
 
-      if (maybeOutputRawTx(rawTx, transaction)) {
-        spinner.succeed('Built unsigned transaction');
-        return;
-      }
-
-      spinner.text = 'Signing transaction...';
-
-      // Sign the transaction
-      const signedTransaction =
-        await signTransactionMessageWithSigners(transaction);
-
-      spinner.text = 'Sending transaction...';
-
-      // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction, {
-        skipPreflight: true,
-        commitment: 'confirmed',
-      });
+      const { raw, signature } = await sendOrOutputTransaction(
+        transaction,
+        rawTx,
+        spinner,
+        (tx) =>
+          sendAndConfirmTransaction(tx, {
+            skipPreflight: true,
+            commitment: 'confirmed',
+          })
+      );
+      if (raw) return;
 
       spinner.succeed('ABL list created successfully!');
 

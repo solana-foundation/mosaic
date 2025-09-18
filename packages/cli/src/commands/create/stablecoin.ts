@@ -7,7 +7,7 @@ import {
   TOKEN_ACL_PROGRAM_ID,
 } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
+import { loadKeypair } from '../../utils/solana.js';
 import {
   generateKeyPairSigner,
   signTransactionMessageWithSigners,
@@ -79,22 +79,23 @@ export const createStablecoinCommand = new Command('stablecoin')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: StablecoinOptions, command) => {
-    const spinner = ora('Creating stablecoin...').start();
+    const parentOpts = command.parent?.parent?.opts() || {};
+    const spinner = ora({text: 'Creating stablecoin...', isSilent: parentOpts.rawTx !== undefined}).start();
 
     try {
       // Get global options from parent command
-      const parentOpts = command.parent?.opts() || {};
       const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
       const keypairPath = options.keypair || parentOpts.keypair;
       const rawTx: string | undefined = parentOpts.rawTx;
 
       // Create Solana client with sendAndConfirmTransaction
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+      spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-      // Load signer keypair unless in raw mode
+      // Default to the provided mint authority if raw tx, otherwise use keypair
       const signerKeypair = rawTx ? null : await loadKeypair(keypairPath);
       const signerAddress = (rawTx
-        ? ((await getAddressFromKeypair(keypairPath)) as Address)
+        ? (options.mintAuthority as Address)
         : (signerKeypair!.address as Address));
 
       spinner.text = 'Loading keypairs...';
@@ -135,7 +136,7 @@ export const createStablecoinCommand = new Command('stablecoin')
         options.uri || '',
         mintAuthority,
         rawTx ? (mintKeypair.address as Address) : mintKeypair,
-        rawTx ? (signerAddress as Address) : (signerKeypair as any),
+        rawTx ? signerAddress : signerKeypair!,
         options.aclMode || 'blocklist',
         metadataAuthority,
         pausableAuthority,
@@ -147,7 +148,6 @@ export const createStablecoinCommand = new Command('stablecoin')
       if (rawTx) {
         const { maybeOutputRawTx } = await import('../../utils/rawTx.js');
         if (maybeOutputRawTx(rawTx, transaction)) {
-          spinner.succeed('Built unsigned transaction');
           return;
         }
       }

@@ -82,14 +82,14 @@ export async function resolveSigner(
   rawTx: string | undefined,
   keypairPath?: string,
   addressOverride?: string
-): Promise<{ signer: TransactionSigner<string>; address: Address; isNoop: boolean }> {
+): Promise<{ signer: TransactionSigner<string>; address: Address }> {
   if (rawTx) {
     const address = (addressOverride || (keypairPath ? await getAddressFromKeypair(keypairPath) : undefined)) as Address | undefined;
     if (!address) {
       throw new Error('In raw mode, provide an address for the required signer');
     }
-    return { signer: createNoopSigner(address), address, isNoop: true };
+    return { signer: createNoopSigner(address), address };
   }
   const kp = await loadKeypair(keypairPath);
-  return { signer: kp, address: kp.address as Address, isNoop: false };
+  return { signer: kp, address: kp.address as Address };
 }

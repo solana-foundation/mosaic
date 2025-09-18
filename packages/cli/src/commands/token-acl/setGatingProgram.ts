@@ -4,10 +4,11 @@ import ora from 'ora';
 import { getSetGatingProgramTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner } from 'gill';
 import { maybeOutputRawTx } from '../../utils/rawTx.js';
 import { findMintConfigPda } from '@mosaic/token-acl';
 import { TOKEN_ACL_PROGRAM_ID } from './util.js';
+import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface CreateConfigOptions {
   mint: string;
@@ -25,15 +26,28 @@ export const setGatingProgram = new Command('set-gating-program')
     '-g, --gating-program <gating-program>',
     'Gating program address'
   )
+  .showHelpAfterError()
   .action(async (options: CreateConfigOptions, command) => {
-    const spinner = ora('Setting gating program...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Setting gating program...', rawTx);
 
     try {
-      const parentOpts = command.parent?.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const rawTx: string | undefined = parentOpts.rawTx;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = rawTx ? null : await loadKeypair(options.keypair);
+      spinner.text = `Using RPC URL: ${rpcUrl}`;
+
+      let authority: TransactionSigner<string>;
+      let payer: TransactionSigner<string>;
+      if (rawTx) {
+        const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
+        authority = createNoopSigner(parentOpts.authority as Address || defaultAddr);
+        payer = createNoopSigner(parentOpts.feePayer as Address || authority.address);
+      } else {
+        const kp = await loadKeypair(parentOpts.keypair);
+        authority = kp;
+        payer = kp;
+      }
 
       const mintConfigPda = await findMintConfigPda(
         { mint: options.mint as Address },
@@ -41,13 +55,6 @@ export const setGatingProgram = new Command('set-gating-program')
       );
       const gatingProgram = (options.gatingProgram ||
         '11111111111111111111111111111111') as Address;
-
-      const payer = (rawTx
-        ? ((options.payer || (await getAddressFromKeypair(options.keypair))) as Address)
-        : kp) as any;
-      const authority = (rawTx
-        ? ((options.authority || (await getAddressFromKeypair(options.keypair))) as Address)
-        : kp) as any;
 
       const transaction = await getSetGatingProgramTransaction({
         rpc,
@@ -58,7 +65,6 @@ export const setGatingProgram = new Command('set-gating-program')
       });
 
       if (maybeOutputRawTx(rawTx, transaction)) {
-        spinner.succeed('Built unsigned transaction');
         return;
       }
 
@@ -88,7 +94,12 @@ export const setGatingProgram = new Command('set-gating-program')
       console.log(`   ${chalk.bold('Mint Config:')} ${mintConfigPda[0]}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
     } catch (error) {
-      spinner.fail('Failed to set gating program');
+      const parentOpts = command.parent?.parent?.opts() || {};
+      const rawTx: string | undefined = parentOpts.rawTx;
+      if (!rawTx) {
+        const spinner = ora({ text: 'Setting gating program...', isSilent: false }).start();
+        spinner.fail('Failed to set gating program');
+      }
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'

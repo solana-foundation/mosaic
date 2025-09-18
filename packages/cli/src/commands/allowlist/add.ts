@@ -4,15 +4,12 @@ import ora from 'ora';
 import { createAddToAllowlistTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { resolveSigner } from '../../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
-import { maybeOutputRawTx } from '../../utils/rawTx.js';
+import { type Address } from 'gill';
+import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface AddOptions {
   mintAddress: string;
   account: string;
-  rpcUrl?: string;
-  keypair?: string;
-  authority?: string;
 }
 
 export const addCommand = new Command('add')
@@ -31,14 +28,15 @@ export const addCommand = new Command('add')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: AddOptions, command) => {
-    const spinner = ora('Adding account to allowlist...').start();
 
     try {
       // Get global options from parent command
-      const parentOpts = command.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
+      const parentOpts = getGlobalOpts(command as any);
+      const rpcUrl = parentOpts.rpcUrl;
+      const keypairPath = parentOpts.keypair;
       const rawTx: string | undefined = parentOpts.rawTx;
+
+      const spinner = createSpinner('Adding account to allowlist...', rawTx);
 
       // Create Solana client
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
@@ -47,7 +45,7 @@ export const addCommand = new Command('add')
       const { signer: authoritySigner, address: authorityAddress } = await resolveSigner(
         rawTx,
         keypairPath,
-        options.authority
+        parentOpts.authority
       );
 
       spinner.text = 'Building add transaction...';
@@ -60,20 +58,13 @@ export const addCommand = new Command('add')
         authoritySigner
       );
 
-      if (maybeOutputRawTx(rawTx, transaction)) {
-        spinner.succeed('Built unsigned transaction');
-        return;
-      }
-
-      spinner.text = 'Signing transaction...';
-
-      // Sign the transaction
-      const signedTransaction = await signTransactionMessageWithSigners(transaction);
-
-      spinner.text = 'Sending transaction...';
-
-      // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction);
+      const { raw, signature } = await sendOrOutputTransaction(
+        transaction,
+        rawTx,
+        spinner,
+        (tx) => sendAndConfirmTransaction(tx)
+      );
+      if (raw) return;
 
       spinner.succeed('Account added to allowlist successfully!');
 
@@ -85,7 +76,12 @@ export const addCommand = new Command('add')
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
       console.log(`   ${chalk.bold('Authority:')} ${authorityAddress}`);
     } catch (error) {
-      spinner.fail('Failed to add account to allowlist');
+      const parentOpts = command.parent?.opts() || {};
+      const rawTx: string | undefined = parentOpts.rawTx;
+      if (!rawTx) {
+        const spinner = ora({ text: 'Adding account to allowlist...', isSilent: false }).start();
+        spinner.fail('Failed to add account to allowlist');
+      }
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error : 'Unknown error'

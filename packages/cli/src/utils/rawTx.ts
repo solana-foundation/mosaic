@@ -21,11 +21,7 @@ export function outputRawTransaction(
     throw new Error("--raw-tx must be 'b64' or 'b58'");
   }
   const payload = enc === 'b64' ? transactionToB64(transaction) : transactionToB58(transaction);
-  const result = {
-    encoding: enc,
-    transaction: payload,
-  };
-  console.log(JSON.stringify(result));
+  console.log(payload);
 }
 
 export function maybeOutputRawTx(
@@ -36,5 +32,3 @@ export function maybeOutputRawTx(
   outputRawTransaction(rawTxOption, transaction);
   return true;
 }
-
-

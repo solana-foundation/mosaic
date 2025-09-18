@@ -1,11 +1,11 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import { getThawTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner } from 'gill';
 import { maybeOutputRawTx } from '../../utils/rawTx.js';
+import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface CreateConfigOptions {
   tokenAccount: string;
@@ -21,22 +21,28 @@ export const thaw = new Command('thaw')
     '-t, --token-account <token-account>',
     'Token account address'
   )
+  .showHelpAfterError()
   .action(async (options: CreateConfigOptions, command) => {
-    const spinner = ora('Thawing token account...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Thawing token account...', rawTx);
 
     try {
-      const parentOpts = command.parent?.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const rawTx: string | undefined = parentOpts.rawTx;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = rawTx ? null : await loadKeypair(options.keypair);
+      spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-      const payer = (rawTx
-        ? ((options.payer || (await getAddressFromKeypair(options.keypair))) as Address)
-        : kp) as any;
-      const authority = (rawTx
-        ? ((options.authority || (await getAddressFromKeypair(options.keypair))) as Address)
-        : kp) as any;
+      let authority: TransactionSigner<string>;
+      let payer: TransactionSigner<string>;
+      if (rawTx) {
+        const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
+        authority = createNoopSigner(parentOpts.authority as Address || defaultAddr);
+        payer = createNoopSigner(parentOpts.feePayer as Address || authority.address);
+      } else {
+        const kp = await loadKeypair(parentOpts.keypair);
+        authority = kp;
+        payer = kp;
+      }
 
       const transaction = await getThawTransaction({
         rpc,
@@ -46,7 +52,6 @@ export const thaw = new Command('thaw')
       });
 
       if (maybeOutputRawTx(rawTx, transaction)) {
-        spinner.succeed('Built unsigned transaction');
         return;
       }
 
@@ -72,7 +77,9 @@ export const thaw = new Command('thaw')
       console.log(`   ${chalk.bold('Token Account:')} ${options.tokenAccount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
     } catch (error) {
-      spinner.fail('Failed to thaw token account');
+      if (!rawTx) {
+        spinner.fail('Failed to thaw token account');
+      }
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'

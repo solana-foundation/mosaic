@@ -1,11 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import { createRemoveFromBlocklistTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { resolveSigner } from '../../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
-import { maybeOutputRawTx } from '../../utils/rawTx.js';
+import { type Address } from 'gill';
+import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface RemoveOptions {
   mintAddress: string;
@@ -31,15 +30,15 @@ export const removeCommand = new Command('remove')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: RemoveOptions, command) => {
-    const spinner = ora('Removing account from blocklist...').start();
+    // Get global options from parent command
+    const parentOpts = getGlobalOpts(command as any);
+    const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
+    const keypairPath = options.keypair || parentOpts.keypair;
+    const rawTx: string | undefined = parentOpts.rawTx;
+
+    const spinner = createSpinner('Removing account from blocklist...', rawTx);
 
     try {
-      // Get global options from parent command
-      const parentOpts = command.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
-      const rawTx: string | undefined = parentOpts.rawTx;
-
       // Create Solana client
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
@@ -60,20 +59,13 @@ export const removeCommand = new Command('remove')
         authoritySigner
       );
 
-      if (maybeOutputRawTx(rawTx, transaction)) {
-        spinner.succeed('Built unsigned transaction');
-        return;
-      }
-
-      spinner.text = 'Signing transaction...';
-
-      // Sign the transaction
-      const signedTransaction = await signTransactionMessageWithSigners(transaction);
-
-      spinner.text = 'Sending transaction...';
-
-      // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction);
+      const { raw, signature } = await sendOrOutputTransaction(
+        transaction,
+        rawTx,
+        spinner,
+        (tx) => sendAndConfirmTransaction(tx)
+      );
+      if (raw) return;
 
       spinner.succeed('Account removed from blocklist successfully!');
 
