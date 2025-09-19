@@ -1,21 +1,23 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import {
   createForceTransferTransaction,
   validatePermanentDelegate,
 } from '@mosaic/sdk';
 import { createSolanaClient } from '../utils/rpc.js';
-import { loadKeypair } from '../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
+import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
+import {
+  getGlobalOpts,
+  createSpinner,
+  sendOrOutputTransaction,
+} from '../utils/cli.js';
 
 interface ForceTransferOptions {
   mintAddress: string;
   fromAccount: string;
   recipient: string;
   amount: string;
-  rpcUrl?: string;
-  keypair?: string;
 }
 
 export const forceTransferCommand = new Command('force-transfer')
@@ -36,20 +38,37 @@ export const forceTransferCommand = new Command('force-transfer')
     '-a, --amount <amount>',
     'The decimal amount to transfer (e.g., 1.5)'
   )
+  .showHelpAfterError()
   .action(async (options: ForceTransferOptions, command) => {
-    const spinner = ora('Force transferring tokens...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner(
+      'Force transferring tokens...',
+      parentOpts.rawTx
+    );
 
     try {
-      // Get global options from parent command
-      const parentOpts = command.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
-
       // Create Solana client
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
-      // Load permanent delegate keypair (assuming it's the configured keypair)
-      const permanentDelegateKeypair = await loadKeypair(keypairPath);
+      let authority: TransactionSigner<string>;
+      let payer: TransactionSigner<string>;
+      if (rawTx) {
+        const defaultAddr = (await getAddressFromKeypair(
+          parentOpts.keypair
+        )) as Address;
+        authority = createNoopSigner(
+          (parentOpts.authority as Address) || defaultAddr
+        );
+        payer = createNoopSigner(
+          (parentOpts.feePayer as Address) || authority.address
+        );
+      } else {
+        const kp = await loadKeypair(parentOpts.keypair);
+        authority = kp;
+        payer = kp;
+      }
 
       // Parse and validate amount
       const decimalAmount = parseFloat(options.amount);
@@ -63,7 +82,7 @@ export const forceTransferCommand = new Command('force-transfer')
       await validatePermanentDelegate(
         rpc,
         options.mintAddress as Address,
-        permanentDelegateKeypair.address
+        authority.address
       );
 
       spinner.text = 'Building force transfer transaction...';
@@ -75,20 +94,21 @@ export const forceTransferCommand = new Command('force-transfer')
         options.fromAccount as Address,
         options.recipient as Address,
         decimalAmount,
-        permanentDelegateKeypair,
-        permanentDelegateKeypair // Use same keypair as fee payer
+        authority.address,
+        payer.address
       );
 
-      spinner.text = 'Signing transaction...';
-
-      // Sign the transaction
-      const signedTransaction =
-        await signTransactionMessageWithSigners(transaction);
-
-      spinner.text = 'Sending transaction...';
-
-      // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction);
+      const { raw, signature } = await sendOrOutputTransaction(
+        transaction,
+        rawTx,
+        spinner,
+        tx =>
+          sendAndConfirmTransaction(tx, {
+            skipPreflight: true,
+            commitment: 'confirmed',
+          })
+      );
+      if (raw) return;
 
       spinner.succeed('Force transfer completed successfully!');
 
@@ -101,7 +121,7 @@ export const forceTransferCommand = new Command('force-transfer')
       console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
       console.log(
-        `   ${chalk.bold('Permanent Delegate:')} ${permanentDelegateKeypair.address}`
+        `   ${chalk.bold('Permanent Delegate:')} ${authority.address}`
       );
 
       console.log(chalk.cyan('⚡ Result:'));

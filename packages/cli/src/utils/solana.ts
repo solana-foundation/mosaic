@@ -1,8 +1,8 @@
 import { readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
-import type { Address } from 'gill';
-import { createKeyPairSignerFromBytes } from 'gill';
+import type { Address, TransactionSigner } from 'gill';
+import { createKeyPairSignerFromBytes, createNoopSigner } from 'gill';
 
 export interface SolanaConfig {
   json_rpc_url: string;
@@ -76,4 +76,25 @@ export async function getAddressFromKeypair(
 ): Promise<Address> {
   const keypair = await loadKeypair(keypairPath);
   return keypair.address;
+}
+
+export async function resolveSigner(
+  rawTx: string | undefined,
+  keypairPath?: string,
+  addressOverride?: string
+): Promise<{ signer: TransactionSigner<string>; address: Address }> {
+  if (rawTx) {
+    const address = (addressOverride ||
+      (keypairPath ? await getAddressFromKeypair(keypairPath) : undefined)) as
+      | Address
+      | undefined;
+    if (!address) {
+      throw new Error(
+        'In raw mode, provide an address for the required signer'
+      );
+    }
+    return { signer: createNoopSigner(address), address };
+  }
+  const kp = await loadKeypair(keypairPath);
+  return { signer: kp, address: kp.address as Address };
 }

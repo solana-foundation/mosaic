@@ -1,6 +1,5 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import {
   ABL_PROGRAM_ID,
   TOKEN_ACL_PROGRAM_ID,
@@ -12,9 +11,11 @@ import {
   generateKeyPairSigner,
   signTransactionMessageWithSigners,
   type Address,
+  type TransactionSigner,
 } from 'gill';
 import { findListConfigPda } from '@mosaic/abl';
 import { findMintConfigPda } from '@mosaic/token-acl';
+import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface TokenizedSecuritiesOptions {
   name: string;
@@ -31,8 +32,6 @@ interface TokenizedSecuritiesOptions {
   scaledUiAmountAuthority?: string;
   enableSrfc37?: boolean;
   mintKeypair?: string;
-  rpcUrl?: string;
-  keypair?: string;
 }
 
 export const createTokenizedSecurityCommand = new Command('tokenized-security')
@@ -88,21 +87,23 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: TokenizedSecuritiesOptions, command) => {
-    const spinner = ora('Creating tokenized security...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Creating tokenized security...', rawTx);
 
     try {
-      const parentOpts = command.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
-
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+      spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-      const signerKeypair = await loadKeypair(keypairPath);
-      const signerAddress = signerKeypair.address;
+      const signerKeypair = rawTx
+        ? null
+        : await loadKeypair(parentOpts.keypair);
+      const signerAddress = rawTx
+        ? (options.mintAuthority as Address)
+        : (signerKeypair!.address as Address);
 
-      spinner.text = 'Loading keypairs...';
-
-      let mintKeypair;
+      let mintKeypair: TransactionSigner<string>;
       if (options.mintKeypair) {
         mintKeypair = await loadKeypair(options.mintKeypair);
       } else {
@@ -139,8 +140,10 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
         decimals,
         options.uri || '',
         mintAuthority,
-        mintKeypair,
-        signerKeypair,
+        rawTx ? (mintKeypair.address as Address) : mintKeypair,
+        rawTx
+          ? (signerAddress as Address)
+          : (signerKeypair as TransactionSigner<string>),
         {
           aclMode: options.aclMode,
           metadataAuthority,
@@ -154,6 +157,13 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
           enableSrfc37: options.enableSrfc37,
         }
       );
+
+      if (rawTx) {
+        const { maybeOutputRawTx } = await import('../../utils/rawTx.js');
+        if (maybeOutputRawTx(rawTx, transaction)) {
+          return;
+        }
+      }
 
       spinner.text = 'Signing transaction...';
       const signedTransaction =

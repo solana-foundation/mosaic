@@ -1,6 +1,5 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import {
   ABL_PROGRAM_ID,
   createArcadeTokenInitTransaction,
@@ -12,9 +11,11 @@ import {
   generateKeyPairSigner,
   signTransactionMessageWithSigners,
   type Address,
+  type TransactionSigner,
 } from 'gill';
 import { findListConfigPda } from '@mosaic/abl';
 import { findMintConfigPda } from '@mosaic/token-acl';
+import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface ArcadeTokenOptions {
   name: string;
@@ -27,8 +28,6 @@ interface ArcadeTokenOptions {
   permanentDelegateAuthority?: string;
   enableSrfc37?: boolean;
   mintKeypair?: string;
-  rpcUrl?: string;
-  keypair?: string;
 }
 
 export const createArcadeTokenCommand = new Command('arcade-token')
@@ -68,25 +67,26 @@ export const createArcadeTokenCommand = new Command('arcade-token')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: ArcadeTokenOptions, command) => {
-    const spinner = ora('Creating arcade token...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Creating arcade token...', rawTx);
 
     try {
-      // Get global options from parent command
-      const parentOpts = command.parent?.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
-
-      // Create Solana client with sendAndConfirmTransaction
+      // Create Solana client
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+      spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-      // Load signer keypair
-      const signerKeypair = await loadKeypair(keypairPath);
-      const signerAddress = signerKeypair.address;
+      // Load signer and payer keypairs
+      const signerKeypair = rawTx
+        ? null
+        : await loadKeypair(parentOpts.keypair);
+      const signerAddress = rawTx
+        ? (options.mintAuthority as Address)
+        : (signerKeypair!.address as Address);
 
-      spinner.text = 'Loading keypairs...';
-
-      // Generate or load mint keypair
-      let mintKeypair;
+      // Generate or load mint keypair (must be a signer if not raw)
+      let mintKeypair: TransactionSigner<string>;
       if (options.mintKeypair) {
         mintKeypair = await loadKeypair(options.mintKeypair);
       } else {
@@ -118,13 +118,20 @@ export const createArcadeTokenCommand = new Command('arcade-token')
         decimals,
         options.uri || '',
         mintAuthority,
-        mintKeypair,
-        signerKeypair,
+        rawTx ? mintKeypair.address : mintKeypair,
+        rawTx ? signerAddress : signerKeypair!,
         metadataAuthority,
         pausableAuthority,
         permanentDelegateAuthority,
         options.enableSrfc37
       );
+
+      if (rawTx) {
+        const { maybeOutputRawTx } = await import('../../utils/rawTx.js');
+        if (maybeOutputRawTx(rawTx, transaction)) {
+          return;
+        }
+      }
 
       spinner.text = 'Signing transaction...';
 
@@ -200,7 +207,9 @@ export const createArcadeTokenCommand = new Command('arcade-token')
         console.log('Allowlist managed via manual thawing of addresses');
       }
     } catch (error) {
-      spinner.fail('Failed to create arcade token');
+      if (!rawTx) {
+        spinner.fail('Failed to create arcade token');
+      }
       console.error(
         chalk.red('❌ Error:'),
         error instanceof Error ? error.message : 'Unknown error'
