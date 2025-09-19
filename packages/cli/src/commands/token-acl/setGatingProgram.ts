@@ -4,7 +4,12 @@ import ora from 'ora';
 import { getSetGatingProgramTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner } from 'gill';
+import {
+  createNoopSigner,
+  signTransactionMessageWithSigners,
+  type Address,
+  type TransactionSigner,
+} from 'gill';
 import { maybeOutputRawTx } from '../../utils/rawTx.js';
 import { findMintConfigPda } from '@mosaic/token-acl';
 import { TOKEN_ACL_PROGRAM_ID } from './util.js';
@@ -13,10 +18,6 @@ import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 interface CreateConfigOptions {
   mint: string;
   gatingProgram: string;
-  rpcUrl?: string;
-  keypair?: string;
-  payer?: string;
-  authority?: string;
 }
 
 export const setGatingProgram = new Command('set-gating-program')
@@ -40,9 +41,15 @@ export const setGatingProgram = new Command('set-gating-program')
       let authority: TransactionSigner<string>;
       let payer: TransactionSigner<string>;
       if (rawTx) {
-        const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
-        authority = createNoopSigner(parentOpts.authority as Address || defaultAddr);
-        payer = createNoopSigner(parentOpts.feePayer as Address || authority.address);
+        const defaultAddr = (await getAddressFromKeypair(
+          parentOpts.keypair
+        )) as Address;
+        authority = createNoopSigner(
+          (parentOpts.authority as Address) || defaultAddr
+        );
+        payer = createNoopSigner(
+          (parentOpts.feePayer as Address) || authority.address
+        );
       } else {
         const kp = await loadKeypair(parentOpts.keypair);
         authority = kp;
@@ -97,7 +104,10 @@ export const setGatingProgram = new Command('set-gating-program')
       const parentOpts = command.parent?.parent?.opts() || {};
       const rawTx: string | undefined = parentOpts.rawTx;
       if (!rawTx) {
-        const spinner = ora({ text: 'Setting gating program...', isSilent: false }).start();
+        const spinner = ora({
+          text: 'Setting gating program...',
+          isSilent: false,
+        }).start();
         spinner.fail('Failed to set gating program');
       }
       console.error(

@@ -1,6 +1,5 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import {
   ABL_PROGRAM_ID,
   createArcadeTokenInitTransaction,
@@ -29,8 +28,6 @@ interface ArcadeTokenOptions {
   permanentDelegateAuthority?: string;
   enableSrfc37?: boolean;
   mintKeypair?: string;
-  rpcUrl?: string;
-  keypair?: string;
 }
 
 export const createArcadeTokenCommand = new Command('arcade-token')
@@ -81,10 +78,12 @@ export const createArcadeTokenCommand = new Command('arcade-token')
       spinner.text = `Using RPC URL: ${rpcUrl}`;
 
       // Load signer and payer keypairs
-      const signerKeypair = rawTx ? null : await loadKeypair(parentOpts.keypair);
-      const signerAddress = (rawTx
+      const signerKeypair = rawTx
+        ? null
+        : await loadKeypair(parentOpts.keypair);
+      const signerAddress = rawTx
         ? (options.mintAuthority as Address)
-        : (signerKeypair!.address as Address));
+        : (signerKeypair!.address as Address);
 
       // Generate or load mint keypair (must be a signer if not raw)
       let mintKeypair: TransactionSigner<string>;
@@ -208,10 +207,7 @@ export const createArcadeTokenCommand = new Command('arcade-token')
         console.log('Allowlist managed via manual thawing of addresses');
       }
     } catch (error) {
-      const parentOpts = command.parent?.parent?.opts() || {};
-      const rawTx: string | undefined = parentOpts.rawTx;
       if (!rawTx) {
-        const spinner = ora({ text: 'Creating arcade token...', isSilent: false }).start();
         spinner.fail('Failed to create arcade token');
       }
       console.error(

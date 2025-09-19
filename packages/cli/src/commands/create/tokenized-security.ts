@@ -32,8 +32,6 @@ interface TokenizedSecuritiesOptions {
   scaledUiAmountAuthority?: string;
   enableSrfc37?: boolean;
   mintKeypair?: string;
-  rpcUrl?: string;
-  keypair?: string;
 }
 
 export const createTokenizedSecurityCommand = new Command('tokenized-security')
@@ -94,15 +92,16 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
     const rawTx: string | undefined = parentOpts.rawTx;
     const spinner = createSpinner('Creating tokenized security...', rawTx);
 
-
     try {
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
       spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-      const signerKeypair = rawTx ? null : await loadKeypair(parentOpts.keypair);
-      const signerAddress = (rawTx
+      const signerKeypair = rawTx
+        ? null
+        : await loadKeypair(parentOpts.keypair);
+      const signerAddress = rawTx
         ? (options.mintAuthority as Address)
-        : (signerKeypair!.address as Address));
+        : (signerKeypair!.address as Address);
 
       let mintKeypair: TransactionSigner<string>;
       if (options.mintKeypair) {
@@ -142,7 +141,9 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
         options.uri || '',
         mintAuthority,
         rawTx ? (mintKeypair.address as Address) : mintKeypair,
-        rawTx ? (signerAddress as Address) : (signerKeypair as any),
+        rawTx
+          ? (signerAddress as Address)
+          : (signerKeypair as TransactionSigner<string>),
         {
           aclMode: options.aclMode,
           metadataAuthority,

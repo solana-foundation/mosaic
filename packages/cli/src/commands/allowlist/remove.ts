@@ -4,14 +4,15 @@ import { createRemoveFromAllowlistTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { resolveSigner } from '../../utils/solana.js';
 import { type Address } from 'gill';
-import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
+import {
+  getGlobalOpts,
+  createSpinner,
+  sendOrOutputTransaction,
+} from '../../utils/cli.js';
 
 interface RemoveOptions {
   mintAddress: string;
   account: string;
-  rpcUrl?: string;
-  keypair?: string;
-  authority?: string;
 }
 
 export const removeCommand = new Command('remove')
@@ -31,9 +32,9 @@ export const removeCommand = new Command('remove')
   })
   .action(async (options: RemoveOptions, command) => {
     // Get global options from parent command
-    const parentOpts = getGlobalOpts(command as any);
-    const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-    const keypairPath = options.keypair || parentOpts.keypair;
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const keypairPath = parentOpts.keypair;
     const rawTx: string | undefined = parentOpts.rawTx;
 
     const spinner = createSpinner('Removing account from allowlist...', rawTx);
@@ -43,11 +44,8 @@ export const removeCommand = new Command('remove')
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
       // Resolve authority signer or address
-      const { signer: authoritySigner, address: authorityAddress } = await resolveSigner(
-        rawTx,
-        keypairPath,
-        options.authority
-      );
+      const { signer: authoritySigner, address: authorityAddress } =
+        await resolveSigner(rawTx, keypairPath, parentOpts.authority);
 
       spinner.text = 'Building remove transaction...';
 
@@ -63,7 +61,7 @@ export const removeCommand = new Command('remove')
         transaction,
         rawTx,
         spinner,
-        (tx) => sendAndConfirmTransaction(tx)
+        tx => sendAndConfirmTransaction(tx)
       );
       if (raw) return;
 

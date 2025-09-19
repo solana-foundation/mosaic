@@ -12,15 +12,15 @@ type Tx = FullTransaction<
   TransactionMessageWithBlockhashLifetime
 >;
 
-export function outputRawTransaction(
-  encoding: string,
-  transaction: Tx
-): void {
+export function outputRawTransaction(encoding: string, transaction: Tx): void {
   const enc = encoding.toLowerCase();
   if (enc !== 'b64' && enc !== 'b58') {
     throw new Error("--raw-tx must be 'b64' or 'b58'");
   }
-  const payload = enc === 'b64' ? transactionToB64(transaction) : transactionToB58(transaction);
+  const payload =
+    enc === 'b64'
+      ? transactionToB64(transaction)
+      : transactionToB58(transaction);
   console.log(payload);
 }
 

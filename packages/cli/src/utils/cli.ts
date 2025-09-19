@@ -5,6 +5,7 @@ import type {
   TransactionMessageWithBlockhashLifetime,
   TransactionMessageWithFeePayer,
   TransactionVersion,
+  SendAndConfirmTransactionWithSignersFunction,
 } from 'gill';
 import { signTransactionMessageWithSigners } from 'gill';
 import { maybeOutputRawTx } from './rawTx.js';
@@ -31,7 +32,7 @@ export async function sendOrOutputTransaction(
   transaction: Tx,
   rawTx: string | undefined,
   spinner: Ora,
-  sendAndConfirmTransaction: (tx: any, opts?: any) => Promise<string>
+  sendAndConfirmTransaction: SendAndConfirmTransactionWithSignersFunction
 ): Promise<{ raw: boolean; signature?: string }> {
   if (maybeOutputRawTx(rawTx, transaction)) {
     return { raw: true };
@@ -39,10 +40,9 @@ export async function sendOrOutputTransaction(
   spinner.text = 'Signing transaction...';
   const signed = await signTransactionMessageWithSigners(transaction);
   spinner.text = 'Sending transaction...';
-  const signature = await sendAndConfirmTransaction(signed);
+  const signature = await sendAndConfirmTransaction(signed, {
+    skipPreflight: true,
+    commitment: 'confirmed',
+  });
   return { raw: false, signature };
 }
-
-
-
-

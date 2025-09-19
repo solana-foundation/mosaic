@@ -4,7 +4,11 @@ import { getCreateListTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
-import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
+import {
+  getGlobalOpts,
+  createSpinner,
+  sendOrOutputTransaction,
+} from '../../utils/cli.js';
 
 interface CreateConfigOptions {
   mint: string;
@@ -14,7 +18,10 @@ interface CreateConfigOptions {
 export const createList = new Command('create-list')
   .description('Create a new list for an existing mint')
   .requiredOption('-m, --mint <mint>', 'Mint address')
-  .requiredOption('-g, --gating-program <gating-program>', 'Gating program address')
+  .requiredOption(
+    '-g, --gating-program <gating-program>',
+    'Gating program address'
+  )
   .showHelpAfterError()
   .action(async (options: CreateConfigOptions, command) => {
     const parentOpts = getGlobalOpts(command);
@@ -24,13 +31,19 @@ export const createList = new Command('create-list')
 
     try {
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      
+
       let authority: TransactionSigner<string>;
       let payer: TransactionSigner<string>;
       if (rawTx) {
-        const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
-        authority = createNoopSigner(parentOpts.authority as Address || defaultAddr);
-        payer = createNoopSigner(parentOpts.feePayer as Address || authority.address);
+        const defaultAddr = (await getAddressFromKeypair(
+          parentOpts.keypair
+        )) as Address;
+        authority = createNoopSigner(
+          (parentOpts.authority as Address) || defaultAddr
+        );
+        payer = createNoopSigner(
+          (parentOpts.feePayer as Address) || authority.address
+        );
       } else {
         const kp = await loadKeypair(parentOpts.keypair);
         authority = kp;
@@ -48,7 +61,7 @@ export const createList = new Command('create-list')
         transaction,
         rawTx,
         spinner,
-        (tx) =>
+        tx =>
           sendAndConfirmTransaction(tx, {
             skipPreflight: true,
             commitment: 'confirmed',

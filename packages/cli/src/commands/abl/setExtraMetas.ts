@@ -4,7 +4,11 @@ import { getSetExtraMetasTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
-import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
+import {
+  getGlobalOpts,
+  createSpinner,
+  sendOrOutputTransaction,
+} from '../../utils/cli.js';
 
 interface CreateConfigOptions {
   mint: string;
@@ -16,20 +20,26 @@ export const setExtraMetas = new Command('set-extra-metas')
   .requiredOption('-m, --mint <mint>', 'Mint address')
   .requiredOption('-l, --list <list>', 'List address')
   .action(async (options: CreateConfigOptions, command) => {
-    const parentOpts = getGlobalOpts(command as any);
+    const parentOpts = getGlobalOpts(command);
     const rpcUrl = parentOpts.rpcUrl;
     const rawTx: string | undefined = parentOpts.rawTx;
     const spinner = createSpinner('Setting extra metas...', rawTx);
 
     try {
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      
+
       let authority: TransactionSigner<string>;
       let feePayer: TransactionSigner<string>;
       if (rawTx) {
-        const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
-        authority = createNoopSigner(parentOpts.authority as Address || defaultAddr);
-        feePayer = createNoopSigner(parentOpts.feePayer as Address || authority.address);
+        const defaultAddr = (await getAddressFromKeypair(
+          parentOpts.keypair
+        )) as Address;
+        authority = createNoopSigner(
+          (parentOpts.authority as Address) || defaultAddr
+        );
+        feePayer = createNoopSigner(
+          (parentOpts.feePayer as Address) || authority.address
+        );
       } else {
         const kp = await loadKeypair(parentOpts.keypair);
         authority = kp;
@@ -48,7 +58,7 @@ export const setExtraMetas = new Command('set-extra-metas')
         transaction,
         rawTx,
         spinner,
-        (tx) =>
+        tx =>
           sendAndConfirmTransaction(tx, {
             skipPreflight: true,
             commitment: 'confirmed',

@@ -3,16 +3,17 @@ import chalk from 'chalk';
 import { getFreezeTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner } from 'gill';
+import {
+  createNoopSigner,
+  signTransactionMessageWithSigners,
+  type Address,
+  type TransactionSigner,
+} from 'gill';
 import { maybeOutputRawTx } from '../../utils/rawTx.js';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface CreateConfigOptions {
   tokenAccount: string;
-  rpcUrl?: string;
-  keypair?: string;
-  payer?: string;
-  authority?: string;
 }
 
 export const freeze = new Command('freeze')
@@ -35,9 +36,15 @@ export const freeze = new Command('freeze')
       let authority: TransactionSigner<string>;
       let payer: TransactionSigner<string>;
       if (rawTx) {
-        const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
-        authority = createNoopSigner(parentOpts.authority as Address || defaultAddr);
-        payer = createNoopSigner(parentOpts.feePayer as Address || authority.address);
+        const defaultAddr = (await getAddressFromKeypair(
+          parentOpts.keypair
+        )) as Address;
+        authority = createNoopSigner(
+          (parentOpts.authority as Address) || defaultAddr
+        );
+        payer = createNoopSigner(
+          (parentOpts.feePayer as Address) || authority.address
+        );
       } else {
         const kp = await loadKeypair(parentOpts.keypair);
         authority = kp;

@@ -4,7 +4,11 @@ import { createMintToTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
-import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../utils/cli.js';
+import {
+  createSpinner,
+  getGlobalOpts,
+  sendOrOutputTransaction,
+} from '../utils/cli.js';
 
 interface MintOptions {
   mintAddress: string;

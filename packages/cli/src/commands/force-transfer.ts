@@ -7,7 +7,11 @@ import {
 import { createSolanaClient } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
-import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../utils/cli.js';
+import {
+  getGlobalOpts,
+  createSpinner,
+  sendOrOutputTransaction,
+} from '../utils/cli.js';
 
 interface ForceTransferOptions {
   mintAddress: string;
@@ -39,7 +43,10 @@ export const forceTransferCommand = new Command('force-transfer')
     const parentOpts = getGlobalOpts(command);
     const rpcUrl = parentOpts.rpcUrl;
     const rawTx: string | undefined = parentOpts.rawTx;
-    const spinner = createSpinner('Force transferring tokens...', parentOpts.rawTx);
+    const spinner = createSpinner(
+      'Force transferring tokens...',
+      parentOpts.rawTx
+    );
 
     try {
       // Create Solana client
@@ -48,9 +55,15 @@ export const forceTransferCommand = new Command('force-transfer')
       let authority: TransactionSigner<string>;
       let payer: TransactionSigner<string>;
       if (rawTx) {
-        const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
-        authority = createNoopSigner(parentOpts.authority as Address || defaultAddr);
-        payer = createNoopSigner(parentOpts.feePayer as Address || authority.address);
+        const defaultAddr = (await getAddressFromKeypair(
+          parentOpts.keypair
+        )) as Address;
+        authority = createNoopSigner(
+          (parentOpts.authority as Address) || defaultAddr
+        );
+        payer = createNoopSigner(
+          (parentOpts.feePayer as Address) || authority.address
+        );
       } else {
         const kp = await loadKeypair(parentOpts.keypair);
         authority = kp;
@@ -66,7 +79,11 @@ export const forceTransferCommand = new Command('force-transfer')
       spinner.text = 'Validating permanent delegate authority...';
 
       // Validate that the mint has permanent delegate extension and our keypair is the delegate
-      await validatePermanentDelegate(rpc, options.mintAddress as Address, authority.address);
+      await validatePermanentDelegate(
+        rpc,
+        options.mintAddress as Address,
+        authority.address
+      );
 
       spinner.text = 'Building force transfer transaction...';
 
@@ -85,7 +102,7 @@ export const forceTransferCommand = new Command('force-transfer')
         transaction,
         rawTx,
         spinner,
-        (tx) =>
+        tx =>
           sendAndConfirmTransaction(tx, {
             skipPreflight: true,
             commitment: 'confirmed',
@@ -103,7 +120,9 @@ export const forceTransferCommand = new Command('force-transfer')
       console.log(`   ${chalk.bold('To Account:')} ${options.recipient}`);
       console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-      console.log(`   ${chalk.bold('Permanent Delegate:')} ${authority.address}`);
+      console.log(
+        `   ${chalk.bold('Permanent Delegate:')} ${authority.address}`
+      );
 
       console.log(chalk.cyan('⚡ Result:'));
       console.log(
