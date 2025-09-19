@@ -11,7 +11,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "test": "echo 'Tests will be implemented'",

@@ -1,7 +1,9 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "noEmit": false,
     "outDir": "./dist",
+    "rootDir": "./src",
     "module": "ES2022",
     "target": "ES2022",
     "moduleResolution": "bundler",
@@ -11,8 +13,15 @@
     "declarationMap": true,
     "sourceMap": true,
     "skipLibCheck": true,
-    "allowImportingTsExtensions": false
+    "allowImportingTsExtensions": false,
+    "composite": true
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules"]
+  "exclude": ["dist", "node_modules"],
+  "references": [
+    { "path": "../sdk" },
+    { "path": "../tlv-account-resolution" },
+    { "path": "../token-acl" },
+    { "path": "../abl" }
+  ]
 }
