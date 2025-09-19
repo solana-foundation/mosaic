@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --recursive run build",
+    "build": "pnpm --recursive --stream run build",
     "dev": "pnpm --recursive run dev",
     "ui": "pnpm --filter @mosaic/ui run dev",
     "test": "pnpm --recursive run test --passWithNoTests",
