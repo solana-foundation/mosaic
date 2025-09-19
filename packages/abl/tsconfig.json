@@ -1,10 +1,12 @@
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "verbatimModuleSyntax": false
+    "rootDir": "./src",
+    "noEmit": false,
+    "verbatimModuleSyntax": false,
+    "composite": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "types": ["jest", "node"]
+  "exclude": ["node_modules", "dist"]
 }

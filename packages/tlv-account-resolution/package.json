@@ -15,7 +15,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -b",
     "dev": "echo 'Dev will be implemented'",
     "test": "jest",
     "test:watch": "jest --watch",
