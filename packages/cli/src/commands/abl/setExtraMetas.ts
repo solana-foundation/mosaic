@@ -1,16 +1,18 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import { getSetExtraMetasTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
+import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
+import {
+  getGlobalOpts,
+  createSpinner,
+  sendOrOutputTransaction,
+} from '../../utils/cli.js';
 
 interface CreateConfigOptions {
   mint: string;
   list: string;
-  rpcUrl?: string;
-  keypair?: string;
 }
 
 export const setExtraMetas = new Command('set-extra-metas')
@@ -18,36 +20,51 @@ export const setExtraMetas = new Command('set-extra-metas')
   .requiredOption('-m, --mint <mint>', 'Mint address')
   .requiredOption('-l, --list <list>', 'List address')
   .action(async (options: CreateConfigOptions, command) => {
-    const spinner = ora('Setting extra metas...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Setting extra metas...', rawTx);
 
     try {
-      const parentOpts = command.parent?.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = await loadKeypair(keypairPath);
+
+      let authority: TransactionSigner<string>;
+      let feePayer: TransactionSigner<string>;
+      if (rawTx) {
+        const defaultAddr = (await getAddressFromKeypair(
+          parentOpts.keypair
+        )) as Address;
+        authority = createNoopSigner(
+          (parentOpts.authority as Address) || defaultAddr
+        );
+        feePayer = createNoopSigner(
+          (parentOpts.feePayer as Address) || authority.address
+        );
+      } else {
+        const kp = await loadKeypair(parentOpts.keypair);
+        authority = kp;
+        feePayer = kp;
+      }
 
       const transaction = await getSetExtraMetasTransaction({
         rpc,
-        payer: kp,
-        authority: kp,
+        payer: feePayer,
+        authority,
         mint: options.mint as Address,
         list: options.list as Address,
       });
 
-      spinner.text = 'Signing transaction...';
-
-      // Sign the transaction
-      const signedTransaction =
-        await signTransactionMessageWithSigners(transaction);
-
-      spinner.text = 'Sending transaction...';
-
-      // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction, {
-        skipPreflight: true,
-        commitment: 'confirmed',
-      });
+      const { raw, signature } = await sendOrOutputTransaction(
+        transaction,
+        rawTx,
+        spinner,
+        tx =>
+          sendAndConfirmTransaction(tx, {
+            skipPreflight: true,
+            commitment: 'confirmed',
+          })
+      );
+      if (raw) return;
 
       spinner.succeed('Extra metas set successfully!');
 

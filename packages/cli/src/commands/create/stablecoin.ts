@@ -1,6 +1,5 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import {
   ABL_PROGRAM_ID,
   createStablecoinInitTransaction,
@@ -15,6 +14,7 @@ import {
 } from 'gill';
 import { findListConfigPda } from '@mosaic/abl';
 import { findMintConfigPda } from '@mosaic/token-acl';
+import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface StablecoinOptions {
   name: string;
@@ -29,8 +29,6 @@ interface StablecoinOptions {
   permanentDelegateAuthority?: string;
   enableSrfc37?: boolean;
   mintKeypair?: string;
-  rpcUrl?: string;
-  keypair?: string;
 }
 
 export const createStablecoinCommand = new Command('stablecoin')
@@ -79,24 +77,26 @@ export const createStablecoinCommand = new Command('stablecoin')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: StablecoinOptions, command) => {
-    const spinner = ora('Creating stablecoin...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const keypairPath = parentOpts.keypair;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Creating stablecoin...', rawTx);
 
     try {
-      // Get global options from parent command
-      const parentOpts = command.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
-
       // Create Solana client with sendAndConfirmTransaction
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+      spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-      // Load signer keypair
-      const signerKeypair = await loadKeypair(keypairPath);
-      const signerAddress = signerKeypair.address;
+      // Default to the provided mint authority if raw tx, otherwise use keypair
+      const signerKeypair = rawTx ? null : await loadKeypair(keypairPath);
+      const signerAddress = rawTx
+        ? (options.mintAuthority as Address)
+        : (signerKeypair!.address as Address);
 
       spinner.text = 'Loading keypairs...';
 
-      // Generate or load mint keypair
+      // Generate or load mint keypair (must be a signer if not raw)
       let mintKeypair;
       if (options.mintKeypair) {
         mintKeypair = await loadKeypair(options.mintKeypair);
@@ -131,8 +131,8 @@ export const createStablecoinCommand = new Command('stablecoin')
         decimals,
         options.uri || '',
         mintAuthority,
-        mintKeypair,
-        signerKeypair,
+        rawTx ? (mintKeypair.address as Address) : mintKeypair,
+        rawTx ? signerAddress : signerKeypair!,
         options.aclMode || 'blocklist',
         metadataAuthority,
         pausableAuthority,
@@ -140,6 +140,13 @@ export const createStablecoinCommand = new Command('stablecoin')
         permanentDelegateAuthority,
         options.enableSrfc37
       );
+
+      if (rawTx) {
+        const { maybeOutputRawTx } = await import('../../utils/rawTx.js');
+        if (maybeOutputRawTx(rawTx, transaction)) {
+          return;
+        }
+      }
 
       spinner.text = 'Signing transaction...';
 

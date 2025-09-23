@@ -1,16 +1,18 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import { createAddToBlocklistTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { resolveSigner } from '../../utils/solana.js';
+import { type Address } from 'gill';
+import {
+  getGlobalOpts,
+  createSpinner,
+  sendOrOutputTransaction,
+} from '../../utils/cli.js';
 
 interface AddOptions {
   mintAddress: string;
   account: string;
-  rpcUrl?: string;
-  keypair?: string;
 }
 
 export const addCommand = new Command('add')
@@ -29,19 +31,21 @@ export const addCommand = new Command('add')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: AddOptions, command) => {
-    const spinner = ora('Adding account to blocklist...').start();
+    // Get global options from parent command
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const keypairPath = parentOpts.keypair;
+    const rawTx: string | undefined = parentOpts.rawTx;
+
+    const spinner = createSpinner('Adding account to blocklist...', rawTx);
 
     try {
-      // Get global options from parent command
-      const parentOpts = command.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
-
       // Create Solana client
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
-      // Load authority keypair (assuming it's the configured keypair)
-      const authorityKeypair = await loadKeypair(keypairPath);
+      // Resolve authority signer or address
+      const { signer: authoritySigner, address: authorityAddress } =
+        await resolveSigner(rawTx, keypairPath, parentOpts.authority);
 
       spinner.text = 'Building add transaction...';
 
@@ -50,19 +54,16 @@ export const addCommand = new Command('add')
         rpc,
         options.mintAddress as Address,
         options.account as Address,
-        authorityKeypair
+        authoritySigner
       );
 
-      spinner.text = 'Signing transaction...';
-
-      // Sign the transaction
-      const signedTransaction =
-        await signTransactionMessageWithSigners(transaction);
-
-      spinner.text = 'Sending transaction...';
-
-      // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction);
+      const { raw, signature } = await sendOrOutputTransaction(
+        transaction,
+        rawTx,
+        spinner,
+        tx => sendAndConfirmTransaction(tx)
+      );
+      if (raw) return;
 
       spinner.succeed('Account added to blocklist successfully!');
 
@@ -72,7 +73,7 @@ export const addCommand = new Command('add')
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
       console.log(`   ${chalk.bold('Input Account:')} ${options.account}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-      console.log(`   ${chalk.bold('Authority:')} ${authorityKeypair.address}`);
+      console.log(`   ${chalk.bold('Authority:')} ${authorityAddress}`);
     } catch (error) {
       spinner.fail('Failed to add account to blocklist');
       console.error(

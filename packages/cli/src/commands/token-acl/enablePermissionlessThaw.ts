@@ -1,16 +1,19 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import { getEnablePermissionlessThawTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
+import {
+  signTransactionMessageWithSigners,
+  type Address,
+  type TransactionSigner,
+} from 'gill';
+import { maybeOutputRawTx } from '../../utils/rawTx.js';
+import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface CreateConfigOptions {
   mint: string;
   gatingProgram: string;
-  rpcUrl?: string;
-  keypair?: string;
 }
 
 export const enablePermissionlessThaw = new Command(
@@ -19,22 +22,43 @@ export const enablePermissionlessThaw = new Command(
   .description('Enable permissionless thaw for an existing mint')
   .requiredOption('-m, --mint <mint>', 'Mint address')
   .action(async (options: CreateConfigOptions, command) => {
-    const spinner = ora('Enabling permissionless thaw...').start();
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const rawTx: string | undefined = parentOpts.rawTx;
+    const spinner = createSpinner('Enabling permissionless thaw...', rawTx);
 
     try {
-      const parentOpts = command.parent?.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
-      const kp = await loadKeypair(options.keypair);
+      spinner.text = `Using RPC URL: ${rpcUrl}`;
+
+      const kp = rawTx ? null : await loadKeypair(parentOpts.keypair);
 
       spinner.text = 'Building transaction...';
 
+      const payer = (
+        rawTx
+          ? ((parentOpts.feePayer ||
+              (await getAddressFromKeypair(parentOpts.keypair))) as Address)
+          : kp
+      ) as TransactionSigner<string>;
+      const authority = (
+        rawTx
+          ? ((parentOpts.authority ||
+              (await getAddressFromKeypair(parentOpts.keypair))) as Address)
+          : kp
+      ) as TransactionSigner<string>;
+
       const transaction = await getEnablePermissionlessThawTransaction({
         rpc,
-        payer: kp,
-        authority: kp,
+        payer,
+        authority,
         mint: options.mint as Address,
       });
+
+      if (maybeOutputRawTx(rawTx, transaction)) {
+        spinner.succeed('Built unsigned transaction');
+        return;
+      }
 
       spinner.text = 'Signing transaction...';
 

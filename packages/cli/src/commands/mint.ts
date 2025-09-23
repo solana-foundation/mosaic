@@ -1,17 +1,19 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import { createMintToTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../utils/rpc.js';
-import { loadKeypair } from '../utils/solana.js';
-import { signTransactionMessageWithSigners, type Address } from 'gill';
+import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
+import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
+import {
+  createSpinner,
+  getGlobalOpts,
+  sendOrOutputTransaction,
+} from '../utils/cli.js';
 
 interface MintOptions {
   mintAddress: string;
   recipient: string;
   amount: string;
-  rpcUrl?: string;
-  keypair?: string;
 }
 
 export const mintCommand = new Command('mint')
@@ -34,19 +36,35 @@ export const mintCommand = new Command('mint')
     subcommandTerm: cmd => cmd.name(),
   })
   .action(async (options: MintOptions, command) => {
-    const spinner = ora('Minting tokens...').start();
+    // Get global options from parent command
+    const parentOpts = getGlobalOpts(command);
+    const rpcUrl = parentOpts.rpcUrl;
+    const keypairPath = parentOpts.keypair;
+    const rawTx: string | undefined = parentOpts.rawTx;
+
+    const spinner = createSpinner('Minting tokens...', rawTx);
 
     try {
-      // Get global options from parent command
-      const parentOpts = command.parent?.opts() || {};
-      const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-      const keypairPath = options.keypair || parentOpts.keypair;
-
       // Create Solana client
       const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
-      // Load mint authority keypair (assuming it's the configured keypair)
-      const mintAuthorityKeypair = await loadKeypair(keypairPath);
+      // Resolve authorities: support address-based for raw mode
+      let mintAuthority: TransactionSigner<string>;
+      let feePayer: TransactionSigner<string>;
+      let signerKp: TransactionSigner<string>;
+      if (rawTx) {
+        mintAuthority = createNoopSigner(
+          (parentOpts.authority as Address) ||
+            (await getAddressFromKeypair(keypairPath))
+        );
+        feePayer = createNoopSigner(
+          (parentOpts.feePayer as Address) || mintAuthority.address
+        );
+      } else {
+        signerKp = await loadKeypair(keypairPath);
+        mintAuthority = signerKp;
+        feePayer = signerKp;
+      }
 
       spinner.text = 'Getting mint information...';
 
@@ -60,26 +78,28 @@ export const mintCommand = new Command('mint')
 
       spinner.text = 'Building mint transaction...';
 
-      // Create mint transaction
+      // Create mint transaction (accepts Address or signer)
       const transaction = await createMintToTransaction(
         rpc,
         options.mintAddress as Address,
         options.recipient as Address,
         decimalAmount,
-        mintAuthorityKeypair,
-        mintAuthorityKeypair // Use same keypair as fee payer
+        mintAuthority,
+        feePayer
       );
 
-      spinner.text = 'Signing transaction...';
-
-      // Sign the transaction
-      const signedTransaction =
-        await signTransactionMessageWithSigners(transaction);
-
-      spinner.text = 'Sending transaction...';
-
-      // Send and confirm transaction
-      const signature = await sendAndConfirmTransaction(signedTransaction);
+      // If raw requested, output and exit
+      const { raw, signature } = await sendOrOutputTransaction(
+        transaction,
+        rawTx,
+        spinner,
+        tx =>
+          sendAndConfirmTransaction(tx, {
+            skipPreflight: true,
+            commitment: 'confirmed',
+          })
+      );
+      if (raw) return;
 
       spinner.succeed('Tokens minted successfully!');
 
@@ -90,9 +110,7 @@ export const mintCommand = new Command('mint')
       console.log(`   ${chalk.bold('Recipient:')} ${options.recipient}`);
       console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
       console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-      console.log(
-        `   ${chalk.bold('Mint Authority:')} ${mintAuthorityKeypair.address}`
-      );
+      console.log(`   ${chalk.bold('Mint Authority:')} ${mintAuthority}`);
 
       console.log(chalk.cyan('\\n🎯 Result:'));
       console.log(
