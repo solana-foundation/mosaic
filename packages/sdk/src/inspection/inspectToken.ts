@@ -390,16 +390,7 @@ export async function inspectToken(
 function detectTokenType(extensions: TokenExtension[]): TokenType {
   const extensionNames = extensions.map(ext => ext.name);
 
-  // Check for tokenized security pattern (includes ScaledUiAmount)
-  const isTokenizedSecurity = TOKENIZED_SECURITY_EXTENSIONS.every(ext =>
-    extensionNames.includes(ext)
-  );
-
-  if (isTokenizedSecurity) {
-    return 'tokenized-security';
-  }
-
-  // Check for stablecoin pattern
+  // Check for stablecoin pattern first (most specific)
   const isStablecoin = STABLECOIN_EXTENSIONS.every(ext =>
     extensionNames.includes(ext)
   );
@@ -408,7 +399,7 @@ function detectTokenType(extensions: TokenExtension[]): TokenType {
     return 'stablecoin';
   }
 
-  // Check for arcade token pattern
+  // Check for arcade token pattern (no ConfidentialTransferMint)
   const isArcadeToken =
     ARCADE_TOKEN_EXTENSIONS.every(ext => extensionNames.includes(ext)) &&
     !extensionNames.includes('ConfidentialTransferMint') &&
@@ -416,6 +407,15 @@ function detectTokenType(extensions: TokenExtension[]): TokenType {
 
   if (isArcadeToken) {
     return 'arcade-token';
+  }
+
+  // Check for tokenized security pattern
+  const isTokenizedSecurity = TOKENIZED_SECURITY_EXTENSIONS.every(ext =>
+    extensionNames.includes(ext)
+  );
+
+  if (isTokenizedSecurity) {
+    return 'tokenized-security';
   }
 
   return 'unknown';
