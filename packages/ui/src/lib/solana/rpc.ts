@@ -76,7 +76,6 @@ export async function getTokenAuthorities(
       decodedMint.data.extensions.__option === 'Some'
     ) {
       for (const ext of decodedMint.data.extensions.value) {
-        console.log(ext);
         if (!ext.__kind) continue;
 
         switch (ext.__kind) {

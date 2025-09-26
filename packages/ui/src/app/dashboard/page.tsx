@@ -2,7 +2,7 @@
 
 import { useContext, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Plus, Coins } from 'lucide-react';
+import { Plus, Coins, Upload } from 'lucide-react';
 import Link from 'next/link';
 import {
   Card,
@@ -178,6 +178,12 @@ function DashboardConnected({ publicKey }: { publicKey: string }) {
                 <Link href="/dashboard/create/tokenized-security">
                   <Coins className="h-4 w-4 mr-2" />
                   Tokenized Security
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/import">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import Existing Token
                 </Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
