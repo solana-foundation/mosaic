@@ -220,7 +220,6 @@ export default function ImportTokenPage() {
                   {importedTokenInfo.symbol})
                   {importedTokenInfo.type !== 'unknown' &&
                     ` as ${importedTokenInfo.type}`}
-                  {importedTokenInfo.isLegacy && ' - Legacy SPL Token'}.
                   Redirecting to dashboard...
                 </AlertDescription>
               </Alert>
