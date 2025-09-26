@@ -263,7 +263,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
       {isDropdownOpen && (
         <CardContent>
           <div className="space-y-4">
-            {authorities.map((authority, index) => (
+            {authorities.filter(authority => authority.currentAuthority).map((authority, index) => (
               <div key={authority.role} className="border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-sm font-medium text-muted-foreground">
@@ -331,16 +331,8 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                   </div>
                 ) : (
                   <code className="block text-sm bg-muted px-2 py-1 rounded font-mono">
-                    {authority.currentAuthority ? (
-                      <>
-                        {authority.currentAuthority.slice(0, 8)}...
-                        {authority.currentAuthority.slice(-8)}
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">
-                        No authority set
-                      </span>
-                    )}
+                        {authority.currentAuthority?.slice(0, 8)}...
+                        {authority.currentAuthority?.slice(-8)}
                   </code>
                 )}
               </div>
