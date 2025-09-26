@@ -3,15 +3,8 @@ import {
   fetchEncodedAccount,
   type Rpc,
   type SolanaRpcApi,
-  address,
-  getAddressEncoder,
-  getProgramDerivedAddress,
 } from 'gill';
-import {
-  TOKEN_2022_PROGRAM_ADDRESS,
-  TOKEN_PROGRAM_ADDRESS,
-  decodeMint,
-} from 'gill/programs/token';
+import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from 'gill/programs/token';
 import type {
   AclMode,
   ScaledUiAmountInfo,
@@ -24,11 +17,6 @@ import type {
   TokenType,
 } from './types';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
-
-// Metaplex Token Metadata Program ID
-const METADATA_PROGRAM_ID = address(
-  'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s'
-);
 
 const STABLECOIN_EXTENSIONS = [
   'TokenMetadata',
@@ -49,98 +37,6 @@ const TOKENIZED_SECURITY_EXTENSIONS = [
   'DefaultAccountState',
 ];
 
-// Helper function to derive Metaplex metadata account address
-async function deriveMetadataAccount(mintAddress: Address): Promise<Address> {
-  const seeds = [
-    Buffer.from('metadata'),
-    getAddressEncoder().encode(METADATA_PROGRAM_ID),
-    getAddressEncoder().encode(mintAddress),
-  ];
-
-  const [metadataAccount] = await getProgramDerivedAddress({
-    programAddress: METADATA_PROGRAM_ID,
-    seeds,
-  });
-
-  return metadataAccount;
-}
-
-// Helper function to fetch and parse Metaplex metadata
-async function fetchMetaplexMetadata(
-  rpc: Rpc<SolanaRpcApi>,
-  mintAddress: Address
-): Promise<TokenMetadata | null> {
-  try {
-    const metadataAccount = await deriveMetadataAccount(mintAddress);
-    const accountInfo = await fetchEncodedAccount(rpc, metadataAccount);
-
-    if (!accountInfo.exists) {
-      return null;
-    }
-
-    // Parse the metadata account data
-    // Metaplex metadata has a specific structure
-    const data = accountInfo.data;
-
-    if (!data || data.length < 100) {
-      return null;
-    }
-
-    // Skip the discriminator and key (first 1 byte)
-    let offset = 1;
-
-    // Skip update authority (32 bytes)
-    offset += 32;
-
-    // Skip mint (32 bytes)
-    offset += 32;
-
-    // Read name (32 bytes for length + string)
-    const nameLength =
-      data[offset] |
-      (data[offset + 1] << 8) |
-      (data[offset + 2] << 16) |
-      (data[offset + 3] << 24);
-    offset += 4;
-    const nameBytes = data.slice(offset, offset + nameLength);
-    const name = new TextDecoder().decode(nameBytes).replace(/\0/g, '').trim();
-    offset += 32; // Name is always padded to 32 bytes in the account
-
-    // Read symbol (10 bytes for length + string)
-    const symbolLength =
-      data[offset] |
-      (data[offset + 1] << 8) |
-      (data[offset + 2] << 16) |
-      (data[offset + 3] << 24);
-    offset += 4;
-    const symbolBytes = data.slice(offset, offset + symbolLength);
-    const symbol = new TextDecoder()
-      .decode(symbolBytes)
-      .replace(/\0/g, '')
-      .trim();
-    offset += 10; // Symbol is always padded to 10 bytes
-
-    // Read URI (200 bytes for length + string)
-    const uriLength =
-      data[offset] |
-      (data[offset + 1] << 8) |
-      (data[offset + 2] << 16) |
-      (data[offset + 3] << 24);
-    offset += 4;
-    const uriBytes = data.slice(offset, offset + uriLength);
-    const uri = new TextDecoder().decode(uriBytes).replace(/\0/g, '').trim();
-
-    return {
-      name: name || undefined,
-      symbol: symbol || undefined,
-      uri: uri || undefined,
-    };
-  } catch (error) {
-    console.error('Error fetching Metaplex metadata:', error);
-    return null;
-  }
-}
-
 export async function inspectToken(
   rpc: Rpc<SolanaRpcApi>,
   mintAddress: Address
@@ -155,9 +51,8 @@ export async function inspectToken(
   // Check if this is a Token or Token-2022 mint
   const isToken2022 =
     encodedAccount.programAddress === TOKEN_2022_PROGRAM_ADDRESS;
-  const isToken = encodedAccount.programAddress === TOKEN_PROGRAM_ADDRESS;
 
-  if (!isToken2022 && !isToken) {
+  if (!isToken2022) {
     throw new Error(
       `Invalid mint account. Program owner: ${encodedAccount.programAddress}`
     );
@@ -185,7 +80,6 @@ export async function inspectToken(
         : null,
   };
 
-  // Process extensions (only for Token-2022)
   const extensions: TokenExtension[] = [];
   let metadata: TokenMetadata | undefined;
   let isPausable = false;
@@ -193,7 +87,7 @@ export async function inspectToken(
   let enableSrfc37 = false;
   let scaledUiAmount: ScaledUiAmountInfo | undefined;
 
-  if (isToken2022 && decodedMint.data.extensions?.__option === 'Some') {
+  if (decodedMint.data.extensions?.__option === 'Some') {
     for (const ext of decodedMint.data.extensions.value) {
       if (!ext.__kind) continue;
 
@@ -342,32 +236,6 @@ export async function inspectToken(
     enableSrfc37 = authorities.freezeAuthority === TOKEN_ACL_PROGRAM_ID;
   }
 
-  // For legacy SPL tokens, try to fetch Metaplex metadata
-  if (!isToken2022 && !metadata) {
-    const metaplexMetadata = await fetchMetaplexMetadata(rpc, mintAddress);
-    if (metaplexMetadata) {
-      metadata = metaplexMetadata;
-      // For legacy tokens with metadata, add a virtual extension for tracking
-      extensions.push({
-        name: 'MetaplexMetadata',
-        details: { ...metaplexMetadata },
-      });
-    }
-  }
-
-  // Check if token is pausable (has freeze authority or PausableConfig)
-  isPausable = isPausable || authorities.freezeAuthority !== null;
-
-  // If pausable but no specific pausable authority, use freeze authority
-  if (isPausable && !authorities.pausableAuthority) {
-    authorities.pausableAuthority = authorities.freezeAuthority;
-  }
-
-  // Add Pausable to extensions if applicable
-  if (isPausable && !extensions.some(ext => ext.name === 'Pausable')) {
-    extensions.push({ name: 'Pausable' });
-  }
-
   // Detect token type
   const detectedType = detectTokenType(extensions);
 
@@ -380,7 +248,6 @@ export async function inspectToken(
     extensions,
     detectedType,
     isPausable,
-    isToken2022,
     aclMode,
     enableSrfc37,
     scaledUiAmount,

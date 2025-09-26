@@ -62,7 +62,6 @@ export interface TokenInspectionResult {
   extensions: TokenExtension[];
   detectedType: TokenType;
   isPausable: boolean;
-  isToken2022: boolean;
 
   // ACL/SRFC37 info
   aclMode: AclMode;

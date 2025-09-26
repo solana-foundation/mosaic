@@ -23,11 +23,11 @@ import { ArrowLeft, Upload, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { RpcContext } from '@/context/RpcContext';
-import { getTokenDashboardData } from '@mosaic/sdk';
+import { getTokenDashboardData, TokenType } from '@mosaic/sdk';
 import { TokenStorage } from '@/lib/token/tokenStorage';
 import { TokenDisplay } from '@/types/token';
 import { Loader } from '@/components/ui/loader';
-import { address } from 'gill';
+import { address, type Rpc, type SolanaRpcApi } from 'gill';
 
 export default function ImportTokenPage() {
   const router = useRouter();
@@ -41,7 +41,6 @@ export default function ImportTokenPage() {
     name: string;
     symbol: string;
     type: string;
-    isLegacy: boolean;
   } | null>(null);
 
   const handleImport = async () => {
@@ -63,25 +62,14 @@ export default function ImportTokenPage() {
       }
 
       // Fetch token data from blockchain
-      const tokenData = await getTokenDashboardData(rpc as any, mintAddress);
+      const tokenData = await getTokenDashboardData(
+        rpc as Rpc<SolanaRpcApi>,
+        mintAddress
+      );
 
       // Override type if user selected one
       if (tokenType !== 'none') {
-        tokenData.type = tokenType as any;
-      }
-
-      // Check if this is a legacy token (no extensions or only MetaplexMetadata)
-      const isLegacyToken =
-        !tokenData.extensions ||
-        tokenData.extensions.length === 0 ||
-        (tokenData.extensions.length === 1 &&
-          tokenData.extensions[0] === 'MetaplexMetadata') ||
-        (tokenData.extensions.length === 2 &&
-          tokenData.extensions.includes('MetaplexMetadata') &&
-          tokenData.extensions.includes('Pausable'));
-
-      if (isLegacyToken) {
-        console.log('Imported legacy SPL token with Metaplex metadata');
+        tokenData.type = tokenType as TokenType;
       }
 
       // Convert to TokenDisplay format for storage
@@ -124,7 +112,6 @@ export default function ImportTokenPage() {
         name: tokenDisplay.name || '',
         symbol: tokenDisplay.symbol || '',
         type: tokenDisplay.type || tokenData.type,
-        isLegacy: isLegacyToken,
       });
 
       setSuccess(true);
@@ -146,7 +133,7 @@ export default function ImportTokenPage() {
           errorMessage += 'The address does not belong to a valid token mint.';
         } else if (err.message.includes('Token-2022')) {
           errorMessage +=
-            'This appears to be a legacy SPL token. Import functionality is optimized for Token-2022 tokens.';
+            'This appears to be a legacy SPL token. Import functionality only works for Token-2022 tokens.';
         } else {
           errorMessage += err.message;
         }
