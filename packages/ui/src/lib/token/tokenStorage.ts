@@ -89,9 +89,9 @@ export class TokenStorage {
   }
 
   /**
-   * Delete a token by its address
+   * Remove a token from local storage by its address
    */
-  static deleteToken(address: string): void {
+  static removeToken(address: string): void {
     if (typeof window === 'undefined') {
       return;
     }
