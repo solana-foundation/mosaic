@@ -7,7 +7,7 @@ import {
   signAndSendTransactionMessageWithSigners,
   TransactionSendingSigner,
 } from 'gill';
-import { ArcadeTokenOptions } from '@/types/token';
+import { ArcadeTokenCreationResult, ArcadeTokenOptions } from '@/types/token';
 import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
 import bs58 from 'bs58';
 
@@ -39,12 +39,7 @@ function validateArcadeTokenOptions(options: ArcadeTokenOptions): number {
 export const createArcadeToken = async (
   options: ArcadeTokenOptions,
   signer: TransactionSendingSigner
-): Promise<{
-  success: boolean;
-  error?: string;
-  transactionSignature?: string;
-  mintAddress?: string;
-}> => {
+): Promise<ArcadeTokenCreationResult> => {
   try {
     const decimals = validateArcadeTokenOptions(options);
     const enableSrfc37 =
@@ -99,6 +94,23 @@ export const createArcadeToken = async (
       success: true,
       transactionSignature: bs58.encode(signature),
       mintAddress: mintKeypair.address,
+      details: {
+        name: options.name,
+        symbol: options.symbol,
+        decimals: parseInt(options.decimals),
+        enableSrfc37: options.enableSrfc37 || false,
+        mintAuthority: options.mintAuthority || signerAddress,
+        metadataAuthority: options.metadataAuthority || signerAddress,
+        pausableAuthority: options.pausableAuthority || signerAddress,
+        permanentDelegateAuthority:
+          options.permanentDelegateAuthority || signerAddress,
+        extensions: [
+          'Metadata',
+          'Pausable',
+          'Default Account State (Allowlist)',
+          'Permanent Delegate',
+        ],
+      },
     };
   } catch (error) {
     return {

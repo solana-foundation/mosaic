@@ -1,28 +1,32 @@
 import { useState, useContext } from 'react';
 import { Button } from '@/components/ui/button';
-import { mintTokens, type MintOptions } from '@/lib/management/mint';
+import {
+  forceTransferTokens,
+  type ForceTransferOptions,
+} from '@/lib/management/force-transfer';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 import { isAddress } from 'gill';
 import { TransactionSendingSigner } from '@solana/signers';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, AlertCircle } from 'lucide-react';
 
-interface MintModalProps {
+interface ForceTransferModalProps {
   isOpen: boolean;
   onClose: () => void;
   mintAddress: string;
-  mintAuthority?: string;
+  permanentDelegate?: string;
   transactionSendingSigner: TransactionSendingSigner<string>;
 }
 
-export function MintModal({
+export function ForceTransferModal({
   isOpen,
   onClose,
   mintAddress,
-  mintAuthority,
+  permanentDelegate,
   transactionSendingSigner,
-}: MintModalProps) {
+}: ForceTransferModalProps) {
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
-  const [recipient, setRecipient] = useState('');
+  const [fromAddress, setFromAddress] = useState('');
+  const [toAddress, setToAddress] = useState('');
   const [amount, setAmount] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -40,14 +44,19 @@ export function MintModal({
     return !isNaN(num) && num > 0;
   };
 
-  const handleMint = async () => {
+  const handleForceTransfer = async () => {
     if (!selectedWalletAccount?.address) {
       setError('Wallet not connected');
       return;
     }
 
-    if (!validateSolanaAddress(recipient)) {
-      setError('Please enter a valid Solana address');
+    if (!validateSolanaAddress(fromAddress)) {
+      setError('Please enter a valid source Solana address');
+      return;
+    }
+
+    if (!validateSolanaAddress(toAddress)) {
+      setError('Please enter a valid destination Solana address');
       return;
     }
 
@@ -62,11 +71,12 @@ export function MintModal({
     try {
       const walletAddress = selectedWalletAccount.address.toString();
 
-      const mintOptions: MintOptions = {
+      const forceTransferOptions: ForceTransferOptions = {
         mintAddress,
-        recipient,
+        fromAddress,
+        toAddress,
         amount,
-        mintAuthority: mintAuthority || walletAddress,
+        permanentDelegate: permanentDelegate || walletAddress,
         feePayer: walletAddress,
       };
 
@@ -74,13 +84,16 @@ export function MintModal({
         throw new Error('Transaction signer not available');
       }
 
-      const result = await mintTokens(mintOptions, transactionSendingSigner);
+      const result = await forceTransferTokens(
+        forceTransferOptions,
+        transactionSendingSigner
+      );
 
       if (result.success) {
         setSuccess(true);
         setTransactionSignature(result.transactionSignature || '');
       } else {
-        setError(result.error || 'Minting failed');
+        setError(result.error || 'Force transfer failed');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -90,7 +103,8 @@ export function MintModal({
   };
 
   const handleClose = () => {
-    setRecipient('');
+    setFromAddress('');
+    setToAddress('');
     setAmount('');
     setError('');
     setSuccess(false);
@@ -99,11 +113,11 @@ export function MintModal({
     onClose();
   };
 
-  const handleAdd = () => {
+  const handleAction = () => {
     if (success) {
       handleClose();
     } else {
-      handleMint();
+      handleForceTransfer();
     }
   };
 
@@ -111,15 +125,19 @@ export function MintModal({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-background p-6 rounded-lg w-full max-w-md mx-4">
         <h3 className="text-lg font-semibold mb-4">
-          {success ? 'Mint Successful' : 'Mint Tokens'}
+          {success ? 'Force Transfer Successful' : 'Force Transfer Tokens'}
         </h3>
 
         {success ? (
           <div className="space-y-4">
             <div className="text-green-600">
-              <p className="font-medium">Tokens minted successfully!</p>
-              <p className="text-sm mt-1">
-                Amount: {amount} tokens to {recipient}
+              <p className="font-medium">Tokens transferred successfully!</p>
+              <p className="text-sm mt-1">Amount: {amount} tokens</p>
+              <p className="text-sm">
+                From: {fromAddress.slice(0, 8)}...{fromAddress.slice(-6)}
+              </p>
+              <p className="text-sm">
+                To: {toAddress.slice(0, 8)}...{toAddress.slice(-6)}
               </p>
             </div>
             {transactionSignature && (
@@ -132,7 +150,7 @@ export function MintModal({
                     type="text"
                     value={transactionSignature}
                     readOnly
-                    className="flex-1 p-2 border rounded-md bg-muted text-muted-foreground"
+                    className="flex-1 p-2 border rounded-md bg-muted text-muted-foreground text-sm"
                   />
                   <Button
                     variant="outline"
@@ -150,18 +168,51 @@ export function MintModal({
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <div className="flex gap-2">
+                <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-yellow-800">
+                  <p className="font-medium mb-1">
+                    Warning: Administrator Action
+                  </p>
+                  <p>
+                    This will force transfer tokens from any account without the
+                    owner&apos;s permission. Use with caution.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium mb-2">
-                Recipient Address
+                Source Address
               </label>
               <input
                 type="text"
-                value={recipient}
-                onChange={e => setRecipient(e.target.value)}
-                placeholder="Enter recipient Solana address..."
+                value={fromAddress}
+                onChange={e => setFromAddress(e.target.value)}
+                placeholder="Enter source wallet address..."
                 className="w-full p-2 border rounded-md"
               />
-              {recipient && !validateSolanaAddress(recipient) && (
+              {fromAddress && !validateSolanaAddress(fromAddress) && (
+                <p className="text-sm text-red-600 mt-1">
+                  Please enter a valid Solana address
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Destination Address
+              </label>
+              <input
+                type="text"
+                value={toAddress}
+                onChange={e => setToAddress(e.target.value)}
+                placeholder="Enter destination wallet address..."
+                className="w-full p-2 border rounded-md"
+              />
+              {toAddress && !validateSolanaAddress(toAddress) && (
                 <p className="text-sm text-red-600 mt-1">
                   Please enter a valid Solana address
                 </p>
@@ -174,7 +225,7 @@ export function MintModal({
                 type="number"
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
-                placeholder="Enter amount to mint..."
+                placeholder="Enter amount to transfer..."
                 step="0.000000001"
                 min="0"
                 className="w-full p-2 border rounded-md"
@@ -186,16 +237,16 @@ export function MintModal({
               )}
             </div>
 
-            {mintAuthority && (
+            {permanentDelegate && (
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Mint Authority
+                  Permanent Delegate Authority
                 </label>
                 <input
                   type="text"
-                  value={mintAuthority}
+                  value={permanentDelegate}
                   readOnly
-                  className="w-full p-2 border rounded-md bg-gray-50"
+                  className="w-full p-2 border rounded-md bg-gray-50 text-sm"
                 />
               </div>
             )}
@@ -207,19 +258,22 @@ export function MintModal({
         <div className="flex space-x-2 mt-6">
           {!success && (
             <Button
-              onClick={handleAdd}
+              onClick={handleAction}
               disabled={
                 isLoading ||
                 (success
                   ? false
-                  : !recipient.trim() ||
+                  : !fromAddress.trim() ||
+                    !toAddress.trim() ||
                     !amount.trim() ||
-                    !validateSolanaAddress(recipient) ||
+                    !validateSolanaAddress(fromAddress) ||
+                    !validateSolanaAddress(toAddress) ||
                     !validateAmount(amount))
               }
               className="flex-1"
+              variant={success ? 'default' : 'destructive'}
             >
-              {isLoading ? 'Minting...' : 'Mint Tokens'}
+              {isLoading ? 'Processing...' : 'Force Transfer'}
             </Button>
           )}
           <Button variant="outline" onClick={handleClose} className="flex-1">

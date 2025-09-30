@@ -26,10 +26,11 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "gill": "^0.10.2",
+    "@mosaic/abl": "workspace:*",
     "@mosaic/tlv-account-resolution": "workspace:*",
     "@mosaic/token-acl": "workspace:*",
-    "@mosaic/abl": "workspace:*"
+    "@solana-program/token-2022": "^0.5.0",
+    "gill": "^0.10.2"
   },
   "devDependencies": {
     "@types/jest": "^29.5.0",

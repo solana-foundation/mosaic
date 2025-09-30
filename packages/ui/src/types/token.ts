@@ -15,6 +15,7 @@ export interface TokenDisplay {
   extensions?: string[];
   transactionSignature?: string;
   createdAt?: string;
+  isSrfc37?: boolean;
   metadataUri?: string;
 }
 

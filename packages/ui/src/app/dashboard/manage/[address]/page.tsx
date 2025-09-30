@@ -4,10 +4,11 @@ import { useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { TokenDisplay } from '@/types/token';
 import { Loader } from '@/components/ui/loader';
 import { findTokenByAddress } from '@/lib/token/tokenData';
+import { TokenStorage } from '@/lib/token/tokenStorage';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 import { ChainContext } from '@/context/ChainContext';
 import { TokenOverview } from './components/TokenOverview';
@@ -16,8 +17,11 @@ import { TokenExtensions } from './components/TokenExtensions';
 import { TransferRestrictions } from './components/TransferRestrictions';
 import { ActionSidebar } from './components/ActionSidebar';
 import { AddressModal } from './components/AddressModal';
-import { MintModal } from './components/MintModal';
+import { MintModalRefactored as MintModal } from './components/MintModalRefactored';
+import { ForceTransferModalRefactored as ForceTransferModal } from './components/ForceTransferModalRefactored';
+import { ForceBurnModalRefactored as ForceBurnModal } from './components/ForceBurnModalRefactored';
 import { ActionResultModal } from './components/ActionResultModal';
+import { PauseConfirmModal } from './components/PauseConfirmModal';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
 import {
   addAddressToBlocklist,
@@ -28,6 +32,11 @@ import {
 import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
 import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
 import { Mode } from '@mosaic/abl';
+import {
+  pauseTokenWithWallet,
+  unpauseTokenWithWallet,
+  checkTokenPauseState,
+} from '@/lib/management/pause';
 
 export default function ManageTokenPage() {
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
@@ -67,6 +76,7 @@ const getAccessList = async (
 };
 
 function ManageTokenConnected({ address }: { address: string }) {
+  const router = useRouter();
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
   const { chain: currentChain, solanaRpcUrl } = useContext(ChainContext);
   const [token, setToken] = useState<TokenDisplay | null>(null);
@@ -79,7 +89,11 @@ function ManageTokenConnected({ address }: { address: string }) {
   const [newAddress, setNewAddress] = useState('');
   const [showAccessListModal, setShowAccessListModal] = useState(false);
   const [showMintModal, setShowMintModal] = useState(false);
+  const [showForceTransferModal, setShowForceTransferModal] = useState(false);
+  const [showForceBurnModal, setShowForceBurnModal] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [pauseError, setPauseError] = useState('');
   const [actionInProgress, setActionInProgress] = useState(false);
   const [error, setError] = useState('');
   const [transactionSignature, setTransactionSignature] = useState('');
@@ -117,6 +131,15 @@ function ManageTokenConnected({ address }: { address: string }) {
       );
       foundToken.extensions = extensions;
       setToken(foundToken);
+
+      // Check pause state
+      if (foundToken.address) {
+        const pauseState = await checkTokenPauseState(
+          foundToken.address,
+          solanaRpcUrl
+        );
+        setIsPaused(pauseState);
+      }
     };
 
     // Load token data from local storage
@@ -132,7 +155,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     };
 
     loadTokenData();
-  }, [address, rpc]);
+  }, [address, rpc, solanaRpcUrl]);
 
   useEffect(() => {
     const loadAccessList = async () => {
@@ -153,13 +176,19 @@ function ManageTokenConnected({ address }: { address: string }) {
       loadedAccessListRef.current = currentKey;
     };
 
-    if (rpc && selectedWalletAccount?.address && token?.address) {
+    if (
+      rpc &&
+      selectedWalletAccount?.address &&
+      token?.address &&
+      token?.isSrfc37
+    ) {
       loadAccessList();
     }
   }, [
     rpc,
     selectedWalletAccount?.address,
     token?.address,
+    token?.isSrfc37,
     solanaRpcUrl,
     refreshTrigger,
   ]);
@@ -291,10 +320,100 @@ function ManageTokenConnected({ address }: { address: string }) {
     }
   };
 
-  const togglePause = () => {
-    setIsPaused(!isPaused);
-    // TODO: Implement actual pause/unpause transaction
-    // console.log(`${isPaused ? 'Unpausing' : 'Pausing'} token: ${address}`);
+  const handleRemoveFromStorage = () => {
+    if (
+      confirm(
+        'Are you sure you want to remove this token from your local storage? This only removes it from your browser - the token will continue to exist on the blockchain.'
+      )
+    ) {
+      TokenStorage.removeToken(address);
+      router.push('/dashboard');
+    }
+  };
+
+  const togglePause = async () => {
+    if (
+      !selectedWalletAccount?.address ||
+      !token?.address ||
+      !transactionSendingSigner
+    ) {
+      setError('Required parameters not available');
+      return;
+    }
+
+    // Check if the connected wallet has pause authority
+    const walletAddress = selectedWalletAccount.address.toString();
+    console.log('token', token, walletAddress);
+    if (token.pausableAuthority !== walletAddress) {
+      setPauseError(
+        'Connected wallet does not have pause authority. Only the pause authority can pause/unpause this token.'
+      );
+      setShowPauseModal(true);
+      return;
+    }
+
+    // Show confirmation modal
+    setShowPauseModal(true);
+  };
+
+  const handlePauseConfirm = async () => {
+    if (
+      !selectedWalletAccount?.address ||
+      !token?.address ||
+      !transactionSendingSigner
+    ) {
+      setPauseError('Required parameters not available');
+      return;
+    }
+
+    setActionInProgress(true);
+    setPauseError('');
+
+    try {
+      const result = isPaused
+        ? await unpauseTokenWithWallet(
+            {
+              mintAddress: token.address,
+              pauseAuthority: token.pausableAuthority,
+              feePayer: selectedWalletAccount.address.toString(),
+              rpcUrl: solanaRpcUrl,
+            },
+            transactionSendingSigner
+          )
+        : await pauseTokenWithWallet(
+            {
+              mintAddress: token.address,
+              pauseAuthority: token.pausableAuthority,
+              feePayer: selectedWalletAccount.address.toString(),
+              rpcUrl: solanaRpcUrl,
+            },
+            transactionSendingSigner
+          );
+
+      if (result.success) {
+        setTransactionSignature(result.transactionSignature || '');
+        setIsPaused(result.paused ?? !isPaused);
+        setShowPauseModal(false);
+
+        // Update token in local storage
+        const storedTokens = JSON.parse(
+          localStorage.getItem('mosaic_tokens') || '[]'
+        ) as TokenDisplay[];
+        const updatedTokens = storedTokens.map(t => {
+          if (t.address === token.address) {
+            return { ...t, isPaused: result.paused ?? !isPaused };
+          }
+          return t;
+        });
+        localStorage.setItem('mosaic_tokens', JSON.stringify(updatedTokens));
+      } else {
+        setPauseError(result.error || 'Operation failed');
+      }
+    } catch (err) {
+      setPauseError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setActionInProgress(false);
+    }
   };
 
   const getTokenTypeLabel = (type?: string) => {
@@ -393,6 +512,9 @@ function ManageTokenConnected({ address }: { address: string }) {
             isPaused={isPaused}
             onTogglePause={togglePause}
             onMintTokens={() => setShowMintModal(true)}
+            onForceTransfer={() => setShowForceTransferModal(true)}
+            onForceBurn={() => setShowForceBurnModal(true)}
+            onRemoveFromStorage={handleRemoveFromStorage}
           />
         </div>
       </div>
@@ -433,6 +555,39 @@ function ManageTokenConnected({ address }: { address: string }) {
           transactionSendingSigner={transactionSendingSigner}
         />
       )}
+
+      {transactionSendingSigner && (
+        <ForceTransferModal
+          isOpen={showForceTransferModal}
+          onClose={() => setShowForceTransferModal(false)}
+          mintAddress={address}
+          permanentDelegate={token?.permanentDelegateAuthority}
+          transactionSendingSigner={transactionSendingSigner}
+        />
+      )}
+
+      {transactionSendingSigner && (
+        <ForceBurnModal
+          isOpen={showForceBurnModal}
+          onClose={() => setShowForceBurnModal(false)}
+          mintAddress={address}
+          permanentDelegate={token?.permanentDelegateAuthority}
+          transactionSendingSigner={transactionSendingSigner}
+        />
+      )}
+
+      <PauseConfirmModal
+        isOpen={showPauseModal}
+        onClose={() => {
+          setShowPauseModal(false);
+          setPauseError('');
+        }}
+        onConfirm={handlePauseConfirm}
+        isPaused={isPaused}
+        tokenName={token?.name || 'Token'}
+        isLoading={actionInProgress}
+        error={pauseError}
+      />
     </div>
   );
 }

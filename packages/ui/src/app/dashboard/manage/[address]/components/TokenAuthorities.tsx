@@ -263,88 +263,82 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
       {isDropdownOpen && (
         <CardContent>
           <div className="space-y-4">
-            {authorities.map((authority, index) => (
-              <div key={authority.role} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-muted-foreground">
-                    {authority.label}
-                  </label>
-                  {!authority.isEditing && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => startEditing(index)}
-                      disabled={!selectedWalletAccount}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+            {authorities
+              .filter(authority => authority.currentAuthority)
+              .map((authority, index) => (
+                <div key={authority.role} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      {authority.label}
+                    </label>
+                    {!authority.isEditing && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => startEditing(index)}
+                        disabled={!selectedWalletAccount}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  {authority.isEditing ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          placeholder="Enter new authority address"
+                          value={authority.newAuthority}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            setAuthorities(prev =>
+                              prev.map((auth, i) =>
+                                i === index
+                                  ? { ...auth, newAuthority: e.target.value }
+                                  : auth
+                              )
+                            )
+                          }
+                          className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => updateAuthority(index)}
+                          disabled={
+                            authority.isLoading ||
+                            !validateSolanaAddress(authority.newAuthority)
+                          }
+                        >
+                          {authority.isLoading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Check className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => cancelEditing(index)}
+                          disabled={authority.isLoading}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {authority.newAuthority &&
+                        !validateSolanaAddress(authority.newAuthority) && (
+                          <p className="text-sm text-red-500">
+                            Please enter a valid Solana address
+                          </p>
+                        )}
+                    </div>
+                  ) : (
+                    <code className="block text-sm bg-muted px-2 py-1 rounded font-mono">
+                      {authority.currentAuthority?.slice(0, 8)}...
+                      {authority.currentAuthority?.slice(-8)}
+                    </code>
                   )}
                 </div>
-
-                {authority.isEditing ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="text"
-                        placeholder="Enter new authority address"
-                        value={authority.newAuthority}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                          setAuthorities(prev =>
-                            prev.map((auth, i) =>
-                              i === index
-                                ? { ...auth, newAuthority: e.target.value }
-                                : auth
-                            )
-                          )
-                        }
-                        className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => updateAuthority(index)}
-                        disabled={
-                          authority.isLoading ||
-                          !validateSolanaAddress(authority.newAuthority)
-                        }
-                      >
-                        {authority.isLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Check className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => cancelEditing(index)}
-                        disabled={authority.isLoading}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {authority.newAuthority &&
-                      !validateSolanaAddress(authority.newAuthority) && (
-                        <p className="text-sm text-red-500">
-                          Please enter a valid Solana address
-                        </p>
-                      )}
-                  </div>
-                ) : (
-                  <code className="block text-sm bg-muted px-2 py-1 rounded font-mono">
-                    {authority.currentAuthority ? (
-                      <>
-                        {authority.currentAuthority.slice(0, 8)}...
-                        {authority.currentAuthority.slice(-8)}
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">
-                        No authority set
-                      </span>
-                    )}
-                  </code>
-                )}
-              </div>
-            ))}
+              ))}
           </div>
 
           {!selectedWalletAccount && (

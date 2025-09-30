@@ -89,9 +89,9 @@ export class TokenStorage {
   }
 
   /**
-   * Delete a token by its address
+   * Remove a token from local storage by its address
    */
-  static deleteToken(address: string): void {
+  static removeToken(address: string): void {
     if (typeof window === 'undefined') {
       return;
     }
@@ -160,6 +160,7 @@ export const createTokenDisplayFromResult = (
     name: string;
     symbol: string;
     uri?: string;
+    enableSrfc37?: boolean;
   }
 ): TokenDisplay => {
   return {
@@ -176,6 +177,7 @@ export const createTokenDisplayFromResult = (
     permanentDelegateAuthority: result.details?.permanentDelegateAuthority,
     extensions: result.details?.extensions,
     transactionSignature: result.transactionSignature,
+    isSrfc37: options.enableSrfc37,
     metadataUri: options.uri,
     supply: '0', // Initial supply is 0 for new tokens
   };
