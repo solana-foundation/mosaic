@@ -7,7 +7,7 @@ import {
   signAndSendTransactionMessageWithSigners,
   TransactionSendingSigner,
 } from 'gill';
-import { StablecoinOptions } from '@/types/token';
+import { StablecoinCreationResult, StablecoinOptions } from '@/types/token';
 import { createStablecoinInitTransaction } from '@mosaic/sdk';
 import bs58 from 'bs58';
 
@@ -39,12 +39,7 @@ function validateStablecoinOptions(options: StablecoinOptions): number {
 export const createStablecoin = async (
   options: StablecoinOptions,
   signer: TransactionSendingSigner
-): Promise<{
-  success: boolean;
-  error?: string;
-  transactionSignature?: string;
-  mintAddress?: string;
-}> => {
+): Promise<StablecoinCreationResult> => {
   try {
     const decimals = validateStablecoinOptions(options);
     const enableSrfc37 =
@@ -103,6 +98,23 @@ export const createStablecoin = async (
       success: true,
       transactionSignature: bs58.encode(signature),
       mintAddress: mintKeypair.address,
+      details: {
+        name: options.name,
+        symbol: options.symbol,
+        decimals,
+        aclMode: options.aclMode || 'blocklist',
+        mintAuthority,
+        metadataAuthority,
+        pausableAuthority,
+        confidentialBalancesAuthority,
+        permanentDelegateAuthority,
+        extensions: [
+          'Metadata',
+          'Pausable',
+          'Confidential Balances',
+          'Permanent Delegate',
+        ],
+      },
     };
   } catch (error) {
     return {

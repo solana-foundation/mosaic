@@ -88,6 +88,7 @@ export default function ImportTokenPage() {
         scaledUiAmountAuthority: tokenData.scaledUiAmountAuthority,
         freezeAuthority: tokenData.freezeAuthority,
         extensions: tokenData.extensions,
+        isSrfc37: tokenData.enableSrfc37,
         metadataUri: tokenData.uri,
         createdAt: new Date().toISOString(),
       };
