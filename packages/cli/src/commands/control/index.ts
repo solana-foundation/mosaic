@@ -1,7 +1,7 @@
 import { Command } from 'commander';
-import { pauseCommand } from './pause.js';
-import { resumeCommand } from './resume.js';
-import { statusCommand } from './status.js';
+import { pauseCommand } from './pause';
+import { resumeCommand } from './resume';
+import { statusCommand } from './status';
 
 export const controlCommand = new Command('control')
   .description('Control token operations (pause/resume)')

@@ -5,12 +5,13 @@ import {
   type SolanaRpcApi,
   TransactionSendingSigner,
   isAddress,
+  signAndSendTransactionMessageWithSigners,
 } from 'gill';
 import {
-  pauseToken,
-  unpauseToken,
   getTokenPauseState,
   type PauseTokenResult,
+  createPauseTransaction,
+  createResumeTransaction,
 } from '@mosaic/sdk';
 import bs58 from 'bs58';
 
@@ -78,21 +79,20 @@ export const pauseTokenWithWallet = async (
     const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
     const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
 
-    // Pause the token using SDK
-    const result = await pauseToken(rpc, {
+    const { transactionMessage } = await createPauseTransaction(rpc, {
       mint: options.mintAddress as Address,
       pauseAuthority,
       feePayer,
     });
 
-    // Convert signature if present
-    if (result.transactionSignature) {
-      result.transactionSignature = bs58.encode(
-        Buffer.from(result.transactionSignature, 'base64')
-      );
-    }
-
-    return result;
+    // Sign and send the transaction
+    const signature =
+      await signAndSendTransactionMessageWithSigners(transactionMessage);
+    return {
+      success: true,
+      transactionSignature: bs58.encode(signature),
+      paused: true,
+    };
   } catch (error) {
     return {
       success: false,
@@ -143,20 +143,20 @@ export const unpauseTokenWithWallet = async (
     const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
 
     // Unpause the token using SDK
-    const result = await unpauseToken(rpc, {
+    const { transactionMessage } = await createResumeTransaction(rpc, {
       mint: options.mintAddress as Address,
       pauseAuthority,
       feePayer,
     });
 
-    // Convert signature if present
-    if (result.transactionSignature) {
-      result.transactionSignature = bs58.encode(
-        Buffer.from(result.transactionSignature, 'base64')
-      );
-    }
-
-    return result;
+    // Sign and send the transaction
+    const signature =
+      await signAndSendTransactionMessageWithSigners(transactionMessage);
+    return {
+      success: true,
+      transactionSignature: bs58.encode(signature),
+      paused: false,
+    };
   } catch (error) {
     return {
       success: false,

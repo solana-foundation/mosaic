@@ -1,10 +1,18 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { unpauseToken, getTokenPauseState } from '@mosaic/sdk';
+import {
+  getTokenPauseState,
+  createResumeTransaction,
+  MINT_NOT_PAUSED_ERROR,
+} from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { resolveSigner } from '../../utils/solana.js';
 import { type Address } from 'gill';
-import { getGlobalOpts, createSpinner } from '../../utils/cli.js';
+import {
+  getGlobalOpts,
+  createSpinner,
+  sendOrOutputTransaction,
+} from '../../utils/cli.js';
 
 interface ResumeOptions {
   mintAddress: string;
@@ -32,7 +40,7 @@ export const resumeCommand = new Command('resume')
 
     try {
       // Create Solana client
-      const { rpc } = createSolanaClient(rpcUrl);
+      const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
       // Check current pause state
       spinner.text = 'Checking current pause state...';
@@ -58,44 +66,23 @@ export const resumeCommand = new Command('resume')
       spinner.text = 'Sending resume transaction...';
 
       // Execute unpause transaction (resume)
-      const result = await unpauseToken(rpc, {
+      const { transactionMessage } = await createResumeTransaction(rpc, {
         mint: options.mintAddress as Address,
         pauseAuthority,
         feePayer: pauseAuthority, // Use same signer for fee payer
       });
 
-      // Check if this is a placeholder result (temporary until Token-2022 pause is available)
-      if (!result.success && result.error?.includes('not yet implemented')) {
-        spinner.warn('Resume functionality pending Token-2022 implementation');
-        console.log();
-        console.log(chalk.yellow('ℹ️  Note:'));
-        console.log(
-          chalk.white(
-            '   Resume functionality is pending Token-2022 pause instruction availability.'
-          )
-        );
-        console.log(
-          chalk.white(
-            '   The transaction structure is ready and will work once the protocol supports it.'
-          )
-        );
-
-        if (rawTx) {
-          console.log();
-          console.log(chalk.cyan('📋 Command prepared for:'));
-          console.log(
-            `   ${chalk.bold('Mint Address:')} ${options.mintAddress}`
-          );
-          console.log(
-            `   ${chalk.bold('Pause Authority:')} ${pauseAuthorityAddress}`
-          );
-        }
-        process.exit(0);
-      }
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to resume token');
-      }
+      const { raw, signature } = await sendOrOutputTransaction(
+        transactionMessage,
+        rawTx,
+        spinner,
+        tx =>
+          sendAndConfirmTransaction(tx, {
+            skipPreflight: true,
+            commitment: 'confirmed',
+          })
+      );
+      if (raw) return;
 
       spinner.succeed('Token resumed successfully!');
 
@@ -103,10 +90,8 @@ export const resumeCommand = new Command('resume')
       console.log(chalk.green('\\n✅ Token Resumed Successfully'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
-      if (result.transactionSignature) {
-        console.log(
-          `   ${chalk.bold('Transaction:')} ${result.transactionSignature}`
-        );
+      if (signature) {
+        console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
       }
       console.log(
         `   ${chalk.bold('Pause Authority:')} ${pauseAuthorityAddress}`
@@ -122,6 +107,16 @@ export const resumeCommand = new Command('resume')
         `   ${chalk.green('✓')} DeFi protocols can interact with the token`
       );
     } catch (error) {
+      if (error instanceof Error && error.message === MINT_NOT_PAUSED_ERROR) {
+        spinner.warn('Token is not currently paused');
+        console.log(
+          chalk.yellow(
+            '⚠️  Token is not currently paused. Use "mosaic control pause" command to pause the token.'
+          )
+        );
+        process.exit(0);
+      }
+
       spinner.fail('Failed to resume token');
       console.error(
         chalk.red('❌ Error:'),

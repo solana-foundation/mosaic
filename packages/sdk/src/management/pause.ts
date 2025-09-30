@@ -8,8 +8,10 @@ import {
   setTransactionMessageFeePayerSigner,
   setTransactionMessageLifetimeUsingBlockhash,
   appendTransactionMessageInstructions,
-  signAndSendTransactionMessageWithSigners,
-  type Instruction,
+  type TransactionWithBlockhashLifetime,
+  type TransactionMessageWithFeePayer,
+  type TransactionVersion,
+  type FullTransaction,
 } from 'gill';
 import {
   getPauseInstruction,
@@ -29,6 +31,9 @@ export interface PauseTokenResult {
   transactionSignature?: string;
   paused?: boolean;
 }
+
+export const MINT_ALREADY_PAUSED_ERROR = 'mint already paused';
+export const MINT_NOT_PAUSED_ERROR = 'mint not currently paused';
 
 /**
  * Gets the current pause state of a token
@@ -56,112 +61,72 @@ export const getTokenPauseState = async (
   }
 };
 
-export const getTogglePauseInstruction = async (
+export const createPauseTransaction = async (
   rpc: Rpc<SolanaRpcApi>,
   options: PauseTokenOptions
-): Promise<{ currentlyPaused: boolean; instruction: Instruction<string> }> => {
-  const { mint, pauseAuthority } = options;
+): Promise<{
+  currentlyPaused: boolean;
+  transactionMessage: FullTransaction<
+    TransactionVersion,
+    TransactionMessageWithFeePayer,
+    TransactionWithBlockhashLifetime
+  >;
+}> => {
+  const { mint, feePayer, pauseAuthority } = options;
   const currentlyPaused = await getTokenPauseState(rpc, mint);
-  const instruction = currentlyPaused
-    ? getResumeInstruction({
-        mint,
-        authority: pauseAuthority,
-      })
-    : getPauseInstruction({
-        mint,
-        authority: pauseAuthority,
-      });
-  return { currentlyPaused, instruction };
-};
-
-/**
- * Toggles the pause state of a token (pause/unpause)
- * @param rpc - Solana RPC client
- * @param options - Configuration options for pausing
- * @returns Promise that resolves to pause result with signature
- */
-export const togglePauseToken = async (
-  rpc: Rpc<SolanaRpcApi>,
-  options: PauseTokenOptions
-): Promise<PauseTokenResult> => {
-  try {
-    const { feePayer } = options;
-
-    // Get toggle pause instruction
-    const { currentlyPaused, instruction } = await getTogglePauseInstruction(
-      rpc,
-      options
-    );
-
-    // Get latest blockhash
-    const { value: latestBlockhash } = await rpc
-      .getLatestBlockhash({ commitment: 'confirmed' })
-      .send();
-
-    // Create and send transaction
-    const transactionMessage = await pipe(
-      createTransactionMessage({ version: 0 }),
-      tx => setTransactionMessageFeePayerSigner(feePayer, tx),
-      tx => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
-      tx => appendTransactionMessageInstructions([instruction], tx)
-    );
-
-    const signature =
-      await signAndSendTransactionMessageWithSigners(transactionMessage);
-
-    // Convert signature to base58 string
-    const base58Signature = Buffer.from(signature).toString('base64');
-
-    return {
-      success: true,
-      transactionSignature: base58Signature,
-      paused: !currentlyPaused, // Return the new state
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'Failed to toggle pause state',
-    };
-  }
-};
-
-/**
- * Pauses a token
- * @param rpc - Solana RPC client
- * @param options - Configuration options for pausing
- * @returns Promise that resolves to pause result with signature
- */
-export const pauseToken = async (
-  rpc: Rpc<SolanaRpcApi>,
-  options: PauseTokenOptions
-): Promise<PauseTokenResult> => {
-  const currentlyPaused = await getTokenPauseState(rpc, options.mint);
   if (currentlyPaused) {
-    return {
-      success: false,
-      error: 'Token is already paused',
-    };
+    throw new Error(MINT_ALREADY_PAUSED_ERROR);
   }
-  return togglePauseToken(rpc, options);
+
+  const instruction = getPauseInstruction({
+    mint,
+    authority: pauseAuthority,
+  });
+
+  const { value: latestBlockhash } = await rpc
+    .getLatestBlockhash({ commitment: 'confirmed' })
+    .send();
+
+  const transactionMessage = pipe(
+    createTransactionMessage({ version: 0 }),
+    tx => setTransactionMessageFeePayerSigner(feePayer, tx),
+    tx => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
+    tx => appendTransactionMessageInstructions([instruction], tx)
+  );
+  return { currentlyPaused, transactionMessage };
 };
 
-/**
- * Unpauses a token
- * @param rpc - Solana RPC client
- * @param options - Configuration options for unpausing
- * @returns Promise that resolves to unpause result with signature
- */
-export const unpauseToken = async (
+export const createResumeTransaction = async (
   rpc: Rpc<SolanaRpcApi>,
   options: PauseTokenOptions
-): Promise<PauseTokenResult> => {
-  const currentlyPaused = await getTokenPauseState(rpc, options.mint);
+): Promise<{
+  currentlyPaused: boolean;
+  transactionMessage: FullTransaction<
+    TransactionVersion,
+    TransactionMessageWithFeePayer,
+    TransactionWithBlockhashLifetime
+  >;
+}> => {
+  const { mint, feePayer, pauseAuthority } = options;
+  const currentlyPaused = await getTokenPauseState(rpc, mint);
   if (!currentlyPaused) {
-    return {
-      success: false,
-      error: 'Token is not paused',
-    };
+    throw new Error(MINT_NOT_PAUSED_ERROR);
   }
-  return togglePauseToken(rpc, options);
+
+  const instruction = getResumeInstruction({
+    mint,
+    authority: pauseAuthority,
+  });
+
+  const { value: latestBlockhash } = await rpc
+    .getLatestBlockhash({ commitment: 'confirmed' })
+    .send();
+
+  const transactionMessage = pipe(
+    createTransactionMessage({ version: 0 }),
+    tx => setTransactionMessageFeePayerSigner(feePayer, tx),
+    tx => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
+    tx => appendTransactionMessageInstructions([instruction], tx)
+  );
+  return { currentlyPaused, transactionMessage };
 };

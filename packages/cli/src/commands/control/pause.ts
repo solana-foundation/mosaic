@@ -1,10 +1,14 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { pauseToken, getTokenPauseState } from '@mosaic/sdk';
-import { createSolanaClient } from '../../utils/rpc.js';
-import { resolveSigner } from '../../utils/solana.js';
 import { type Address } from 'gill';
-import { getGlobalOpts, createSpinner } from '../../utils/cli.js';
+import { createPauseTransaction, MINT_ALREADY_PAUSED_ERROR } from '@mosaic/sdk';
+import { createSolanaClient } from '../../utils/rpc';
+import { resolveSigner } from '../../utils/solana';
+import {
+  getGlobalOpts,
+  createSpinner,
+  sendOrOutputTransaction,
+} from '../../utils/cli';
 
 interface PauseOptions {
   mintAddress: string;
@@ -38,24 +42,7 @@ export const pauseCommand = new Command('pause')
 
     try {
       // Create Solana client
-      const { rpc } = createSolanaClient(rpcUrl);
-
-      // Check current pause state
-      spinner.text = 'Checking current pause state...';
-      const currentlyPaused = await getTokenPauseState(
-        rpc,
-        options.mintAddress as Address
-      );
-
-      if (currentlyPaused) {
-        spinner.warn('Token is already paused');
-        console.log(
-          chalk.yellow(
-            '⚠️  Token is already paused. Use "mosaic control resume" command to resume transfers.'
-          )
-        );
-        process.exit(0);
-      }
+      const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
 
       // Show warning if not skipped
       if (!options.skipWarning && !rawTx) {
@@ -99,45 +86,23 @@ export const pauseCommand = new Command('pause')
 
       spinner.text = 'Sending pause transaction...';
 
-      // Execute pause transaction
-      const result = await pauseToken(rpc, {
+      const { transactionMessage } = await createPauseTransaction(rpc, {
         mint: options.mintAddress as Address,
         pauseAuthority,
-        feePayer: pauseAuthority, // Use same signer for fee payer
+        feePayer: parentOpts.feePayer || pauseAuthority,
       });
 
-      // Check if this is a placeholder result (temporary until Token-2022 pause is available)
-      if (!result.success && result.error?.includes('not yet implemented')) {
-        spinner.warn('Pause functionality pending Token-2022 implementation');
-        console.log();
-        console.log(chalk.yellow('ℹ️  Note:'));
-        console.log(
-          chalk.white(
-            '   Pause functionality is pending Token-2022 pause instruction availability.'
-          )
-        );
-        console.log(
-          chalk.white(
-            '   The transaction structure is ready and will work once the protocol supports it.'
-          )
-        );
-
-        if (rawTx) {
-          console.log();
-          console.log(chalk.cyan('📋 Command prepared for:'));
-          console.log(
-            `   ${chalk.bold('Mint Address:')} ${options.mintAddress}`
-          );
-          console.log(
-            `   ${chalk.bold('Pause Authority:')} ${pauseAuthorityAddress}`
-          );
-        }
-        process.exit(0);
-      }
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to pause token');
-      }
+      const { raw, signature } = await sendOrOutputTransaction(
+        transactionMessage,
+        rawTx,
+        spinner,
+        tx =>
+          sendAndConfirmTransaction(tx, {
+            skipPreflight: true,
+            commitment: 'confirmed',
+          })
+      );
+      if (raw) return;
 
       spinner.succeed('Token paused successfully!');
 
@@ -145,10 +110,8 @@ export const pauseCommand = new Command('pause')
       console.log(chalk.green('\\n✅ Token Paused Successfully'));
       console.log(chalk.cyan('📋 Details:'));
       console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
-      if (result.transactionSignature) {
-        console.log(
-          `   ${chalk.bold('Transaction:')} ${result.transactionSignature}`
-        );
+      if (signature) {
+        console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
       }
       console.log(
         `   ${chalk.bold('Pause Authority:')} ${pauseAuthorityAddress}`
@@ -164,6 +127,19 @@ export const pauseCommand = new Command('pause')
       console.log(`   • Monitor token holder communications`);
       console.log(`   • Ensure pause authority is secure`);
     } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === MINT_ALREADY_PAUSED_ERROR
+      ) {
+        spinner.warn('Token is already paused');
+        console.log(
+          chalk.yellow(
+            '⚠️  Token is already paused. Use "mosaic control resume" command to resume token functionality.'
+          )
+        );
+        process.exit(0);
+      }
+
       spinner.fail('Failed to pause token');
       console.error(
         chalk.red('❌ Error:'),

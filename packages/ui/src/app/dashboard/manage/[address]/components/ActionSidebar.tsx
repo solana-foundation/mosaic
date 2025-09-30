@@ -29,7 +29,7 @@ export function ActionSidebar({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
+          <CardTitle>Admin Actions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {/* <Button className="w-full" variant="outline">
@@ -52,6 +52,12 @@ export function ActionSidebar({
             <ArrowRightLeft className="h-4 w-4 mr-2" />
             Force Transfer
           </Button>
+          {onForceBurn && (
+            <Button className="w-full" variant="outline" onClick={onForceBurn}>
+              <Flame className="h-4 w-4 mr-2" />
+              Force Burn
+            </Button>
+          )}
           <Button
             className="w-full"
             variant={isPaused ? 'default' : 'outline'}
@@ -90,23 +96,6 @@ export function ActionSidebar({
             This only removes the token from your browser&apos;s storage. The
             token will continue to exist on the blockchain.
           </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Danger Zone</CardTitle>
-          <CardDescription>Irreversible actions</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button
-            className="w-full"
-            variant="destructive"
-            onClick={onForceBurn}
-          >
-            <Flame className="h-4 w-4 mr-2" />
-            Force Burn Tokens
-          </Button>
         </CardContent>
       </Card>
     </div>
