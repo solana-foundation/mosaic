@@ -6,18 +6,20 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Coins, Ban, Trash2 } from 'lucide-react';
+import { Coins, Ban, Trash2, ArrowRightLeft } from 'lucide-react';
 
 interface ActionSidebarProps {
   isPaused: boolean;
   onTogglePause: () => void;
   onMintTokens: () => void;
+  onForceTransfer: () => void;
 }
 
 export function ActionSidebar({
   isPaused,
   onTogglePause,
   onMintTokens,
+  onForceTransfer,
 }: ActionSidebarProps) {
   return (
     <div className="space-y-6">
@@ -37,6 +39,14 @@ export function ActionSidebar({
           <Button className="w-full" variant="outline" onClick={onMintTokens}>
             <Coins className="h-4 w-4 mr-2" />
             Mint Tokens
+          </Button>
+          <Button
+            className="w-full"
+            variant="outline"
+            onClick={onForceTransfer}
+          >
+            <ArrowRightLeft className="h-4 w-4 mr-2" />
+            Force Transfer
           </Button>
           <Button
             className="w-full"

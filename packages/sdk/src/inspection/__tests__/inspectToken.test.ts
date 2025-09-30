@@ -393,6 +393,7 @@ describe('Helper functions', () => {
       const mockInspection: TokenInspectionResult = {
         address: mockMintAddress,
         programId: TOKEN_2022_PROGRAM_ADDRESS,
+        isToken2022: true,
         supplyInfo: {
           supply: 1000000n,
           decimals: 6,

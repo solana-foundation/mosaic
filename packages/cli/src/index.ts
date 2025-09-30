@@ -8,12 +8,13 @@ import { createTokenizedSecurityCommand } from './commands/create/tokenized-secu
 import { forceTransferCommand } from './commands/force-transfer.js';
 import { transferCommand } from './commands/transfer.js';
 import { inspectMintCommand } from './commands/inspect-mint.js';
-import { tokenAclCommand } from './commands/token-acl';
+import { tokenAclCommand } from './commands/token-acl/index.js';
 import { ablCommand } from './commands/abl/abl.js';
 import { addCommand as addToBlocklistCommand } from './commands/blocklist/add.js';
 import { removeCommand as removeFromBlocklistCommand } from './commands/blocklist/remove.js';
 import { addCommand as addToAllowlistCommand } from './commands/allowlist/add.js';
 import { removeCommand as removeFromAllowlistCommand } from './commands/allowlist/remove.js';
+import { controlCommand } from './commands/control/index.js';
 
 const program = new Command();
 
@@ -50,6 +51,7 @@ blocklistCommand.addCommand(removeFromBlocklistCommand);
 program.addCommand(mintCommand);
 program.addCommand(transferCommand);
 program.addCommand(forceTransferCommand);
+program.addCommand(controlCommand);
 program.addCommand(inspectMintCommand);
 program.addCommand(tokenAclCommand);
 program.addCommand(ablCommand);

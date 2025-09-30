@@ -102,7 +102,8 @@ export const createArcadeToken = async (
         mintAuthority: options.mintAuthority || signerAddress,
         metadataAuthority: options.metadataAuthority || signerAddress,
         pausableAuthority: options.pausableAuthority || signerAddress,
-        permanentDelegateAuthority: options.permanentDelegateAuthority || signerAddress,
+        permanentDelegateAuthority:
+          options.permanentDelegateAuthority || signerAddress,
         extensions: [
           'Metadata',
           'Pausable',

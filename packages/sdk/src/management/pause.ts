@@ -50,7 +50,7 @@ export const getTokenPauseState = async (
     }
     return pausableConfig.paused;
   } catch (error) {
-    console.error('Error fetching pause state:', error);
+    // Silently return false on error
     return false;
   }
 };
@@ -87,7 +87,10 @@ export const togglePauseToken = async (
     const { feePayer } = options;
 
     // Get toggle pause instruction
-    const { currentlyPaused, instruction } = await getTogglePauseInstruction(rpc, options);
+    const { currentlyPaused, instruction } = await getTogglePauseInstruction(
+      rpc,
+      options
+    );
 
     // Get latest blockhash
     const { value: latestBlockhash } = await rpc

@@ -51,6 +51,7 @@ export interface TokenInspectionResult {
   address: Address;
   programId: Address;
   supplyInfo: TokenSupplyInfo;
+  isToken2022: boolean;
 
   // Metadata
   metadata?: TokenMetadata;

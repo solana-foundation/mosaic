@@ -251,6 +251,7 @@ export async function inspectToken(
     aclMode,
     enableSrfc37,
     scaledUiAmount,
+    isToken2022: encodedAccount.programAddress === TOKEN_2022_PROGRAM_ADDRESS,
   };
 }
 

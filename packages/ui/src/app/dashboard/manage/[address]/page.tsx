@@ -17,6 +17,7 @@ import { TransferRestrictions } from './components/TransferRestrictions';
 import { ActionSidebar } from './components/ActionSidebar';
 import { AddressModal } from './components/AddressModal';
 import { MintModal } from './components/MintModal';
+import { ForceTransferModal } from './components/ForceTransferModal';
 import { ActionResultModal } from './components/ActionResultModal';
 import { PauseConfirmModal } from './components/PauseConfirmModal';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
@@ -85,6 +86,7 @@ function ManageTokenConnected({ address }: { address: string }) {
   const [newAddress, setNewAddress] = useState('');
   const [showAccessListModal, setShowAccessListModal] = useState(false);
   const [showMintModal, setShowMintModal] = useState(false);
+  const [showForceTransferModal, setShowForceTransferModal] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [pauseError, setPauseError] = useState('');
@@ -170,7 +172,12 @@ function ManageTokenConnected({ address }: { address: string }) {
       loadedAccessListRef.current = currentKey;
     };
 
-    if (rpc && selectedWalletAccount?.address && token?.address && token?.isSrfc37) {
+    if (
+      rpc &&
+      selectedWalletAccount?.address &&
+      token?.address &&
+      token?.isSrfc37
+    ) {
       loadAccessList();
     }
   }, [
@@ -490,6 +497,7 @@ function ManageTokenConnected({ address }: { address: string }) {
             isPaused={isPaused}
             onTogglePause={togglePause}
             onMintTokens={() => setShowMintModal(true)}
+            onForceTransfer={() => setShowForceTransferModal(true)}
           />
         </div>
       </div>
@@ -527,6 +535,16 @@ function ManageTokenConnected({ address }: { address: string }) {
           onClose={() => setShowMintModal(false)}
           mintAddress={address}
           mintAuthority={token?.mintAuthority}
+          transactionSendingSigner={transactionSendingSigner}
+        />
+      )}
+
+      {transactionSendingSigner && (
+        <ForceTransferModal
+          isOpen={showForceTransferModal}
+          onClose={() => setShowForceTransferModal(false)}
+          mintAddress={address}
+          permanentDelegate={token?.permanentDelegateAuthority}
           transactionSendingSigner={transactionSendingSigner}
         />
       )}
