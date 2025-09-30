@@ -4,10 +4,11 @@ import { useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { TokenDisplay } from '@/types/token';
 import { Loader } from '@/components/ui/loader';
 import { findTokenByAddress } from '@/lib/token/tokenData';
+import { TokenStorage } from '@/lib/token/tokenStorage';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 import { ChainContext } from '@/context/ChainContext';
 import { TokenOverview } from './components/TokenOverview';
@@ -18,6 +19,7 @@ import { ActionSidebar } from './components/ActionSidebar';
 import { AddressModal } from './components/AddressModal';
 import { MintModal } from './components/MintModal';
 import { ForceTransferModal } from './components/ForceTransferModal';
+import { ForceBurnModal } from './components/ForceBurnModal';
 import { ActionResultModal } from './components/ActionResultModal';
 import { PauseConfirmModal } from './components/PauseConfirmModal';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
@@ -74,6 +76,7 @@ const getAccessList = async (
 };
 
 function ManageTokenConnected({ address }: { address: string }) {
+  const router = useRouter();
   const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
   const { chain: currentChain, solanaRpcUrl } = useContext(ChainContext);
   const [token, setToken] = useState<TokenDisplay | null>(null);
@@ -87,6 +90,7 @@ function ManageTokenConnected({ address }: { address: string }) {
   const [showAccessListModal, setShowAccessListModal] = useState(false);
   const [showMintModal, setShowMintModal] = useState(false);
   const [showForceTransferModal, setShowForceTransferModal] = useState(false);
+  const [showForceBurnModal, setShowForceBurnModal] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [showPauseModal, setShowPauseModal] = useState(false);
   const [pauseError, setPauseError] = useState('');
@@ -316,6 +320,17 @@ function ManageTokenConnected({ address }: { address: string }) {
     }
   };
 
+  const handleRemoveFromStorage = () => {
+    if (
+      confirm(
+        'Are you sure you want to remove this token from your local storage? This only removes it from your browser - the token will continue to exist on the blockchain.'
+      )
+    ) {
+      TokenStorage.removeToken(address);
+      router.push('/dashboard');
+    }
+  };
+
   const togglePause = async () => {
     if (
       !selectedWalletAccount?.address ||
@@ -498,6 +513,8 @@ function ManageTokenConnected({ address }: { address: string }) {
             onTogglePause={togglePause}
             onMintTokens={() => setShowMintModal(true)}
             onForceTransfer={() => setShowForceTransferModal(true)}
+            onForceBurn={() => setShowForceBurnModal(true)}
+            onRemoveFromStorage={handleRemoveFromStorage}
           />
         </div>
       </div>
@@ -543,6 +560,16 @@ function ManageTokenConnected({ address }: { address: string }) {
         <ForceTransferModal
           isOpen={showForceTransferModal}
           onClose={() => setShowForceTransferModal(false)}
+          mintAddress={address}
+          permanentDelegate={token?.permanentDelegateAuthority}
+          transactionSendingSigner={transactionSendingSigner}
+        />
+      )}
+
+      {transactionSendingSigner && (
+        <ForceBurnModal
+          isOpen={showForceBurnModal}
+          onClose={() => setShowForceBurnModal(false)}
           mintAddress={address}
           permanentDelegate={token?.permanentDelegateAuthority}
           transactionSendingSigner={transactionSendingSigner}

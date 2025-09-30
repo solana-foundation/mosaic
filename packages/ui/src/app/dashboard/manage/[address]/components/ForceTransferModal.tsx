@@ -256,24 +256,26 @@ export function ForceTransferModal({
         )}
 
         <div className="flex space-x-2 mt-6">
-          <Button
-            onClick={handleAction}
-            disabled={
-              isLoading ||
-              (success
-                ? false
-                : !fromAddress.trim() ||
-                  !toAddress.trim() ||
-                  !amount.trim() ||
-                  !validateSolanaAddress(fromAddress) ||
-                  !validateSolanaAddress(toAddress) ||
-                  !validateAmount(amount))
-            }
-            className="flex-1"
-            variant={success ? 'default' : 'destructive'}
-          >
-            {isLoading ? 'Processing...' : success ? 'Close' : 'Force Transfer'}
-          </Button>
+          {!success && (
+            <Button
+              onClick={handleAction}
+              disabled={
+                isLoading ||
+                (success
+                  ? false
+                  : !fromAddress.trim() ||
+                    !toAddress.trim() ||
+                    !amount.trim() ||
+                    !validateSolanaAddress(fromAddress) ||
+                    !validateSolanaAddress(toAddress) ||
+                    !validateAmount(amount))
+              }
+              className="flex-1"
+              variant={success ? 'default' : 'destructive'}
+            >
+              {isLoading ? 'Processing...' : 'Force Transfer'}
+            </Button>
+          )}
           <Button variant="outline" onClick={handleClose} className="flex-1">
             {success ? 'Close' : 'Cancel'}
           </Button>

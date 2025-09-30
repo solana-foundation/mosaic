@@ -205,21 +205,23 @@ export function MintModal({
         )}
 
         <div className="flex space-x-2 mt-6">
-          <Button
-            onClick={handleAdd}
-            disabled={
-              isLoading ||
-              (success
-                ? false
-                : !recipient.trim() ||
-                  !amount.trim() ||
-                  !validateSolanaAddress(recipient) ||
-                  !validateAmount(amount))
-            }
-            className="flex-1"
-          >
-            {isLoading ? 'Minting...' : success ? 'Close' : 'Mint Tokens'}
-          </Button>
+          {!success && (
+            <Button
+              onClick={handleAdd}
+              disabled={
+                isLoading ||
+                (success
+                  ? false
+                  : !recipient.trim() ||
+                    !amount.trim() ||
+                    !validateSolanaAddress(recipient) ||
+                    !validateAmount(amount))
+              }
+              className="flex-1"
+            >
+              {isLoading ? 'Minting...' : 'Mint Tokens'}
+            </Button>
+          )}
           <Button variant="outline" onClick={handleClose} className="flex-1">
             {success ? 'Close' : 'Cancel'}
           </Button>
