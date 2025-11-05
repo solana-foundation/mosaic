@@ -14,10 +14,7 @@ import {
   getMintToInstruction,
   getCreateAssociatedTokenIdempotentInstruction,
 } from 'gill/programs/token';
-import {
-  TOKEN_ACL_PROGRAM_ID,
-  getThawPermissionlessInstructions,
-} from '../token-acl';
+import { getThawPermissionlessInstructions } from '../token-acl';
 import {
   decimalAmountToRaw,
   getMintDetails,
@@ -64,13 +61,12 @@ export const createMintToTransaction = async (
     mint
   );
 
-  const { decimals, freezeAuthority, extensions } = await getMintDetails(
+  const { decimals, extensions, usesTokenAcl } = await getMintDetails(
     rpc,
     mint
   );
   const enableSrfc37 =
-    freezeAuthority === TOKEN_ACL_PROGRAM_ID &&
-    isDefaultAccountStateSetFrozen(extensions);
+    usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
   const rawAmount = decimalAmountToRaw(amount, decimals);
 

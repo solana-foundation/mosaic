@@ -19,10 +19,9 @@ import {
   getListConfigPda,
   getRemoveWalletInstructions,
 } from '../abl';
-import { findListConfigPda, Mode } from '@mosaic/abl';
+import { findListConfigPda, Mode } from '@token-acl/abl-sdk';
 import { getFreezeInstructions } from '../token-acl/freeze';
 import { getThawPermissionlessInstructions } from '../token-acl/thawPermissionless';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 import {
   getFreezeAccountInstruction,
   getThawAccountInstruction,
@@ -50,10 +49,9 @@ export const getAddToAllowlistInstructions = async (
   );
   const accountSigner =
     typeof authority === 'string' ? createNoopSigner(authority) : authority;
-  const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
+  const { extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
   const enableSrfc37 =
-    freezeAuthority === TOKEN_ACL_PROGRAM_ID &&
-    isDefaultAccountStateSetFrozen(extensions);
+    usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
   if (!enableSrfc37) {
     return [
@@ -132,10 +130,9 @@ export const getRemoveFromAllowlistInstructions = async (
   const accountSigner =
     typeof authority === 'string' ? createNoopSigner(authority) : authority;
 
-  const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
+  const { extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
   const enableSrfc37 =
-    freezeAuthority === TOKEN_ACL_PROGRAM_ID &&
-    isDefaultAccountStateSetFrozen(extensions);
+    usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
   if (!enableSrfc37) {
     return [

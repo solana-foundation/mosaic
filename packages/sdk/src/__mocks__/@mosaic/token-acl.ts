@@ -1,7 +1,7 @@
 import type {
   SetGatingProgramInstruction,
   TogglePermissionlessInstructionsInstruction,
-} from '@mosaic/token-acl';
+} from '@token-acl/sdk';
 import { AccountRole, type Address, type TransactionSigner } from 'gill';
 
 export async function findMintConfigPda(): Promise<[string, string]> {
@@ -76,7 +76,7 @@ export function getSetGatingProgramInstruction({
   return {
     accounts: accounts as unknown as SetGatingProgramInstruction['accounts'],
     programAddress:
-      'Eba1ts11111111111111111111111111111111111111' as Address<'Eba1ts11111111111111111111111111111111111111'>,
+      'TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP' as Address<'TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP'>,
     data: new Uint8Array([1]),
   } as SetGatingProgramInstruction;
 }
@@ -90,7 +90,7 @@ export function getTogglePermissionlessInstructionsInstruction({
 }) {
   return {
     programAddress:
-      'Eba1ts11111111111111111111111111111111111111' as Address<'Eba1ts11111111111111111111111111111111111111'>,
+      'TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP' as Address<'TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP'>,
     accounts: [
       {
         address: authority.address as Address,

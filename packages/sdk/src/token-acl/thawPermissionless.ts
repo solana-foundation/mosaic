@@ -12,10 +12,7 @@ import {
   type TransactionVersion,
   type TransactionWithBlockhashLifetime,
 } from 'gill';
-import {
-  createThawPermissionlessInstructionWithExtraMetas,
-  findMintConfigPda,
-} from '@mosaic/token-acl';
+import { createThawPermissionlessInstructionWithExtraMetas } from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
 import {
   getTokenEncoder,
@@ -46,17 +43,11 @@ export const getThawPermissionlessInstructions = async (input: {
   tokenAccount: Address;
   tokenAccountOwner: Address;
 }): Promise<Instruction<string>[]> => {
-  const mintConfigPda = await findMintConfigPda(
-    { mint: input.mint },
-    { programAddress: TOKEN_ACL_PROGRAM_ID }
-  );
-
   const thawPermissionlessInstruction =
     await createThawPermissionlessInstructionWithExtraMetas(
       input.authority,
       input.tokenAccount,
       input.mint,
-      mintConfigPda[0],
       input.tokenAccountOwner,
       TOKEN_ACL_PROGRAM_ID,
       async (address: Address) => {

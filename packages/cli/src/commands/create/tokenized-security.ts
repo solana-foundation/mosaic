@@ -13,8 +13,8 @@ import {
   type Address,
   type TransactionSigner,
 } from 'gill';
-import { findListConfigPda } from '@mosaic/abl';
-import { findMintConfigPda } from '@mosaic/token-acl';
+import { findListConfigPda } from '@token-acl/abl-sdk';
+import { findMintConfigPda } from '@token-acl/sdk';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface TokenizedSecuritiesOptions {
