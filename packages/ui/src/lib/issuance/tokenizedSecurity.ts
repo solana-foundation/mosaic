@@ -7,12 +7,12 @@ import {
   signAndSendTransactionMessageWithSigners,
   TransactionSendingSigner,
 } from 'gill';
+import { getSignatureFromBytes } from '@/lib/solana/codecs';
 import {
   TokenizedSecurityOptions,
   TokenizedSecurityCreationResult,
 } from '@/types/token';
 import { createTokenizedSecurityInitTransaction } from '@mosaic/sdk';
-import bs58 from 'bs58';
 
 function validateOptions(options: TokenizedSecurityOptions): number {
   if (!options.name || !options.symbol) {
@@ -92,12 +92,12 @@ export const createTokenizedSecurity = async (
       }
     );
 
-    const signature =
+    const signatureBytes =
       await signAndSendTransactionMessageWithSigners(transaction);
 
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
       mintAddress: mintKeypair.address,
       details: {
         name: options.name,

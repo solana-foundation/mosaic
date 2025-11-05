@@ -7,7 +7,12 @@ import type {
   Address,
   SolanaRpcApi,
 } from 'gill';
-import { getBase58Decoder, compileTransaction, getBase64Decoder } from 'gill';
+import {
+  getBase58Decoder,
+  compileTransaction,
+  getBase64EncodedWireTransaction,
+  getTransactionCodec,
+} from 'gill';
 import {
   getAssociatedTokenAccountAddress,
   TOKEN_2022_PROGRAM_ADDRESS,
@@ -30,7 +35,8 @@ export const transactionToB58 = (
   >
 ): string => {
   const compiledTransaction = compileTransaction(transaction);
-  return getBase58Decoder().decode(compiledTransaction.messageBytes);
+  const transactionBytes = getTransactionCodec().encode(compiledTransaction);
+  return getBase58Decoder().decode(transactionBytes);
 };
 
 /**
@@ -49,7 +55,7 @@ export const transactionToB64 = (
   >
 ): string => {
   const compiledTransaction = compileTransaction(transaction);
-  return getBase64Decoder().decode(compiledTransaction.messageBytes);
+  return getBase64EncodedWireTransaction(compiledTransaction);
 };
 
 /**

@@ -11,7 +11,7 @@ import {
   getUpdateMultiplierScaledUiMintInstruction,
   TOKEN_2022_PROGRAM_ADDRESS,
 } from 'gill/programs/token';
-import bs58 from 'bs58';
+import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface UpdateScaledUiMultiplierOptions {
   mint: string;
@@ -57,10 +57,10 @@ export const updateScaledUiMultiplier = async (
       instructions: [ix],
     });
 
-    const signature = await signAndSendTransactionMessageWithSigners(tx);
+    const signatureBytes = await signAndSendTransactionMessageWithSigners(tx);
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
       multiplier: options.multiplier,
     };
   } catch (error) {

@@ -9,7 +9,7 @@ import {
 } from 'gill';
 import { ArcadeTokenCreationResult, ArcadeTokenOptions } from '@/types/token';
 import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
-import bs58 from 'bs58';
+import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 /**
  * Validates arcade token options and returns parsed decimals
@@ -87,12 +87,12 @@ export const createArcadeToken = async (
     );
 
     // Sign the transaction
-    const signature =
+    const signatureBytes =
       await signAndSendTransactionMessageWithSigners(transaction);
 
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
       mintAddress: mintKeypair.address,
       details: {
         name: options.name,

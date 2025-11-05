@@ -8,7 +8,7 @@ import {
 } from 'gill';
 import { AuthorityType } from 'gill/programs/token';
 import { getUpdateAuthorityTransaction } from '@mosaic/sdk';
-import bs58 from 'bs58';
+import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export type AuthorityRole = AuthorityType | 'Metadata';
 
@@ -88,12 +88,12 @@ export const updateTokenAuthority = async (
     });
 
     // Sign and send the transaction
-    const signature =
+    const signatureBytes =
       await signAndSendTransactionMessageWithSigners(transaction);
 
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
       authorityRole: options.role.toString(),
       prevAuthority: signerAddress,
       newAuthority: options.newAuthority,

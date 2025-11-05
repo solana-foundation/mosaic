@@ -11,7 +11,7 @@ import {
   createForceTransferTransaction,
   validatePermanentDelegate,
 } from '@mosaic/sdk';
-import bs58 from 'bs58';
+import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface ForceTransferOptions {
   mintAddress: string;
@@ -126,11 +126,11 @@ export const forceTransferTokens = async (
     );
 
     // Sign and send the transaction
-    const signature =
+    const signatureBytes =
       await signAndSendTransactionMessageWithSigners(transaction);
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
       transferAmount: options.amount,
       fromAddress: options.fromAddress,
       toAddress: options.toAddress,
