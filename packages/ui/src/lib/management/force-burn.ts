@@ -11,7 +11,7 @@ import {
   createForceBurnTransaction,
   validatePermanentDelegateForBurn,
 } from '@mosaic/sdk';
-import bs58 from 'bs58';
+import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface ForceBurnOptions {
   mintAddress: string;
@@ -113,11 +113,11 @@ export const forceBurnTokens = async (
     );
 
     // Sign and send the transaction
-    const signature =
+    const signatureBytes =
       await signAndSendTransactionMessageWithSigners(transaction);
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
       burnAmount: options.amount,
       fromAddress: options.fromAddress,
     };

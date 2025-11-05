@@ -13,7 +13,7 @@ import {
   createPauseTransaction,
   createResumeTransaction,
 } from '@mosaic/sdk';
-import bs58 from 'bs58';
+import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface PauseOptions {
   mintAddress: string;
@@ -86,11 +86,11 @@ export const pauseTokenWithWallet = async (
     });
 
     // Sign and send the transaction
-    const signature =
+    const signatureBytes =
       await signAndSendTransactionMessageWithSigners(transactionMessage);
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
       paused: true,
     };
   } catch (error) {
@@ -150,11 +150,11 @@ export const unpauseTokenWithWallet = async (
     });
 
     // Sign and send the transaction
-    const signature =
+    const signatureBytes =
       await signAndSendTransactionMessageWithSigners(transactionMessage);
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
       paused: false,
     };
   } catch (error) {

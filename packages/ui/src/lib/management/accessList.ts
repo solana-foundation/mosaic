@@ -12,7 +12,7 @@ import {
   createAddToAllowlistTransaction,
   createRemoveFromAllowlistTransaction,
 } from '@mosaic/sdk';
-import bs58 from 'bs58';
+import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface BlocklistOptions {
   mintAddress: string;
@@ -71,11 +71,11 @@ export const addAddressToBlocklist = async (
     );
 
     // Sign and send the transaction
-    const signature =
+    const signatureBytes =
       await signAndSendTransactionMessageWithSigners(transaction);
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
     };
   } catch (error) {
     return {
@@ -103,11 +103,11 @@ export const removeAddressFromBlocklist = async (
     );
 
     // Sign and send the transaction
-    const signature =
+    const signatureBytes =
       await signAndSendTransactionMessageWithSigners(transaction);
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
     };
   } catch (error) {
     return {
@@ -135,11 +135,11 @@ export const addAddressToAllowlist = async (
     );
 
     // Sign and send the transaction
-    const signature =
+    const signatureBytes =
       await signAndSendTransactionMessageWithSigners(transaction);
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
     };
   } catch (error) {
     return {
@@ -167,11 +167,11 @@ export const removeAddressFromAllowlist = async (
     );
 
     // Sign and send the transaction
-    const signature =
+    const signatureBytes =
       await signAndSendTransactionMessageWithSigners(transaction);
     return {
       success: true,
-      transactionSignature: bs58.encode(signature),
+      transactionSignature: getSignatureFromBytes(signatureBytes),
     };
   } catch (error) {
     return {
