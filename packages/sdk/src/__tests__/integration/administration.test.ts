@@ -1,10 +1,13 @@
 import setupTestSuite from './setup';
 import type { Client } from './setup';
-import type { Address, TransactionSigner } from 'gill';
+import type { TransactionSigner } from 'gill';
 import { generateKeyPairSigner } from 'gill';
 import { AuthorityType } from 'gill/programs/token';
 import { Token } from '../../issuance';
-import { getUpdateAuthorityTransaction } from '../../administration';
+import {
+  getRemoveAuthorityTransaction,
+  getUpdateAuthorityTransaction,
+} from '../../administration';
 import { inspectToken } from '../../inspection';
 import {
   sendAndConfirmTransaction,
@@ -12,6 +15,7 @@ import {
   assertTxFailure,
 } from './helpers';
 import { describeSkipIf } from './helpers';
+import { createMintToTransaction } from '../../management';
 
 describeSkipIf()('Administration Integration Tests', () => {
   let client: Client;
@@ -28,7 +32,7 @@ describeSkipIf()('Administration Integration Tests', () => {
   });
 
   describe('Update Authorities', () => {
-    it.only('should transfer mint authority', async () => {
+    it('should transfer mint authority', async () => {
       // Create a simple token with metadata
       const mint = await generateKeyPairSigner();
       const newMintAuthority = await generateKeyPairSigner();
@@ -252,7 +256,7 @@ describeSkipIf()('Administration Integration Tests', () => {
       );
     }, 60000);
 
-    it('should set authority to None (close authority)', async () => {
+    it('should remove mint authority', async () => {
       // Create a simple token
       const mint = await generateKeyPairSigner();
 
@@ -284,14 +288,12 @@ describeSkipIf()('Administration Integration Tests', () => {
       expect(inspection1.authorities.mintAuthority).toBe(mintAuthority.address);
 
       // Set mint authority to None (represented by null in the API)
-      const NONE_ADDRESS = '11111111111111111111111111111111' as Address;
-      const updateTx = await getUpdateAuthorityTransaction({
+      const updateTx = await getRemoveAuthorityTransaction({
         rpc: client.rpc,
         payer,
         mint: mint.address,
         role: AuthorityType.MintTokens,
         currentAuthority: mintAuthority,
-        newAuthority: NONE_ADDRESS,
       });
 
       const updateSig = await sendAndConfirmTransaction(client, updateTx);
@@ -300,6 +302,18 @@ describeSkipIf()('Administration Integration Tests', () => {
       // Verify mint authority is now None
       const inspection2 = await inspectToken(client.rpc, mint.address);
       expect(inspection2.authorities.mintAuthority).toBeNull();
+
+      // Try to use old authority - should fail
+      const mintTransaction = await createMintToTransaction(
+        client.rpc,
+        mint.address,
+        payer.address,
+        1000000,
+        mintAuthority,
+        payer
+      );
+
+      await assertTxFailure(client, mintTransaction);
     }, 60000);
   });
 
@@ -334,19 +348,16 @@ describeSkipIf()('Administration Integration Tests', () => {
       assertTxSuccess(createSig);
 
       // Try to update authority with unauthorized signer - should fail
-      const updatePromise = (async () => {
-        const updateTx = await getUpdateAuthorityTransaction({
-          rpc: client.rpc,
-          payer,
-          mint: mint.address,
-          role: AuthorityType.MintTokens,
-          currentAuthority: unauthorizedSigner,
-          newAuthority: newAuthority.address,
-        });
-        return await sendAndConfirmTransaction(client, updateTx);
-      })();
+      const updateTx = await getUpdateAuthorityTransaction({
+        rpc: client.rpc,
+        payer,
+        mint: mint.address,
+        role: AuthorityType.MintTokens,
+        currentAuthority: unauthorizedSigner,
+        newAuthority: newAuthority.address,
+      });
 
-      await assertTxFailure(updatePromise);
+      await assertTxFailure(client, updateTx);
 
       // Verify authority unchanged
       const inspection = await inspectToken(client.rpc, mint.address);
@@ -456,19 +467,16 @@ describeSkipIf()('Administration Integration Tests', () => {
 
       // Try to use old authority - should fail
       const anotherAuthority = await generateKeyPairSigner();
-      const updatePromise = (async () => {
-        const updateTx2 = await getUpdateAuthorityTransaction({
-          rpc: client.rpc,
-          payer,
-          mint: mint.address,
-          role: AuthorityType.MintTokens,
-          currentAuthority: mintAuthority, // Old authority
-          newAuthority: anotherAuthority.address,
-        });
-        return await sendAndConfirmTransaction(client, updateTx2);
-      })();
+      const updateTx2 = await getUpdateAuthorityTransaction({
+        rpc: client.rpc,
+        payer,
+        mint: mint.address,
+        role: AuthorityType.MintTokens,
+        currentAuthority: mintAuthority, // Old authority
+        newAuthority: anotherAuthority.address,
+      });
 
-      await assertTxFailure(updatePromise);
+      await assertTxFailure(client, updateTx2);
 
       // Verify authority is still the new one
       const inspection = await inspectToken(client.rpc, mint.address);

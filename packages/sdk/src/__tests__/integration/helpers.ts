@@ -115,6 +115,15 @@ export function assertTxSuccess(signature: string): void {
 /**
  * Assert transaction fails
  */
-export async function assertTxFailure(txPromise: Promise<any>): Promise<void> {
-  await expect(txPromise).rejects.toThrow();
+export async function assertTxFailure(
+  client: Client,
+  transactionToThrow: FullTransaction<
+    TransactionVersion,
+    TransactionMessageWithFeePayer,
+    TransactionWithBlockhashLifetime
+  >
+): Promise<void> {
+  await expect(
+    sendAndConfirmTransaction(client, transactionToThrow)
+  ).rejects.toThrow();
 }
