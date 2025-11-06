@@ -44,7 +44,7 @@ describe('templates enableSrfc37 option', () => {
       {
         mint: mint.address,
         decimals,
-        freezeAuthority: undefined,
+        freezeAuthority: feePayer.address,
         mintAuthority: mintAuthoritySigner.address,
       },
       { programAddress: TOKEN_2022_PROGRAM_ADDRESS }
@@ -103,7 +103,7 @@ describe('templates enableSrfc37 option', () => {
       {
         mint: mint.address,
         decimals,
-        freezeAuthority: undefined,
+        freezeAuthority: feePayer.address,
         mintAuthority: mintAuthoritySigner.address,
       },
       { programAddress: TOKEN_2022_PROGRAM_ADDRESS }
