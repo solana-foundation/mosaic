@@ -8,7 +8,6 @@ import type {
   FullTransaction,
   Commitment,
   Signature,
-  KeyPairSigner,
 } from 'gill';
 import {
   getSignatureFromTransaction,
@@ -20,6 +19,15 @@ import {
   getAssociatedTokenAccountAddress,
   TOKEN_2022_PROGRAM_ADDRESS,
 } from 'gill/programs';
+import {
+  inspectToken,
+  type AclMode,
+  type ScaledUiAmountInfo,
+  type TokenAuthorities,
+  type TokenExtension,
+  type TokenSupplyInfo,
+  type TokenType,
+} from '../../inspection';
 
 export const DEFAULT_TIMEOUT = 60000;
 export const DEFAULT_COMMITMENT = 'processed';
@@ -40,8 +48,6 @@ export async function sendAndConfirmTransaction(
   commitment: Commitment = DEFAULT_COMMITMENT,
   skipPreflight = true
 ): Promise<Signature> {
-  const { rpc } = client;
-
   // Sign transaction
   const signedTransaction = await signTransactionMessageWithSigners(tx);
 
@@ -61,7 +67,8 @@ export async function sendAndConfirmTransaction(
 export async function getBalance(
   rpc: Rpc<SolanaRpcApi>,
   wallet: Address,
-  mint: Address
+  mint: Address,
+  commitment: Commitment = DEFAULT_COMMITMENT
 ): Promise<bigint> {
   const ata = await getAssociatedTokenAccountAddress(
     mint,
@@ -77,8 +84,8 @@ export async function getBalance(
     return 0n;
   }
 
-  const parsed = (accountInfo.value.data as any).parsed?.info;
-  return BigInt(parsed?.tokenAmount?.amount ?? '0');
+  const balance = await rpc.getTokenAccountBalance(ata, { commitment }).send();
+  return BigInt(balance.value.amount);
 }
 
 /**
@@ -132,150 +139,55 @@ export async function assertTxFailure(
   ).rejects.toThrow();
 }
 
-// ============================================================================
-// Test Helper Functions - Reduce Boilerplate
-// ============================================================================
 
-import type { TransactionSigner } from 'gill';
-import { generateKeyPairSigner } from 'gill';
-import { Token } from '../../issuance';
-import {
-  inspectToken,
-  type AclMode,
-  type ScaledUiAmountInfo,
-  type TokenAuthorities,
-  type TokenExtension,
-  type TokenSupplyInfo,
-  type TokenType,
-} from '../../inspection';
-import type { AuthorityType } from 'gill/programs/token';
-import {
-  getUpdateAuthorityTransaction,
-  getRemoveAuthorityTransaction,
-} from '../../administration';
-
-interface CreateTestTokenOptions {
-  name?: string;
-  symbol?: string;
-  uri?: string;
-  decimals?: number;
-  metadataAuthority?: Address;
-  mintAuthority?: TransactionSigner<string>;
-  freezeAuthority?: Address;
-  pausableAuthority?: Address;
-  payer: TransactionSigner<string>;
-  permanentDelegate?: Address;
-  commitment?: Commitment;
-  defaultAccountState?: { initialStateInitialized: boolean };
-  confidentialBalancesAuthority?: Address;
-  scaledUiAmount?: {
-    authority: Address;
-    multiplier?: number;
-    newMultiplierEffectiveTimestamp?: bigint | number;
-    newMultiplier?: number;
-  };
-  mint?: KeyPairSigner<string>;
+/**
+ * Assert single balance for a wallet
+ */
+export async function assertBalance(
+  rpc: Rpc<SolanaRpcApi>,
+  wallet: Address,
+  mint: Address,
+  expectedAmount: bigint,
+  commitment: Commitment = DEFAULT_COMMITMENT
+): Promise<void> {
+  let balance: bigint;
+  try {
+    balance = await getBalance(rpc, wallet, mint, commitment);
+  } catch {
+    balance = 0n;
+  }
+  expect(balance).toBe(expectedAmount);
 }
 
 /**
- * Creates a basic test token with optional metadata, pausable, default account state, confidential balances, scaled UI amount, and permanent delegate
- * Returns the mint signer and signature
+ * Assert multiple balances at once
  */
-export async function createTestTokenWithAssertions({
-  client,
-  options,
-  assertions,
-  transactionAssertions,
-}: {
-  client: Client;
-  options: CreateTestTokenOptions;
-  assertions?: AssertTokenOptions;
-  transactionAssertions?: AssertTransactionOptions;
-}): Promise<{ mint: Address; signature: Signature }> {
-  const mint = options.mint || (await generateKeyPairSigner());
-  let tokenBuilder = new Token();
-
-  // Add metadata if metadata authority is provided
-  if (options.metadataAuthority) {
-    tokenBuilder = tokenBuilder.withMetadata({
-      mintAddress: mint.address,
-      authority: options.metadataAuthority,
-      metadata: {
-        name: options.name || 'Test Token',
-        symbol: options.symbol || 'TEST',
-        uri: options.uri || 'https://example.com/test.json',
-      },
-      additionalMetadata: new Map(),
-    });
-  }
-
-  // Add permanent delegate if provided
-  if (options.permanentDelegate) {
-    tokenBuilder = tokenBuilder.withPermanentDelegate(
-      options.permanentDelegate
-    );
-  }
-
-  // Add pausable if pausable authority is provided
-  if (options.pausableAuthority) {
-    tokenBuilder = tokenBuilder.withPausable(options.pausableAuthority);
-  }
-
-  // Add default account state if provided
-  if (options.defaultAccountState) {
-    tokenBuilder = tokenBuilder.withDefaultAccountState(
-      options.defaultAccountState.initialStateInitialized
-    );
-  }
-
-  // Add confidential balances if provided
-  if (options.confidentialBalancesAuthority) {
-    tokenBuilder = tokenBuilder.withConfidentialBalances(
-      options.confidentialBalancesAuthority
-    );
-  }
-
-  // Add scaled UI amount if provided
-  if (options.scaledUiAmount) {
-    tokenBuilder = tokenBuilder.withScaledUiAmount(
-      options.scaledUiAmount.authority,
-      options.scaledUiAmount.multiplier,
-      options.scaledUiAmount.newMultiplierEffectiveTimestamp,
-      options.scaledUiAmount.newMultiplier
-    );
-  }
-
-  const tx = await tokenBuilder.buildTransaction({
-    rpc: client.rpc,
-    decimals: options.decimals || 6,
-    mintAuthority: options.mintAuthority,
-    freezeAuthority: options.freezeAuthority,
-    mint,
-    feePayer: options.payer,
-  });
-
-  if (transactionAssertions?.shouldThrow) {
-    await assertTxFailure(client, tx);
-  }
-
-  const signature = await sendAndConfirmTransaction(
-    client,
-    tx,
-    options.commitment || DEFAULT_COMMITMENT
+export async function assertBalances(
+  rpc: Rpc<SolanaRpcApi>,
+  assertions: Array<{
+    wallet: Address;
+    mint: Address;
+    expectedAmount: bigint;
+  }>,
+  commitment: Commitment = DEFAULT_COMMITMENT
+): Promise<void> {
+  await Promise.all(
+    assertions.map(assertion =>
+      assertBalance(
+        rpc,
+        assertion.wallet,
+        assertion.mint,
+        assertion.expectedAmount,
+        commitment
+      )
+    )
   );
-  assertTxSuccess(signature);
-
-  if (assertions) {
-    await assertToken(client, mint.address, assertions, options.commitment);
-  }
-
-  return { mint: mint.address, signature };
 }
 
-interface AssertTokenOptions {
+export interface AssertTokenOptions {
   exists?: boolean;
   supplyInfo?: TokenSupplyInfo;
-  authorities?: TokenAuthorities;
+  authorities?: Partial<TokenAuthorities>;
   extensions?: TokenExtension[];
   tokenType?: TokenType;
   isPausable?: boolean;
@@ -284,21 +196,20 @@ interface AssertTokenOptions {
   scaledUiAmount?: ScaledUiAmountInfo;
 }
 
-interface AssertTransactionOptions {
-  shouldThrow?: boolean;
-}
-
+/**
+ * Assert token state matches expected values
+ */
 export async function assertToken(
-  client: Client,
+  rpc: Rpc<SolanaRpcApi>,
   mintAddress: Address,
   expected: AssertTokenOptions,
   commitment: Commitment = DEFAULT_COMMITMENT
 ): Promise<void> {
-  const exists = expected.exists ?? true;
-  const tokenInspection = inspectToken(client.rpc, mintAddress, commitment);
+  const expectNotFound = expected.exists ?? true;
+  const tokenInspection = inspectToken(rpc, mintAddress, commitment);
 
   // Verify token status
-  if (!exists) {
+  if (expectNotFound) {
     await expect(tokenInspection).rejects.toThrow();
     return;
   }
@@ -354,102 +265,4 @@ export async function assertToken(
   if (expected.scaledUiAmount) {
     expect(inspection.scaledUiAmount).toEqual(expected.scaledUiAmount);
   }
-}
-
-interface UpdateAuthorityOptions {
-  mint: Address;
-  role: AuthorityType | 'Metadata';
-  currentAuthority: TransactionSigner<string>;
-  newAuthority: Address;
-  payer: TransactionSigner<string>;
-  commitment?: Commitment;
-}
-
-/**
- * Update an authority on a mint (combines transaction creation, sending, and verification)
- */
-export async function updateAuthorityWithAssertions({
-  client,
-  options,
-  assertions,
-  transactionAssertions,
-}: {
-  client: Client;
-  options: UpdateAuthorityOptions;
-  assertions?: AssertTokenOptions;
-  transactionAssertions?: AssertTransactionOptions;
-}): Promise<Signature> {
-  const updateTx = await getUpdateAuthorityTransaction({
-    rpc: client.rpc,
-    payer: options.payer,
-    mint: options.mint,
-    role: options.role,
-    currentAuthority: options.currentAuthority,
-    newAuthority: options.newAuthority,
-  });
-
-  if (transactionAssertions?.shouldThrow) {
-    await assertTxFailure(client, updateTx);
-  }
-
-  const signature = await sendAndConfirmTransaction(
-    client,
-    updateTx,
-    options.commitment || DEFAULT_COMMITMENT
-  );
-  assertTxSuccess(signature);
-
-  if (assertions) {
-    await assertToken(client, options.mint, assertions, options.commitment);
-  }
-
-  return signature;
-}
-
-interface RemoveAuthorityOptions {
-  mint: Address;
-  role: AuthorityType;
-  currentAuthority: TransactionSigner<string>;
-  payer: TransactionSigner<string>;
-  commitment?: Commitment;
-}
-
-/**
- * Remove an authority from a mint (set to None)
- */
-export async function removeAuthorityWithAssertions({
-  client,
-  options,
-  assertions,
-  transactionAssertions,
-}: {
-  client: Client;
-  options: RemoveAuthorityOptions;
-  assertions?: AssertTokenOptions;
-  transactionAssertions?: AssertTransactionOptions;
-}): Promise<Signature> {
-  const removeTx = await getRemoveAuthorityTransaction({
-    rpc: client.rpc,
-    payer: options.payer,
-    mint: options.mint,
-    role: options.role,
-    currentAuthority: options.currentAuthority,
-  });
-
-  if (transactionAssertions?.shouldThrow) {
-    await assertTxFailure(client, removeTx);
-  }
-
-  const signature = await sendAndConfirmTransaction(
-    client,
-    removeTx,
-    options.commitment || DEFAULT_COMMITMENT
-  );
-  assertTxSuccess(signature);
-
-  if (assertions) {
-    await assertToken(client, options.mint, assertions, options.commitment);
-  }
-
-  return signature;
 }
