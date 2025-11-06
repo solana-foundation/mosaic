@@ -59,7 +59,9 @@ describe('Pause Management', () => {
       const isPaused = await getTokenPauseState(rpc, mintAddress);
 
       expect(isPaused).toBe(true);
-      expect(fetchEncodedAccount).toHaveBeenCalledWith(rpc, mintAddress);
+      expect(fetchEncodedAccount).toHaveBeenCalledWith(rpc, mintAddress, {
+        commitment: 'confirmed',
+      });
       expect(decodeMint).toHaveBeenCalledTimes(1);
     });
 
@@ -92,7 +94,9 @@ describe('Pause Management', () => {
       const isPaused = await getTokenPauseState(rpc, mintAddress);
 
       expect(isPaused).toBe(false);
-      expect(fetchEncodedAccount).toHaveBeenCalledWith(rpc, mintAddress);
+      expect(fetchEncodedAccount).toHaveBeenCalledWith(rpc, mintAddress, {
+        commitment: 'confirmed',
+      });
       expect(decodeMint).toHaveBeenCalledTimes(1);
     });
 

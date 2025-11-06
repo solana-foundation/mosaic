@@ -144,6 +144,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
         rawTx
           ? (signerAddress as Address)
           : (signerKeypair as TransactionSigner<string>),
+        undefined, // freezeAuthority - TODO add argument for this
         {
           aclMode: options.aclMode,
           metadataAuthority,

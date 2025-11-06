@@ -55,7 +55,7 @@ export const getUpdateAuthorityInstructions = (input: {
   return [
     getSetAuthorityInstruction({
       owned: input.mint,
-      owner: input.currentAuthority.address,
+      owner: input.currentAuthority,
       newAuthority: input.newAuthority,
       authorityType: input.role,
     }),

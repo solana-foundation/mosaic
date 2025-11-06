@@ -31,6 +31,7 @@ export const createTokenizedSecurityInitTransaction = async (
   mintAuthority: Address,
   mint: Address | TransactionSigner<string>,
   feePayer: Address | TransactionSigner<string>,
+  freezeAuthority?: Address,
   options?: {
     aclMode?: 'allowlist' | 'blocklist';
     metadataAuthority?: Address;
@@ -92,7 +93,8 @@ export const createTokenizedSecurityInitTransaction = async (
   const instructions = await tokenBuilder.buildInstructions({
     rpc,
     decimals,
-    authority: mintAuthority,
+    mintAuthority,
+    freezeAuthority,
     mint: mintSigner,
     feePayer: feePayerSigner,
   });

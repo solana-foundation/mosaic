@@ -78,6 +78,7 @@ export const createTokenizedSecurity = async (
       mintAuthority,
       mintKeypair,
       signer,
+      undefined, // freezeAuthority - TODO add argument for this
       {
         aclMode: options.aclMode || 'blocklist',
         enableSrfc37,

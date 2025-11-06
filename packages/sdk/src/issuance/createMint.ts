@@ -117,23 +117,31 @@ export class Token {
   async buildInstructions({
     rpc,
     decimals,
-    authority,
+    mintAuthority,
+    freezeAuthority,
     mint,
     feePayer,
   }: {
     rpc: Rpc<SolanaRpcApiMainnet>;
     decimals: number;
-    authority: Address;
+    mintAuthority?: Address | TransactionSigner<string>; // defaults to feePayer
+    freezeAuthority?: Address; // default is undefined
     mint: TransactionSigner<string>;
     feePayer: TransactionSigner<string>;
   }): Promise<Instruction[]> {
     // Get instructions for creating and initializing the mint account
+    const mintAuthorityAddress = mintAuthority
+      ? typeof mintAuthority === 'string'
+        ? mintAuthority
+        : mintAuthority.address
+      : feePayer.address;
     const [createMintAccountInstruction, initMintInstruction] =
       await getCreateMintInstructions({
         rpc: rpc,
         decimals,
         extensions: this.extensions,
-        freezeAuthority: authority,
+        mintAuthority: mintAuthorityAddress,
+        freezeAuthority: freezeAuthority,
         mint: mint,
         payer: feePayer,
         programAddress: TOKEN_2022_PROGRAM_ADDRESS,
@@ -143,17 +151,27 @@ export class Token {
     );
 
     // TODO: Add other post-initialize instructions as needed like for transfer hooks
+    if (
+      this.extensions.some(ext => ext.__kind === 'TokenMetadata') &&
+      mintAuthority &&
+      typeof mintAuthority === 'string'
+    ) {
+      throw new Error(
+        'mintAuthority must be a TransactionSigner<string> (or undefined)when TokenMetadata extension is present.'
+      );
+    }
     const postInitializeInstructions = this.extensions.flatMap(ext =>
       ext.__kind === 'TokenMetadata'
         ? [
             getInitializeTokenMetadataInstruction({
               metadata: mint.address,
               mint: mint.address,
-              mintAuthority: feePayer,
+              mintAuthority:
+                (mintAuthority as TransactionSigner<string>) ?? feePayer, // safe to cast b/c we handle error case above
               name: ext.name,
               symbol: ext.symbol,
               uri: ext.uri,
-              updateAuthority: authority,
+              updateAuthority: mintAuthorityAddress,
             }),
           ]
         : []
@@ -170,13 +188,15 @@ export class Token {
   async buildTransaction({
     rpc,
     decimals,
-    authority,
+    mintAuthority,
+    freezeAuthority,
     mint,
     feePayer,
   }: {
     rpc: Rpc<SolanaRpcApiMainnet>;
     decimals: number;
-    authority: Address;
+    mintAuthority?: Address | TransactionSigner<string>;
+    freezeAuthority?: Address;
     mint: TransactionSigner<string>;
     feePayer: TransactionSigner<string>;
   }): Promise<
@@ -189,7 +209,8 @@ export class Token {
     const instructions = await this.buildInstructions({
       rpc,
       decimals,
-      authority,
+      mintAuthority,
+      freezeAuthority,
       mint,
       feePayer,
     });
@@ -216,6 +237,7 @@ export const getCreateMintInstructions = async (input: {
   decimals?: number;
   extensions?: ExtensionArgs[];
   freezeAuthority?: Address;
+  mintAuthority?: Address;
   mint: TransactionSigner<string>;
   payer: TransactionSigner<string>;
   programAddress?: Address;
@@ -252,7 +274,7 @@ export const getCreateMintInstructions = async (input: {
         mint: input.mint.address,
         decimals: input.decimals ?? 0,
         freezeAuthority: input.freezeAuthority,
-        mintAuthority: input.payer.address,
+        mintAuthority: input.mintAuthority ?? input.payer.address,
       },
       {
         programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS,

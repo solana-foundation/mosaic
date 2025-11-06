@@ -1,5 +1,6 @@
 import {
   type Address,
+  type Commitment,
   fetchEncodedAccount,
   type Rpc,
   type SolanaRpcApi,
@@ -39,10 +40,13 @@ const TOKENIZED_SECURITY_EXTENSIONS = [
 
 export async function inspectToken(
   rpc: Rpc<SolanaRpcApi>,
-  mintAddress: Address
+  mintAddress: Address,
+  commitment: Commitment = 'confirmed'
 ): Promise<TokenInspectionResult> {
   // Fetch the mint account
-  const encodedAccount = await fetchEncodedAccount(rpc, mintAddress);
+  const encodedAccount = await fetchEncodedAccount(rpc, mintAddress, {
+    commitment,
+  });
 
   if (!encodedAccount.exists) {
     throw new Error(`Mint account not found at address: ${mintAddress}`);

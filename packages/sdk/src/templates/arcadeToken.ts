@@ -45,13 +45,14 @@ export const createArcadeTokenInitTransaction = async (
   symbol: string,
   decimals: number,
   uri: string,
-  mintAuthority: Address,
+  mintAuthority: Address | TransactionSigner<string>,
   mint: Address | TransactionSigner<string>,
   feePayer: Address | TransactionSigner<string>,
   metadataAuthority?: Address,
   pausableAuthority?: Address,
   permanentDelegateAuthority?: Address,
-  enableSrfc37?: boolean
+  enableSrfc37?: boolean,
+  freezeAuthority?: Address
 ): Promise<
   FullTransaction<
     TransactionVersion,
@@ -63,10 +64,12 @@ export const createArcadeTokenInitTransaction = async (
   const feePayerSigner =
     typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
   const useSrfc37 = enableSrfc37 ?? false;
+  const mintAuthorityAddress =
+    typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
   const instructions = await new Token()
     .withMetadata({
       mintAddress: mintSigner.address,
-      authority: metadataAuthority || mintAuthority,
+      authority: metadataAuthority || mintAuthorityAddress,
       metadata: {
         name,
         symbol,
@@ -75,13 +78,14 @@ export const createArcadeTokenInitTransaction = async (
       // TODO: add additional metadata
       additionalMetadata: new Map(),
     })
-    .withPausable(pausableAuthority || mintAuthority)
+    .withPausable(pausableAuthority || mintAuthorityAddress)
     .withDefaultAccountState(!useSrfc37)
-    .withPermanentDelegate(permanentDelegateAuthority || mintAuthority)
+    .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
     .buildInstructions({
       rpc,
       decimals,
-      authority: mintAuthority,
+      mintAuthority,
+      freezeAuthority,
       mint: mintSigner,
       feePayer: feePayerSigner,
     });

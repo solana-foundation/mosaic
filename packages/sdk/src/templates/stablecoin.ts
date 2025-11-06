@@ -52,7 +52,8 @@ export const createStablecoinInitTransaction = async (
   pausableAuthority?: Address,
   confidentialBalancesAuthority?: Address,
   permanentDelegateAuthority?: Address,
-  enableSrfc37?: boolean
+  enableSrfc37?: boolean,
+  freezeAuthority?: Address
 ): Promise<
   FullTransaction<
     TransactionVersion,
@@ -87,7 +88,8 @@ export const createStablecoinInitTransaction = async (
     .buildInstructions({
       rpc,
       decimals,
-      authority: mintAuthority,
+      mintAuthority,
+      freezeAuthority,
       mint: mintSigner,
       feePayer: feePayerSigner,
     });
