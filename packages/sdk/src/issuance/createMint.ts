@@ -125,7 +125,7 @@ export class Token {
     rpc: Rpc<SolanaRpcApiMainnet>;
     decimals: number;
     mintAuthority?: Address | TransactionSigner<string>; // defaults to feePayer
-    freezeAuthority?: Address; // default is undefined
+    freezeAuthority?: Address; // default to feePayer
     mint: TransactionSigner<string>;
     feePayer: TransactionSigner<string>;
   }): Promise<Instruction[]> {
@@ -141,7 +141,7 @@ export class Token {
         decimals,
         extensions: this.extensions,
         mintAuthority: mintAuthorityAddress,
-        freezeAuthority: freezeAuthority,
+        freezeAuthority: freezeAuthority ?? feePayer.address,
         mint: mint,
         payer: feePayer,
         programAddress: TOKEN_2022_PROGRAM_ADDRESS,
