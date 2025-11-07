@@ -124,6 +124,21 @@ export function assertTxSuccess(signature: string): void {
   expect(signature.length).toBeGreaterThan(0);
 }
 
+export async function assertMemo(
+  rpc: Rpc<SolanaRpcApi>,
+  transactionId: Signature,
+  memo: string,
+  commitment: Commitment = 'confirmed' // method doesn't support processed commitment
+): Promise<void> {
+  const transaction = await rpc
+    .getTransaction(transactionId, { commitment, encoding: 'base64' })
+    .send();
+  const logs = transaction?.meta?.logMessages;
+  expect(transaction?.meta?.logMessages).toBeDefined();
+  const joinedLogs = logs?.join('\n');
+  expect(joinedLogs).toContain(`${memo}`);
+}
+
 /**
  * Assert transaction fails
  */

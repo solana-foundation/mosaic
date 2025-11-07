@@ -3,6 +3,12 @@ import {
   type Rpc,
   type SolanaRpcApi,
   type TransactionSigner,
+  type FullTransaction,
+  type TransactionMessageWithFeePayer,
+  type TransactionVersion,
+  type TransactionWithBlockhashLifetime,
+  createTransaction,
+  createNoopSigner,
 } from 'gill';
 import {
   decimalAmountToRaw,
@@ -129,4 +135,50 @@ export const createTransferInstructions = async (input: {
     )
   );
   return instructions;
+};
+
+/**
+ * Creates a transaction to transfer SPL tokens (Token-2022) from one account to another.
+ * This is a convenience wrapper around createTransferInstructions that returns a ready-to-sign transaction.
+ *
+ * @param input - Object containing:
+ *   - rpc: Solana RPC client instance
+ *   - mint: Token mint address
+ *   - from: Source wallet address
+ *   - to: Destination wallet address
+ *   - feePayer: Signer paying transaction fees
+ *   - authority: Signer authorized to transfer tokens
+ *   - amount: Amount to transfer (as a string, decimal format)
+ *   - memo: Optional memo string
+ * @returns Promise resolving to a FullTransaction object ready for signing
+ */
+export const createTransferTransaction = async (input: {
+  rpc: Rpc<SolanaRpcApi>;
+  mint: Address;
+  from: Address;
+  to: Address;
+  feePayer: TransactionSigner<string>;
+  authority: TransactionSigner<string>;
+  amount: string;
+  memo?: string;
+}): Promise<
+  FullTransaction<
+    TransactionVersion,
+    TransactionMessageWithFeePayer,
+    TransactionWithBlockhashLifetime
+  >
+> => {
+  const instructions = await createTransferInstructions(input);
+
+  // Get latest blockhash for transaction
+  const { value: latestBlockhash } = await input.rpc
+    .getLatestBlockhash()
+    .send();
+
+  return createTransaction({
+    feePayer: input.feePayer,
+    version: 'legacy',
+    latestBlockhash,
+    instructions,
+  });
 };
