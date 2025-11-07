@@ -139,7 +139,9 @@ export class Token {
       await getCreateMintInstructions({
         rpc: rpc,
         decimals,
-        extensions: this.extensions,
+        // For empty extension arrays, we need to pass undefined to ensure we get the proper space calculation
+        // Ref: https://github.com/solana-program/token-2022/blob/4adc1409eb4fd2c5fc3583a58e46c41f1d113176/clients/js/test/getMintSize.test.ts#L10
+        extensions: this.extensions.length > 0 ? this.extensions : undefined,
         mintAuthority: mintAuthorityAddress,
         freezeAuthority: freezeAuthority ?? feePayer.address,
         mint: mint,
@@ -171,7 +173,10 @@ export class Token {
               name: ext.name,
               symbol: ext.symbol,
               uri: ext.uri,
-              updateAuthority: mintAuthorityAddress,
+              updateAuthority:
+                ext.updateAuthority.__option === 'Some'
+                  ? ext.updateAuthority.value
+                  : mintAuthorityAddress,
             }),
           ]
         : []
@@ -244,6 +249,7 @@ export const getCreateMintInstructions = async (input: {
 }): Promise<Instruction<string>[]> => {
   // Calculate required space for mint account including extensions
   const space = getMintSize(input.extensions);
+
   const postInitializeExtensions: Extension['__kind'][] = ['TokenMetadata'];
 
   // Calculate space excluding post-initialization extensions

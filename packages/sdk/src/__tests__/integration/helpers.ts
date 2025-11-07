@@ -139,7 +139,6 @@ export async function assertTxFailure(
   ).rejects.toThrow();
 }
 
-
 /**
  * Assert single balance for a wallet
  */
@@ -205,11 +204,11 @@ export async function assertToken(
   expected: AssertTokenOptions,
   commitment: Commitment = DEFAULT_COMMITMENT
 ): Promise<void> {
-  const expectNotFound = expected.exists ?? true;
+  const exists = expected.exists ?? true;
   const tokenInspection = inspectToken(rpc, mintAddress, commitment);
 
   // Verify token status
-  if (expectNotFound) {
+  if (!exists) {
     await expect(tokenInspection).rejects.toThrow();
     return;
   }
@@ -239,10 +238,14 @@ export async function assertToken(
     expect(inspection.supplyInfo).toEqual(expected.supplyInfo);
   }
 
-  // Verify extensions
+  // Verify extensions (use partial matching to handle null/undefined differences)
   if (expected.extensions) {
-    for (const extension of expected.extensions) {
-      expect(inspection.extensions).toContainEqual(extension);
+    for (const expectedExtension of expected.extensions) {
+      const matchingExtension = inspection.extensions.find(
+        ext => ext.name === expectedExtension.name
+      );
+      expect(matchingExtension).toBeDefined();
+      expect(matchingExtension).toMatchObject(expectedExtension);
     }
   }
 
