@@ -5,14 +5,27 @@ import { generateKeyPairSigner } from 'gill';
 import {
   sendAndConfirmTransaction,
   assertTxSuccess,
+  assertTxFailure,
   assertBalance,
+  assertBalances,
+  isAccountFrozen,
   DEFAULT_TIMEOUT,
   DEFAULT_COMMITMENT,
   describeSkipIf,
 } from './helpers';
 import { Token } from '../../issuance';
-import { createMintToTransaction } from '../../management';
+import {
+  createMintToTransaction,
+  createForceTransferTransaction,
+  createForceBurnTransaction,
+} from '../../management';
+import {
+  getFreezeTransaction,
+  getThawTransaction,
+  TOKEN_ACL_PROGRAM_ID,
+} from '../../token-acl';
 import { decimalAmountToRaw } from '../../transactionUtil';
+import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
 
 describeSkipIf()('Management Integration Tests', () => {
   let client: Client;
@@ -298,603 +311,679 @@ describeSkipIf()('Management Integration Tests', () => {
     );
   });
 
-  // describe('Force Transfer', () => {
-  //   it(
-  //     'should force transfer between existing accounts',
-  //     async () => {
-  //       const sender = await generateKeyPairSigner();
-  //       const receiver = await generateKeyPairSigner();
-  //       const permanentDelegate = await generateKeyPairSigner();
+  describe('Force Transfer', () => {
+    it(
+      'should force transfer between existing accounts',
+      async () => {
+        const sender = await generateKeyPairSigner();
+        const receiver = await generateKeyPairSigner();
+        const permanentDelegate = await generateKeyPairSigner();
 
-  //       // Create token with permanent delegate and mint to both accounts
-  //       await createTestTokenWithAssertions({
-  //         client,
-  //         options: {
-  //           name: 'Force Transfer Token',
-  //           symbol: 'FTT',
-  //           decimals: 6,
-  //           metadataAuthority: mintAuthority.address,
-  //           mintAuthority,
-  //           freezeAuthority: freezeAuthority.address,
-  //           permanentDelegate: permanentDelegate.address,
-  //           payer,
-  //           mint,
-  //         },
-  //       });
+        // Given: A token with permanent delegate extension
+        const tokenBuilder = new Token()
+          .withMetadata({
+            mintAddress: mint.address,
+            authority: mintAuthority.address,
+            metadata: {
+              name: 'Force Transfer Token',
+              symbol: 'FTT',
+              uri: 'https://example.com/ftt.json',
+            },
+            additionalMetadata: new Map(),
+          })
+          .withPermanentDelegate(permanentDelegate.address);
 
-  //       // Mint tokens to sender
-  //       await mintToWithAssertions({
-  //         client,
-  //         mint: mint.address,
-  //         mintAuthority,
-  //         payer,
-  //         mintToOptions: {
-  //           recipient: sender.address,
-  //           amount: 1_000_000,
-  //         },
-  //       });
+        const createTx = await tokenBuilder.buildTransaction({
+          rpc: client.rpc,
+          decimals: 6,
+          mintAuthority,
+          freezeAuthority: freezeAuthority.address,
+          mint,
+          feePayer: payer,
+        });
 
-  //       // Mint tokens to receiver to create ATA
-  //       await mintToWithAssertions({
-  //         client,
-  //         mint: mint.address,
-  //         mintAuthority,
-  //         payer,
-  //         mintToOptions: {
-  //           recipient: receiver.address,
-  //           amount: 500_000,
-  //         },
-  //       });
+        await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-  //       // Force transfer from sender to receiver
-  //       const forceTransferTx = await createForceTransferTransaction(
-  //         client.rpc,
-  //         mint.address,
-  //         sender.address,
-  //         receiver.address,
-  //         1, // 1 token (decimal amount)
-  //         permanentDelegate,
-  //         payer
-  //       );
+        // Mint tokens to sender
+        const mintToSenderTx = await createMintToTransaction(
+          client.rpc,
+          mint.address,
+          sender.address,
+          1_000_000,
+          mintAuthority,
+          payer
+        );
+        await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
 
-  //       const signature = await sendAndConfirmTransaction(client, forceTransferTx);
-  //       assertTxSuccess(signature);
+        // Mint tokens to receiver to create ATA
+        const mintToReceiverTx = await createMintToTransaction(
+          client.rpc,
+          mint.address,
+          receiver.address,
+          500_000,
+          mintAuthority,
+          payer
+        );
+        await sendAndConfirmTransaction(client, mintToReceiverTx, DEFAULT_COMMITMENT);
 
-  //       // Verify balances
-  //       await assertBalances(client, [
-  //         {
-  //           recipient: sender.address,
-  //           mint: mint.address,
-  //           expectedAmount: 0n,
-  //         },
-  //         {
-  //           recipient: receiver.address,
-  //           mint: mint.address,
-  //           expectedAmount: decimalAmountToRaw(1_500_000, 6),
-  //         },
-  //       ]);
-  //     },
-  //     DEFAULT_TIMEOUT
-  //   );
+        // When: Force transfer from sender to receiver
+        const forceTransferTx = await createForceTransferTransaction(
+          client.rpc,
+          mint.address,
+          sender.address,
+          receiver.address,
+          1_000_000, // Transfer all 1M tokens (decimal amount)
+          permanentDelegate,
+          payer
+        );
 
-  //   it(
-  //     'should force transfer with destination ATA creation',
-  //     async () => {
-  //       const sender = await generateKeyPairSigner();
-  //       const receiver = await generateKeyPairSigner();
-  //       const permanentDelegate = await generateKeyPairSigner();
+        const signature = await sendAndConfirmTransaction(client, forceTransferTx, DEFAULT_COMMITMENT);
+        assertTxSuccess(signature);
 
-  //       await createTestTokenWithAssertions({
-  //         client,
-  //         options: {
-  //           name: 'Force Transfer Token',
-  //           symbol: 'FTT',
-  //           decimals: 6,
-  //           metadataAuthority: mintAuthority.address,
-  //           mintAuthority,
-  //           freezeAuthority: freezeAuthority.address,
-  //           permanentDelegate: permanentDelegate.address,
-  //           payer,
-  //           mint,
-  //         },
-  //       });
+        // Then: Sender balance is 0, receiver has combined balance
+        await assertBalances(client.rpc, [
+          {
+            wallet: sender.address,
+            mint: mint.address,
+            expectedAmount: 0n,
+          },
+          {
+            wallet: receiver.address,
+            mint: mint.address,
+            expectedAmount: decimalAmountToRaw(1_500_000, 6),
+          },
+        ], DEFAULT_COMMITMENT);
+      },
+      DEFAULT_TIMEOUT
+    );
 
-  //       // Mint tokens to sender
-  //       await mintToWithAssertions({
-  //         client,
-  //         mint: mint.address,
-  //         mintAuthority,
-  //         payer,
-  //         mintToOptions: {
-  //           recipient: sender.address,
-  //           amount: 1_000_000,
-  //         },
-  //       });
+    it(
+      'should force transfer with destination ATA creation',
+      async () => {
+        const sender = await generateKeyPairSigner();
+        const receiver = await generateKeyPairSigner();
+        const permanentDelegate = await generateKeyPairSigner();
 
-  //       // Force transfer to receiver (ATA doesn't exist yet)
-  //       const forceTransferTx = await createForceTransferTransaction(
-  //         client.rpc,
-  //         mint.address,
-  //         sender.address,
-  //         receiver.address,
-  //         1,
-  //         permanentDelegate,
-  //         payer
-  //       );
+        // Given: A token with permanent delegate
+        const tokenBuilder = new Token()
+          .withMetadata({
+            mintAddress: mint.address,
+            authority: mintAuthority.address,
+            metadata: {
+              name: 'Force Transfer Token',
+              symbol: 'FTT',
+              uri: 'https://example.com/ftt.json',
+            },
+            additionalMetadata: new Map(),
+          })
+          .withPermanentDelegate(permanentDelegate.address);
 
-  //       const signature = await sendAndConfirmTransaction(client, forceTransferTx);
-  //       assertTxSuccess(signature);
+        const createTx = await tokenBuilder.buildTransaction({
+          rpc: client.rpc,
+          decimals: 6,
+          mintAuthority,
+          freezeAuthority: freezeAuthority.address,
+          mint,
+          feePayer: payer,
+        });
 
-  //       // Verify balances
-  //       await assertBalances(client, [
-  //         {
-  //           recipient: sender.address,
-  //           mint: mint.address,
-  //           expectedAmount: 0n,
-  //         },
-  //         {
-  //           recipient: receiver.address,
-  //           mint: mint.address,
-  //           expectedAmount: decimalAmountToRaw(1_000_000, 6),
-  //         },
-  //       ]);
-  //     },
-  //     DEFAULT_TIMEOUT
-  //   );
+        await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-  //   it(
-  //     'should force transfer with permissionless thaw on destination',
-  //     async () => {
-  //       const sender = await generateKeyPairSigner();
-  //       const receiver = await generateKeyPairSigner();
-  //       const permanentDelegate = await generateKeyPairSigner();
+        // Mint tokens to sender
+        const mintToSenderTx = await createMintToTransaction(
+          client.rpc,
+          mint.address,
+          sender.address,
+          1_000_000,
+          mintAuthority,
+          payer
+        );
+        await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
 
-  //       // Create token with SRFC-37 enabled
-  //       await createTestTokenWithAssertions({
-  //         client,
-  //         options: {
-  //           name: 'SRFC37 Force Token',
-  //           symbol: 'SRFC',
-  //           decimals: 6,
-  //           metadataAuthority: mintAuthority.address,
-  //           mintAuthority,
-  //           freezeAuthority: TOKEN_ACL_PROGRAM_ID,
-  //           defaultAccountState: { initialStateInitialized: false },
-  //           permanentDelegate: permanentDelegate.address,
-  //           payer,
-  //           mint,
-  //         },
-  //       });
+        // When: Force transfer to receiver (ATA doesn't exist yet)
+        const forceTransferTx = await createForceTransferTransaction(
+          client.rpc,
+          mint.address,
+          sender.address,
+          receiver.address,
+          1_000_000, // Transfer all 1M tokens (decimal amount)
+          permanentDelegate,
+          payer
+        );
 
-  //       // Mint tokens to sender
-  //       await mintToWithAssertions({
-  //         client,
-  //         mint: mint.address,
-  //         mintAuthority,
-  //         payer,
-  //         mintToOptions: {
-  //           recipient: sender.address,
-  //           amount: 1_000_000,
-  //         },
-  //       });
+        const signature = await sendAndConfirmTransaction(client, forceTransferTx, DEFAULT_COMMITMENT);
+        assertTxSuccess(signature);
 
-  //       // Force transfer to receiver (will create frozen ATA and thaw it)
-  //       const forceTransferTx = await createForceTransferTransaction(
-  //         client.rpc,
-  //         mint.address,
-  //         sender.address,
-  //         receiver.address,
-  //         1,
-  //         permanentDelegate,
-  //         payer
-  //       );
+        // Then: Sender has 0, receiver has all tokens (ATA was created)
+        await assertBalances(client.rpc, [
+          {
+            wallet: sender.address,
+            mint: mint.address,
+            expectedAmount: 0n,
+          },
+          {
+            wallet: receiver.address,
+            mint: mint.address,
+            expectedAmount: decimalAmountToRaw(1_000_000, 6),
+          },
+        ], DEFAULT_COMMITMENT);
+      },
+      DEFAULT_TIMEOUT
+    );
 
-  //       const signature = await sendAndConfirmTransaction(client, forceTransferTx);
-  //       assertTxSuccess(signature);
+    it.skip(
+      'should force transfer with permissionless thaw on destination',
+      async () => {
+        const sender = await generateKeyPairSigner();
+        const receiver = await generateKeyPairSigner();
+        const permanentDelegate = await generateKeyPairSigner();
 
-  //       // Verify balances
-  //       await assertBalances(client, [
-  //         {
-  //           recipient: sender.address,
-  //           mint: mint.address,
-  //           expectedAmount: 0n,
-  //         },
-  //         {
-  //           recipient: receiver.address,
-  //           mint: mint.address,
-  //           expectedAmount: decimalAmountToRaw(1_000_000, 6),
-  //         },
-  //       ]);
-  //     },
-  //     DEFAULT_TIMEOUT
-  //   );
+        // Given: A token with SRFC-37 enabled (blocklist mode)
+        const tokenBuilder = new Token()
+          .withMetadata({
+            mintAddress: mint.address,
+            authority: mintAuthority.address,
+            metadata: {
+              name: 'SRFC37 Force Token',
+              symbol: 'SRFC',
+              uri: 'https://example.com/srfc.json',
+            },
+            additionalMetadata: new Map(),
+          })
+          .withPermanentDelegate(permanentDelegate.address)
+          .withDefaultAccountState(false); // false = frozen (blocklist)
 
-  //   it(
-  //     'should validate permanent delegate authority',
-  //     async () => {
-  //       const sender = await generateKeyPairSigner();
-  //       const receiver = await generateKeyPairSigner();
-  //       const permanentDelegate = await generateKeyPairSigner();
-  //       const wrongDelegate = await generateKeyPairSigner();
+        const createTx = await tokenBuilder.buildTransaction({
+          rpc: client.rpc,
+          decimals: 6,
+          mintAuthority,
+          freezeAuthority: TOKEN_ACL_PROGRAM_ID,
+          mint,
+          feePayer: payer,
+        });
 
-  //       await createTestTokenWithAssertions({
-  //         client,
-  //         options: {
-  //           name: 'Auth Check Token',
-  //           symbol: 'AUTH',
-  //           decimals: 6,
-  //           metadataAuthority: mintAuthority.address,
-  //           mintAuthority,
-  //           freezeAuthority: freezeAuthority.address,
-  //           permanentDelegate: permanentDelegate.address,
-  //           payer,
-  //           mint,
-  //         },
-  //       });
+        await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-  //       // Mint tokens to sender
-  //       await mintToWithAssertions({
-  //         client,
-  //         mint: mint.address,
-  //         mintAuthority,
-  //         payer,
-  //         mintToOptions: {
-  //           recipient: sender.address,
-  //           amount: 1_000_000,
-  //         },
-  //       });
+        // Mint tokens to sender
+        const mintToSenderTx = await createMintToTransaction(
+          client.rpc,
+          mint.address,
+          sender.address,
+          1_000_000,
+          mintAuthority,
+          payer
+        );
+        await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
 
-  //       // Try force transfer with wrong delegate - should fail
-  //       const forceTransferTx = await createForceTransferTransaction(
-  //         client.rpc,
-  //         mint.address,
-  //         sender.address,
-  //         receiver.address,
-  //         1,
-  //         wrongDelegate,
-  //         payer
-  //       );
+        // When: Force transfer to receiver (will create frozen ATA and thaw it)
+        const forceTransferTx = await createForceTransferTransaction(
+          client.rpc,
+          mint.address,
+          sender.address,
+          receiver.address,
+          1_000_000, // Transfer all 1M tokens (decimal amount)
+          permanentDelegate,
+          payer
+        );
 
-  //       await assertTxFailure(client, forceTransferTx);
+        const signature = await sendAndConfirmTransaction(client, forceTransferTx, DEFAULT_COMMITMENT);
+        assertTxSuccess(signature);
 
-  //       // Verify sender balance unchanged
-  //       await assertBalances(client, [
-  //         {
-  //           recipient: sender.address,
-  //           mint: mint.address,
-  //           expectedAmount: decimalAmountToRaw(1_000_000, 6),
-  //         },
-  //       ]);
-  //     },
-  //     DEFAULT_TIMEOUT
-  //   );
-  // });
+        // Then: Sender has 0, receiver has all tokens (ATA was created frozen and thawed)
+        await assertBalances(client.rpc, [
+          {
+            wallet: sender.address,
+            mint: mint.address,
+            expectedAmount: 0n,
+          },
+          {
+            wallet: receiver.address,
+            mint: mint.address,
+            expectedAmount: decimalAmountToRaw(1_000_000, 6),
+          },
+        ], DEFAULT_COMMITMENT);
+      },
+      DEFAULT_TIMEOUT
+    );
 
-  // describe('Force Burn', () => {
-  //   it(
-  //     'should force burn from wallet with tokens',
-  //     async () => {
-  //       const wallet = await generateKeyPairSigner();
-  //       const permanentDelegate = await generateKeyPairSigner();
+    it(
+      'should validate permanent delegate authority',
+      async () => {
+        const sender = await generateKeyPairSigner();
+        const receiver = await generateKeyPairSigner();
+        const permanentDelegate = await generateKeyPairSigner();
+        const wrongDelegate = await generateKeyPairSigner();
 
-  //       await createTestTokenWithAssertions({
-  //         client,
-  //         options: {
-  //           name: 'Force Burn Token',
-  //           symbol: 'FBT',
-  //           decimals: 6,
-  //           metadataAuthority: mintAuthority.address,
-  //           mintAuthority,
-  //           freezeAuthority: freezeAuthority.address,
-  //           permanentDelegate: permanentDelegate.address,
-  //           payer,
-  //           mint,
-  //         },
-  //       });
+        // Given: A token with a specific permanent delegate
+        const tokenBuilder = new Token()
+          .withMetadata({
+            mintAddress: mint.address,
+            authority: mintAuthority.address,
+            metadata: {
+              name: 'Auth Check Token',
+              symbol: 'AUTH',
+              uri: 'https://example.com/auth.json',
+            },
+            additionalMetadata: new Map(),
+          })
+          .withPermanentDelegate(permanentDelegate.address);
 
-  //       // Mint tokens
-  //       await mintToWithAssertions({
-  //         client,
-  //         mint: mint.address,
-  //         mintAuthority,
-  //         payer,
-  //         mintToOptions: {
-  //           recipient: wallet.address,
-  //           amount: 1_000_000,
-  //         },
-  //       });
+        const createTx = await tokenBuilder.buildTransaction({
+          rpc: client.rpc,
+          decimals: 6,
+          mintAuthority,
+          freezeAuthority: freezeAuthority.address,
+          mint,
+          feePayer: payer,
+        });
 
-  //       // Force burn half
-  //       const forceBurnTx = await createForceBurnTransaction(
-  //         client.rpc,
-  //         mint.address,
-  //         wallet.address,
-  //         0.5, // 0.5 tokens
-  //         permanentDelegate,
-  //         payer
-  //       );
+        await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-  //       const signature = await sendAndConfirmTransaction(client, forceBurnTx);
-  //       assertTxSuccess(signature);
+        // Mint tokens to sender
+        const mintToSenderTx = await createMintToTransaction(
+          client.rpc,
+          mint.address,
+          sender.address,
+          1_000_000,
+          mintAuthority,
+          payer
+        );
+        await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
 
-  //       // Verify balance
-  //       await assertBalances(client, [
-  //         {
-  //           recipient: wallet.address,
-  //           mint: mint.address,
-  //           expectedAmount: decimalAmountToRaw(500_000, 6),
-  //         },
-  //       ]);
-  //     },
-  //     DEFAULT_TIMEOUT
-  //   );
+        // When: Try force transfer with wrong delegate
+        const forceTransferTx = await createForceTransferTransaction(
+          client.rpc,
+          mint.address,
+          sender.address,
+          receiver.address,
+          1,
+          wrongDelegate,
+          payer
+        );
 
-  //   it(
-  //     'should validate permanent delegate authority',
-  //     async () => {
-  //       const wallet = await generateKeyPairSigner();
-  //       const permanentDelegate = await generateKeyPairSigner();
-  //       const wrongDelegate = await generateKeyPairSigner();
+        // Then: Transaction should fail
+        await assertTxFailure(client, forceTransferTx);
 
-  //       await createTestTokenWithAssertions({
-  //         client,
-  //         options: {
-  //           name: 'Burn Auth Token',
-  //           symbol: 'BAT',
-  //           decimals: 6,
-  //           metadataAuthority: mintAuthority.address,
-  //           mintAuthority,
-  //           freezeAuthority: freezeAuthority.address,
-  //           permanentDelegate: permanentDelegate.address,
-  //           payer,
-  //           mint,
-  //         },
-  //       });
+        // Verify sender balance unchanged
+        await assertBalance(
+          client.rpc,
+          sender.address,
+          mint.address,
+          decimalAmountToRaw(1_000_000, 6),
+          DEFAULT_COMMITMENT
+        );
+      },
+      DEFAULT_TIMEOUT
+    );
+  });
 
-  //       // Mint tokens
-  //       await mintToWithAssertions({
-  //         client,
-  //         mint: mint.address,
-  //         mintAuthority,
-  //         payer,
-  //         mintToOptions: {
-  //           recipient: wallet.address,
-  //           amount: 1_000_000,
-  //         },
-  //       });
+  describe('Force Burn', () => {
+    it(
+      'should force burn from wallet with tokens',
+      async () => {
+        const wallet = await generateKeyPairSigner();
+        const permanentDelegate = await generateKeyPairSigner();
 
-  //       // Try force burn with wrong delegate - should fail
-  //       const forceBurnTx = await createForceBurnTransaction(
-  //         client.rpc,
-  //         mint.address,
-  //         wallet.address,
-  //         0.5,
-  //         wrongDelegate,
-  //         payer
-  //       );
+        // Given: A token with permanent delegate
+        const tokenBuilder = new Token()
+          .withMetadata({
+            mintAddress: mint.address,
+            authority: mintAuthority.address,
+            metadata: {
+              name: 'Force Burn Token',
+              symbol: 'FBT',
+              uri: 'https://example.com/fbt.json',
+            },
+            additionalMetadata: new Map(),
+          })
+          .withPermanentDelegate(permanentDelegate.address);
 
-  //       await assertTxFailure(client, forceBurnTx);
+        const createTx = await tokenBuilder.buildTransaction({
+          rpc: client.rpc,
+          decimals: 6,
+          mintAuthority,
+          freezeAuthority: freezeAuthority.address,
+          mint,
+          feePayer: payer,
+        });
 
-  //       // Verify balance unchanged
-  //       await assertBalances(client, [
-  //         {
-  //           recipient: wallet.address,
-  //           mint: mint.address,
-  //           expectedAmount: decimalAmountToRaw(1_000_000, 6),
-  //         },
-  //       ]);
-  //     },
-  //     DEFAULT_TIMEOUT
-  //   );
-  // });
+        await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-  // describe('Pause Operations', () => {
-  //   it(
-  //     'should freeze wallet',
-  //     async () => {
-  //       const wallet = await generateKeyPairSigner();
+        // Mint tokens to wallet
+        const mintTx = await createMintToTransaction(
+          client.rpc,
+          mint.address,
+          wallet.address,
+          1_000_000,
+          mintAuthority,
+          payer
+        );
+        await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
 
-  //       // Create token with Token ACL as freeze authority
-  //       await createTestTokenWithAssertions({
-  //         client,
-  //         options: {
-  //           name: 'Freeze Token',
-  //           symbol: 'FRZ',
-  //           decimals: 6,
-  //           metadataAuthority: mintAuthority.address,
-  //           mintAuthority,
-  //           freezeAuthority: TOKEN_ACL_PROGRAM_ID,
-  //           payer,
-  //           mint,
-  //         },
-  //       });
+        // When: Force burn half the tokens
+        const forceBurnTx = await createForceBurnTransaction(
+          client.rpc,
+          mint.address,
+          wallet.address,
+          500_000, // Burn 500k tokens (half of 1M)
+          permanentDelegate,
+          payer
+        );
 
-  //       // Mint tokens
-  //       await mintToWithAssertions({
-  //         client,
-  //         mint: mint.address,
-  //         mintAuthority,
-  //         payer,
-  //         mintToOptions: {
-  //           recipient: wallet.address,
-  //           amount: 1_000_000,
-  //         },
-  //       });
+        const signature = await sendAndConfirmTransaction(client, forceBurnTx, DEFAULT_COMMITMENT);
+        assertTxSuccess(signature);
 
-  //       // Verify not frozen initially
-  //       let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
-  //       expect(frozen).toBe(false);
+        // Then: Balance is reduced by half
+        await assertBalance(
+          client.rpc,
+          wallet.address,
+          mint.address,
+          decimalAmountToRaw(500_000, 6),
+          DEFAULT_COMMITMENT
+        );
+      },
+      DEFAULT_TIMEOUT
+    );
 
-  //       // Get token account address
-  //       const tokenAccount = await getAssociatedTokenAccountAddress(
-  //         mint.address,
-  //         wallet.address,
-  //         TOKEN_2022_PROGRAM_ADDRESS
-  //       );
+    it(
+      'should validate permanent delegate authority',
+      async () => {
+        const wallet = await generateKeyPairSigner();
+        const permanentDelegate = await generateKeyPairSigner();
+        const wrongDelegate = await generateKeyPairSigner();
 
-  //       // Freeze the account
-  //       const freezeTx = await getFreezeTransaction({
-  //         rpc: client.rpc,
-  //         payer,
-  //         authority: freezeAuthority,
-  //         tokenAccount,
-  //       });
+        // Given: A token with a specific permanent delegate
+        const tokenBuilder = new Token()
+          .withMetadata({
+            mintAddress: mint.address,
+            authority: mintAuthority.address,
+            metadata: {
+              name: 'Burn Auth Token',
+              symbol: 'BAT',
+              uri: 'https://example.com/bat.json',
+            },
+            additionalMetadata: new Map(),
+          })
+          .withPermanentDelegate(permanentDelegate.address);
 
-  //       const signature = await sendAndConfirmTransaction(client, freezeTx);
-  //       assertTxSuccess(signature);
+        const createTx = await tokenBuilder.buildTransaction({
+          rpc: client.rpc,
+          decimals: 6,
+          mintAuthority,
+          freezeAuthority: freezeAuthority.address,
+          mint,
+          feePayer: payer,
+        });
 
-  //       // Verify frozen
-  //       frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
-  //       expect(frozen).toBe(true);
-  //     },
-  //     DEFAULT_TIMEOUT
-  //   );
+        await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-  //   it(
-  //     'should thaw wallet',
-  //     async () => {
-  //       const wallet = await generateKeyPairSigner();
+        // Mint tokens to wallet
+        const mintTx = await createMintToTransaction(
+          client.rpc,
+          mint.address,
+          wallet.address,
+          1_000_000,
+          mintAuthority,
+          payer
+        );
+        await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
 
-  //       await createTestTokenWithAssertions({
-  //         client,
-  //         options: {
-  //           name: 'Thaw Token',
-  //           symbol: 'THW',
-  //           decimals: 6,
-  //           metadataAuthority: mintAuthority.address,
-  //           mintAuthority,
-  //           freezeAuthority: TOKEN_ACL_PROGRAM_ID,
-  //           payer,
-  //           mint,
-  //         },
-  //       });
+        // When: Try force burn with wrong delegate
+        const forceBurnTx = await createForceBurnTransaction(
+          client.rpc,
+          mint.address,
+          wallet.address,
+          0.5,
+          wrongDelegate,
+          payer
+        );
 
-  //       // Mint tokens
-  //       await mintToWithAssertions({
-  //         client,
-  //         mint: mint.address,
-  //         mintAuthority,
-  //         payer,
-  //         mintToOptions: {
-  //           recipient: wallet.address,
-  //           amount: 1_000_000,
-  //         },
-  //       });
+        // Then: Transaction should fail
+        await assertTxFailure(client, forceBurnTx);
 
-  //       // Get token account address
-  //       const tokenAccount = await getAssociatedTokenAccountAddress(
-  //         mint.address,
-  //         wallet.address,
-  //         TOKEN_2022_PROGRAM_ADDRESS
-  //       );
+        // Verify balance unchanged
+        await assertBalance(
+          client.rpc,
+          wallet.address,
+          mint.address,
+          decimalAmountToRaw(1_000_000, 6),
+          DEFAULT_COMMITMENT
+        );
+      },
+      DEFAULT_TIMEOUT
+    );
+  });
 
-  //       // Freeze first
-  //       const freezeTx = await getFreezeTransaction({
-  //         rpc: client.rpc,
-  //         payer,
-  //         authority: freezeAuthority,
-  //         tokenAccount,
-  //       });
-  //       await sendAndConfirmTransaction(client, freezeTx);
+  describe('Pause Operations', () => {
+    it.skip(
+      'should freeze wallet',
+      async () => {
+        const wallet = await generateKeyPairSigner();
 
-  //       // Verify frozen
-  //       let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
-  //       expect(frozen).toBe(true);
+        // Given: A token with Token ACL as freeze authority
+        const tokenBuilder = new Token().withMetadata({
+          mintAddress: mint.address,
+          authority: mintAuthority.address,
+          metadata: {
+            name: 'Freeze Token',
+            symbol: 'FRZ',
+            uri: 'https://example.com/frz.json',
+          },
+          additionalMetadata: new Map(),
+        });
 
-  //       // Thaw the account
-  //       const thawTx = await getThawTransaction({
-  //         rpc: client.rpc,
-  //         payer,
-  //         authority: freezeAuthority,
-  //         tokenAccount,
-  //       });
+        const createTx = await tokenBuilder.buildTransaction({
+          rpc: client.rpc,
+          decimals: 6,
+          mintAuthority,
+          freezeAuthority: TOKEN_ACL_PROGRAM_ID,
+          mint,
+          feePayer: payer,
+        });
 
-  //       const signature = await sendAndConfirmTransaction(client, thawTx);
-  //       assertTxSuccess(signature);
+        await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-  //       // Verify not frozen
-  //       frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
-  //       expect(frozen).toBe(false);
-  //     },
-  //     DEFAULT_TIMEOUT
-  //   );
+        // Mint tokens to wallet
+        const mintTx = await createMintToTransaction(
+          client.rpc,
+          mint.address,
+          wallet.address,
+          1_000_000,
+          mintAuthority,
+          payer
+        );
+        await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
 
-  //   it(
-  //     'should handle freeze then thaw workflow',
-  //     async () => {
-  //       const wallet = await generateKeyPairSigner();
+        // Verify not frozen initially
+        let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        expect(frozen).toBe(false);
 
-  //       await createTestTokenWithAssertions({
-  //         client,
-  //         options: {
-  //           name: 'Workflow Token',
-  //           symbol: 'WRK',
-  //           decimals: 6,
-  //           metadataAuthority: mintAuthority.address,
-  //           mintAuthority,
-  //           freezeAuthority: TOKEN_ACL_PROGRAM_ID,
-  //           payer,
-  //           mint,
-  //         },
-  //       });
+        // Get token account address
+        const tokenAccount = await getAssociatedTokenAccountAddress(
+          mint.address,
+          wallet.address,
+          TOKEN_2022_PROGRAM_ADDRESS
+        );
 
-  //       // Mint tokens
-  //       await mintToWithAssertions({
-  //         client,
-  //         mint: mint.address,
-  //         mintAuthority,
-  //         payer,
-  //         mintToOptions: {
-  //           recipient: wallet.address,
-  //           amount: 1_000_000,
-  //         },
-  //       });
+        // When: Freeze the account
+        const freezeTx = await getFreezeTransaction({
+          rpc: client.rpc,
+          payer,
+          authority: freezeAuthority,
+          tokenAccount,
+        });
 
-  //       // Get token account address
-  //       const tokenAccount = await getAssociatedTokenAccountAddress(
-  //         mint.address,
-  //         wallet.address,
-  //         TOKEN_2022_PROGRAM_ADDRESS
-  //       );
+        const signature = await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
+        assertTxSuccess(signature);
 
-  //       // Initial state: not frozen
-  //       let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
-  //       expect(frozen).toBe(false);
+        // Then: Account is frozen
+        frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        expect(frozen).toBe(true);
+      },
+      DEFAULT_TIMEOUT
+    );
 
-  //       // Freeze
-  //       const freezeTx = await getFreezeTransaction({
-  //         rpc: client.rpc,
-  //         payer,
-  //         authority: freezeAuthority,
-  //         tokenAccount,
-  //       });
-  //       await sendAndConfirmTransaction(client, freezeTx);
+    it.skip(
+      'should thaw wallet',
+      async () => {
+        const wallet = await generateKeyPairSigner();
 
-  //       frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
-  //       expect(frozen).toBe(true);
+        // Given: A token with Token ACL as freeze authority
+        const tokenBuilder = new Token().withMetadata({
+          mintAddress: mint.address,
+          authority: mintAuthority.address,
+          metadata: {
+            name: 'Thaw Token',
+            symbol: 'THW',
+            uri: 'https://example.com/thw.json',
+          },
+          additionalMetadata: new Map(),
+        });
 
-  //       // Thaw
-  //       const thawTx = await getThawTransaction({
-  //         rpc: client.rpc,
-  //         payer,
-  //         authority: freezeAuthority,
-  //         tokenAccount,
-  //       });
-  //       await sendAndConfirmTransaction(client, thawTx);
+        const createTx = await tokenBuilder.buildTransaction({
+          rpc: client.rpc,
+          decimals: 6,
+          mintAuthority,
+          freezeAuthority: TOKEN_ACL_PROGRAM_ID,
+          mint,
+          feePayer: payer,
+        });
 
-  //       frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
-  //       expect(frozen).toBe(false);
+        await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-  //       // Verify balance unchanged throughout
-  //       await assertBalances(client, [
-  //         {
-  //           recipient: wallet.address,
-  //           mint: mint.address,
-  //           expectedAmount: decimalAmountToRaw(1_000_000, 6),
-  //         },
-  //       ]);
-  //     },
-  //     DEFAULT_TIMEOUT
-  //   );
-  // });
+        // Mint tokens to wallet
+        const mintTx = await createMintToTransaction(
+          client.rpc,
+          mint.address,
+          wallet.address,
+          1_000_000,
+          mintAuthority,
+          payer
+        );
+        await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
+
+        // Get token account address
+        const tokenAccount = await getAssociatedTokenAccountAddress(
+          mint.address,
+          wallet.address,
+          TOKEN_2022_PROGRAM_ADDRESS
+        );
+
+        // Freeze first
+        const freezeTx = await getFreezeTransaction({
+          rpc: client.rpc,
+          payer,
+          authority: freezeAuthority,
+          tokenAccount,
+        });
+        await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
+
+        // Verify frozen
+        let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        expect(frozen).toBe(true);
+
+        // When: Thaw the account
+        const thawTx = await getThawTransaction({
+          rpc: client.rpc,
+          payer,
+          authority: freezeAuthority,
+          tokenAccount,
+        });
+
+        const signature = await sendAndConfirmTransaction(client, thawTx, DEFAULT_COMMITMENT);
+        assertTxSuccess(signature);
+
+        // Then: Account is not frozen
+        frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        expect(frozen).toBe(false);
+      },
+      DEFAULT_TIMEOUT
+    );
+
+    it.skip(
+      'should handle freeze then thaw workflow',
+      async () => {
+        const wallet = await generateKeyPairSigner();
+
+        // Given: A token with Token ACL as freeze authority
+        const tokenBuilder = new Token().withMetadata({
+          mintAddress: mint.address,
+          authority: mintAuthority.address,
+          metadata: {
+            name: 'Workflow Token',
+            symbol: 'WRK',
+            uri: 'https://example.com/wrk.json',
+          },
+          additionalMetadata: new Map(),
+        });
+
+        const createTx = await tokenBuilder.buildTransaction({
+          rpc: client.rpc,
+          decimals: 6,
+          mintAuthority,
+          freezeAuthority: TOKEN_ACL_PROGRAM_ID,
+          mint,
+          feePayer: payer,
+        });
+
+        await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+        // Mint tokens to wallet
+        const mintTx = await createMintToTransaction(
+          client.rpc,
+          mint.address,
+          wallet.address,
+          1_000_000,
+          mintAuthority,
+          payer
+        );
+        await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
+
+        // Get token account address
+        const tokenAccount = await getAssociatedTokenAccountAddress(
+          mint.address,
+          wallet.address,
+          TOKEN_2022_PROGRAM_ADDRESS
+        );
+
+        // Initial state: not frozen
+        let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        expect(frozen).toBe(false);
+
+        // When: Freeze the account
+        const freezeTx = await getFreezeTransaction({
+          rpc: client.rpc,
+          payer,
+          authority: freezeAuthority,
+          tokenAccount,
+        });
+        await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
+
+        frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        expect(frozen).toBe(true);
+
+        // When: Thaw the account
+        const thawTx = await getThawTransaction({
+          rpc: client.rpc,
+          payer,
+          authority: freezeAuthority,
+          tokenAccount,
+        });
+        await sendAndConfirmTransaction(client, thawTx, DEFAULT_COMMITMENT);
+
+        frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        expect(frozen).toBe(false);
+
+        // Then: Balance unchanged throughout workflow
+        await assertBalance(
+          client.rpc,
+          wallet.address,
+          mint.address,
+          decimalAmountToRaw(1_000_000, 6),
+          DEFAULT_COMMITMENT
+        );
+      },
+      DEFAULT_TIMEOUT
+    );
+  });
 });
