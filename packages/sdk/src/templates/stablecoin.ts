@@ -44,7 +44,7 @@ export const createStablecoinInitTransaction = async (
   symbol: string,
   decimals: number,
   uri: string,
-  mintAuthority: Address,
+  mintAuthority: Address | TransactionSigner<string>,
   mint: Address | TransactionSigner<string>,
   feePayer: Address | TransactionSigner<string>,
   aclMode?: 'allowlist' | 'blocklist',
@@ -69,10 +69,12 @@ export const createStablecoinInitTransaction = async (
   const useSrfc37 = enableSrfc37 ?? false;
 
   // 1. create token
+  const mintAuthorityAddress =
+    typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
   const instructions = await new Token()
     .withMetadata({
       mintAddress: mintSigner.address,
-      authority: metadataAuthority || mintAuthority,
+      authority: metadataAuthority || mintAuthorityAddress,
       metadata: {
         name,
         symbol,
@@ -81,10 +83,12 @@ export const createStablecoinInitTransaction = async (
       // TODO: add additional metadata
       additionalMetadata: new Map(),
     })
-    .withPausable(pausableAuthority || mintAuthority)
+    .withPausable(pausableAuthority || mintAuthorityAddress)
     .withDefaultAccountState(!useSrfc37)
-    .withConfidentialBalances(confidentialBalancesAuthority || mintAuthority)
-    .withPermanentDelegate(permanentDelegateAuthority || mintAuthority)
+    .withConfidentialBalances(
+      confidentialBalancesAuthority || mintAuthorityAddress
+    )
+    .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
     .buildInstructions({
       rpc,
       decimals,
