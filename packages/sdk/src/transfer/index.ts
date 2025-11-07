@@ -8,6 +8,7 @@ import {
   type TransactionVersion,
   type TransactionWithBlockhashLifetime,
   createTransaction,
+  createNoopSigner,
 } from 'gill';
 import {
   decimalAmountToRaw,
@@ -156,8 +157,8 @@ export const createTransferTransaction = async (input: {
   mint: Address;
   from: Address;
   to: Address;
-  feePayer: TransactionSigner<string>;
-  authority: TransactionSigner<string>;
+  feePayer: Address | TransactionSigner<string>;
+  authority: Address | TransactionSigner<string>;
   amount: string;
   memo?: string;
 }): Promise<
@@ -167,7 +168,20 @@ export const createTransferTransaction = async (input: {
     TransactionWithBlockhashLifetime
   >
 > => {
-  const instructions = await createTransferInstructions(input);
+  const feePayerSigner =
+    typeof input.feePayer === 'string'
+      ? createNoopSigner(input.feePayer)
+      : input.feePayer;
+  const authoritySigner =
+    typeof input.authority === 'string'
+      ? createNoopSigner(input.authority)
+      : input.authority;
+
+  const instructions = await createTransferInstructions({
+    ...input,
+    feePayer: feePayerSigner,
+    authority: authoritySigner,
+  });
 
   // Get latest blockhash for transaction
   const { value: latestBlockhash } = await input.rpc
@@ -175,7 +189,7 @@ export const createTransferTransaction = async (input: {
     .send();
 
   return createTransaction({
-    feePayer: input.feePayer,
+    feePayer: feePayerSigner,
     version: 'legacy',
     latestBlockhash,
     instructions,

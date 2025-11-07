@@ -78,7 +78,7 @@ export async function getBalance(
   );
 
   const accountInfo = await rpc
-    .getAccountInfo(ata, { encoding: 'jsonParsed' })
+    .getAccountInfo(ata, { encoding: 'jsonParsed', commitment })
     .send();
 
   if (!accountInfo?.value?.data) {

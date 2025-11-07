@@ -152,6 +152,9 @@ pnpm dev
 # Run tests across all packages
 pnpm test
 
+# Run integration tests (SDK)
+pnpm test:integration
+
 # Lint all packages
 pnpm lint
 pnpm lint:fix
@@ -179,7 +182,8 @@ cd packages/sdk  # or cli, ui, abl, token-acl, tlv-account-resolution
 # Run package-specific commands
 pnpm dev        # Development mode
 pnpm build      # Build package
-pnpm test       # Run tests
+pnpm test       # Run unit tests
+pnpm test:integration # Run integration tests (SDK)
 pnpm lint       # Lint code
 ```
 
