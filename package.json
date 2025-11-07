@@ -9,6 +9,7 @@
     "dev": "pnpm --recursive run dev",
     "ui": "pnpm --filter @mosaic/ui run dev",
     "test": "SKIP_INTEGRATION=true pnpm --recursive run test --passWithNoTests",
+    "test:integration": "pnpm --recursive run test:integration",
     "test:all": "pnpm --recursive run test --passWithNoTests",
     "lint": "pnpm --recursive run lint",
     "lint:fix": "pnpm --recursive run lint:fix",

@@ -46,3 +46,9 @@ jobs:
 
       - name: Test
         run: pnpm run test
+
+      - name: Setup Solana CLI
+        uses: ./.github/actions/setup-solana
+
+      - name: Test Integration
+        run: pnpm run test:integration

@@ -8,7 +8,6 @@ import {
   type TransactionVersion,
   type TransactionWithBlockhashLifetime,
   createTransaction,
-  createNoopSigner,
 } from 'gill';
 import {
   decimalAmountToRaw,
