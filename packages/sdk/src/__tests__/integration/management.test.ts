@@ -25,7 +25,10 @@ import {
   TOKEN_ACL_PROGRAM_ID,
 } from '../../token-acl';
 import { decimalAmountToRaw } from '../../transactionUtil';
-import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
+import {
+  getAssociatedTokenAccountAddress,
+  TOKEN_2022_PROGRAM_ADDRESS,
+} from 'gill/programs';
 
 describeSkipIf()('Management Integration Tests', () => {
   let client: Client;
@@ -76,13 +79,7 @@ describeSkipIf()('Management Integration Tests', () => {
         await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
         // Verify recipient has no tokens initially
-        await assertBalance(
-          client.rpc,
-          recipient.address,
-          mint.address,
-          0n,
-          DEFAULT_COMMITMENT
-        );
+        await assertBalance(client.rpc, recipient.address, mint.address, 0n);
 
         // When: Minting tokens to a new recipient
         const mintTx = await createMintToTransaction(
@@ -94,11 +91,7 @@ describeSkipIf()('Management Integration Tests', () => {
           payer
         );
 
-        const mintSig = await sendAndConfirmTransaction(
-          client,
-          mintTx,
-          DEFAULT_COMMITMENT
-        );
+        const mintSig = await sendAndConfirmTransaction(client, mintTx);
         assertTxSuccess(mintSig);
 
         // Then: Recipient has the minted tokens
@@ -106,8 +99,7 @@ describeSkipIf()('Management Integration Tests', () => {
           client.rpc,
           recipient.address,
           mint.address,
-          decimalAmountToRaw(1_000_000, 6),
-          DEFAULT_COMMITMENT
+          decimalAmountToRaw(1_000_000, 6)
         );
       },
       DEFAULT_TIMEOUT
@@ -353,7 +345,11 @@ describeSkipIf()('Management Integration Tests', () => {
           mintAuthority,
           payer
         );
-        await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
+        await sendAndConfirmTransaction(
+          client,
+          mintToSenderTx,
+          DEFAULT_COMMITMENT
+        );
 
         // Mint tokens to receiver to create ATA
         const mintToReceiverTx = await createMintToTransaction(
@@ -364,7 +360,11 @@ describeSkipIf()('Management Integration Tests', () => {
           mintAuthority,
           payer
         );
-        await sendAndConfirmTransaction(client, mintToReceiverTx, DEFAULT_COMMITMENT);
+        await sendAndConfirmTransaction(
+          client,
+          mintToReceiverTx,
+          DEFAULT_COMMITMENT
+        );
 
         // When: Force transfer from sender to receiver
         const forceTransferTx = await createForceTransferTransaction(
@@ -377,22 +377,30 @@ describeSkipIf()('Management Integration Tests', () => {
           payer
         );
 
-        const signature = await sendAndConfirmTransaction(client, forceTransferTx, DEFAULT_COMMITMENT);
+        const signature = await sendAndConfirmTransaction(
+          client,
+          forceTransferTx,
+          DEFAULT_COMMITMENT
+        );
         assertTxSuccess(signature);
 
         // Then: Sender balance is 0, receiver has combined balance
-        await assertBalances(client.rpc, [
-          {
-            wallet: sender.address,
-            mint: mint.address,
-            expectedAmount: 0n,
-          },
-          {
-            wallet: receiver.address,
-            mint: mint.address,
-            expectedAmount: decimalAmountToRaw(1_500_000, 6),
-          },
-        ], DEFAULT_COMMITMENT);
+        await assertBalances(
+          client.rpc,
+          [
+            {
+              wallet: sender.address,
+              mint: mint.address,
+              expectedAmount: 0n,
+            },
+            {
+              wallet: receiver.address,
+              mint: mint.address,
+              expectedAmount: decimalAmountToRaw(1_500_000, 6),
+            },
+          ],
+          DEFAULT_COMMITMENT
+        );
       },
       DEFAULT_TIMEOUT
     );
@@ -438,7 +446,11 @@ describeSkipIf()('Management Integration Tests', () => {
           mintAuthority,
           payer
         );
-        await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
+        await sendAndConfirmTransaction(
+          client,
+          mintToSenderTx,
+          DEFAULT_COMMITMENT
+        );
 
         // When: Force transfer to receiver (ATA doesn't exist yet)
         const forceTransferTx = await createForceTransferTransaction(
@@ -451,22 +463,30 @@ describeSkipIf()('Management Integration Tests', () => {
           payer
         );
 
-        const signature = await sendAndConfirmTransaction(client, forceTransferTx, DEFAULT_COMMITMENT);
+        const signature = await sendAndConfirmTransaction(
+          client,
+          forceTransferTx,
+          DEFAULT_COMMITMENT
+        );
         assertTxSuccess(signature);
 
         // Then: Sender has 0, receiver has all tokens (ATA was created)
-        await assertBalances(client.rpc, [
-          {
-            wallet: sender.address,
-            mint: mint.address,
-            expectedAmount: 0n,
-          },
-          {
-            wallet: receiver.address,
-            mint: mint.address,
-            expectedAmount: decimalAmountToRaw(1_000_000, 6),
-          },
-        ], DEFAULT_COMMITMENT);
+        await assertBalances(
+          client.rpc,
+          [
+            {
+              wallet: sender.address,
+              mint: mint.address,
+              expectedAmount: 0n,
+            },
+            {
+              wallet: receiver.address,
+              mint: mint.address,
+              expectedAmount: decimalAmountToRaw(1_000_000, 6),
+            },
+          ],
+          DEFAULT_COMMITMENT
+        );
       },
       DEFAULT_TIMEOUT
     );
@@ -513,7 +533,11 @@ describeSkipIf()('Management Integration Tests', () => {
           mintAuthority,
           payer
         );
-        await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
+        await sendAndConfirmTransaction(
+          client,
+          mintToSenderTx,
+          DEFAULT_COMMITMENT
+        );
 
         // When: Force transfer to receiver (will create frozen ATA and thaw it)
         const forceTransferTx = await createForceTransferTransaction(
@@ -526,22 +550,30 @@ describeSkipIf()('Management Integration Tests', () => {
           payer
         );
 
-        const signature = await sendAndConfirmTransaction(client, forceTransferTx, DEFAULT_COMMITMENT);
+        const signature = await sendAndConfirmTransaction(
+          client,
+          forceTransferTx,
+          DEFAULT_COMMITMENT
+        );
         assertTxSuccess(signature);
 
         // Then: Sender has 0, receiver has all tokens (ATA was created frozen and thawed)
-        await assertBalances(client.rpc, [
-          {
-            wallet: sender.address,
-            mint: mint.address,
-            expectedAmount: 0n,
-          },
-          {
-            wallet: receiver.address,
-            mint: mint.address,
-            expectedAmount: decimalAmountToRaw(1_000_000, 6),
-          },
-        ], DEFAULT_COMMITMENT);
+        await assertBalances(
+          client.rpc,
+          [
+            {
+              wallet: sender.address,
+              mint: mint.address,
+              expectedAmount: 0n,
+            },
+            {
+              wallet: receiver.address,
+              mint: mint.address,
+              expectedAmount: decimalAmountToRaw(1_000_000, 6),
+            },
+          ],
+          DEFAULT_COMMITMENT
+        );
       },
       DEFAULT_TIMEOUT
     );
@@ -588,7 +620,11 @@ describeSkipIf()('Management Integration Tests', () => {
           mintAuthority,
           payer
         );
-        await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
+        await sendAndConfirmTransaction(
+          client,
+          mintToSenderTx,
+          DEFAULT_COMMITMENT
+        );
 
         // When: Try force transfer with wrong delegate
         const forceTransferTx = await createForceTransferTransaction(
@@ -670,7 +706,11 @@ describeSkipIf()('Management Integration Tests', () => {
           payer
         );
 
-        const signature = await sendAndConfirmTransaction(client, forceBurnTx, DEFAULT_COMMITMENT);
+        const signature = await sendAndConfirmTransaction(
+          client,
+          forceBurnTx,
+          DEFAULT_COMMITMENT
+        );
         assertTxSuccess(signature);
 
         // Then: Balance is reduced by half
@@ -795,7 +835,11 @@ describeSkipIf()('Management Integration Tests', () => {
         await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
 
         // Verify not frozen initially
-        let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        let frozen = await isAccountFrozen(
+          client.rpc,
+          wallet.address,
+          mint.address
+        );
         expect(frozen).toBe(false);
 
         // Get token account address
@@ -813,11 +857,19 @@ describeSkipIf()('Management Integration Tests', () => {
           tokenAccount,
         });
 
-        const signature = await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
+        const signature = await sendAndConfirmTransaction(
+          client,
+          freezeTx,
+          DEFAULT_COMMITMENT
+        );
         assertTxSuccess(signature);
 
         // Then: Account is frozen
-        frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        frozen = await isAccountFrozen(
+          client.rpc,
+          wallet.address,
+          mint.address
+        );
         expect(frozen).toBe(true);
       },
       DEFAULT_TIMEOUT
@@ -879,7 +931,11 @@ describeSkipIf()('Management Integration Tests', () => {
         await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
 
         // Verify frozen
-        let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        let frozen = await isAccountFrozen(
+          client.rpc,
+          wallet.address,
+          mint.address
+        );
         expect(frozen).toBe(true);
 
         // When: Thaw the account
@@ -890,11 +946,19 @@ describeSkipIf()('Management Integration Tests', () => {
           tokenAccount,
         });
 
-        const signature = await sendAndConfirmTransaction(client, thawTx, DEFAULT_COMMITMENT);
+        const signature = await sendAndConfirmTransaction(
+          client,
+          thawTx,
+          DEFAULT_COMMITMENT
+        );
         assertTxSuccess(signature);
 
         // Then: Account is not frozen
-        frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        frozen = await isAccountFrozen(
+          client.rpc,
+          wallet.address,
+          mint.address
+        );
         expect(frozen).toBe(false);
       },
       DEFAULT_TIMEOUT
@@ -947,7 +1011,11 @@ describeSkipIf()('Management Integration Tests', () => {
         );
 
         // Initial state: not frozen
-        let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        let frozen = await isAccountFrozen(
+          client.rpc,
+          wallet.address,
+          mint.address
+        );
         expect(frozen).toBe(false);
 
         // When: Freeze the account
@@ -959,7 +1027,11 @@ describeSkipIf()('Management Integration Tests', () => {
         });
         await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
 
-        frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        frozen = await isAccountFrozen(
+          client.rpc,
+          wallet.address,
+          mint.address
+        );
         expect(frozen).toBe(true);
 
         // When: Thaw the account
@@ -971,7 +1043,11 @@ describeSkipIf()('Management Integration Tests', () => {
         });
         await sendAndConfirmTransaction(client, thawTx, DEFAULT_COMMITMENT);
 
-        frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+        frozen = await isAccountFrozen(
+          client.rpc,
+          wallet.address,
+          mint.address
+        );
         expect(frozen).toBe(false);
 
         // Then: Balance unchanged throughout workflow
