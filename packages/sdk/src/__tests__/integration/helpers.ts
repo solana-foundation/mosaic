@@ -25,6 +25,7 @@ import {
   type ScaledUiAmountInfo,
   type TokenAuthorities,
   type TokenExtension,
+  type TokenMetadata,
   type TokenSupplyInfo,
   type TokenType,
 } from '../../inspection';
@@ -193,6 +194,7 @@ export interface AssertTokenOptions {
   aclMode?: AclMode;
   enableSrfc37?: boolean;
   scaledUiAmount?: ScaledUiAmountInfo;
+  metadata?: TokenMetadata;
 }
 
 /**
@@ -267,5 +269,31 @@ export async function assertToken(
   // Verify scaled UI amount
   if (expected.scaledUiAmount) {
     expect(inspection.scaledUiAmount).toEqual(expected.scaledUiAmount);
+  }
+
+  // Verify metadata
+  if (expected.metadata) {
+    if (expected.metadata.name) {
+      expect(inspection.metadata?.name).toBe(expected.metadata.name);
+    }
+    if (expected.metadata.symbol) {
+      expect(inspection.metadata?.symbol).toBe(expected.metadata.symbol);
+    }
+    if (expected.metadata.uri) {
+      expect(inspection.metadata?.uri).toBe(expected.metadata.uri);
+    }
+    if (expected.metadata.updateAuthority) {
+      expect(inspection.metadata?.updateAuthority).toBe(
+        expected.metadata.updateAuthority.toString()
+      );
+    }
+    if (expected.metadata.additionalMetadata) {
+      for (const [
+        key,
+        value,
+      ] of expected.metadata.additionalMetadata.entries()) {
+        expect(inspection.metadata?.additionalMetadata?.get(key)).toBe(value);
+      }
+    }
   }
 }

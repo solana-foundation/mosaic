@@ -167,7 +167,7 @@ describe('Token', () => {
         feePayer: mockFeePayer,
       });
 
-      expect(instructions).toHaveLength(4); // create + pre-init + init + post-init
+      expect(instructions).toHaveLength(6); // create + pre-init + init + post-init + 2x additional metadata
       expect(instructions[0].programAddress).toBe(
         '11111111111111111111111111111111'
       ); // System program for account creation

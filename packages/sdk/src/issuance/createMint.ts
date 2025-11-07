@@ -22,6 +22,7 @@ import {
   TOKEN_2022_PROGRAM_ADDRESS,
   getInitializeTokenMetadataInstruction,
 } from 'gill/programs/token';
+import { createUpdateFieldInstruction } from './createUpdateFieldInstruction';
 
 export class Token {
   private extensions: Extension[] = [];
@@ -162,6 +163,28 @@ export class Token {
         'mintAuthority must be a TransactionSigner<string> (or undefined)when TokenMetadata extension is present.'
       );
     }
+
+    const additionalMetadataInstructions: Instruction[] = [];
+    const tokenMetadataExt = this.extensions.find(
+      ext => ext.__kind === 'TokenMetadata'
+    );
+    if (tokenMetadataExt && tokenMetadataExt.__kind === 'TokenMetadata') {
+      for (const [
+        key,
+        value,
+      ] of tokenMetadataExt.additionalMetadata?.entries() ?? []) {
+        additionalMetadataInstructions.push(
+          createUpdateFieldInstruction({
+            programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+            metadata: mint.address,
+            updateAuthority: mintAuthorityAddress,
+            field: key,
+            value: value,
+          })
+        );
+      }
+    }
+
     const postInitializeInstructions = this.extensions.flatMap(ext =>
       ext.__kind === 'TokenMetadata'
         ? [
@@ -178,6 +201,7 @@ export class Token {
                   ? ext.updateAuthority.value
                   : mintAuthorityAddress,
             }),
+            ...additionalMetadataInstructions,
           ]
         : []
     );
