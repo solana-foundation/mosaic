@@ -295,25 +295,28 @@ function detectTokenType(extensions: TokenExtension[]): TokenType {
 
 export async function getTokenMetadata(
   rpc: Rpc<SolanaRpcApi>,
-  mintAddress: Address
+  mintAddress: Address,
+  commitment?: Commitment
 ): Promise<TokenMetadata | null> {
-  const inspection = await inspectToken(rpc, mintAddress);
+  const inspection = await inspectToken(rpc, mintAddress, commitment);
   return inspection.metadata || null;
 }
 
 export async function getTokenExtensionsDetailed(
   rpc: Rpc<SolanaRpcApi>,
-  mintAddress: Address
+  mintAddress: Address,
+  commitment?: Commitment
 ): Promise<TokenExtension[]> {
-  const inspection = await inspectToken(rpc, mintAddress);
+  const inspection = await inspectToken(rpc, mintAddress, commitment);
   return inspection.extensions;
 }
 
 export async function detectTokenTypeFromMint(
   rpc: Rpc<SolanaRpcApi>,
-  mintAddress: Address
+  mintAddress: Address,
+  commitment?: Commitment
 ): Promise<TokenType> {
-  const inspection = await inspectToken(rpc, mintAddress);
+  const inspection = await inspectToken(rpc, mintAddress, commitment);
   return inspection.detectedType;
 }
 
@@ -369,8 +372,9 @@ export function inspectionResultToDashboardData(
 // Convenience function to get complete token info for dashboard
 export async function getTokenDashboardData(
   rpc: Rpc<SolanaRpcApi>,
-  mintAddress: Address
+  mintAddress: Address,
+  commitment?: Commitment
 ): Promise<TokenDashboardData> {
-  const inspection = await inspectToken(rpc, mintAddress);
+  const inspection = await inspectToken(rpc, mintAddress, commitment);
   return inspectionResultToDashboardData(inspection);
 }
