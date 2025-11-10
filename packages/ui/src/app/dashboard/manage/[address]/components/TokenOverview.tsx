@@ -5,7 +5,10 @@ import { TokenDisplay } from '@/types/token';
 import { useContext, useEffect, useState, useCallback } from 'react';
 import { RpcContext } from '@/context/RpcContext';
 import { getTokenSupply } from '@/lib/utils';
-import { getTokenTypeLabel, getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
+import {
+  getTokenTypeLabel,
+  getTokenPatternsLabel,
+} from '@/lib/token/tokenTypeUtils';
 import { type Address } from 'gill';
 
 interface TokenOverviewProps {

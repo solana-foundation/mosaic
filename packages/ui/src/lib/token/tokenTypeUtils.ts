@@ -5,10 +5,10 @@ import type { TokenType } from '@mosaic/sdk';
  */
 
 export const TOKEN_TYPE_LABELS: Record<string, string> = {
-  'stablecoin': 'Stablecoin',
+  stablecoin: 'Stablecoin',
   'arcade-token': 'Arcade Token',
   'tokenized-security': 'Tokenized Security',
-  'unknown': 'Unknown',
+  unknown: 'Unknown',
 };
 
 /**
@@ -57,4 +57,3 @@ export function getTokenTypeBadgeColor(type?: string): string {
       return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
   }
 }
-

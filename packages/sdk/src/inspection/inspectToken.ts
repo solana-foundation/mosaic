@@ -50,7 +50,9 @@ function satisfiesStablecoinPatternInternal(extensionNames: string[]): boolean {
  * Checks if a token satisfies the stablecoin pattern
  * (metadata, permanent delegate, default state, confidential balances)
  */
-export function satisfiesStablecoinPattern(extensions: TokenExtension[]): boolean {
+export function satisfiesStablecoinPattern(
+  extensions: TokenExtension[]
+): boolean {
   const extensionNames = extensions.map(ext => ext.name);
   return satisfiesStablecoinPatternInternal(extensionNames);
 }
@@ -59,7 +61,9 @@ export function satisfiesStablecoinPattern(extensions: TokenExtension[]): boolea
  * Internal function that checks if a token satisfies the arcade token pattern
  * (metadata, permanent delegate, default state, NO confidential balances)
  */
-function satisfiesArcadeTokenPatternInternal(extensionNames: string[]): boolean {
+function satisfiesArcadeTokenPatternInternal(
+  extensionNames: string[]
+): boolean {
   return (
     ARCADE_TOKEN_EXTENSIONS.every(ext => extensionNames.includes(ext)) &&
     !extensionNames.includes('ConfidentialTransferMint')
@@ -70,7 +74,9 @@ function satisfiesArcadeTokenPatternInternal(extensionNames: string[]): boolean 
  * Checks if a token satisfies the arcade token pattern
  * (metadata, permanent delegate, default state, NO confidential balances)
  */
-export function satisfiesArcadeTokenPattern(extensions: TokenExtension[]): boolean {
+export function satisfiesArcadeTokenPattern(
+  extensions: TokenExtension[]
+): boolean {
   const extensionNames = extensions.map(ext => ext.name);
   return satisfiesArcadeTokenPatternInternal(extensionNames);
 }
@@ -79,7 +85,9 @@ export function satisfiesArcadeTokenPattern(extensions: TokenExtension[]): boole
  * Internal function that checks if a token satisfies the security token pattern
  * (stablecoin extensions + scaled UI amount)
  */
-function satisfiesSecurityTokenPatternInternal(extensionNames: string[]): boolean {
+function satisfiesSecurityTokenPatternInternal(
+  extensionNames: string[]
+): boolean {
   return (
     TOKENIZED_SECURITY_EXTENSIONS.every(ext => extensionNames.includes(ext)) &&
     extensionNames.includes('ScaledUiAmountConfig')
@@ -90,7 +98,9 @@ function satisfiesSecurityTokenPatternInternal(extensionNames: string[]): boolea
  * Checks if a token satisfies the security token pattern
  * (stablecoin extensions + scaled UI amount)
  */
-export function satisfiesSecurityTokenPattern(extensions: TokenExtension[]): boolean {
+export function satisfiesSecurityTokenPattern(
+  extensions: TokenExtension[]
+): boolean {
   const extensionNames = extensions.map(ext => ext.name);
   return satisfiesSecurityTokenPatternInternal(extensionNames);
 }
@@ -102,7 +112,7 @@ export function satisfiesSecurityTokenPattern(extensions: TokenExtension[]): boo
 export function detectTokenPatterns(extensions: TokenExtension[]): TokenType[] {
   const extensionNames = extensions.map(ext => ext.name);
   const matches: TokenType[] = [];
-  
+
   if (satisfiesSecurityTokenPatternInternal(extensionNames)) {
     matches.push('tokenized-security');
   }
@@ -112,7 +122,7 @@ export function detectTokenPatterns(extensions: TokenExtension[]): TokenType[] {
   if (satisfiesArcadeTokenPatternInternal(extensionNames)) {
     matches.push('arcade-token');
   }
-  
+
   return matches.length > 0 ? matches : ['unknown'];
 }
 
