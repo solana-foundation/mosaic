@@ -198,6 +198,7 @@ The project implements a layered architecture:
 3. **User Interfaces**: `@mosaic/cli` and `@mosaic/app` provide different ways to interact with the SDK
 
 The monorepo uses Turbo for build orchestration and is organized with:
+
 - `packages/` - Reusable libraries and SDKs
 - `apps/` - Applications (dashboard)
 

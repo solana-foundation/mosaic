@@ -13,7 +13,8 @@ export default function DocsDepsPage() {
           <code>packages/cli/README.md</code> — CLI usage and commands
         </li>
         <li>
-          <code>apps/app/README.md</code> — Dashboard app user and developer guide
+          <code>apps/app/README.md</code> — Dashboard app user and developer
+          guide
         </li>
         <li>
           <code>packages/abl/README.md</code> — Address-Based Lists (SRFC-37)

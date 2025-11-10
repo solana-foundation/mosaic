@@ -8,8 +8,5 @@
       "@mosaic/app": ["./apps/app/src"]
     }
   },
-  "references": [
-    { "path": "./packages/sdk" },
-    { "path": "./packages/cli" }
-  ]
+  "references": [{ "path": "./packages/sdk" }, { "path": "./packages/cli" }]
 }
