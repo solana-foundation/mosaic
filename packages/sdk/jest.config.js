@@ -27,6 +27,8 @@ export default {
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@token-acl/sdk$': '<rootDir>/src/__mocks__/@mosaic/token-acl.ts',
+    '^@token-acl/abl-sdk$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',
     '^@mosaic/abl$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',
     '^@mosaic/token-acl$': '<rootDir>/src/__mocks__/@mosaic/token-acl.ts',
     '^@mosaic/tlv-account-resolution$':

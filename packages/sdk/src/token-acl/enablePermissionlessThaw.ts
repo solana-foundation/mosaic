@@ -13,7 +13,7 @@ import {
 import {
   findMintConfigPda,
   getTogglePermissionlessInstructionsInstruction,
-} from '../../../token-acl/src';
+} from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
 
 /**

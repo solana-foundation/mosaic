@@ -10,10 +10,7 @@ import {
   type TransactionVersion,
   type TransactionWithBlockhashLifetime,
 } from 'gill';
-import {
-  findMintConfigPda,
-  getFreezeInstruction,
-} from '../../../token-acl/src';
+import { findMintConfigPda, getFreezeInstruction } from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
 
 /**

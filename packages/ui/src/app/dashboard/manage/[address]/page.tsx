@@ -31,7 +31,7 @@ import {
 } from '@/lib/management/accessList';
 import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
 import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
-import { Mode } from '@mosaic/abl';
+import { Mode } from '@token-acl/abl-sdk';
 import {
   pauseTokenWithWallet,
   unpauseTokenWithWallet,

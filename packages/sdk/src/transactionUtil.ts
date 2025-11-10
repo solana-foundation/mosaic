@@ -10,14 +10,16 @@ import type {
 import {
   getBase58Decoder,
   compileTransaction,
-  getBase64EncodedWireTransaction,
+  address,
   getTransactionCodec,
+  getBase64EncodedWireTransaction,
 } from 'gill';
 import {
   getAssociatedTokenAccountAddress,
   TOKEN_2022_PROGRAM_ADDRESS,
   SYSTEM_PROGRAM_ADDRESS,
 } from 'gill/programs';
+import { TOKEN_ACL_PROGRAM_ID } from './token-acl/utils';
 
 /**
  * Converts a compiled Solana transaction to a base58-encoded string.
@@ -188,11 +190,27 @@ export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address) {
     extensions?: any[];
   };
 
+  let usesTokenAcl = false;
+
+  if (mintInfo.freezeAuthority) {
+    const freezeAuthorityAccountInfo = await rpc
+      .getAccountInfo(address(mintInfo.freezeAuthority))
+      .send();
+    if (!freezeAuthorityAccountInfo.value) {
+      throw new Error(
+        `Freeze authority account ${mintInfo.freezeAuthority} not found`
+      );
+    }
+    usesTokenAcl =
+      freezeAuthorityAccountInfo.value?.owner === TOKEN_ACL_PROGRAM_ID;
+  }
+
   return {
     decimals: mintInfo.decimals,
     freezeAuthority: mintInfo.freezeAuthority,
     mintAuthority: mintInfo.mintAuthority,
     extensions: mintInfo.extensions || [],
+    usesTokenAcl,
   };
 }
 
@@ -204,7 +222,9 @@ export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address) {
  */
 export function isDefaultAccountStateSetFrozen(extensions: any[]): boolean {
   return extensions.some(
-    ext => ext.__kind === 'DefaultAccountState' && ext.state === 'frozen'
+    ext =>
+      ext.extension === 'defaultAccountState' &&
+      ext.state.accountState === 'frozen'
   );
 }
 

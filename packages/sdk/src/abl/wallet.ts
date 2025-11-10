@@ -12,10 +12,10 @@ import {
 } from 'gill';
 import { ABL_PROGRAM_ID } from './utils';
 import {
-  findABWalletPda,
-  getAddWalletToListInstruction,
-  getRemoveWalletFromListInstruction,
-} from '@mosaic/abl';
+  findWalletEntryPda,
+  getAddWalletInstruction,
+  getRemoveWalletInstruction,
+} from '@token-acl/abl-sdk';
 
 /**
  * Generates instructions for adding a wallet to an allowlist or blocklist.
@@ -35,17 +35,17 @@ export const getAddWalletInstructions = async (input: {
   list: Address;
   wallet: Address;
 }): Promise<Instruction<string>[]> => {
-  const abWallet = await findABWalletPda(
-    { wallet: input.wallet, list: input.list },
+  const abWallet = await findWalletEntryPda(
+    { walletAddress: input.wallet, listConfig: input.list },
     { programAddress: ABL_PROGRAM_ID }
   );
 
-  const addWalletToListInstruction = getAddWalletToListInstruction(
+  const addWalletToListInstruction = getAddWalletInstruction(
     {
       authority: input.authority,
       listConfig: input.list,
       wallet: input.wallet,
-      abWallet: abWallet[0],
+      walletEntry: abWallet[0],
     },
     { programAddress: ABL_PROGRAM_ID }
   );
@@ -112,16 +112,16 @@ export const getRemoveWalletInstructions = async (input: {
   list: Address;
   wallet: Address;
 }): Promise<Instruction<string>[]> => {
-  const abWallet = await findABWalletPda(
-    { wallet: input.wallet, list: input.list },
+  const abWallet = await findWalletEntryPda(
+    { walletAddress: input.wallet, listConfig: input.list },
     { programAddress: ABL_PROGRAM_ID }
   );
 
-  const removeWalletFromListInstruction = getRemoveWalletFromListInstruction(
+  const removeWalletFromListInstruction = getRemoveWalletInstruction(
     {
       authority: input.authority,
       listConfig: input.list,
-      abWallet: abWallet[0],
+      walletEntry: abWallet[0],
     },
     { programAddress: ABL_PROGRAM_ID }
   );

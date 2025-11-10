@@ -10,7 +10,7 @@ import {
   type TransactionVersion,
   type TransactionWithBlockhashLifetime,
 } from 'gill';
-import { findMintConfigPda, getThawInstruction } from '../../../token-acl/src';
+import { findMintConfigPda, getThawInstruction } from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
 
 /**

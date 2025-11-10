@@ -12,7 +12,7 @@ import {
   getThawAccountInstruction,
   TOKEN_2022_PROGRAM_ADDRESS,
 } from 'gill/programs';
-import { findListConfigPda, Mode } from '@mosaic/abl';
+import { findListConfigPda, Mode } from '@token-acl/abl-sdk';
 import {
   getMintDetails,
   isDefaultAccountStateSetFrozen,
@@ -26,7 +26,6 @@ import {
 } from '../abl';
 import { getFreezeInstructions } from '../token-acl/freeze';
 import { getThawPermissionlessInstructions } from '../token-acl/thawPermissionless';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 
 export const isAblBlocklist = async (
   rpc: Rpc<SolanaRpcApi>,
@@ -52,7 +51,7 @@ export const getAddToBlocklistInstructions = async (
   account: Address,
   authority: Address | TransactionSigner<string>
 ): Promise<Instruction[]> => {
-  const { tokenAccount, isFrozen } = await resolveTokenAccount(
+  const { tokenAccount, isInitialized, isFrozen } = await resolveTokenAccount(
     rpc,
     account,
     mint
@@ -60,10 +59,9 @@ export const getAddToBlocklistInstructions = async (
   const accountSigner =
     typeof authority === 'string' ? createNoopSigner(authority) : authority;
 
-  const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
+  const { extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
   const enableSrfc37 =
-    freezeAuthority === TOKEN_ACL_PROGRAM_ID &&
-    isDefaultAccountStateSetFrozen(extensions);
+    usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
   if (!enableSrfc37) {
     return [
@@ -95,13 +93,14 @@ export const getAddToBlocklistInstructions = async (
     wallet: account,
     list: listConfigPda[0],
   });
-  const freezeInstructions = !isFrozen
-    ? await getFreezeInstructions({
-        rpc,
-        authority: accountSigner,
-        tokenAccount,
-      })
-    : [];
+  const freezeInstructions =
+    isInitialized && !isFrozen
+      ? await getFreezeInstructions({
+          rpc,
+          authority: accountSigner,
+          tokenAccount,
+        })
+      : [];
   return [...addToBlocklistInstructions, ...freezeInstructions];
 };
 
@@ -142,10 +141,9 @@ export const getRemoveFromBlocklistInstructions = async (
   const accountSigner =
     typeof authority === 'string' ? createNoopSigner(authority) : authority;
 
-  const { freezeAuthority, extensions } = await getMintDetails(rpc, mint);
+  const { extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
   const enableSrfc37 =
-    freezeAuthority === TOKEN_ACL_PROGRAM_ID &&
-    isDefaultAccountStateSetFrozen(extensions);
+    usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
   if (!enableSrfc37) {
     return [
