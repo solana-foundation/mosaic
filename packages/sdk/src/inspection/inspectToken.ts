@@ -1,5 +1,6 @@
 import {
   type Address,
+  type Commitment,
   fetchEncodedAccount,
   type Rpc,
   type SolanaRpcApi,
@@ -39,10 +40,13 @@ const TOKENIZED_SECURITY_EXTENSIONS = [
 
 export async function inspectToken(
   rpc: Rpc<SolanaRpcApi>,
-  mintAddress: Address
+  mintAddress: Address,
+  commitment: Commitment = 'confirmed'
 ): Promise<TokenInspectionResult> {
   // Fetch the mint account
-  const encodedAccount = await fetchEncodedAccount(rpc, mintAddress);
+  const encodedAccount = await fetchEncodedAccount(rpc, mintAddress, {
+    commitment,
+  });
 
   if (!encodedAccount.exists) {
     throw new Error(`Mint account not found at address: ${mintAddress}`);
@@ -91,7 +95,7 @@ export async function inspectToken(
     for (const ext of decodedMint.data.extensions.value) {
       if (!ext.__kind) continue;
 
-      const extensionDetails: Record<string, any> = {};
+      const extensionDetails: Record<string, unknown> = {};
 
       switch (ext.__kind) {
         case 'TokenMetadata':
@@ -291,25 +295,28 @@ function detectTokenType(extensions: TokenExtension[]): TokenType {
 
 export async function getTokenMetadata(
   rpc: Rpc<SolanaRpcApi>,
-  mintAddress: Address
+  mintAddress: Address,
+  commitment?: Commitment
 ): Promise<TokenMetadata | null> {
-  const inspection = await inspectToken(rpc, mintAddress);
+  const inspection = await inspectToken(rpc, mintAddress, commitment);
   return inspection.metadata || null;
 }
 
 export async function getTokenExtensionsDetailed(
   rpc: Rpc<SolanaRpcApi>,
-  mintAddress: Address
+  mintAddress: Address,
+  commitment?: Commitment
 ): Promise<TokenExtension[]> {
-  const inspection = await inspectToken(rpc, mintAddress);
+  const inspection = await inspectToken(rpc, mintAddress, commitment);
   return inspection.extensions;
 }
 
 export async function detectTokenTypeFromMint(
   rpc: Rpc<SolanaRpcApi>,
-  mintAddress: Address
+  mintAddress: Address,
+  commitment?: Commitment
 ): Promise<TokenType> {
-  const inspection = await inspectToken(rpc, mintAddress);
+  const inspection = await inspectToken(rpc, mintAddress, commitment);
   return inspection.detectedType;
 }
 
@@ -365,8 +372,9 @@ export function inspectionResultToDashboardData(
 // Convenience function to get complete token info for dashboard
 export async function getTokenDashboardData(
   rpc: Rpc<SolanaRpcApi>,
-  mintAddress: Address
+  mintAddress: Address,
+  commitment?: Commitment
 ): Promise<TokenDashboardData> {
-  const inspection = await inspectToken(rpc, mintAddress);
+  const inspection = await inspectToken(rpc, mintAddress, commitment);
   return inspectionResultToDashboardData(inspection);
 }

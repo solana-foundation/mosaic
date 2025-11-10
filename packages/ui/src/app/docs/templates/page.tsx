@@ -44,7 +44,7 @@ function TemplatesAccordion() {
   type Template = {
     id: string;
     title: string;
-    Icon: any;
+    Icon: React.ComponentType<{ className?: string }>;
     summary: string;
     badges: string[];
     capabilities: CapabilityKey[];

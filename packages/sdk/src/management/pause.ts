@@ -53,9 +53,8 @@ export const getTokenPauseState = async (
     if (!pausableConfig) {
       return false;
     }
-    return pausableConfig.paused;
-  } catch (error) {
-    console.error(error);
+    return pausableConfig.paused as boolean;
+  } catch {
     // Silently return false on error
     return false;
   }

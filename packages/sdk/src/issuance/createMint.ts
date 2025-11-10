@@ -22,6 +22,7 @@ import {
   TOKEN_2022_PROGRAM_ADDRESS,
   getInitializeTokenMetadataInstruction,
 } from 'gill/programs/token';
+import { createUpdateFieldInstruction } from './createUpdateFieldInstruction';
 
 export class Token {
   private extensions: Extension[] = [];
@@ -117,23 +118,33 @@ export class Token {
   async buildInstructions({
     rpc,
     decimals,
-    authority,
+    mintAuthority,
+    freezeAuthority,
     mint,
     feePayer,
   }: {
     rpc: Rpc<SolanaRpcApiMainnet>;
     decimals: number;
-    authority: Address;
+    mintAuthority?: Address | TransactionSigner<string>; // defaults to feePayer
+    freezeAuthority?: Address; // default to feePayer
     mint: TransactionSigner<string>;
     feePayer: TransactionSigner<string>;
   }): Promise<Instruction[]> {
     // Get instructions for creating and initializing the mint account
+    const mintAuthorityAddress = mintAuthority
+      ? typeof mintAuthority === 'string'
+        ? mintAuthority
+        : mintAuthority.address
+      : feePayer.address;
     const [createMintAccountInstruction, initMintInstruction] =
       await getCreateMintInstructions({
         rpc: rpc,
         decimals,
-        extensions: this.extensions,
-        freezeAuthority: authority,
+        // For empty extension arrays, we need to pass undefined to ensure we get the proper space calculation
+        // Ref: https://github.com/solana-program/token-2022/blob/4adc1409eb4fd2c5fc3583a58e46c41f1d113176/clients/js/test/getMintSize.test.ts#L10
+        extensions: this.extensions.length > 0 ? this.extensions : undefined,
+        mintAuthority: mintAuthorityAddress,
+        freezeAuthority: freezeAuthority ?? feePayer.address,
         mint: mint,
         payer: feePayer,
         programAddress: TOKEN_2022_PROGRAM_ADDRESS,
@@ -143,18 +154,54 @@ export class Token {
     );
 
     // TODO: Add other post-initialize instructions as needed like for transfer hooks
+    if (
+      this.extensions.some(ext => ext.__kind === 'TokenMetadata') &&
+      mintAuthority &&
+      typeof mintAuthority === 'string'
+    ) {
+      throw new Error(
+        'mintAuthority must be a TransactionSigner<string> (or undefined)when TokenMetadata extension is present.'
+      );
+    }
+
+    const additionalMetadataInstructions: Instruction[] = [];
+    const tokenMetadataExt = this.extensions.find(
+      ext => ext.__kind === 'TokenMetadata'
+    );
+    if (tokenMetadataExt && tokenMetadataExt.__kind === 'TokenMetadata') {
+      for (const [
+        key,
+        value,
+      ] of tokenMetadataExt.additionalMetadata?.entries() ?? []) {
+        additionalMetadataInstructions.push(
+          createUpdateFieldInstruction({
+            programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+            metadata: mint.address,
+            updateAuthority: mintAuthorityAddress,
+            field: key,
+            value: value,
+          })
+        );
+      }
+    }
+
     const postInitializeInstructions = this.extensions.flatMap(ext =>
       ext.__kind === 'TokenMetadata'
         ? [
             getInitializeTokenMetadataInstruction({
               metadata: mint.address,
               mint: mint.address,
-              mintAuthority: feePayer,
+              mintAuthority:
+                (mintAuthority as TransactionSigner<string>) ?? feePayer, // safe to cast b/c we handle error case above
               name: ext.name,
               symbol: ext.symbol,
               uri: ext.uri,
-              updateAuthority: authority,
+              updateAuthority:
+                ext.updateAuthority.__option === 'Some'
+                  ? ext.updateAuthority.value
+                  : mintAuthorityAddress,
             }),
+            ...additionalMetadataInstructions,
           ]
         : []
     );
@@ -170,13 +217,15 @@ export class Token {
   async buildTransaction({
     rpc,
     decimals,
-    authority,
+    mintAuthority,
+    freezeAuthority,
     mint,
     feePayer,
   }: {
     rpc: Rpc<SolanaRpcApiMainnet>;
     decimals: number;
-    authority: Address;
+    mintAuthority?: Address | TransactionSigner<string>;
+    freezeAuthority?: Address;
     mint: TransactionSigner<string>;
     feePayer: TransactionSigner<string>;
   }): Promise<
@@ -189,7 +238,8 @@ export class Token {
     const instructions = await this.buildInstructions({
       rpc,
       decimals,
-      authority,
+      mintAuthority,
+      freezeAuthority,
       mint,
       feePayer,
     });
@@ -216,12 +266,14 @@ export const getCreateMintInstructions = async (input: {
   decimals?: number;
   extensions?: ExtensionArgs[];
   freezeAuthority?: Address;
+  mintAuthority?: Address;
   mint: TransactionSigner<string>;
   payer: TransactionSigner<string>;
   programAddress?: Address;
 }): Promise<Instruction<string>[]> => {
   // Calculate required space for mint account including extensions
   const space = getMintSize(input.extensions);
+
   const postInitializeExtensions: Extension['__kind'][] = ['TokenMetadata'];
 
   // Calculate space excluding post-initialization extensions
@@ -252,7 +304,7 @@ export const getCreateMintInstructions = async (input: {
         mint: input.mint.address,
         decimals: input.decimals ?? 0,
         freezeAuthority: input.freezeAuthority,
-        mintAuthority: input.payer.address,
+        mintAuthority: input.mintAuthority ?? input.payer.address,
       },
       {
         programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS,

@@ -187,7 +187,7 @@ export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address) {
     decimals: number;
     freezeAuthority?: string;
     mintAuthority?: string;
-    extensions?: any[];
+    extensions?: Array<{ extension: string; state?: Record<string, unknown> }>;
   };
 
   let usesTokenAcl = false;
@@ -220,11 +220,13 @@ export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address) {
  * @param extensions - The extensions of the mint
  * @returns True if the default account state is set to frozen, false otherwise
  */
-export function isDefaultAccountStateSetFrozen(extensions: any[]): boolean {
+export function isDefaultAccountStateSetFrozen(
+  extensions: Array<{ extension: string; state?: Record<string, unknown> }>
+): boolean {
   return extensions.some(
     ext =>
       ext.extension === 'defaultAccountState' &&
-      ext.state.accountState === 'frozen'
+      ext.state?.accountState === 'frozen'
   );
 }
 

@@ -8,7 +8,9 @@
     "build": "pnpm --recursive --stream run build",
     "dev": "pnpm --recursive run dev",
     "ui": "pnpm --filter @mosaic/ui run dev",
-    "test": "pnpm --recursive run test --passWithNoTests",
+    "test": "SKIP_INTEGRATION=true pnpm --recursive run test --passWithNoTests",
+    "test:integration": "pnpm --recursive run test:integration",
+    "test:all": "pnpm --recursive run test --passWithNoTests",
     "lint": "pnpm --recursive run lint",
     "lint:fix": "pnpm --recursive run lint:fix",
     "format": "prettier --write .",
@@ -42,5 +44,5 @@
     "node": ">=18.0.0",
     "pnpm": ">=9.0.0"
   },
-  "packageManager": "pnpm@9.10.0"
+  "packageManager": "pnpm@10.17.1"
 }

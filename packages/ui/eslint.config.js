@@ -1,7 +1,5 @@
 import { FlatCompat } from '@eslint/eslintrc';
 import js from '@eslint/js';
-import tsEslint from '@typescript-eslint/eslint-plugin';
-import tsParser from '@typescript-eslint/parser';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
@@ -13,25 +11,12 @@ const compat = new FlatCompat({
   recommendedConfig: js.configs.recommended,
 });
 
-export default [
+const config = [
   // Extend Next.js config using compat
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
 
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
-    languageOptions: {
-      parser: tsParser,
-      parserOptions: {
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-        ecmaFeatures: {
-          jsx: true,
-        },
-      },
-    },
-    plugins: {
-      '@typescript-eslint': tsEslint,
-    },
     rules: {
       // TypeScript specific rules
       '@typescript-eslint/no-unused-vars': [
@@ -61,3 +46,5 @@ export default [
     ignores: ['node_modules/', '.next/', 'out/', 'build/', 'dist/'],
   },
 ];
+
+export default config;

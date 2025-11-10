@@ -46,3 +46,11 @@ jobs:
 
       - name: Test
         run: pnpm run test
+
+      - name: Setup Solana CLI
+        if: matrix.node-version == '20.x'
+        uses: ./.github/actions/setup-solana
+
+      - name: Test Integration
+        if: matrix.node-version == '20.x'
+        run: pnpm run test:integration

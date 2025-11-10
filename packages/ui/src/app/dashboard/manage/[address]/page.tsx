@@ -343,7 +343,6 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     // Check if the connected wallet has pause authority
     const walletAddress = selectedWalletAccount.address.toString();
-    console.log('token', token, walletAddress);
     if (token.pausableAuthority !== walletAddress) {
       setPauseError(
         'Connected wallet does not have pause authority. Only the pause authority can pause/unpause this token.'

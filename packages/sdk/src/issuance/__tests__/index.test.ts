@@ -5,6 +5,7 @@ import type {
   SolanaRpcApiMainnet,
   TransactionSigner,
 } from 'gill';
+import { generateKeyPairSigner } from 'gill';
 import { AccountState, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
 import { Token, getCreateMintInstructions } from '../index';
 import {
@@ -148,11 +149,12 @@ describe('Token', () => {
 
   describe('buildInstructions', () => {
     it('should build instructions for token with extensions', async () => {
+      const mintAuthority = await generateKeyPairSigner();
       const additionalMetadata = createTestAdditionalMetadata();
 
       token.withMetadata({
         mintAddress: mockMint.address,
-        authority: TEST_AUTHORITY,
+        authority: mintAuthority.address,
         metadata: TEST_METADATA,
         additionalMetadata,
       });
@@ -160,12 +162,12 @@ describe('Token', () => {
       const instructions = await token.buildInstructions({
         rpc: mockRpc,
         decimals: 6,
-        authority: TEST_AUTHORITY,
+        mintAuthority: mintAuthority,
         mint: mockMint,
         feePayer: mockFeePayer,
       });
 
-      expect(instructions).toHaveLength(4); // create + pre-init + init + post-init
+      expect(instructions).toHaveLength(6); // create + pre-init + init + post-init + 2x additional metadata
       expect(instructions[0].programAddress).toBe(
         '11111111111111111111111111111111'
       ); // System program for account creation
@@ -178,7 +180,7 @@ describe('Token', () => {
       const instructions = await token.buildInstructions({
         rpc: mockRpc,
         decimals: 9,
-        authority: TEST_AUTHORITY,
+        mintAuthority: TEST_AUTHORITY,
         mint: mockMint,
         feePayer: mockFeePayer,
       });
@@ -192,7 +194,7 @@ describe('Token', () => {
       const transaction = await token.buildTransaction({
         rpc: mockRpc,
         decimals: 6,
-        authority: TEST_AUTHORITY,
+        mintAuthority: TEST_AUTHORITY,
         mint: mockMint,
         feePayer: mockFeePayer,
       });

@@ -1,4 +1,4 @@
-import type { Address, Rpc, SolanaRpcApi } from 'gill';
+import type { Rpc, SolanaRpcApi } from 'gill';
 import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
 import {
   TOKEN_2022_PROGRAM_ADDRESS,
@@ -11,7 +11,6 @@ import {
 describe('templates enableSrfc37 option', () => {
   let rpc: Rpc<SolanaRpcApi>;
   const feePayer = createMockSigner();
-  const mintAuthority = feePayer.address as Address;
   const mint = createMockSigner();
 
   beforeEach(() => {
@@ -20,6 +19,7 @@ describe('templates enableSrfc37 option', () => {
   });
 
   test('arcade token: enableSrfc37 false uses default account state initialized', async () => {
+    const mintAuthoritySigner = createMockSigner();
     const decimals = 6;
     const { createArcadeTokenInitTransaction } = await import('../arcadeToken');
     const tx = await createArcadeTokenInitTransaction(
@@ -28,7 +28,7 @@ describe('templates enableSrfc37 option', () => {
       'SYM',
       decimals,
       'uri',
-      mintAuthority,
+      mintAuthoritySigner,
       mint,
       feePayer,
       undefined,
@@ -44,8 +44,8 @@ describe('templates enableSrfc37 option', () => {
       {
         mint: mint.address,
         decimals,
-        freezeAuthority: mintAuthority,
-        mintAuthority: feePayer.address,
+        freezeAuthority: feePayer.address,
+        mintAuthority: mintAuthoritySigner.address,
       },
       { programAddress: TOKEN_2022_PROGRAM_ADDRESS }
     );
@@ -78,6 +78,7 @@ describe('templates enableSrfc37 option', () => {
   });
 
   test('arcade token: enableSrfc37 true uses default account state frozen', async () => {
+    const mintAuthoritySigner = createMockSigner();
     const decimals = 6;
     const { createArcadeTokenInitTransaction } = await import('../arcadeToken');
     const tx = await createArcadeTokenInitTransaction(
@@ -86,7 +87,7 @@ describe('templates enableSrfc37 option', () => {
       'SYM',
       decimals,
       'uri',
-      mintAuthority,
+      mintAuthoritySigner,
       mint,
       feePayer,
       undefined,
@@ -102,8 +103,8 @@ describe('templates enableSrfc37 option', () => {
       {
         mint: mint.address,
         decimals,
-        freezeAuthority: mintAuthority,
-        mintAuthority: feePayer.address,
+        freezeAuthority: feePayer.address,
+        mintAuthority: mintAuthoritySigner.address,
       },
       { programAddress: TOKEN_2022_PROGRAM_ADDRESS }
     );
