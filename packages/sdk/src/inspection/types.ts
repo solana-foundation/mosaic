@@ -62,6 +62,7 @@ export interface TokenInspectionResult {
   // Extensions and features
   extensions: TokenExtension[];
   detectedType: TokenType;
+  detectedPatterns?: TokenType[];
   isPausable: boolean;
 
   // ACL/SRFC37 info
@@ -81,6 +82,7 @@ export interface TokenDashboardData {
   supply: string;
   uri?: string;
   type: TokenType;
+  detectedPatterns?: TokenType[];
 
   // ACL configuration
   aclMode: AclMode;

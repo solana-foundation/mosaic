@@ -1,9 +1,12 @@
+import type { TokenType } from '@mosaic/sdk';
+
 export interface TokenDisplay {
   name?: string;
   symbol?: string;
   address?: string;
   supply?: string;
   type?: string;
+  detectedPatterns?: TokenType[];
   decimals?: number;
   mintAuthority?: string;
   freezeAuthority?: string;

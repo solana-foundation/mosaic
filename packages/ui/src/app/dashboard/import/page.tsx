@@ -67,9 +67,19 @@ export default function ImportTokenPage() {
         mintAddress
       );
 
-      // Override type if user selected one
+      // Merge user-selected type with existing detected patterns
+      // This preserves all detected patterns while adding the user's explicit selection
       if (tokenType !== 'none') {
-        tokenData.type = tokenType as TokenType;
+        const selectedType = tokenType as TokenType;
+        tokenData.type = selectedType;
+
+        // Merge: add user-selected type to detectedPatterns if not already present
+        // This ensures no detected patterns are lost when user manually selects a type
+        const existingPatterns = tokenData.detectedPatterns || [];
+        if (!existingPatterns.includes(selectedType)) {
+          tokenData.detectedPatterns = [...existingPatterns, selectedType];
+        }
+        // If selectedType is already in detectedPatterns, keep the existing array
       }
 
       // Convert to TokenDisplay format for storage
@@ -78,6 +88,7 @@ export default function ImportTokenPage() {
         symbol: tokenData.symbol || 'UNKNOWN',
         address: tokenData.address,
         type: tokenData.type === 'unknown' ? undefined : tokenData.type,
+        detectedPatterns: tokenData.detectedPatterns,
         decimals: tokenData.decimals,
         supply: tokenData.supply,
         mintAuthority: tokenData.mintAuthority,

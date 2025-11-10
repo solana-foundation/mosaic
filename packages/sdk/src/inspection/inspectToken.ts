@@ -38,6 +38,94 @@ const TOKENIZED_SECURITY_EXTENSIONS = [
   'DefaultAccountState',
 ];
 
+/**
+ * Internal function that checks if a token satisfies the stablecoin pattern
+ * (metadata, permanent delegate, default state, confidential balances)
+ */
+function satisfiesStablecoinPatternInternal(extensionNames: string[]): boolean {
+  return STABLECOIN_EXTENSIONS.every(ext => extensionNames.includes(ext));
+}
+
+/**
+ * Checks if a token satisfies the stablecoin pattern
+ * (metadata, permanent delegate, default state, confidential balances)
+ */
+export function satisfiesStablecoinPattern(
+  extensions: TokenExtension[]
+): boolean {
+  const extensionNames = extensions.map(ext => ext.name);
+  return satisfiesStablecoinPatternInternal(extensionNames);
+}
+
+/**
+ * Internal function that checks if a token satisfies the arcade token pattern
+ * (metadata, permanent delegate, default state, NO confidential balances)
+ */
+function satisfiesArcadeTokenPatternInternal(
+  extensionNames: string[]
+): boolean {
+  return (
+    ARCADE_TOKEN_EXTENSIONS.every(ext => extensionNames.includes(ext)) &&
+    !extensionNames.includes('ConfidentialTransferMint')
+  );
+}
+
+/**
+ * Checks if a token satisfies the arcade token pattern
+ * (metadata, permanent delegate, default state, NO confidential balances)
+ */
+export function satisfiesArcadeTokenPattern(
+  extensions: TokenExtension[]
+): boolean {
+  const extensionNames = extensions.map(ext => ext.name);
+  return satisfiesArcadeTokenPatternInternal(extensionNames);
+}
+
+/**
+ * Internal function that checks if a token satisfies the security token pattern
+ * (stablecoin extensions + scaled UI amount)
+ */
+function satisfiesSecurityTokenPatternInternal(
+  extensionNames: string[]
+): boolean {
+  return (
+    TOKENIZED_SECURITY_EXTENSIONS.every(ext => extensionNames.includes(ext)) &&
+    extensionNames.includes('ScaledUiAmountConfig')
+  );
+}
+
+/**
+ * Checks if a token satisfies the security token pattern
+ * (stablecoin extensions + scaled UI amount)
+ */
+export function satisfiesSecurityTokenPattern(
+  extensions: TokenExtension[]
+): boolean {
+  const extensionNames = extensions.map(ext => ext.name);
+  return satisfiesSecurityTokenPatternInternal(extensionNames);
+}
+
+/**
+ * Gets all token patterns that this token satisfies
+ * Returns an array of matching types since tokens can match multiple patterns
+ */
+export function detectTokenPatterns(extensions: TokenExtension[]): TokenType[] {
+  const extensionNames = extensions.map(ext => ext.name);
+  const matches: TokenType[] = [];
+
+  if (satisfiesSecurityTokenPatternInternal(extensionNames)) {
+    matches.push('tokenized-security');
+  }
+  if (satisfiesStablecoinPatternInternal(extensionNames)) {
+    matches.push('stablecoin');
+  }
+  if (satisfiesArcadeTokenPatternInternal(extensionNames)) {
+    matches.push('arcade-token');
+  }
+
+  return matches.length > 0 ? matches : ['unknown'];
+}
+
 export async function inspectToken(
   rpc: Rpc<SolanaRpcApi>,
   mintAddress: Address,
@@ -240,8 +328,9 @@ export async function inspectToken(
     enableSrfc37 = authorities.freezeAuthority === TOKEN_ACL_PROGRAM_ID;
   }
 
-  // Detect token type
-  const detectedType = detectTokenType(extensions);
+  // Detect token patterns
+  const detectedPatterns = detectTokenPatterns(extensions);
+  const detectedType = detectedPatterns[0];
 
   return {
     address: mintAddress,
@@ -251,46 +340,13 @@ export async function inspectToken(
     authorities,
     extensions,
     detectedType,
+    detectedPatterns,
     isPausable,
     aclMode,
     enableSrfc37,
     scaledUiAmount,
     isToken2022: encodedAccount.programAddress === TOKEN_2022_PROGRAM_ADDRESS,
   };
-}
-
-function detectTokenType(extensions: TokenExtension[]): TokenType {
-  const extensionNames = extensions.map(ext => ext.name);
-
-  // Check for stablecoin pattern first (most specific)
-  const isStablecoin = STABLECOIN_EXTENSIONS.every(ext =>
-    extensionNames.includes(ext)
-  );
-
-  if (isStablecoin) {
-    return 'stablecoin';
-  }
-
-  // Check for arcade token pattern (no ConfidentialTransferMint)
-  const isArcadeToken =
-    ARCADE_TOKEN_EXTENSIONS.every(ext => extensionNames.includes(ext)) &&
-    !extensionNames.includes('ConfidentialTransferMint') &&
-    !extensionNames.includes('ScaledUiAmount');
-
-  if (isArcadeToken) {
-    return 'arcade-token';
-  }
-
-  // Check for tokenized security pattern
-  const isTokenizedSecurity = TOKENIZED_SECURITY_EXTENSIONS.every(ext =>
-    extensionNames.includes(ext)
-  );
-
-  if (isTokenizedSecurity) {
-    return 'tokenized-security';
-  }
-
-  return 'unknown';
 }
 
 export async function getTokenMetadata(
@@ -331,6 +387,7 @@ export function inspectionResultToDashboardData(
     authorities,
     extensions,
     detectedType,
+    detectedPatterns,
     aclMode,
     enableSrfc37,
     scaledUiAmount,
@@ -345,6 +402,7 @@ export function inspectionResultToDashboardData(
     supply: supplyInfo.supply.toString(),
     uri: metadata?.uri,
     type: detectedType,
+    detectedPatterns,
 
     // ACL configuration
     aclMode,

@@ -9,6 +9,7 @@ import { TokenDisplay } from '@/types/token';
 import { Loader } from '@/components/ui/loader';
 import { findTokenByAddress } from '@/lib/token/tokenData';
 import { TokenStorage } from '@/lib/token/tokenStorage';
+import { getTokenTypeLabel } from '@/lib/token/tokenTypeUtils';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 import { ChainContext } from '@/context/ChainContext';
 import { TokenOverview } from './components/TokenOverview';
@@ -412,17 +413,6 @@ function ManageTokenConnected({ address }: { address: string }) {
       setPauseError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setActionInProgress(false);
-    }
-  };
-
-  const getTokenTypeLabel = (type?: string) => {
-    switch (type) {
-      case 'stablecoin':
-        return 'Stablecoin';
-      case 'arcade-token':
-        return 'Arcade Token';
-      default:
-        return type || 'Unknown';
     }
   };
 
