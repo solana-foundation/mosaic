@@ -93,6 +93,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
         decimals: 6,
         freezeAuthority: TOKEN_ACL_PROGRAM_ID,
         extensions: [{ __kind: 'DefaultAccountState', state: 'frozen' }],
+        usesTokenAcl: true,
       }),
       isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
     }));
@@ -133,6 +134,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
         decimals: 6,
         freezeAuthority: TOKEN_ACL_PROGRAM_ID,
         extensions: [{ __kind: 'DefaultAccountState', state: 'frozen' }],
+        usesTokenAcl: true,
       }),
       isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
     }));

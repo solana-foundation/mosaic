@@ -35,11 +35,21 @@ export function getFreezeInstruction(
   };
 }
 
-export function createThawPermissionlessInstructionWithExtraMetas(
+export function getThawInstruction(
+  _args: any,
+  ctx?: { programAddress?: string }
+) {
+  return {
+    programAddress: ctx?.programAddress ?? TOKEN_ACL_PROGRAM_ID,
+    accounts: [],
+    data: new Uint8Array([11]),
+  };
+}
+
+export async function createThawPermissionlessInstructionWithExtraMetas(
   authority: TransactionSigner<string>,
   tokenAccount: Address,
   mint: Address,
-  mintConfigPda: Address,
   tokenAccountOwner: Address,
   programAddress: Address,
   _resolveExtra?: (addr: Address) => Promise<any>
@@ -50,7 +60,6 @@ export function createThawPermissionlessInstructionWithExtraMetas(
       { address: (authority.address ?? authority) as string, role: 'signer' },
       { address: tokenAccount as string },
       { address: mint as string },
-      { address: mintConfigPda as string },
       { address: tokenAccountOwner as string },
     ],
     data: new Uint8Array([1]), // dummy payload
