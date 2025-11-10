@@ -1,7 +1,7 @@
 import type {
   SetGatingProgramInstruction,
   TogglePermissionlessInstructionsInstruction,
-} from '@mosaic/token-acl';
+} from '@token-acl/sdk';
 import { AccountRole, type Address, type TransactionSigner } from 'gill';
 
 export async function findMintConfigPda(): Promise<[string, string]> {
@@ -35,11 +35,21 @@ export function getFreezeInstruction(
   };
 }
 
-export function createThawPermissionlessInstructionWithExtraMetas(
+export function getThawInstruction(
+  _args: any,
+  ctx?: { programAddress?: string }
+) {
+  return {
+    programAddress: ctx?.programAddress ?? TOKEN_ACL_PROGRAM_ID,
+    accounts: [],
+    data: new Uint8Array([11]),
+  };
+}
+
+export async function createThawPermissionlessInstructionWithExtraMetas(
   authority: TransactionSigner<string>,
   tokenAccount: Address,
   mint: Address,
-  mintConfigPda: Address,
   tokenAccountOwner: Address,
   programAddress: Address,
   _resolveExtra?: (addr: Address) => Promise<any>
@@ -50,7 +60,6 @@ export function createThawPermissionlessInstructionWithExtraMetas(
       { address: (authority.address ?? authority) as string, role: 'signer' },
       { address: tokenAccount as string },
       { address: mint as string },
-      { address: mintConfigPda as string },
       { address: tokenAccountOwner as string },
     ],
     data: new Uint8Array([1]), // dummy payload
@@ -76,7 +85,7 @@ export function getSetGatingProgramInstruction({
   return {
     accounts: accounts as unknown as SetGatingProgramInstruction['accounts'],
     programAddress:
-      'Eba1ts11111111111111111111111111111111111111' as Address<'Eba1ts11111111111111111111111111111111111111'>,
+      'TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP' as Address<'TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP'>,
     data: new Uint8Array([1]),
   } as SetGatingProgramInstruction;
 }
@@ -90,7 +99,7 @@ export function getTogglePermissionlessInstructionsInstruction({
 }) {
   return {
     programAddress:
-      'Eba1ts11111111111111111111111111111111111111' as Address<'Eba1ts11111111111111111111111111111111111111'>,
+      'TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP' as Address<'TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP'>,
     accounts: [
       {
         address: authority.address as Address,

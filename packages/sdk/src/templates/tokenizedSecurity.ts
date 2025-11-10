@@ -10,7 +10,7 @@ import type {
   TransactionWithBlockhashLifetime,
 } from 'gill';
 import { createNoopSigner, createTransaction } from 'gill';
-import { Mode } from '@mosaic/abl';
+import { Mode } from '@token-acl/abl-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils';
 import { getCreateConfigInstructions } from '../token-acl/createConfig';
 import { getSetGatingProgramInstructions } from '../token-acl/setGatingProgram';
@@ -136,7 +136,7 @@ export const createTokenizedSecurityInitTransaction = async (
   const setExtraMetasInstructions = await getSetExtraMetasInstructions({
     authority: feePayerSigner,
     mint: mintSigner.address,
-    list: listConfig,
+    lists: [listConfig],
   });
 
   instructions.push(...createConfigInstructions);

@@ -8,10 +8,5 @@
     "composite": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"],
-  "references": [
-    { "path": "../tlv-account-resolution" },
-    { "path": "../token-acl" },
-    { "path": "../abl" }
-  ]
+  "exclude": ["node_modules", "dist"]
 }

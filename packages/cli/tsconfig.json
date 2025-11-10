@@ -18,10 +18,5 @@
   },
   "include": ["src/**/*"],
   "exclude": ["dist", "node_modules"],
-  "references": [
-    { "path": "../sdk" },
-    { "path": "../tlv-account-resolution" },
-    { "path": "../token-acl" },
-    { "path": "../abl" }
-  ]
+  "references": [{ "path": "../sdk" }]
 }

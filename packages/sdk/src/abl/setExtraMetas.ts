@@ -11,11 +11,11 @@ import {
   type TransactionWithBlockhashLifetime,
 } from 'gill';
 import { ABL_PROGRAM_ID } from './utils';
-import { getSetExtraMetasThawInstruction } from '@mosaic/abl';
+import { getSetupExtraMetasInstruction } from '@token-acl/abl-sdk';
 import {
   findMintConfigPda,
   findThawExtraMetasAccountPda,
-} from '../../../token-acl/src';
+} from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 
 /**
@@ -34,7 +34,7 @@ import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 export const getSetExtraMetasInstructions = async (input: {
   authority: TransactionSigner<string>;
   mint: Address;
-  list: Address;
+  lists: Address[];
 }): Promise<Instruction<string>[]> => {
   const mintConfigPda = await findMintConfigPda(
     { mint: input.mint },
@@ -45,13 +45,13 @@ export const getSetExtraMetasInstructions = async (input: {
     { programAddress: ABL_PROGRAM_ID }
   );
 
-  const createListInstruction = getSetExtraMetasThawInstruction(
+  const createListInstruction = getSetupExtraMetasInstruction(
     {
       authority: input.authority,
-      listConfig: input.list,
       mint: input.mint,
-      ebaltsMintConfig: mintConfigPda[0],
-      extraMetasThaw: extraMetasThaw[0],
+      tokenAclMintConfig: mintConfigPda[0],
+      extraMetas: extraMetasThaw[0],
+      lists: input.lists,
     },
     { programAddress: ABL_PROGRAM_ID }
   );
@@ -79,7 +79,7 @@ export const getSetExtraMetasTransaction = async (input: {
   payer: TransactionSigner<string>;
   authority: TransactionSigner<string>;
   mint: Address;
-  list: Address;
+  lists: Address[];
 }): Promise<
   FullTransaction<
     TransactionVersion,

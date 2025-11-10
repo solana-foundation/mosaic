@@ -1,4 +1,4 @@
-import { findListConfigPda } from '@mosaic/abl';
+import { findListConfigPda } from '@token-acl/abl-sdk';
 import type { Address } from 'gill';
 
 /**
@@ -8,7 +8,7 @@ import type { Address } from 'gill';
  * functionality for token gating and access control.
  */
 export const ABL_PROGRAM_ID =
-  '8hNxmWetsVptuZ5LGYC6fM4xTpoUfPijz3NyYctyM79N' as Address;
+  'GATEzzqxhJnsWF6vHRsgtixxSB8PaQdcqGEVTEHWiULz' as Address;
 
 export const getListConfigPda = async (input: {
   authority: Address;

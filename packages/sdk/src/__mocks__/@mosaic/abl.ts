@@ -78,3 +78,39 @@ export function getSetExtraMetasThawInstruction() {
     data: new Uint8Array([1]),
   };
 }
+
+export function getCreateListInstruction() {
+  return {
+    programAddress: 'AblProgramMockCreateList',
+    accounts: [],
+    data: new Uint8Array([0]),
+  };
+}
+
+export function getSetupExtraMetasInstruction() {
+  return {
+    programAddress: 'AblProgramMockSetupExtraMetas',
+    accounts: [],
+    data: new Uint8Array([4]),
+  };
+}
+
+export function getAddWalletInstruction() {
+  return {
+    programAddress: 'AblProgramMockAddWallet',
+    accounts: [],
+    data: new Uint8Array([5]),
+  };
+}
+
+export function getRemoveWalletInstruction() {
+  return {
+    programAddress: 'AblProgramMockRemoveWallet',
+    accounts: [],
+    data: new Uint8Array([6]),
+  };
+}
+
+export async function findWalletEntryPda(): Promise<[string, string]> {
+  return ['WalletEntryMock11111111111111111111111111111', 'bump'];
+}

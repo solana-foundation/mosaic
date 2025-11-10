@@ -10,10 +10,9 @@ import type {
   TransactionSigner,
 } from 'gill';
 import { createNoopSigner, createTransaction } from 'gill';
-import { Mode } from '@mosaic/abl';
+import { Mode } from '@token-acl/abl-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils';
 import { getCreateConfigInstructions } from '../token-acl/createConfig';
-import { getSetGatingProgramInstructions } from '../token-acl/setGatingProgram';
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enablePermissionlessThaw';
 import { getCreateListInstructions } from '../abl/list';
 import { getSetExtraMetasInstructions } from '../abl/setExtraMetas';
@@ -112,21 +111,14 @@ export const createStablecoinInitTransaction = async (
       gatingProgram: ABL_PROGRAM_ID,
     });
 
-  // 3. set gating program to ABL (for Token ACL)
-  const setGatingProgramInstructions = await getSetGatingProgramInstructions({
-    authority: feePayerSigner,
-    mint: mintSigner.address,
-    gatingProgram: ABL_PROGRAM_ID,
-  });
-
-  // 4. enable permissionless thaw (Token ACL)
+  // 3. enable permissionless thaw (Token ACL)
   const enablePermissionlessThawInstructions =
     await getEnablePermissionlessThawInstructions({
       authority: feePayerSigner,
       mint: mintSigner.address,
     });
 
-  // 5. create list (abl)
+  // 4. create list (abl)
   const { instructions: createListInstructions, listConfig } =
     await getCreateListInstructions({
       authority: feePayerSigner,
@@ -134,15 +126,14 @@ export const createStablecoinInitTransaction = async (
       mode: aclMode === 'allowlist' ? Mode.Allow : Mode.Block,
     });
 
-  // 6. set extra metas (abl): this is how we can change the list associated with a given mint
+  // 5. set extra metas (abl): this is how we can change the list associated with a given mint
   const setExtraMetasInstructions = await getSetExtraMetasInstructions({
     authority: feePayerSigner,
     mint: mintSigner.address,
-    list: listConfig,
+    lists: [listConfig],
   });
 
   instructions.push(...createConfigInstructions);
-  instructions.push(...setGatingProgramInstructions);
   instructions.push(...enablePermissionlessThawInstructions);
   instructions.push(...createListInstructions);
   instructions.push(...setExtraMetasInstructions);

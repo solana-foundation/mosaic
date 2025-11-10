@@ -15,11 +15,11 @@ import { ABL_PROGRAM_ID } from './utils';
 import {
   fetchListConfig,
   findListConfigPda,
-  getABWalletDecoder,
-  getInitializeListConfigInstruction,
+  getWalletEntryDecoder,
+  getCreateListInstruction,
   getListConfigDecoder,
   Mode,
-} from '@mosaic/abl';
+} from '@token-acl/abl-sdk';
 
 /**
  * Generates instructions for creating a new allowlist/blocklist configuration.
@@ -42,7 +42,7 @@ export const getCreateListInstructions = async (input: {
     { programAddress: ABL_PROGRAM_ID }
   );
 
-  const createListInstruction = getInitializeListConfigInstruction(
+  const createListInstruction = getCreateListInstruction(
     {
       authority: input.authority,
       listConfig: listConfigPda[0],
@@ -180,13 +180,13 @@ export const getList = async (input: {
       encoding: 'base64',
       filters: [
         {
-          dataSize: 72n,
+          dataSize: 65n,
         },
         {
           memcmp: {
             bytes: input.listConfig as unknown as Base58EncodedBytes,
             encoding: 'base58',
-            offset: 40n,
+            offset: 33n,
           },
         },
       ],
@@ -195,8 +195,8 @@ export const getList = async (input: {
 
   const list = accounts.map(account => {
     const data = new Uint8Array(Buffer.from(account.account.data[0], 'base64'));
-    const abWallet = getABWalletDecoder().decode(data);
-    return abWallet.wallet;
+    const abWallet = getWalletEntryDecoder().decode(data);
+    return abWallet.walletAddress;
   });
 
   return {

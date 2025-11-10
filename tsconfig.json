@@ -3,22 +3,10 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@mosaic/core": ["./packages/core/src"],
       "@mosaic/sdk": ["./packages/sdk/src"],
-      "@mosaic/tlv-account-resolution": [
-        "./packages/tlv-account-resolution/src"
-      ],
-      "@mosaic/token-acl": ["./packages/token-acl/src"],
       "@mosaic/cli": ["./packages/cli/src"],
-      "@mosaic/ui": ["./packages/ui/src"],
-      "@mosaic/abl": ["./packages/abl/src"]
+      "@mosaic/ui": ["./packages/ui/src"]
     }
   },
-  "references": [
-    { "path": "./packages/tlv-account-resolution" },
-    { "path": "./packages/abl" },
-    { "path": "./packages/token-acl" },
-    { "path": "./packages/sdk" },
-    { "path": "./packages/cli" }
-  ]
+  "references": [{ "path": "./packages/sdk" }, { "path": "./packages/cli" }]
 }
