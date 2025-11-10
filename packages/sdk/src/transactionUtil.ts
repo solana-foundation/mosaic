@@ -226,7 +226,7 @@ export function isDefaultAccountStateSetFrozen(
   return extensions.some(
     ext =>
       ext.extension === 'defaultAccountState' &&
-      ext.state.accountState === 'frozen'
+      ext.state?.accountState === 'frozen'
   );
 }
 
