@@ -113,7 +113,7 @@ export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
                 <div className="flex flex-wrap gap-1">
                   {token.detectedPatterns.map((pattern, idx) => (
                     <span
-                      key={idx}
+                      key={`${pattern ?? 'pattern'}-${idx}`}
                       className="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
                     >
                       {getTokenTypeLabel(pattern)}

@@ -1,3 +1,5 @@
+import type { TokenType } from '@mosaic/sdk';
+
 /**
  * Token type utilities for display and categorization
  */
@@ -23,7 +25,7 @@ export function getTokenTypeLabel(type?: string): string {
  */
 export function getTokenPatternsLabel(
   primaryType?: string,
-  patterns?: string[]
+  patterns?: TokenType[]
 ): string {
   // If no patterns, fall back to primary type
   if (!patterns || patterns.length === 0) {
