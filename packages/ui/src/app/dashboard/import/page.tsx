@@ -70,6 +70,7 @@ export default function ImportTokenPage() {
       // Override type if user selected one
       if (tokenType !== 'none') {
         tokenData.type = tokenType as TokenType;
+        tokenData.detectedPatterns = [tokenType as TokenType];
       }
 
       // Convert to TokenDisplay format for storage
@@ -78,6 +79,7 @@ export default function ImportTokenPage() {
         symbol: tokenData.symbol || 'UNKNOWN',
         address: tokenData.address,
         type: tokenData.type === 'unknown' ? undefined : tokenData.type,
+        detectedPatterns: tokenData.detectedPatterns,
         decimals: tokenData.decimals,
         supply: tokenData.supply,
         mintAuthority: tokenData.mintAuthority,

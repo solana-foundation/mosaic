@@ -19,6 +19,7 @@ import {
 import { TokenDisplay } from '@/types/token';
 import { RpcContext } from '@/context/RpcContext';
 import { getTokenSupply } from '@/lib/utils';
+import { getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
 import { type Address } from 'gill';
 
 interface TokenCardProps {
@@ -53,17 +54,6 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
   useEffect(() => {
     fetchSupply();
   }, [fetchSupply]);
-
-  const getTokenTypeLabel = (type?: string) => {
-    switch (type) {
-      case 'stablecoin':
-        return 'Stablecoin';
-      case 'arcade-token':
-        return 'Arcade Token';
-      default:
-        return type || 'Unknown';
-    }
-  };
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown';
@@ -123,7 +113,16 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Type:</span>
-            <span className="font-medium">{getTokenTypeLabel(token.type)}</span>
+            <div className="flex items-center gap-1">
+              <span className="font-medium">
+                {getTokenPatternsLabel(token.type, token.detectedPatterns)}
+              </span>
+              {token.detectedPatterns && token.detectedPatterns.length > 1 && (
+                <span className="px-1.5 py-0.5 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
+                  {token.detectedPatterns.length} patterns
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Supply:</span>

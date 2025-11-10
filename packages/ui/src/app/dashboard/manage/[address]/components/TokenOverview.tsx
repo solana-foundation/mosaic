@@ -5,6 +5,7 @@ import { TokenDisplay } from '@/types/token';
 import { useContext, useEffect, useState, useCallback } from 'react';
 import { RpcContext } from '@/context/RpcContext';
 import { getTokenSupply } from '@/lib/utils';
+import { getTokenTypeLabel, getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
 import { type Address } from 'gill';
 
 interface TokenOverviewProps {
@@ -49,17 +50,6 @@ export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
       hour: '2-digit',
       minute: '2-digit',
     });
-  };
-
-  const getTokenTypeLabel = (type?: string) => {
-    switch (type) {
-      case 'stablecoin':
-        return 'Stablecoin';
-      case 'arcade-token':
-        return 'Arcade Token';
-      default:
-        return type || 'Unknown';
-    }
   };
 
   return (
@@ -115,9 +105,23 @@ export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
             <label className="text-sm font-medium text-muted-foreground">
               Type
             </label>
-            <p className="text-lg font-semibold">
-              {getTokenTypeLabel(token.type)}
-            </p>
+            <div className="space-y-1">
+              <p className="text-lg font-semibold">
+                {getTokenPatternsLabel(token.type, token.detectedPatterns)}
+              </p>
+              {token.detectedPatterns && token.detectedPatterns.length > 1 && (
+                <div className="flex flex-wrap gap-1">
+                  {token.detectedPatterns.map((pattern, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+                    >
+                      {getTokenTypeLabel(pattern)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <div>
             <label className="text-sm font-medium text-muted-foreground">
