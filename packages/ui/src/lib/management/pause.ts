@@ -184,8 +184,8 @@ export const checkTokenPauseState = async (
     const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(url);
 
     return await getTokenPauseState(rpc, mintAddress as Address);
-  } catch (error) {
-    console.error('Error checking pause state:', error);
+  } catch {
+    // Error checking pause state
     return false;
   }
 };

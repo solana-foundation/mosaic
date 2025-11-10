@@ -95,7 +95,7 @@ export async function inspectToken(
     for (const ext of decodedMint.data.extensions.value) {
       if (!ext.__kind) continue;
 
-      const extensionDetails: Record<string, any> = {};
+      const extensionDetails: Record<string, unknown> = {};
 
       switch (ext.__kind) {
         case 'TokenMetadata':

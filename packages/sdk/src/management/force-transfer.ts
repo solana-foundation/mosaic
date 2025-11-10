@@ -156,7 +156,8 @@ export async function validatePermanentDelegate(
 
   // Check if permanent delegate extension exists
   const permanentDelegateExtension = extensions.find(
-    (ext: any) => ext.extension === 'permanentDelegate'
+    (ext: { extension: string; state?: { delegate?: string } }) =>
+      ext.extension === 'permanentDelegate'
   );
 
   if (!permanentDelegateExtension) {

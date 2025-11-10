@@ -122,7 +122,7 @@ export default function ImportTokenPage() {
         router.push('/dashboard');
       }, 2000);
     } catch (err) {
-      console.error('Error importing token:', err);
+      // Error importing token
 
       // Provide user-friendly error messages
       let errorMessage = 'Failed to import token. ';

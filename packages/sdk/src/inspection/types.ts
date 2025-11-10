@@ -29,7 +29,7 @@ export interface TokenSupplyInfo {
 
 export interface TokenExtension {
   name: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
 }
 
 export type TokenType =
