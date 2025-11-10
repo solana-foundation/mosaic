@@ -1,6 +1,27 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* Define custom colors for Tailwind utilities */
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+}
 
 @layer base {
   :root {
@@ -53,11 +74,12 @@
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
 
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     font-family: var(--font-sans), sans-serif;
     font-weight: 300;
   }
@@ -82,7 +104,10 @@
   input,
   textarea,
   select {
-    @apply px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-card text-foreground;
+    @apply px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent;
+    background-color: hsl(var(--card));
+    color: hsl(var(--foreground));
+    --tw-ring-color: hsl(var(--ring));
     transition:
       box-shadow 0.2s,
       border-color 0.2s;
@@ -91,7 +116,9 @@
   input:disabled,
   textarea:disabled,
   select:disabled {
-    @apply bg-muted text-muted-foreground cursor-not-allowed opacity-70;
+    @apply cursor-not-allowed opacity-70;
+    background-color: hsl(var(--muted));
+    color: hsl(var(--muted-foreground));
   }
 
   label {
@@ -99,7 +126,8 @@
   }
 
   button {
-    @apply px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-primary;
+    @apply px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2;
+    --tw-ring-color: hsl(var(--ring));
     transition:
       background 0.2s,
       color 0.2s;

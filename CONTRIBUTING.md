@@ -25,10 +25,9 @@ Thank you for your interest in contributing! This document provides guidelines f
 
 ## 📦 Project Structure
 
-- `packages/core/` - Core Token-2022 wrapper library
 - `packages/sdk/` - Token templates and SDK functionality
 - `packages/cli/` - Command-line interface
-- `packages/ui/` - Web interface
+- `apps/app/` - Dashboard application (web interface)
 
 ## 🔧 Development Workflow
 

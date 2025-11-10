@@ -5,8 +5,11 @@
     "paths": {
       "@mosaic/sdk": ["./packages/sdk/src"],
       "@mosaic/cli": ["./packages/cli/src"],
-      "@mosaic/ui": ["./packages/ui/src"]
+      "@mosaic/app": ["./apps/app/src"]
     }
   },
-  "references": [{ "path": "./packages/sdk" }, { "path": "./packages/cli" }]
+  "references": [
+    { "path": "./packages/sdk" },
+    { "path": "./packages/cli" }
+  ]
 }

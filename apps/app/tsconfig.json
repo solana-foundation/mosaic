@@ -21,10 +21,10 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@mosaic/sdk": ["../sdk/src"],
-      "@mosaic/abl": ["../abl/src"],
-      "@mosaic/token-acl": ["../token-acl/src"],
-      "@mosaic/tlv-account-resolution": ["../tlv-account-resolution/src"]
+      "@mosaic/sdk": ["../../packages/sdk/src"],
+      "@mosaic/abl": ["../../packages/abl/src"],
+      "@mosaic/token-acl": ["../../packages/token-acl/src"],
+      "@mosaic/tlv-account-resolution": ["../../packages/tlv-account-resolution/src"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
