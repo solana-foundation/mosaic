@@ -1,4 +1,4 @@
-# @mosaic/ui
+# @mosaic/app
 
 UI for creating and managing Token-2022 mints with Mosaic. It’s a Next.js app that connects to Solana wallets, guides you through mint creation (Stablecoin, Arcade Token, Tokenized Security), and provides a dashboard to manage authorities, access lists, and account state.
 

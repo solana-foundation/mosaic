@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture Overview
 
-Mosaic is a TypeScript monorepo for managing Token-2022 extensions on Solana, specifically designed for Stablecoin and Arcade Token use cases. The project uses pnpm workspaces with the following structure:
+Mosaic is a TypeScript monorepo for managing Token-2022 extensions on Solana, specifically designed for Stablecoin and Arcade Token use cases. The project uses pnpm workspaces and Turbo for build orchestration with the following structure:
 
 - **@mosaic/sdk** (`packages/sdk/`) - Core SDK with token templates and management utilities
   - Uses `gill` library for Solana interactions
@@ -15,7 +15,7 @@ Mosaic is a TypeScript monorepo for managing Token-2022 extensions on Solana, sp
 - **@mosaic/cli** (`packages/cli/`) - Command-line interface built with Commander.js
   - Commands: `create stablecoin`, `create arcade-token`, `mint`
   - Global options: `--rpc-url`, `--keypair`
-- **@mosaic/ui** (`packages/ui/`) - Next.js web interface with Tailwind CSS and Radix UI components
+- **@mosaic/app** (`apps/app/`) - Dashboard application (Next.js) with Tailwind CSS and Radix UI components
 
 ## Token Types
 
@@ -88,14 +88,14 @@ pnpm build         # Build CLI binary
 pnpm start         # Run built CLI
 ```
 
-### UI (packages/ui/)
+### App (apps/app/)
 
-- Next.js 14 with App Router
+- Next.js 15 with App Router
 - Tailwind CSS + Radix UI components
 - Theme support with next-themes
 
 ```bash
-cd packages/ui
+cd apps/app
 pnpm dev    # Start Next.js development server
 pnpm build  # Build for production
 pnpm start  # Start production server
@@ -106,5 +106,6 @@ pnpm start  # Start production server
 - Project is currently scaffolded - implementation depends on Token-2022 program stabilization and SRFC 37 spec
 - Uses `gill` library for Solana RPC interactions
 - All token creation functions return `FullTransaction` objects ready for signing
-- Node.js 18+ and pnpm 9+ required
-- TypeScript 5+ for all packages
+- Uses Turbo for monorepo build orchestration (faster builds with caching)
+- Node.js 20+ and pnpm 10+ required
+- TypeScript 5.9+ for all packages
