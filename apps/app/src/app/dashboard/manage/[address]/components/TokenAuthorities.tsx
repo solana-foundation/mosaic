@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Settings, Edit, Check, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
@@ -9,7 +9,7 @@ import { AuthorityType } from 'gill/programs/token';
 import { isAddress } from 'gill';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
 import { ChainContext } from '@/context/ChainContext';
-import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
+import { useConnector } from '@solana/connector/react';
 
 interface TokenAuthoritiesProps {
     token: TokenDisplay;
@@ -90,11 +90,20 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const [isLoadingAuthorities, setIsLoadingAuthorities] = useState(false);
-    const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+    const { selectedAccount } = useConnector();
     const { chain: currentChain } = useContext(ChainContext);
 
+    // Create a minimal wallet account object compatible with useWalletAccountTransactionSendingSigner
+    const walletAccount = selectedAccount && currentChain ? {
+        address: selectedAccount,
+        chains: [currentChain as `solana:${string}`],
+        features: [],
+        icon: undefined,
+        label: undefined,
+    } as any : null;
+
     // Create transaction sending signer if wallet is connected
-    const transactionSendingSigner = useWalletAccountTransactionSendingSigner(selectedWalletAccount!, currentChain!);
+    const transactionSendingSigner = useWalletAccountTransactionSendingSigner(walletAccount!, currentChain!);
 
     // Fetch current authorities from blockchain
     useEffect(() => {
@@ -239,7 +248,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                                 variant="ghost"
                                                 size="sm"
                                                 onClick={() => startEditing(index)}
-                                                disabled={!selectedWalletAccount}
+                                                disabled={!selectedAccount}
                                             >
                                                 <Edit className="h-4 w-4" />
                                             </Button>
@@ -304,7 +313,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                             ))}
                     </div>
 
-                    {!selectedWalletAccount && (
+                    {!selectedAccount && (
                         <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                             <p className="text-sm text-yellow-800">Connect your wallet to manage authorities</p>
                         </div>

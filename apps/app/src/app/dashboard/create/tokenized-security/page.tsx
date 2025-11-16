@@ -5,21 +5,30 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { CreateTemplateSidebar } from '@/components/CreateTemplateSidebar';
-import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
+import { useConnector } from '@solana/connector/react';
 import { ChainContext } from '@/context/ChainContext';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
-import { UiWalletAccount } from '@wallet-standard/react';
 import { TokenizedSecurityCreateForm } from './TokenizedSecurityCreateForm';
 
 function TokenizedSecurityCreateWithWallet({
-    selectedWalletAccount,
+    selectedAccount,
     currentChain,
 }: {
-    selectedWalletAccount: UiWalletAccount;
+    selectedAccount: string;
     currentChain: string;
 }) {
+    // Create a minimal wallet account object compatible with useWalletAccountTransactionSendingSigner
+    // The hook should work with the connector's account format
+    const walletAccount = {
+        address: selectedAccount,
+        chains: [currentChain as `solana:${string}`],
+        features: [],
+        icon: undefined,
+        label: undefined,
+    } as any;
+    
     const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
-        selectedWalletAccount,
+        walletAccount,
         currentChain as `solana:${string}`,
     );
 
@@ -70,13 +79,13 @@ function TokenizedSecurityCreateWithWallet({
 }
 
 export default function TokenizedSecurityCreatePage() {
-    const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+    const { connected, selectedAccount } = useConnector();
     const { chain: currentChain } = useContext(ChainContext);
 
-    if (selectedWalletAccount && currentChain) {
+    if (connected && selectedAccount && currentChain) {
         return (
             <TokenizedSecurityCreateWithWallet
-                selectedWalletAccount={selectedWalletAccount}
+                selectedAccount={selectedAccount}
                 currentChain={currentChain}
             />
         );

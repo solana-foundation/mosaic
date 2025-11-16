@@ -1,7 +1,7 @@
-import { useState, useContext } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { forceTransferTokens, type ForceTransferOptions } from '@/lib/management/force-transfer';
-import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
+import { useConnector } from '@solana/connector/react';
 import { isAddress } from 'gill';
 import { TransactionSendingSigner } from '@solana/signers';
 import { ExternalLink, AlertCircle } from 'lucide-react';
@@ -21,7 +21,7 @@ export function ForceTransferModal({
     permanentDelegate,
     transactionSendingSigner,
 }: ForceTransferModalProps) {
-    const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+    const { selectedAccount } = useConnector();
     const [fromAddress, setFromAddress] = useState('');
     const [toAddress, setToAddress] = useState('');
     const [amount, setAmount] = useState('');
@@ -42,7 +42,7 @@ export function ForceTransferModal({
     };
 
     const handleForceTransfer = async () => {
-        if (!selectedWalletAccount?.address) {
+        if (!selectedAccount) {
             setError('Wallet not connected');
             return;
         }
@@ -66,7 +66,7 @@ export function ForceTransferModal({
         setError('');
 
         try {
-            const walletAddress = selectedWalletAccount.address.toString();
+            const walletAddress = selectedAccount;
 
             const forceTransferOptions: ForceTransferOptions = {
                 mintAddress,

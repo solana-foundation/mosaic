@@ -14,7 +14,7 @@ import { RpcContext } from '@/context/RpcContext';
 import { getTokenDashboardData, TokenType } from '@mosaic/sdk';
 import { TokenStorage } from '@/lib/token/tokenStorage';
 import { TokenDisplay } from '@/types/token';
-import { Loader } from '@/components/ui/loader';
+import { Spinner } from '@/components/ui/spinner';
 import { address, type Rpc, type SolanaRpcApi } from 'gill';
 import { getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
 
@@ -222,7 +222,7 @@ export default function ImportTokenPage() {
                             >
                                 {isLoading ? (
                                     <>
-                                        <Loader className="h-4 w-4 mr-2" />
+                                        <Spinner size={16} className="mr-2" />
                                         Importing...
                                     </>
                                 ) : success ? (

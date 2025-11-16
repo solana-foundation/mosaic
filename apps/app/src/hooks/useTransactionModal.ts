@@ -1,5 +1,5 @@
-import { useState, useContext } from 'react';
-import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
+import { useState } from 'react';
+import { useConnector } from '@solana/connector/react';
 
 export interface TransactionModalState {
     isLoading: boolean;
@@ -46,19 +46,19 @@ export function useTransactionModal(): TransactionModalState {
  * Hook to check wallet connection
  */
 export function useWalletConnection() {
-    const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+    const { connected, selectedAccount } = useConnector();
 
     const checkConnection = (): boolean => {
-        return !!selectedWalletAccount?.address;
+        return connected && !!selectedAccount;
     };
 
     const getWalletAddress = (): string | null => {
-        return selectedWalletAccount?.address?.toString() || null;
+        return selectedAccount || null;
     };
 
     return {
         isConnected: checkConnection(),
         walletAddress: getWalletAddress(),
-        selectedWalletAccount,
+        selectedAccount,
     };
 }

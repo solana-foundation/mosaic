@@ -5,23 +5,31 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { CreateTemplateSidebar } from '@/components/CreateTemplateSidebar';
-import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
+import { useConnector } from '@solana/connector/react';
 import { ChainContext } from '@/context/ChainContext';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
-import { UiWalletAccount } from '@wallet-standard/react';
 import { ArcadeTokenCreateForm } from '@/app/dashboard/create/arcade-token/ArcadeTokenCreateForm';
 
 // Component that only renders when wallet is available
 function ArcadeTokenCreateWithWallet({
-    selectedWalletAccount,
+    selectedAccount,
     currentChain,
 }: {
-    selectedWalletAccount: UiWalletAccount;
+    selectedAccount: string;
     currentChain: string;
 }) {
+    // Create a minimal wallet account object compatible with useWalletAccountTransactionSendingSigner
+    const walletAccount = {
+        address: selectedAccount,
+        chains: [currentChain as `solana:${string}`],
+        features: [],
+        icon: undefined,
+        label: undefined,
+    } as any;
+    
     // Now we can safely call the hook because we know we have valid inputs
     const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
-        selectedWalletAccount,
+        walletAccount,
         currentChain as `solana:${string}`,
     );
 
@@ -75,13 +83,13 @@ function ArcadeTokenCreateWithWallet({
 
 // Simple wrapper component that shows a message when wallet is not connected
 function ArcadeTokenCreatePage() {
-    const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+    const { connected, selectedAccount } = useConnector();
     const { chain: currentChain } = useContext(ChainContext);
 
     // If wallet is connected and chain is available, render the full component
-    if (selectedWalletAccount && currentChain) {
+    if (connected && selectedAccount && currentChain) {
         return (
-            <ArcadeTokenCreateWithWallet selectedWalletAccount={selectedWalletAccount} currentChain={currentChain} />
+            <ArcadeTokenCreateWithWallet selectedAccount={selectedAccount} currentChain={currentChain} />
         );
     }
 

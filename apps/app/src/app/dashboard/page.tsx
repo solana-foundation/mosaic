@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Plus, Coins, Upload } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -12,16 +12,16 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TokenDisplay } from '@/types/token';
-import { Loader } from '@/components/ui/loader';
+import { Spinner } from '@/components/ui/spinner';
 import { getAllTokens, getTokenCount } from '@/lib/token/tokenData';
 import { TokenStorage } from '@/lib/token/tokenStorage';
-import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
+import { useConnector } from '@solana/connector/react';
 import { TokenCard } from './components/TokenCard';
 
 export default function DashboardPage() {
-    const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+    const { connected, selectedAccount } = useConnector();
 
-    return selectedWalletAccount ? <DashboardConnected /> : <DashboardDisconnected />;
+    return connected && selectedAccount ? <DashboardConnected /> : <DashboardDisconnected />;
 }
 
 function DashboardConnected() {
@@ -58,7 +58,7 @@ function DashboardConnected() {
             <div className="flex-1 p-8">
                 <div className="flex items-center justify-center h-64">
                     <div className="text-center">
-                        <Loader className="h-8 w-8 mx-auto mb-4" />
+                        <Spinner size={32} className="mx-auto mb-4" />
                         <p className="text-muted-foreground">Loading your tokens...</p>
                     </div>
                 </div>

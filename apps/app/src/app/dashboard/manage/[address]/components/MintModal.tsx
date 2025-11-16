@@ -1,7 +1,7 @@
-import { useState, useContext } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { mintTokens, type MintOptions } from '@/lib/management/mint';
-import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
+import { useConnector } from '@solana/connector/react';
 import { isAddress } from 'gill';
 import { TransactionSendingSigner } from '@solana/signers';
 import { ExternalLink } from 'lucide-react';
@@ -15,7 +15,7 @@ interface MintModalProps {
 }
 
 export function MintModal({ isOpen, onClose, mintAddress, mintAuthority, transactionSendingSigner }: MintModalProps) {
-    const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+    const { selectedAccount } = useConnector();
     const [recipient, setRecipient] = useState('');
     const [amount, setAmount] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +35,7 @@ export function MintModal({ isOpen, onClose, mintAddress, mintAuthority, transac
     };
 
     const handleMint = async () => {
-        if (!selectedWalletAccount?.address) {
+        if (!selectedAccount) {
             setError('Wallet not connected');
             return;
         }
@@ -54,7 +54,7 @@ export function MintModal({ isOpen, onClose, mintAddress, mintAuthority, transac
         setError('');
 
         try {
-            const walletAddress = selectedWalletAccount.address.toString();
+            const walletAddress = selectedAccount;
 
             const mintOptions: MintOptions = {
                 mintAddress,

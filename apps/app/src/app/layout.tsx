@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Fira_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 // Import globals.css before any other components to avoid FOUC during HMR
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -7,18 +7,65 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { cn } from '@/lib/utils';
 import { ChainContextProvider } from '@/context/ChainContextProvider';
-import { SelectedWalletAccountContextProvider } from '@/context/SelectedWalletAccountContextProvider';
+import { SolanaConnectorProvider } from '@/components/solana-connector-provider';
 import { RpcContextProvider } from '@/context/RpcContextProvider';
 
-const fontSans = Inter({
-    subsets: ['latin'],
-    weight: ['300', '500', '700'],
-    variable: '--font-sans',
+// Inter Variable font for body text with weights: 450, 550, 600
+const inter = localFont({
+    src: '../fonts/InterVariable.woff2',
+    variable: '--font-inter',
+    display: 'swap',
 });
-const fontMono = Fira_Mono({
-    subsets: ['latin'],
-    weight: ['400', '500', '700'],
-    variable: '--font-mono',
+
+// ABC Diatype fonts
+const abcDiatype = localFont({
+    src: [
+        {
+            path: '../fonts/ABCDiatype-Regular.woff2',
+            weight: '400',
+            style: 'normal',
+        },
+        {
+            path: '../fonts/ABCDiatype-Medium.woff2',
+            weight: '500',
+            style: 'normal',
+        },
+        {
+            path: '../fonts/ABCDiatype-Bold.woff2',
+            weight: '700',
+            style: 'normal',
+        },
+    ],
+    variable: '--font-abc-diatype',
+    display: 'swap',
+});
+
+// Berkeley Mono fonts
+const berkeleyMono = localFont({
+    src: [
+        {
+            path: '../fonts/BerkeleyMono-Regular.otf',
+            weight: '400',
+            style: 'normal',
+        },
+        {
+            path: '../fonts/BerkeleyMono-Oblique.otf',
+            weight: '400',
+            style: 'italic',
+        },
+        {
+            path: '../fonts/BerkeleyMono-Bold.otf',
+            weight: '700',
+            style: 'normal',
+        },
+        {
+            path: '../fonts/BerkeleyMono-Bold-Oblique.otf',
+            weight: '700',
+            style: 'italic',
+        },
+    ],
+    variable: '--font-berkeley-mono',
+    display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -29,10 +76,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <html lang="en" suppressHydrationWarning>
-            <body className={cn(fontSans.variable, fontMono.variable, 'font-sans antialiased')}>
+            <body className={cn(inter.variable, abcDiatype.variable, berkeleyMono.variable, 'antialiased')}>
                 <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
                     <ChainContextProvider>
-                        <SelectedWalletAccountContextProvider>
+                        <SolanaConnectorProvider>
                             <RpcContextProvider>
                                 <div className="flex min-h-screen flex-col bg-background">
                                     <Header />
@@ -40,7 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                                     <Footer />
                                 </div>
                             </RpcContextProvider>
-                        </SelectedWalletAccountContextProvider>
+                        </SolanaConnectorProvider>
                     </ChainContextProvider>
                 </ThemeProvider>
             </body>

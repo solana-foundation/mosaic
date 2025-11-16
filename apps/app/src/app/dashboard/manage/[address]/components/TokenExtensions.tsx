@@ -3,25 +3,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { updateScaledUiMultiplier } from '@/lib/management/scaledUiAmount';
 import { useWalletAccountTransactionSendingSigner } from '@solana/react';
-import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
+import { useConnector } from '@solana/connector/react';
 import { Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 import { ChainContext } from '@/context/ChainContext';
 import Link from 'next/link';
-import { UiWalletAccount } from '@wallet-standard/react';
 
 interface TokenExtensionsProps {
     token: TokenDisplay;
 }
 
 export function TokenExtensions({ token }: TokenExtensionsProps) {
-    const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+    const { connected, selectedAccount } = useConnector();
     const { chain: currentChain } = useContext(ChainContext);
 
-    if (selectedWalletAccount && currentChain) {
+    if (connected && selectedAccount && currentChain) {
         return (
             <ManageTokenExtensionsWithWallet
-                selectedWalletAccount={selectedWalletAccount}
+                selectedAccount={selectedAccount}
                 currentChain={currentChain}
                 token={token}
             />
@@ -61,19 +60,29 @@ export function TokenExtensions({ token }: TokenExtensionsProps) {
 }
 
 function ManageTokenExtensionsWithWallet({
-    selectedWalletAccount,
+    selectedAccount,
     currentChain,
     token,
 }: {
-    selectedWalletAccount: UiWalletAccount;
+    selectedAccount: string;
     currentChain: string;
     token: TokenDisplay;
 }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [showScaledUiEditor, setShowScaledUiEditor] = useState(false);
     const [newMultiplier, setNewMultiplier] = useState<string>('');
+    
+    // Create a minimal wallet account object compatible with useWalletAccountTransactionSendingSigner
+    const walletAccount = {
+        address: selectedAccount,
+        chains: [currentChain as `solana:${string}`],
+        features: [],
+        icon: undefined,
+        label: undefined,
+    } as any;
+    
     const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
-        selectedWalletAccount,
+        walletAccount,
         currentChain as `solana:${string}`,
     );
 

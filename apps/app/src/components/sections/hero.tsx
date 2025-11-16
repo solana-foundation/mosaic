@@ -20,9 +20,6 @@ export function Hero() {
                         <Button size="lg" onClick={() => router.push('/dashboard')}>
                             Tokenize!
                         </Button>
-                        <Button variant="outline" size="lg" onClick={() => router.push('/docs')}>
-                            Learn More
-                        </Button>
                     </div>
                 </div>
 

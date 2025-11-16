@@ -6,11 +6,11 @@ import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { TokenDisplay } from '@/types/token';
-import { Loader } from '@/components/ui/loader';
+import { Spinner } from '@/components/ui/spinner';
 import { findTokenByAddress } from '@/lib/token/tokenData';
 import { TokenStorage } from '@/lib/token/tokenStorage';
 import { getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
-import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
+import { useConnector } from '@solana/connector/react';
 import { ChainContext } from '@/context/ChainContext';
 import { TokenOverview } from './components/TokenOverview';
 import { TokenAuthorities } from './components/TokenAuthorities';
@@ -36,11 +36,11 @@ import { Mode } from '@token-acl/abl-sdk';
 import { pauseTokenWithWallet, unpauseTokenWithWallet, checkTokenPauseState } from '@/lib/management/pause';
 
 export default function ManageTokenPage() {
-    const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+    const { connected, selectedAccount } = useConnector();
     const params = useParams();
     const address = params.address as string;
 
-    if (!selectedWalletAccount) {
+    if (!connected || !selectedAccount) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-8">
                 <div className="text-center">
@@ -72,7 +72,7 @@ const getAccessList = async (
 
 function ManageTokenConnected({ address }: { address: string }) {
     const router = useRouter();
-    const [selectedWalletAccount] = useContext(SelectedWalletAccountContext);
+    const { selectedAccount } = useConnector();
     const { chain: currentChain, solanaRpcUrl } = useContext(ChainContext);
     const [token, setToken] = useState<TokenDisplay | null>(null);
     const [loading, setLoading] = useState(true);
@@ -103,7 +103,16 @@ function ManageTokenConnected({ address }: { address: string }) {
         }, 600);
     };
 
-    const transactionSendingSigner = useWalletAccountTransactionSendingSigner(selectedWalletAccount!, currentChain!);
+    // Create a minimal wallet account object compatible with useWalletAccountTransactionSendingSigner
+    const walletAccount = selectedAccount ? {
+        address: selectedAccount,
+        chains: [currentChain as `solana:${string}`],
+        features: [],
+        icon: undefined,
+        label: undefined,
+    } as any : null;
+    
+    const transactionSendingSigner = useWalletAccountTransactionSendingSigner(walletAccount!, currentChain!);
 
     useEffect(() => {
         const addTokenExtensionsToFoundToken = async (foundToken: TokenDisplay): Promise<void> => {
@@ -133,7 +142,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     useEffect(() => {
         const loadAccessList = async () => {
-            const currentKey = `${selectedWalletAccount?.address}-${token?.address}-${solanaRpcUrl}-${refreshTrigger}`;
+            const currentKey = `${selectedAccount}-${token?.address}-${solanaRpcUrl}-${refreshTrigger}`;
 
             if (loadedAccessListRef.current === currentKey) {
                 return;
@@ -141,7 +150,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
             const accessList = await getAccessList(
                 rpc,
-                selectedWalletAccount?.address as Address,
+                selectedAccount as Address,
                 token?.address as Address,
             );
             setAccessList(accessList.wallets);
@@ -149,10 +158,10 @@ function ManageTokenConnected({ address }: { address: string }) {
             loadedAccessListRef.current = currentKey;
         };
 
-        if (rpc && selectedWalletAccount?.address && token?.address && token?.isSrfc37) {
+        if (rpc && selectedAccount && token?.address && token?.isSrfc37) {
             loadAccessList();
         }
-    }, [rpc, selectedWalletAccount?.address, token?.address, token?.isSrfc37, solanaRpcUrl, refreshTrigger]);
+    }, [rpc, selectedAccount, token?.address, token?.isSrfc37, solanaRpcUrl, refreshTrigger]);
 
     const copyToClipboard = async (text: string) => {
         try {
@@ -178,7 +187,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     };
 
     const removeFromAccessList = async (address: string) => {
-        if (!selectedWalletAccount?.address || !token?.address || !transactionSendingSigner) {
+        if (!selectedAccount || !token?.address || !transactionSendingSigner) {
             setError('Required parameters not available');
             return;
         }
@@ -222,7 +231,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     };
 
     const handleAddToAccessList = async (mintAddress: string, address: string) => {
-        if (!selectedWalletAccount?.address) {
+        if (!selectedAccount) {
             setError('Wallet not connected');
             return;
         }
@@ -281,13 +290,13 @@ function ManageTokenConnected({ address }: { address: string }) {
     };
 
     const togglePause = async () => {
-        if (!selectedWalletAccount?.address || !token?.address || !transactionSendingSigner) {
+        if (!selectedAccount || !token?.address || !transactionSendingSigner) {
             setError('Required parameters not available');
             return;
         }
 
         // Check if the connected wallet has pause authority
-        const walletAddress = selectedWalletAccount.address.toString();
+        const walletAddress = selectedAccount;
         if (token.pausableAuthority !== walletAddress) {
             setPauseError(
                 'Connected wallet does not have pause authority. Only the pause authority can pause/unpause this token.',
@@ -301,7 +310,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     };
 
     const handlePauseConfirm = async () => {
-        if (!selectedWalletAccount?.address || !token?.address || !transactionSendingSigner) {
+        if (!selectedAccount || !token?.address || !transactionSendingSigner) {
             setPauseError('Required parameters not available');
             return;
         }
@@ -315,7 +324,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                       {
                           mintAddress: token.address,
                           pauseAuthority: token.pausableAuthority,
-                          feePayer: selectedWalletAccount.address.toString(),
+                          feePayer: selectedAccount,
                           rpcUrl: solanaRpcUrl,
                       },
                       transactionSendingSigner,
@@ -324,7 +333,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                       {
                           mintAddress: token.address,
                           pauseAuthority: token.pausableAuthority,
-                          feePayer: selectedWalletAccount.address.toString(),
+                          feePayer: selectedAccount,
                           rpcUrl: solanaRpcUrl,
                       },
                       transactionSendingSigner,
@@ -359,7 +368,7 @@ function ManageTokenConnected({ address }: { address: string }) {
             <div className="flex-1 p-8">
                 <div className="flex items-center justify-center h-64">
                     <div className="text-center">
-                        <Loader className="h-8 w-8 mx-auto mb-4" />
+                        <Spinner size={32} className="mx-auto mb-4" />
                         <p className="text-muted-foreground">Loading token details...</p>
                     </div>
                 </div>
