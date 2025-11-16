@@ -4,7 +4,7 @@ import { resumeCommand } from './resume';
 import { statusCommand } from './status';
 
 export const controlCommand = new Command('control')
-  .description('Control token operations (pause/resume)')
-  .addCommand(pauseCommand)
-  .addCommand(resumeCommand)
-  .addCommand(statusCommand);
+    .description('Control token operations (pause/resume)')
+    .addCommand(pauseCommand)
+    .addCommand(resumeCommand)
+    .addCommand(statusCommand);

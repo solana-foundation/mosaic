@@ -1,24 +1,20 @@
 import {
-  createTransaction,
-  fetchEncodedAccount,
-  lamports,
-  type Address,
-  type FullTransaction,
-  type Instruction,
-  type Rpc,
-  type SolanaRpcApi,
-  type TransactionMessageWithFeePayer,
-  type TransactionSigner,
-  type TransactionVersion,
-  type TransactionWithBlockhashLifetime,
+    createTransaction,
+    fetchEncodedAccount,
+    lamports,
+    type Address,
+    type FullTransaction,
+    type Instruction,
+    type Rpc,
+    type SolanaRpcApi,
+    type TransactionMessageWithFeePayer,
+    type TransactionSigner,
+    type TransactionVersion,
+    type TransactionWithBlockhashLifetime,
 } from 'gill';
 import { createThawPermissionlessInstructionWithExtraMetas } from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
-import {
-  getTokenEncoder,
-  AccountState,
-  TOKEN_2022_PROGRAM_ADDRESS,
-} from 'gill/programs';
+import { getTokenEncoder, AccountState, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
 
 /**
  * Generates instructions for performing a permissionless thaw operation on a token account.
@@ -37,47 +33,46 @@ import {
  * @returns Promise containing the instructions for the permissionless thaw operation
  */
 export const getThawPermissionlessInstructions = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  authority: TransactionSigner<string>;
-  mint: Address;
-  tokenAccount: Address;
-  tokenAccountOwner: Address;
+    rpc: Rpc<SolanaRpcApi>;
+    authority: TransactionSigner<string>;
+    mint: Address;
+    tokenAccount: Address;
+    tokenAccountOwner: Address;
 }): Promise<Instruction<string>[]> => {
-  const thawPermissionlessInstruction =
-    await createThawPermissionlessInstructionWithExtraMetas(
-      input.authority,
-      input.tokenAccount,
-      input.mint,
-      input.tokenAccountOwner,
-      TOKEN_ACL_PROGRAM_ID,
-      async (address: Address) => {
-        if (address === input.tokenAccount) {
-          const data = getTokenEncoder().encode({
-            amount: 0,
-            closeAuthority: null,
-            delegate: null,
-            delegatedAmount: 0,
-            extensions: null,
-            isNative: null,
-            mint: input.mint,
-            owner: input.tokenAccountOwner,
-            state: AccountState.Frozen,
-          });
-          return {
-            exists: true,
-            address,
-            data: new Uint8Array(data),
-            executable: false,
-            lamports: lamports(BigInt(2157600)),
-            programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-            space: BigInt(data.byteLength),
-          };
-        }
-        return await fetchEncodedAccount(input.rpc, address);
-      }
+    const thawPermissionlessInstruction = await createThawPermissionlessInstructionWithExtraMetas(
+        input.authority,
+        input.tokenAccount,
+        input.mint,
+        input.tokenAccountOwner,
+        TOKEN_ACL_PROGRAM_ID,
+        async (address: Address) => {
+            if (address === input.tokenAccount) {
+                const data = getTokenEncoder().encode({
+                    amount: 0,
+                    closeAuthority: null,
+                    delegate: null,
+                    delegatedAmount: 0,
+                    extensions: null,
+                    isNative: null,
+                    mint: input.mint,
+                    owner: input.tokenAccountOwner,
+                    state: AccountState.Frozen,
+                });
+                return {
+                    exists: true,
+                    address,
+                    data: new Uint8Array(data),
+                    executable: false,
+                    lamports: lamports(BigInt(2157600)),
+                    programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+                    space: BigInt(data.byteLength),
+                };
+            }
+            return await fetchEncodedAccount(input.rpc, address);
+        },
     );
 
-  return [thawPermissionlessInstruction];
+    return [thawPermissionlessInstruction];
 };
 
 /**
@@ -98,28 +93,20 @@ export const getThawPermissionlessInstructions = async (input: {
  * @returns Promise containing the full transaction for the permissionless thaw operation
  */
 export const getThawPermissionlessTransaction = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  payer: TransactionSigner<string>;
-  authority: TransactionSigner<string>;
-  mint: Address;
-  tokenAccount: Address;
-  tokenAccountOwner: Address;
-}): Promise<
-  FullTransaction<
-    TransactionVersion,
-    TransactionMessageWithFeePayer,
-    TransactionWithBlockhashLifetime
-  >
-> => {
-  const instructions = await getThawPermissionlessInstructions(input);
-  const { value: latestBlockhash } = await input.rpc
-    .getLatestBlockhash()
-    .send();
-  const transaction = createTransaction({
-    feePayer: input.payer,
-    version: 'legacy',
-    latestBlockhash,
-    instructions,
-  });
-  return transaction;
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner<string>;
+    authority: TransactionSigner<string>;
+    mint: Address;
+    tokenAccount: Address;
+    tokenAccountOwner: Address;
+}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+    const instructions = await getThawPermissionlessInstructions(input);
+    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
+    const transaction = createTransaction({
+        feePayer: input.payer,
+        version: 'legacy',
+        latestBlockhash,
+        instructions,
+    });
+    return transaction;
 };

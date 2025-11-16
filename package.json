@@ -1,48 +1,50 @@
 {
-  "name": "mosaic-token-extensions-admin",
-  "version": "0.1.0",
-  "description": "TypeScript SDK, CLI, and UI for managing standard token types on Solana (ex: Stablecoin & Arcade Tokens)",
-  "private": true,
-  "type": "module",
+    "name": "mosaic-token-extensions-admin",
+    "version": "0.1.0",
+    "description": "TypeScript SDK, CLI, and UI for managing standard token types on Solana (ex: Stablecoin & Arcade Tokens)",
+    "private": true,
+    "type": "module",
   "scripts": {
-    "build": "pnpm --recursive --stream run build",
-    "dev": "pnpm --recursive run dev",
-    "ui": "pnpm --filter @mosaic/ui run dev",
-    "test": "SKIP_INTEGRATION=true pnpm --recursive run test --passWithNoTests",
-    "test:integration": "pnpm --recursive run test:integration",
-    "test:all": "pnpm --recursive run test --passWithNoTests",
-    "lint": "pnpm --recursive run lint",
-    "lint:fix": "pnpm --recursive run lint:fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "type-check": "pnpm --filter @mosaic/sdk run build && pnpm --recursive run type-check",
-    "clean": "pnpm --recursive run clean",
-    "precommit": "pnpm run format && pnpm run lint:fix",
-    "check": "pnpm run build && pnpm run format:check && pnpm run lint && pnpm run type-check"
-  },
-  "keywords": [
-    "solana",
-    "token-2022",
-    "extensions",
-    "stablecoin",
-    "arcade-token",
-    "typescript",
-    "sdk",
-    "cli"
-  ],
-  "author": "Solana Foundation",
-  "license": "MIT",
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.34.0",
-    "@typescript-eslint/parser": "^8.34.0",
-    "eslint": "^9.32.0",
-    "prettier": "^3.0.0",
-    "typescript": "^5.0.0"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=9.0.0"
-  },
-  "packageManager": "pnpm@10.17.1"
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "ui": "turbo dev --filter=@mosaic/app",
+    "test:unit": "SKIP_INTEGRATION=true turbo test -- --passWithNoTests",
+    "test:integration": "turbo test:integration",
+    "test:all": "turbo test -- --passWithNoTests",
+        "lint": "turbo lint",
+        "lint:fix": "turbo lint:fix",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "type-check": "turbo type-check",
+        "clean": "turbo clean",
+        "precommit": "pnpm run format && pnpm run lint:fix",
+        "check": "pnpm run build && pnpm run format:check && pnpm run lint && pnpm run type-check"
+    },
+    "keywords": [
+        "solana",
+        "token-2022",
+        "extensions",
+        "stablecoin",
+        "arcade-token",
+        "typescript",
+        "sdk",
+        "cli"
+    ],
+    "author": "Solana Foundation",
+    "license": "MIT",
+    "devDependencies": {
+        "@solana/prettier-config-solana": "0.0.5",
+        "@types/node": "^20.0.0",
+        "@typescript-eslint/eslint-plugin": "^8.34.0",
+        "@typescript-eslint/parser": "^8.34.0",
+        "eslint": "^9.32.0",
+        "prettier": "^3.6.2",
+        "turbo": "latest",
+        "typescript": "^5.9.2"
+    },
+    "engines": {
+        "node": ">=20.0.0",
+        "pnpm": ">=10.0.0"
+    },
+    "packageManager": "pnpm@10.21.0"
 }

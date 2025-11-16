@@ -1,19 +1,19 @@
 import {
-  AuthorityType,
-  getSetAuthorityInstruction,
-  getUpdateTokenMetadataUpdateAuthorityInstruction,
-  TOKEN_2022_PROGRAM_ADDRESS,
+    AuthorityType,
+    getSetAuthorityInstruction,
+    getUpdateTokenMetadataUpdateAuthorityInstruction,
+    TOKEN_2022_PROGRAM_ADDRESS,
 } from 'gill/programs/token';
 import type {
-  Address,
-  Instruction,
-  FullTransaction,
-  TransactionVersion,
-  TransactionMessageWithFeePayer,
-  TransactionSigner,
-  Rpc,
-  SolanaRpcApi,
-  TransactionWithBlockhashLifetime,
+    Address,
+    Instruction,
+    FullTransaction,
+    TransactionVersion,
+    TransactionMessageWithFeePayer,
+    TransactionSigner,
+    Rpc,
+    SolanaRpcApi,
+    TransactionWithBlockhashLifetime,
 } from 'gill';
 import { createTransaction, none } from 'gill';
 
@@ -33,33 +33,33 @@ type AuthorityRole = AuthorityType | 'Metadata';
  * @returns An array containing the instruction to update the authority.
  */
 export const getUpdateAuthorityInstructions = (input: {
-  mint: Address;
-  role: AuthorityRole;
-  currentAuthority: TransactionSigner<string>;
-  newAuthority: Address;
+    mint: Address;
+    role: AuthorityRole;
+    currentAuthority: TransactionSigner<string>;
+    newAuthority: Address;
 }): Instruction<string>[] => {
-  if (input.role === 'Metadata') {
+    if (input.role === 'Metadata') {
+        return [
+            getUpdateTokenMetadataUpdateAuthorityInstruction(
+                {
+                    metadata: input.mint,
+                    updateAuthority: input.currentAuthority,
+                    newUpdateAuthority: input.newAuthority,
+                },
+                {
+                    programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+                },
+            ),
+        ];
+    }
     return [
-      getUpdateTokenMetadataUpdateAuthorityInstruction(
-        {
-          metadata: input.mint,
-          updateAuthority: input.currentAuthority,
-          newUpdateAuthority: input.newAuthority,
-        },
-        {
-          programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-        }
-      ),
+        getSetAuthorityInstruction({
+            owned: input.mint,
+            owner: input.currentAuthority,
+            newAuthority: input.newAuthority,
+            authorityType: input.role,
+        }),
     ];
-  }
-  return [
-    getSetAuthorityInstruction({
-      owned: input.mint,
-      owner: input.currentAuthority,
-      newAuthority: input.newAuthority,
-      authorityType: input.role,
-    }),
-  ];
 };
 
 /**
@@ -75,32 +75,32 @@ export const getUpdateAuthorityInstructions = (input: {
  * @returns An array containing the instruction to remove the authority.
  */
 export const getRemoveAuthorityInstructions = (input: {
-  mint: Address;
-  role: AuthorityRole;
-  currentAuthority: TransactionSigner<string>;
+    mint: Address;
+    role: AuthorityRole;
+    currentAuthority: TransactionSigner<string>;
 }): Instruction<string>[] => {
-  if (input.role === 'Metadata') {
+    if (input.role === 'Metadata') {
+        return [
+            getUpdateTokenMetadataUpdateAuthorityInstruction(
+                {
+                    metadata: input.mint,
+                    updateAuthority: input.currentAuthority,
+                    newUpdateAuthority: none(),
+                },
+                {
+                    programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+                },
+            ),
+        ];
+    }
     return [
-      getUpdateTokenMetadataUpdateAuthorityInstruction(
-        {
-          metadata: input.mint,
-          updateAuthority: input.currentAuthority,
-          newUpdateAuthority: none(),
-        },
-        {
-          programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-        }
-      ),
+        getSetAuthorityInstruction({
+            owned: input.mint,
+            owner: input.currentAuthority,
+            newAuthority: none(),
+            authorityType: input.role,
+        }),
     ];
-  }
-  return [
-    getSetAuthorityInstruction({
-      owned: input.mint,
-      owner: input.currentAuthority,
-      newAuthority: none(),
-      authorityType: input.role,
-    }),
-  ];
 };
 
 /**
@@ -119,35 +119,27 @@ export const getRemoveAuthorityInstructions = (input: {
  * @returns A promise that resolves to the constructed full transaction.
  */
 export const getUpdateAuthorityTransaction = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  payer: TransactionSigner<string>;
-  mint: Address;
-  role: AuthorityRole;
-  currentAuthority: TransactionSigner<string>;
-  newAuthority: Address;
-}): Promise<
-  FullTransaction<
-    TransactionVersion,
-    TransactionMessageWithFeePayer,
-    TransactionWithBlockhashLifetime
-  >
-> => {
-  const instructions = getUpdateAuthorityInstructions({
-    mint: input.mint,
-    role: input.role,
-    currentAuthority: input.currentAuthority,
-    newAuthority: input.newAuthority,
-  });
-  const { value: latestBlockhash } = await input.rpc
-    .getLatestBlockhash()
-    .send();
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner<string>;
+    mint: Address;
+    role: AuthorityRole;
+    currentAuthority: TransactionSigner<string>;
+    newAuthority: Address;
+}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+    const instructions = getUpdateAuthorityInstructions({
+        mint: input.mint,
+        role: input.role,
+        currentAuthority: input.currentAuthority,
+        newAuthority: input.newAuthority,
+    });
+    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
 
-  return createTransaction({
-    feePayer: input.payer,
-    version: 'legacy',
-    latestBlockhash,
-    instructions,
-  });
+    return createTransaction({
+        feePayer: input.payer,
+        version: 'legacy',
+        latestBlockhash,
+        instructions,
+    });
 };
 
 /**
@@ -165,31 +157,23 @@ export const getUpdateAuthorityTransaction = async (input: {
  * @returns A promise that resolves to the constructed full transaction.
  */
 export const getRemoveAuthorityTransaction = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  payer: TransactionSigner<string>;
-  mint: Address;
-  role: AuthorityRole;
-  currentAuthority: TransactionSigner<string>;
-}): Promise<
-  FullTransaction<
-    TransactionVersion,
-    TransactionMessageWithFeePayer,
-    TransactionWithBlockhashLifetime
-  >
-> => {
-  const instructions = getRemoveAuthorityInstructions({
-    mint: input.mint,
-    role: input.role,
-    currentAuthority: input.currentAuthority,
-  });
-  const { value: latestBlockhash } = await input.rpc
-    .getLatestBlockhash()
-    .send();
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner<string>;
+    mint: Address;
+    role: AuthorityRole;
+    currentAuthority: TransactionSigner<string>;
+}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+    const instructions = getRemoveAuthorityInstructions({
+        mint: input.mint,
+        role: input.role,
+        currentAuthority: input.currentAuthority,
+    });
+    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
 
-  return createTransaction({
-    feePayer: input.payer,
-    version: 'legacy',
-    latestBlockhash,
-    instructions,
-  });
+    return createTransaction({
+        feePayer: input.payer,
+        version: 'legacy',
+        latestBlockhash,
+        instructions,
+    });
 };

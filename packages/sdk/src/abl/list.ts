@@ -1,24 +1,24 @@
 import {
-  createTransaction,
-  type Address,
-  type Base58EncodedBytes,
-  type FullTransaction,
-  type Instruction,
-  type Rpc,
-  type SolanaRpcApi,
-  type TransactionMessageWithFeePayer,
-  type TransactionSigner,
-  type TransactionVersion,
-  type TransactionWithBlockhashLifetime,
+    createTransaction,
+    type Address,
+    type Base58EncodedBytes,
+    type FullTransaction,
+    type Instruction,
+    type Rpc,
+    type SolanaRpcApi,
+    type TransactionMessageWithFeePayer,
+    type TransactionSigner,
+    type TransactionVersion,
+    type TransactionWithBlockhashLifetime,
 } from 'gill';
 import { ABL_PROGRAM_ID } from './utils';
 import {
-  fetchListConfig,
-  findListConfigPda,
-  getWalletEntryDecoder,
-  getCreateListInstruction,
-  getListConfigDecoder,
-  Mode,
+    fetchListConfig,
+    findListConfigPda,
+    getWalletEntryDecoder,
+    getCreateListInstruction,
+    getListConfigDecoder,
+    Mode,
 } from '@token-acl/abl-sdk';
 
 /**
@@ -33,29 +33,29 @@ import {
  * @returns Promise containing the instructions and the list configuration address
  */
 export const getCreateListInstructions = async (input: {
-  authority: TransactionSigner<string>;
-  mint: Address;
-  mode?: Mode;
+    authority: TransactionSigner<string>;
+    mint: Address;
+    mode?: Mode;
 }): Promise<{ instructions: Instruction<string>[]; listConfig: Address }> => {
-  const listConfigPda = await findListConfigPda(
-    { authority: input.authority.address, seed: input.mint },
-    { programAddress: ABL_PROGRAM_ID }
-  );
+    const listConfigPda = await findListConfigPda(
+        { authority: input.authority.address, seed: input.mint },
+        { programAddress: ABL_PROGRAM_ID },
+    );
 
-  const createListInstruction = getCreateListInstruction(
-    {
-      authority: input.authority,
-      listConfig: listConfigPda[0],
-      mode: input.mode || Mode.Allow,
-      seed: input.mint,
-    },
-    { programAddress: ABL_PROGRAM_ID }
-  );
+    const createListInstruction = getCreateListInstruction(
+        {
+            authority: input.authority,
+            listConfig: listConfigPda[0],
+            mode: input.mode || Mode.Allow,
+            seed: input.mint,
+        },
+        { programAddress: ABL_PROGRAM_ID },
+    );
 
-  return {
-    instructions: [createListInstruction],
-    listConfig: listConfigPda[0],
-  };
+    return {
+        instructions: [createListInstruction],
+        listConfig: listConfigPda[0],
+    };
 };
 
 /**
@@ -72,35 +72,29 @@ export const getCreateListInstructions = async (input: {
  * @returns Promise containing the full transaction and the list configuration address
  */
 export const getCreateListTransaction = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  payer: TransactionSigner<string>;
-  authority: TransactionSigner<string>;
-  mint: Address;
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner<string>;
+    authority: TransactionSigner<string>;
+    mint: Address;
 }): Promise<{
-  transaction: FullTransaction<
-    TransactionVersion,
-    TransactionMessageWithFeePayer,
-    TransactionWithBlockhashLifetime
-  >;
-  listConfig: Address;
+    transaction: FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>;
+    listConfig: Address;
 }> => {
-  const { instructions, listConfig } = await getCreateListInstructions({
-    authority: input.authority,
-    mint: input.mint,
-  });
-  const { value: latestBlockhash } = await input.rpc
-    .getLatestBlockhash()
-    .send();
-  const transaction = createTransaction({
-    feePayer: input.payer,
-    version: 'legacy',
-    latestBlockhash,
-    instructions,
-  });
-  return {
-    transaction,
-    listConfig,
-  };
+    const { instructions, listConfig } = await getCreateListInstructions({
+        authority: input.authority,
+        mint: input.mint,
+    });
+    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
+    const transaction = createTransaction({
+        feePayer: input.payer,
+        version: 'legacy',
+        latestBlockhash,
+        instructions,
+    });
+    return {
+        transaction,
+        listConfig,
+    };
 };
 
 /**
@@ -111,14 +105,14 @@ export const getCreateListTransaction = async (input: {
  * part of the list.
  */
 export interface ListConfig {
-  /** The address of the list configuration account */
-  listConfig: Address;
-  /** The mode of the list (allowlist or blocklist) */
-  mode: Mode;
-  /** The seed used to derive the list configuration PDA */
-  seed: Address;
-  /** The authority that controls the list configuration */
-  authority: Address;
+    /** The address of the list configuration account */
+    listConfig: Address;
+    /** The mode of the list (allowlist or blocklist) */
+    mode: Mode;
+    /** The seed used to derive the list configuration PDA */
+    seed: Address;
+    /** The authority that controls the list configuration */
+    authority: Address;
 }
 
 /**
@@ -128,8 +122,8 @@ export interface ListConfig {
  * that are part of the allowlist or blocklist.
  */
 export interface List extends ListConfig {
-  /** Array of wallet addresses that are part of this list */
-  wallets: Address[];
+    /** Array of wallet addresses that are part of this list */
+    wallets: Address[];
 }
 
 /**
@@ -144,17 +138,14 @@ export interface List extends ListConfig {
  * @param input.listConfig - The address of the list configuration account
  * @returns Promise containing the list configuration data
  */
-export const getListConfig = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  listConfig: Address;
-}): Promise<ListConfig> => {
-  const listConfig = await fetchListConfig(input.rpc, input.listConfig);
-  return {
-    listConfig: listConfig.address,
-    mode: listConfig.data.mode,
-    seed: listConfig.data.seed,
-    authority: listConfig.data.authority,
-  };
+export const getListConfig = async (input: { rpc: Rpc<SolanaRpcApi>; listConfig: Address }): Promise<ListConfig> => {
+    const listConfig = await fetchListConfig(input.rpc, input.listConfig);
+    return {
+        listConfig: listConfig.address,
+        mode: listConfig.data.mode,
+        seed: listConfig.data.seed,
+        authority: listConfig.data.authority,
+    };
 };
 
 /**
@@ -169,40 +160,37 @@ export const getListConfig = async (input: {
  * @param input.listConfig - The address of the list configuration account
  * @returns Promise containing the complete list data including wallet addresses
  */
-export const getList = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  listConfig: Address;
-}): Promise<List> => {
-  const listConfig = await getListConfig(input);
+export const getList = async (input: { rpc: Rpc<SolanaRpcApi>; listConfig: Address }): Promise<List> => {
+    const listConfig = await getListConfig(input);
 
-  const accounts = await input.rpc
-    .getProgramAccounts(ABL_PROGRAM_ID, {
-      encoding: 'base64',
-      filters: [
-        {
-          dataSize: 65n,
-        },
-        {
-          memcmp: {
-            bytes: input.listConfig as unknown as Base58EncodedBytes,
-            encoding: 'base58',
-            offset: 33n,
-          },
-        },
-      ],
-    })
-    .send();
+    const accounts = await input.rpc
+        .getProgramAccounts(ABL_PROGRAM_ID, {
+            encoding: 'base64',
+            filters: [
+                {
+                    dataSize: 65n,
+                },
+                {
+                    memcmp: {
+                        bytes: input.listConfig as unknown as Base58EncodedBytes,
+                        encoding: 'base58',
+                        offset: 33n,
+                    },
+                },
+            ],
+        })
+        .send();
 
-  const list = accounts.map(account => {
-    const data = new Uint8Array(Buffer.from(account.account.data[0], 'base64'));
-    const abWallet = getWalletEntryDecoder().decode(data);
-    return abWallet.walletAddress;
-  });
+    const list = accounts.map(account => {
+        const data = new Uint8Array(Buffer.from(account.account.data[0], 'base64'));
+        const abWallet = getWalletEntryDecoder().decode(data);
+        return abWallet.walletAddress;
+    });
 
-  return {
-    ...listConfig,
-    wallets: list,
-  };
+    return {
+        ...listConfig,
+        wallets: list,
+    };
 };
 
 /**
@@ -217,30 +205,28 @@ export const getList = async (input: {
  * @param input.listConfig - The address of the list configuration account
  * @returns Promise containing the list configuration data
  */
-export const getAllListConfigs = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-}): Promise<ListConfig[]> => {
-  const accounts = await input.rpc
-    .getProgramAccounts(ABL_PROGRAM_ID, {
-      encoding: 'base64',
-      filters: [
-        {
-          dataSize: 74n,
-        },
-      ],
-    })
-    .send();
+export const getAllListConfigs = async (input: { rpc: Rpc<SolanaRpcApi> }): Promise<ListConfig[]> => {
+    const accounts = await input.rpc
+        .getProgramAccounts(ABL_PROGRAM_ID, {
+            encoding: 'base64',
+            filters: [
+                {
+                    dataSize: 74n,
+                },
+            ],
+        })
+        .send();
 
-  const list = accounts.map(account => {
-    const data = Uint8Array.from(account.account.data[0]);
-    const listConfig = getListConfigDecoder().decode(data);
-    return {
-      listConfig: account.pubkey,
-      mode: listConfig.mode,
-      seed: listConfig.seed,
-      authority: listConfig.authority,
-    };
-  });
+    const list = accounts.map(account => {
+        const data = Uint8Array.from(account.account.data[0]);
+        const listConfig = getListConfigDecoder().decode(data);
+        return {
+            listConfig: account.pubkey,
+            mode: listConfig.mode,
+            seed: listConfig.seed,
+            authority: listConfig.authority,
+        };
+    });
 
-  return list;
+    return list;
 };

@@ -12,8 +12,8 @@ Most implementations of standard token types follow similar patterns and usages 
 
 ### Prerequisites
 
-- Node.js 18+
-- pnpm 8+
+- Node.js 20+
+- pnpm 10+
 - Solana CLI
 
 ### Installation
@@ -67,10 +67,7 @@ pnpm start create arcade-token \
 See the [sdk readme](packages/sdk/README.md) for detailed docs
 
 ```typescript
-import {
-  createStablecoinInitTransaction,
-  createArcadeTokenInitTransaction,
-} from '@mosaic/sdk';
+import { createStablecoinInitTransaction, createArcadeTokenInitTransaction } from '@mosaic/sdk';
 import { createSolanaRpc, generateKeyPairSigner } from 'gill';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
@@ -79,14 +76,14 @@ const mint = await generateKeyPairSigner();
 
 // Create a stablecoin with compliance features
 const tx = await createStablecoinInitTransaction(
-  rpc,
-  'USD Coin',
-  'USDC',
-  6,
-  'https://example.com/metadata.json',
-  authority.address,
-  mint,
-  authority
+    rpc,
+    'USD Coin',
+    'USDC',
+    6,
+    'https://example.com/metadata.json',
+    authority.address,
+    mint,
+    authority,
 );
 ```
 
@@ -96,7 +93,7 @@ This monorepo contains the following packages:
 
 - **[@mosaic/sdk](packages/sdk/)** - Core SDK with token templates, allowlist / blocklist integrations, management utilities, and Token-2022 integration
 - **[@mosaic/cli](packages/cli/)** - Command-line interface for token creation and management
-- **[@mosaic/ui](packages/ui/)** - UI for a full featured tokenization engine for token management with wallet integration and sRFC-37 administration
+- **[@mosaic/app](apps/app/)** - Dashboard application for a full featured tokenization engine for token management with wallet integration and sRFC-37 administration
 - **[@mosaic/abl](packages/abl/)** - Allowlist/Blocklist implementation for sRFC-37 compliance
 - **[@mosaic/token-acl](packages/token-acl/)** - Token ACL (sRFC-37). This standard provides management of access control lists for Solana Tokens.
 - **[@mosaic/tlv-account-resolution](packages/tlv-account-resolution/)** - TLV account resolution utilities
@@ -177,7 +174,9 @@ pnpm precommit
 
 ```bash
 # Enter a specific package
-cd packages/sdk  # or cli, ui, abl, token-acl, tlv-account-resolution
+cd packages/sdk  # or cli, abl, token-acl, tlv-account-resolution
+# Or enter an app
+cd apps/app
 
 # Run package-specific commands
 pnpm dev        # Development mode
@@ -193,7 +192,12 @@ The project implements a layered architecture:
 
 1. **Low-level Packages**: `@mosaic/abl`, `@mosaic/token-acl`, `@mosaic/tlv-account-resolution`
 2. **Core SDK**: `@mosaic/sdk` integrates all low-level packages
-3. **User Interfaces**: `@mosaic/cli` and `@mosaic/ui` provide different ways to interact with the SDK
+3. **User Interfaces**: `@mosaic/cli` and `@mosaic/app` provide different ways to interact with the SDK
+
+The monorepo uses Turbo for build orchestration and is organized with:
+
+- `packages/` - Reusable libraries and SDKs
+- `apps/` - Applications (dashboard)
 
 ## 📋 Key Features
 
