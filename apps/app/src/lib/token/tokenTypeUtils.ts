@@ -1,9 +1,5 @@
 import type { TokenType } from '@mosaic/sdk';
 
-/**
- * Token type utilities for display and categorization
- */
-
 export const TOKEN_TYPE_LABELS: Record<TokenType, string> = {
     stablecoin: 'Stablecoin',
     'arcade-token': 'Arcade Token',
@@ -11,37 +7,24 @@ export const TOKEN_TYPE_LABELS: Record<TokenType, string> = {
     unknown: 'Unknown',
 };
 
-/**
- * Get a user-friendly label for a token type
- */
 export function getTokenTypeLabel(type?: TokenType): string {
     if (!type) return 'Unknown';
     return TOKEN_TYPE_LABELS[type];
 }
 
-/**
- * Get a display label that shows all matching patterns
- * Examples: "Stablecoin", "Stablecoin + Security", "Arcade Token"
- */
 export function getTokenPatternsLabel(patterns?: TokenType[]): string {
-    // If no patterns, return unknown
     if (!patterns || patterns.length === 0) {
         return 'Unknown';
     }
 
-    // If single pattern, just return its label
     if (patterns.length === 1) {
         return getTokenTypeLabel(patterns[0]);
     }
 
-    // Multiple patterns - show primary + count
     const primaryLabel = getTokenTypeLabel(patterns[0]);
     return `${primaryLabel} +${patterns.length - 1}`;
 }
 
-/**
- * Get a badge color class based on token type
- */
 export function getTokenTypeBadgeColor(type?: TokenType): string {
     switch (type) {
         case 'stablecoin':

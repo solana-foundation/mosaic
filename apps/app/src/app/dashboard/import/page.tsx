@@ -206,7 +206,8 @@ export default function ImportTokenPage() {
                                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                                 <AlertDescription className="text-green-600 dark:text-green-400">
                                     Successfully imported {importedTokenInfo.name} ({importedTokenInfo.symbol})
-                                    {importedTokenInfo.type && importedTokenInfo.type !== 'Unknown' &&
+                                    {importedTokenInfo.type &&
+                                        importedTokenInfo.type !== 'Unknown' &&
                                         ` as ${importedTokenInfo.type}`}
                                     . Redirecting to dashboard...
                                 </AlertDescription>

@@ -11,9 +11,6 @@ interface SolanaAddressInputProps {
     showValidation?: boolean;
 }
 
-/**
- * Reusable Solana address input with validation
- */
 export function SolanaAddressInput({
     label,
     value,

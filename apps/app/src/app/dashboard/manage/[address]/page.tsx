@@ -9,7 +9,6 @@ import { TokenDisplay } from '@/types/token';
 import { Loader } from '@/components/ui/loader';
 import { findTokenByAddress } from '@/lib/token/tokenData';
 import { TokenStorage } from '@/lib/token/tokenStorage';
-import { getTokenTypeLabel } from '@/lib/token/tokenTypeUtils';
 import { SelectedWalletAccountContext } from '@/context/SelectedWalletAccountContext';
 import { ChainContext } from '@/context/ChainContext';
 import { TokenOverview } from './components/TokenOverview';
@@ -94,18 +93,15 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     const rpc = useMemo(() => createSolanaRpc(solanaRpcUrl) as Rpc<SolanaRpcApi>, [solanaRpcUrl]);
 
-    // Track if we've already loaded the access list for current dependencies
     const loadedAccessListRef = useRef<string | null>(null);
 
-    // Function to force refresh the access list with a small delay
     const refreshAccessList = () => {
         setTimeout(() => {
             loadedAccessListRef.current = null;
             setRefreshTrigger(prev => prev + 1);
-        }, 600); // 600ms delay to allow blockchain/indexer to update
+        }, 600);
     };
 
-    // Create transaction sending signer if wallet is connected
     const transactionSendingSigner = useWalletAccountTransactionSendingSigner(selectedWalletAccount!, currentChain!);
 
     useEffect(() => {
@@ -114,14 +110,12 @@ function ManageTokenConnected({ address }: { address: string }) {
             foundToken.extensions = extensions;
             setToken(foundToken);
 
-            // Check pause state
             if (foundToken.address) {
                 const pauseState = await checkTokenPauseState(foundToken.address, solanaRpcUrl);
                 setIsPaused(pauseState);
             }
         };
 
-        // Load token data from local storage
         const loadTokenData = () => {
             const foundToken = findTokenByAddress(address);
 
@@ -140,7 +134,6 @@ function ManageTokenConnected({ address }: { address: string }) {
         const loadAccessList = async () => {
             const currentKey = `${selectedWalletAccount?.address}-${token?.address}-${solanaRpcUrl}-${refreshTrigger}`;
 
-            // Only load if we haven't already loaded for these dependencies
             if (loadedAccessListRef.current === currentKey) {
                 return;
             }
@@ -165,9 +158,7 @@ function ManageTokenConnected({ address }: { address: string }) {
             await navigator.clipboard.writeText(text);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
-        } catch {
-            // Silently handle copy errors
-        }
+        } catch {}
     };
 
     const openInExplorer = () => {
@@ -218,7 +209,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
             if (result.success) {
                 setTransactionSignature(result.transactionSignature || '');
-                refreshAccessList(); // Refresh access list after successful removal
+                refreshAccessList();
             } else {
                 setError(result.error || 'Removal failed');
             }
@@ -266,7 +257,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
             if (result.success) {
                 setTransactionSignature(result.transactionSignature || '');
-                refreshAccessList(); // Refresh access list after successful addition
+                refreshAccessList();
             } else {
                 setError(result.error || 'Operation failed');
             }

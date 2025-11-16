@@ -6,9 +6,6 @@ interface BaseModalProps {
     className?: string;
 }
 
-/**
- * Base modal component providing the overlay and container
- */
 export function BaseModal({ isOpen, children, className = '' }: BaseModalProps) {
     if (!isOpen) return null;
 

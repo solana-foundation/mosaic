@@ -6,9 +6,6 @@ interface WarningBannerProps {
     variant?: 'warning' | 'danger';
 }
 
-/**
- * Reusable warning banner for modals
- */
 export function WarningBanner({ title, message, variant = 'warning' }: WarningBannerProps) {
     const colorClasses =
         variant === 'danger'

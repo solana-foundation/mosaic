@@ -10,9 +10,6 @@ interface TransactionSuccessViewProps {
     continueLabel?: string;
 }
 
-/**
- * Shared success view for transaction modals
- */
 export function TransactionSuccessView({
     title,
     message,

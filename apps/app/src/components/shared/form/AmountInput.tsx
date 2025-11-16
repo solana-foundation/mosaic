@@ -15,9 +15,6 @@ interface AmountInputProps {
     step?: string;
 }
 
-/**
- * Reusable amount input with validation
- */
 export function AmountInput({
     label,
     value,
