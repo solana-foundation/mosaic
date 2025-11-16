@@ -164,7 +164,6 @@ export const createTokenDisplayFromResult = (
         name: result.details?.name || options.name,
         symbol: result.details?.symbol || options.symbol,
         address: result.mintAddress,
-        type: type,
         detectedPatterns: [type],
         decimals: result.details?.decimals,
         mintAuthority: result.details?.mintAuthority,
