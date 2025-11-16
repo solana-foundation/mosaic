@@ -10,7 +10,6 @@ import {
     inspectToken,
     getTokenMetadata,
     getTokenExtensionsDetailed,
-    detectTokenTypeFromMint,
     inspectionResultToDashboardData,
     getTokenDashboardData,
 } from '../../inspection';
@@ -175,7 +174,6 @@ describeSkipIf()('Inspection Integration Tests', () => {
             DEFAULT_TIMEOUT,
         );
 
-        // TODO: Need to resolve whether we keep or modify the detectTokenTypeFromMint function
         it.skip(
             'should detect token type as stablecoin',
             async () => {
@@ -211,16 +209,15 @@ describeSkipIf()('Inspection Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-                // When: Detecting token type
-                const tokenType = await detectTokenTypeFromMint(client.rpc, mint.address, DEFAULT_COMMITMENT);
+                // When: Inspecting token
+                const inspection = await inspectToken(client.rpc, mint.address, DEFAULT_COMMITMENT);
 
                 // Then: Token is detected as stablecoin
-                expect(tokenType).toBe('stablecoin');
+                expect(inspection.detectedPatterns).toContain('stablecoin');
             },
             DEFAULT_TIMEOUT,
         );
 
-        // TODO: Need to resolve whether we keep or modify the detectTokenTypeFromMint function
         it.skip(
             'should detect token type as arcade-token',
             async () => {
@@ -252,16 +249,15 @@ describeSkipIf()('Inspection Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-                // When: Detecting token type
-                const tokenType = await detectTokenTypeFromMint(client.rpc, mint.address, DEFAULT_COMMITMENT);
+                // When: Inspecting token
+                const inspection = await inspectToken(client.rpc, mint.address, DEFAULT_COMMITMENT);
 
                 // Then: Token is detected as arcade-token
-                expect(tokenType).toBe('arcade-token');
+                expect(inspection.detectedPatterns).toContain('arcade-token');
             },
             DEFAULT_TIMEOUT,
         );
 
-        // TODO: Need to resolve whether we keep or modify the detectTokenTypeFromMint function
         it.skip(
             'should detect token type as tokenized-security',
             async () => {
@@ -293,16 +289,15 @@ describeSkipIf()('Inspection Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx);
 
-                // When: Detecting token type
-                const tokenType = await detectTokenTypeFromMint(client.rpc, mint.address, DEFAULT_COMMITMENT);
+                // When: Inspecting token
+                const inspection = await inspectToken(client.rpc, mint.address, DEFAULT_COMMITMENT);
 
                 // Then: Token is detected as tokenized-security
-                expect(tokenType).toBe('tokenized-security');
+                expect(inspection.detectedPatterns).toContain('tokenized-security');
             },
             DEFAULT_TIMEOUT,
         );
 
-        // TODO: Need to resolve whether we keep or modify the detectTokenTypeFromMint function
         it.skip(
             'should detect token type as unknown',
             async () => {
@@ -329,11 +324,11 @@ describeSkipIf()('Inspection Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-                // When: Detecting token type
-                const tokenType = await detectTokenTypeFromMint(client.rpc, mint.address, DEFAULT_COMMITMENT);
+                // When: Inspecting token
+                const inspection = await inspectToken(client.rpc, mint.address, DEFAULT_COMMITMENT);
 
                 // Then: Token is detected as unknown
-                expect(tokenType).toBe('unknown');
+                expect(inspection.detectedPatterns).toContain('unknown');
             },
             DEFAULT_TIMEOUT,
         );

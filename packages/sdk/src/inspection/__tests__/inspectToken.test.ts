@@ -4,9 +4,9 @@ import {
     inspectToken,
     getTokenMetadata,
     getTokenExtensionsDetailed,
-    detectTokenTypeFromMint,
     inspectionResultToDashboardData,
     getTokenDashboardData,
+    detectTokenPatterns,
 } from '../inspectToken';
 import type { TokenInspectionResult } from '../types';
 
@@ -94,7 +94,7 @@ describe('inspectToken', () => {
             expect(result.supplyInfo.decimals).toEqual(6);
             expect(result.metadata?.name).toEqual('USD Stablecoin');
             expect(result.metadata?.symbol).toEqual('USDS');
-            expect(result.detectedType).toEqual('stablecoin');
+            expect(result.detectedPatterns).toEqual(['stablecoin']);
             expect(result.isPausable).toBe(true);
             expect(result.aclMode).toEqual('blocklist');
             expect(result.extensions).toHaveLength(5); // 5 extensions
@@ -144,7 +144,7 @@ describe('inspectToken', () => {
 
             expect(result.metadata?.name).toEqual('Game Token');
             expect(result.metadata?.symbol).toEqual('GAME');
-            expect(result.detectedType).toEqual('arcade-token');
+            expect(result.detectedPatterns).toEqual(['arcade-token']);
             expect(result.aclMode).toEqual('allowlist');
             expect(result.extensions.map(e => e.name)).toContain('DefaultAccountState');
         });
@@ -173,7 +173,7 @@ describe('inspectToken', () => {
             const result = await inspectToken({} as any, mockMintAddress);
 
             expect(result.extensions).toHaveLength(0);
-            expect(result.detectedType).toEqual('unknown');
+            expect(result.detectedPatterns).toEqual(['unknown']);
             expect(result.isPausable).toBe(false);
             expect(result.aclMode).toEqual('none');
         });
@@ -333,42 +333,43 @@ describe('Helper functions', () => {
         });
     });
 
-    describe('detectTokenTypeFromMint', () => {
-        it('should correctly identify token type', async () => {
-            const mockEncodedAccount = {
-                exists: true,
-                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-                data: new Uint8Array(100),
-            };
+    describe('detectTokenPatterns', () => {
+        it('should correctly identify stablecoin pattern', () => {
+            const extensions = [
+                { name: 'TokenMetadata' },
+                { name: 'PermanentDelegate' },
+                { name: 'DefaultAccountState' },
+                { name: 'ConfidentialTransferMint' },
+            ];
 
-            const mockDecodedMint = {
-                data: {
-                    supply: 0n,
-                    decimals: 6,
-                    isInitialized: true,
-                    mintAuthority: { __option: 'None' },
-                    freezeAuthority: {
-                        __option: 'Some',
-                        value: mockAuthority,
-                    },
-                    extensions: {
-                        __option: 'Some',
-                        value: [
-                            { __kind: 'TokenMetadata' },
-                            { __kind: 'PermanentDelegate' },
-                            { __kind: 'DefaultAccountState' },
-                            { __kind: 'ConfidentialTransferMint' },
-                        ],
-                    },
-                },
-            };
+            const patterns = detectTokenPatterns(extensions);
 
-            (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
-            (decodeMint as jest.Mock).mockReturnValue(mockDecodedMint);
+            expect(patterns).toEqual(['stablecoin']);
+        });
 
-            const type = await detectTokenTypeFromMint({} as any, mockMintAddress);
+        it('should correctly identify arcade token pattern', () => {
+            const extensions = [
+                { name: 'TokenMetadata' },
+                { name: 'PermanentDelegate' },
+                { name: 'DefaultAccountState' },
+            ];
 
-            expect(type).toEqual('stablecoin');
+            const patterns = detectTokenPatterns(extensions);
+
+            expect(patterns).toEqual(['arcade-token']);
+        });
+
+        it('should correctly identify tokenized security pattern', () => {
+            const extensions = [
+                { name: 'TokenMetadata' },
+                { name: 'PermanentDelegate' },
+                { name: 'DefaultAccountState' },
+                { name: 'ScaledUiAmountConfig' },
+            ];
+
+            const patterns = detectTokenPatterns(extensions);
+
+            expect(patterns).toEqual(['tokenized-security']);
         });
     });
 
