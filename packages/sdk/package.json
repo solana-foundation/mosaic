@@ -1,54 +1,55 @@
 {
-  "name": "@mosaic/sdk",
-  "version": "0.1.0",
-  "description": "SDK for Mosaic with helper functions for issuance and management of any token",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsc -b",
-    "dev": "tsc --watch",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:integration": "node src/scripts/test-with-validator.js",
-    "lint": "eslint src --ext .ts",
-    "lint:fix": "eslint src --ext .ts --fix",
-    "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "@token-acl/sdk": "^0.1.4",
-    "@token-acl/abl-sdk": "^0.1.2",
-    "@solana-program/token-2022": "^0.5.0",
-    "gill": "^0.10.2"
-  },
-  "devDependencies": {
-    "@types/jest": "^30.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.46.3",
-    "@typescript-eslint/parser": "^8.46.3",
-    "eslint": "^9.39.1",
-    "jest": "^30.2.0",
-    "ts-jest": "^29.4.5",
-    "typescript": "^5.9.3"
-  },
-  "peerDependencies": {
-    "typescript": "^5.0.0"
-  },
-  "keywords": [
-    "solana",
-    "token-2022",
-    "extensions",
-    "core",
-    "hooks"
-  ]
+    "name": "@mosaic/sdk",
+    "version": "0.1.0",
+    "description": "SDK for Mosaic with helper functions for issuance and management of any token",
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -b",
+        "dev": "tsc --watch",
+        "test": "jest",
+        "test:watch": "jest --watch",
+        "test:coverage": "jest --coverage",
+        "test:integration": "node src/scripts/test-with-validator.js",
+        "lint": "eslint src --ext .ts",
+        "lint:fix": "eslint src --ext .ts --fix",
+        "type-check": "tsc --noEmit",
+        "clean": "rm -rf dist"
+    },
+    "dependencies": {
+        "@solana-program/token-2022": "^0.5.0",
+        "@token-acl/abl-sdk": "^0.1.2",
+        "@token-acl/sdk": "^0.1.4",
+        "gill": "^0.10.2"
+    },
+    "devDependencies": {
+        "@jest/test-sequencer": "^29.7.0",
+        "@types/jest": "^29.5.14",
+        "@typescript-eslint/eslint-plugin": "^8.46.3",
+        "@typescript-eslint/parser": "^8.46.3",
+        "eslint": "^9.39.1",
+        "jest": "^29.7.0",
+        "ts-jest": "^29.4.5",
+        "typescript": "^5.9.3"
+    },
+    "peerDependencies": {
+        "typescript": "^5.0.0"
+    },
+    "keywords": [
+        "solana",
+        "token-2022",
+        "extensions",
+        "core",
+        "hooks"
+    ]
 }

@@ -72,4 +72,12 @@ yarn.lock
 
 # Misc
 *.tgz
-*.tar.gz 
+*.tar.gz
+
+# Turbo
+.turbo/
+
+#cursor
+.cursor/
+
+/commerce-kit/

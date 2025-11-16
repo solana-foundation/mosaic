@@ -1,50 +1,50 @@
 {
-  "name": "@mosaic/cli",
-  "version": "0.1.0",
-  "description": "Command-line interface for managing Token-2022 tokens with extensions",
-  "type": "module",
-  "main": "./dist/index.js",
-  "bin": {
-    "mosaic": "./dist/index.js"
-  },
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsc -b",
-    "dev": "tsx src/index.ts",
-    "start": "node dist/index.js",
-    "test": "echo 'Tests will be implemented'",
-    "lint": "eslint src --ext .ts",
-    "lint:fix": "eslint src --ext .ts --fix",
-    "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "@mosaic/sdk": "workspace:*",
-    "@token-acl/sdk": "^0.1.4",
-    "@token-acl/abl-sdk": "^0.1.2",
-    "@solana/accounts": "^2.3.0",
-    "@solana/addresses": "^2.3.0",
-    "chalk": "^5.3.0",
-    "commander": "^12.0.0",
-    "gill": "^0.10.2",
-    "ora": "^8.0.1"
-  },
-  "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@typescript-eslint/eslint-plugin": "^8.34.0",
-    "@typescript-eslint/parser": "^8.34.0",
-    "eslint": "^9.32.0",
-    "tsx": "^4.0.0",
-    "typescript": "^5.0.0"
-  },
-  "keywords": [
-    "solana",
-    "token-2022",
-    "extensions",
-    "cli",
-    "stablecoin",
-    "arcade-token"
-  ]
+    "name": "@mosaic/cli",
+    "version": "0.1.0",
+    "description": "Command-line interface for managing Token-2022 tokens with extensions",
+    "type": "module",
+    "main": "./dist/index.js",
+    "bin": {
+        "mosaic": "./dist/index.js"
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -b",
+        "dev": "tsc --watch",
+        "start": "node dist/index.js",
+        "test": "echo 'Tests will be implemented'",
+        "lint": "eslint src --ext .ts",
+        "lint:fix": "eslint src --ext .ts --fix",
+        "type-check": "tsc --noEmit",
+        "clean": "rm -rf dist"
+    },
+    "dependencies": {
+        "@mosaic/sdk": "workspace:*",
+        "@token-acl/sdk": "^0.1.4",
+        "@token-acl/abl-sdk": "^0.1.2",
+        "@solana/accounts": "^2.3.0",
+        "@solana/addresses": "^2.3.0",
+        "chalk": "^5.3.0",
+        "commander": "^12.0.0",
+        "gill": "^0.10.2",
+        "ora": "^8.0.1"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "@typescript-eslint/eslint-plugin": "^8.34.0",
+        "@typescript-eslint/parser": "^8.34.0",
+        "eslint": "^9.32.0",
+        "tsx": "^4.0.0",
+        "typescript": "^5.0.0"
+    },
+    "keywords": [
+        "solana",
+        "token-2022",
+        "extensions",
+        "cli",
+        "stablecoin",
+        "arcade-token"
+    ]
 }

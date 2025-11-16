@@ -7,28 +7,27 @@ Thank you for your interest in contributing! This document provides guidelines f
 1. **Fork the repository**
 2. **Clone your fork**
 
-   ```bash
-   git clone https://github.com/your-username/mosaic.git
-   cd mosaic
-   ```
+    ```bash
+    git clone https://github.com/your-username/mosaic.git
+    cd mosaic
+    ```
 
 3. **Install dependencies**
 
-   ```bash
-   pnpm install
-   ```
+    ```bash
+    pnpm install
+    ```
 
 4. **Create a branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+    ```bash
+    git checkout -b feature/your-feature-name
+    ```
 
 ## 📦 Project Structure
 
-- `packages/core/` - Core Token-2022 wrapper library
 - `packages/sdk/` - Token templates and SDK functionality
 - `packages/cli/` - Command-line interface
-- `packages/ui/` - Web interface
+- `apps/app/` - Dashboard application (web interface)
 
 ## 🔧 Development Workflow
 

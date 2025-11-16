@@ -1,21 +1,18 @@
 import {
-  createTransaction,
-  type Address,
-  type FullTransaction,
-  type Instruction,
-  type Rpc,
-  type SolanaRpcApi,
-  type TransactionMessageWithFeePayer,
-  type TransactionSigner,
-  type TransactionVersion,
-  type TransactionWithBlockhashLifetime,
+    createTransaction,
+    type Address,
+    type FullTransaction,
+    type Instruction,
+    type Rpc,
+    type SolanaRpcApi,
+    type TransactionMessageWithFeePayer,
+    type TransactionSigner,
+    type TransactionVersion,
+    type TransactionWithBlockhashLifetime,
 } from 'gill';
 import { ABL_PROGRAM_ID } from './utils';
 import { getSetupExtraMetasInstruction } from '@token-acl/abl-sdk';
-import {
-  findMintConfigPda,
-  findThawExtraMetasAccountPda,
-} from '@token-acl/sdk';
+import { findMintConfigPda, findThawExtraMetasAccountPda } from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 
 /**
@@ -32,31 +29,25 @@ import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
  * @returns Promise containing the instructions for setting extra metadata thaw
  */
 export const getSetExtraMetasInstructions = async (input: {
-  authority: TransactionSigner<string>;
-  mint: Address;
-  lists: Address[];
+    authority: TransactionSigner<string>;
+    mint: Address;
+    lists: Address[];
 }): Promise<Instruction<string>[]> => {
-  const mintConfigPda = await findMintConfigPda(
-    { mint: input.mint },
-    { programAddress: TOKEN_ACL_PROGRAM_ID }
-  );
-  const extraMetasThaw = await findThawExtraMetasAccountPda(
-    { mint: input.mint },
-    { programAddress: ABL_PROGRAM_ID }
-  );
+    const mintConfigPda = await findMintConfigPda({ mint: input.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
+    const extraMetasThaw = await findThawExtraMetasAccountPda({ mint: input.mint }, { programAddress: ABL_PROGRAM_ID });
 
-  const createListInstruction = getSetupExtraMetasInstruction(
-    {
-      authority: input.authority,
-      mint: input.mint,
-      tokenAclMintConfig: mintConfigPda[0],
-      extraMetas: extraMetasThaw[0],
-      lists: input.lists,
-    },
-    { programAddress: ABL_PROGRAM_ID }
-  );
+    const createListInstruction = getSetupExtraMetasInstruction(
+        {
+            authority: input.authority,
+            mint: input.mint,
+            tokenAclMintConfig: mintConfigPda[0],
+            extraMetas: extraMetasThaw[0],
+            lists: input.lists,
+        },
+        { programAddress: ABL_PROGRAM_ID },
+    );
 
-  return [createListInstruction];
+    return [createListInstruction];
 };
 
 /**
@@ -75,27 +66,19 @@ export const getSetExtraMetasInstructions = async (input: {
  * @returns Promise containing the full transaction for setting extra metadata thaw
  */
 export const getSetExtraMetasTransaction = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  payer: TransactionSigner<string>;
-  authority: TransactionSigner<string>;
-  mint: Address;
-  lists: Address[];
-}): Promise<
-  FullTransaction<
-    TransactionVersion,
-    TransactionMessageWithFeePayer,
-    TransactionWithBlockhashLifetime
-  >
-> => {
-  const instructions = await getSetExtraMetasInstructions(input);
-  const { value: latestBlockhash } = await input.rpc
-    .getLatestBlockhash()
-    .send();
-  const transaction = createTransaction({
-    feePayer: input.payer,
-    version: 'legacy',
-    latestBlockhash,
-    instructions,
-  });
-  return transaction;
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner<string>;
+    authority: TransactionSigner<string>;
+    mint: Address;
+    lists: Address[];
+}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+    const instructions = await getSetExtraMetasInstructions(input);
+    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
+    const transaction = createTransaction({
+        feePayer: input.payer,
+        version: 'legacy',
+        latestBlockhash,
+        instructions,
+    });
+    return transaction;
 };

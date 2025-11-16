@@ -5,7 +5,7 @@ import { fetchLists } from './fetchLists';
 import { fetchList } from './fetchList';
 
 export const ablCommand = new Command('abl')
-  .addCommand(createList)
-  .addCommand(fetchLists)
-  .addCommand(fetchList)
-  .addCommand(setExtraMetas);
+    .addCommand(createList)
+    .addCommand(fetchLists)
+    .addCommand(fetchList)
+    .addCommand(setExtraMetas);
