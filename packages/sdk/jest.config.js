@@ -5,7 +5,10 @@ export default {
     testEnvironment: 'node',
     roots: ['<rootDir>/src'],
     testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
-    testPathIgnorePatterns: ['/node_modules/', ...(process.env.SKIP_INTEGRATION === 'true' ? ['integration'] : [])],
+    testPathIgnorePatterns: [
+        '/node_modules/',
+        ...(process.env.SKIP_INTEGRATION === 'true' ? ['integration'] : []),
+    ],
     transform: {
         '^.+\\.ts$': [
             'ts-jest',

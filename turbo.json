@@ -20,7 +20,8 @@
         },
         "test": {
             "dependsOn": ["^build"],
-            "outputs": ["coverage/**"]
+            "outputs": ["coverage/**"],
+            "env": ["SKIP_INTEGRATION"]
         },
         "type-check": {
             "dependsOn": ["^build"]
