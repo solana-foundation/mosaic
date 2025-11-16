@@ -369,7 +369,7 @@ describe('Helper functions', () => {
 
             const patterns = detectTokenPatterns(extensions);
 
-            expect(patterns).toEqual(['tokenized-security']);
+            expect(patterns).toEqual(['tokenized-security', 'arcade-token']);
         });
     });
 
