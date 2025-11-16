@@ -67,10 +67,7 @@ pnpm start create arcade-token \
 See the [sdk readme](packages/sdk/README.md) for detailed docs
 
 ```typescript
-import {
-  createStablecoinInitTransaction,
-  createArcadeTokenInitTransaction,
-} from '@mosaic/sdk';
+import { createStablecoinInitTransaction, createArcadeTokenInitTransaction } from '@mosaic/sdk';
 import { createSolanaRpc, generateKeyPairSigner } from 'gill';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
@@ -79,14 +76,14 @@ const mint = await generateKeyPairSigner();
 
 // Create a stablecoin with compliance features
 const tx = await createStablecoinInitTransaction(
-  rpc,
-  'USD Coin',
-  'USDC',
-  6,
-  'https://example.com/metadata.json',
-  authority.address,
-  mint,
-  authority
+    rpc,
+    'USD Coin',
+    'USDC',
+    6,
+    'https://example.com/metadata.json',
+    authority.address,
+    mint,
+    authority,
 );
 ```
 

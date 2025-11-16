@@ -23,19 +23,19 @@ By default the app uses Devnet. Cluster is selectable in-app via `ChainContextPr
 
 - **Home**: Overview and entry points to the dashboard
 - **Dashboard** (`/dashboard`)
-  - Connect a wallet to see your locally saved tokens
-  - Create new tokens from the dropdown (Stablecoin, Arcade Token, Tokenized Security)
-  - Click any token to manage it
+    - Connect a wallet to see your locally saved tokens
+    - Create new tokens from the dropdown (Stablecoin, Arcade Token, Tokenized Security)
+    - Click any token to manage it
 - **Create flows** (`/dashboard/create/*`)
-  - Fill in name, symbol, decimals, and metadata URI
-  - Choose access control: allowlist (closed-loop) or blocklist
-  - Optionally customize authorities; if you don’t, the connected wallet is used
-  - Submit to create the mint; results are saved locally for quick access
+    - Fill in name, symbol, decimals, and metadata URI
+    - Choose access control: allowlist (closed-loop) or blocklist
+    - Optionally customize authorities; if you don’t, the connected wallet is used
+    - Submit to create the mint; results are saved locally for quick access
 - **Manage token** (`/dashboard/manage/[address]`)
-  - View overview, authorities, extensions, and transfer restrictions
-  - Mint and transfer tokens (ATA auto-created; permissionless thaw if enabled)
-  - Freeze/thaw accounts
-  - Manage allowlists/blocklists and set extra metas on the mint
+    - View overview, authorities, extensions, and transfer restrictions
+    - Mint and transfer tokens (ATA auto-created; permissionless thaw if enabled)
+    - Freeze/thaw accounts
+    - Manage allowlists/blocklists and set extra metas on the mint
 
 Notes:
 

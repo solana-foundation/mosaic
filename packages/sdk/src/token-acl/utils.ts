@@ -5,5 +5,4 @@ import type { Address } from 'gill';
  *
  * This is the address of the Token ACL program that provides the ability to permissionlessly thaw token accounts.
  */
-export const TOKEN_ACL_PROGRAM_ID =
-  'TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP' as Address;
+export const TOKEN_ACL_PROGRAM_ID = 'TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP' as Address;

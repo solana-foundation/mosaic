@@ -7,19 +7,15 @@ import type { Address } from 'gill';
  * This is the address of the ABL program that handles allowlist and blocklist
  * functionality for token gating and access control.
  */
-export const ABL_PROGRAM_ID =
-  'GATEzzqxhJnsWF6vHRsgtixxSB8PaQdcqGEVTEHWiULz' as Address;
+export const ABL_PROGRAM_ID = 'GATEzzqxhJnsWF6vHRsgtixxSB8PaQdcqGEVTEHWiULz' as Address;
 
-export const getListConfigPda = async (input: {
-  authority: Address;
-  mint: Address;
-}): Promise<Address> => {
-  const listConfigPda = await findListConfigPda(
-    {
-      authority: input.authority,
-      seed: input.mint,
-    },
-    { programAddress: ABL_PROGRAM_ID }
-  );
-  return listConfigPda[0];
+export const getListConfigPda = async (input: { authority: Address; mint: Address }): Promise<Address> => {
+    const listConfigPda = await findListConfigPda(
+        {
+            authority: input.authority,
+            seed: input.mint,
+        },
+        { programAddress: ABL_PROGRAM_ID },
+    );
+    return listConfigPda[0];
 };

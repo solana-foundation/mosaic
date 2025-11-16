@@ -1,22 +1,22 @@
 {
-  "extends": "../../tsconfig.base.json",
-  "compilerOptions": {
-    "noEmit": false,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "module": "ES2022",
-    "target": "ES2022",
-    "moduleResolution": "bundler",
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "skipLibCheck": true,
-    "allowImportingTsExtensions": false,
-    "composite": true
-  },
-  "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules"],
-  "references": [{ "path": "../sdk" }]
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "noEmit": false,
+        "outDir": "./dist",
+        "rootDir": "./src",
+        "module": "ES2022",
+        "target": "ES2022",
+        "moduleResolution": "bundler",
+        "allowSyntheticDefaultImports": true,
+        "esModuleInterop": true,
+        "declaration": true,
+        "declarationMap": true,
+        "sourceMap": true,
+        "skipLibCheck": true,
+        "allowImportingTsExtensions": false,
+        "composite": true
+    },
+    "include": ["src/**/*"],
+    "exclude": ["dist", "node_modules"],
+    "references": [{ "path": "../sdk" }]
 }

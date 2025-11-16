@@ -1,21 +1,17 @@
 import {
-  createTransaction,
-  type Address,
-  type FullTransaction,
-  type Instruction,
-  type Rpc,
-  type SolanaRpcApi,
-  type TransactionMessageWithFeePayer,
-  type TransactionSigner,
-  type TransactionVersion,
-  type TransactionWithBlockhashLifetime,
+    createTransaction,
+    type Address,
+    type FullTransaction,
+    type Instruction,
+    type Rpc,
+    type SolanaRpcApi,
+    type TransactionMessageWithFeePayer,
+    type TransactionSigner,
+    type TransactionVersion,
+    type TransactionWithBlockhashLifetime,
 } from 'gill';
 import { ABL_PROGRAM_ID } from './utils';
-import {
-  findWalletEntryPda,
-  getAddWalletInstruction,
-  getRemoveWalletInstruction,
-} from '@token-acl/abl-sdk';
+import { findWalletEntryPda, getAddWalletInstruction, getRemoveWalletInstruction } from '@token-acl/abl-sdk';
 
 /**
  * Generates instructions for adding a wallet to an allowlist or blocklist.
@@ -31,26 +27,26 @@ import {
  * @returns Promise containing the instructions for adding the wallet to the list
  */
 export const getAddWalletInstructions = async (input: {
-  authority: TransactionSigner<string>;
-  list: Address;
-  wallet: Address;
+    authority: TransactionSigner<string>;
+    list: Address;
+    wallet: Address;
 }): Promise<Instruction<string>[]> => {
-  const abWallet = await findWalletEntryPda(
-    { walletAddress: input.wallet, listConfig: input.list },
-    { programAddress: ABL_PROGRAM_ID }
-  );
+    const abWallet = await findWalletEntryPda(
+        { walletAddress: input.wallet, listConfig: input.list },
+        { programAddress: ABL_PROGRAM_ID },
+    );
 
-  const addWalletToListInstruction = getAddWalletInstruction(
-    {
-      authority: input.authority,
-      listConfig: input.list,
-      wallet: input.wallet,
-      walletEntry: abWallet[0],
-    },
-    { programAddress: ABL_PROGRAM_ID }
-  );
+    const addWalletToListInstruction = getAddWalletInstruction(
+        {
+            authority: input.authority,
+            listConfig: input.list,
+            wallet: input.wallet,
+            walletEntry: abWallet[0],
+        },
+        { programAddress: ABL_PROGRAM_ID },
+    );
 
-  return [addWalletToListInstruction];
+    return [addWalletToListInstruction];
 };
 
 /**
@@ -69,29 +65,21 @@ export const getAddWalletInstructions = async (input: {
  * @returns Promise containing the full transaction for adding the wallet to the list
  */
 export const getAddWalletTransaction = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  payer: TransactionSigner<string>;
-  authority: TransactionSigner<string>;
-  wallet: Address;
-  list: Address;
-}): Promise<
-  FullTransaction<
-    TransactionVersion,
-    TransactionMessageWithFeePayer,
-    TransactionWithBlockhashLifetime
-  >
-> => {
-  const instructions = await getAddWalletInstructions(input);
-  const { value: latestBlockhash } = await input.rpc
-    .getLatestBlockhash()
-    .send();
-  const transaction = createTransaction({
-    feePayer: input.payer,
-    version: 'legacy',
-    latestBlockhash,
-    instructions,
-  });
-  return transaction;
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner<string>;
+    authority: TransactionSigner<string>;
+    wallet: Address;
+    list: Address;
+}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+    const instructions = await getAddWalletInstructions(input);
+    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
+    const transaction = createTransaction({
+        feePayer: input.payer,
+        version: 'legacy',
+        latestBlockhash,
+        instructions,
+    });
+    return transaction;
 };
 
 /**
@@ -108,25 +96,25 @@ export const getAddWalletTransaction = async (input: {
  * @returns Promise containing the instructions for removing the wallet from the list
  */
 export const getRemoveWalletInstructions = async (input: {
-  authority: TransactionSigner<string>;
-  list: Address;
-  wallet: Address;
+    authority: TransactionSigner<string>;
+    list: Address;
+    wallet: Address;
 }): Promise<Instruction<string>[]> => {
-  const abWallet = await findWalletEntryPda(
-    { walletAddress: input.wallet, listConfig: input.list },
-    { programAddress: ABL_PROGRAM_ID }
-  );
+    const abWallet = await findWalletEntryPda(
+        { walletAddress: input.wallet, listConfig: input.list },
+        { programAddress: ABL_PROGRAM_ID },
+    );
 
-  const removeWalletFromListInstruction = getRemoveWalletInstruction(
-    {
-      authority: input.authority,
-      listConfig: input.list,
-      walletEntry: abWallet[0],
-    },
-    { programAddress: ABL_PROGRAM_ID }
-  );
+    const removeWalletFromListInstruction = getRemoveWalletInstruction(
+        {
+            authority: input.authority,
+            listConfig: input.list,
+            walletEntry: abWallet[0],
+        },
+        { programAddress: ABL_PROGRAM_ID },
+    );
 
-  return [removeWalletFromListInstruction];
+    return [removeWalletFromListInstruction];
 };
 
 /**
@@ -145,27 +133,19 @@ export const getRemoveWalletInstructions = async (input: {
  * @returns Promise containing the full transaction for removing the wallet from the list
  */
 export const getRemoveWalletTransaction = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  payer: TransactionSigner<string>;
-  authority: TransactionSigner<string>;
-  wallet: Address;
-  list: Address;
-}): Promise<
-  FullTransaction<
-    TransactionVersion,
-    TransactionMessageWithFeePayer,
-    TransactionWithBlockhashLifetime
-  >
-> => {
-  const instructions = await getRemoveWalletInstructions(input);
-  const { value: latestBlockhash } = await input.rpc
-    .getLatestBlockhash()
-    .send();
-  const transaction = createTransaction({
-    feePayer: input.payer,
-    version: 'legacy',
-    latestBlockhash,
-    instructions,
-  });
-  return transaction;
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner<string>;
+    authority: TransactionSigner<string>;
+    wallet: Address;
+    list: Address;
+}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+    const instructions = await getRemoveWalletInstructions(input);
+    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
+    const transaction = createTransaction({
+        feePayer: input.payer,
+        version: 'legacy',
+        latestBlockhash,
+        instructions,
+    });
+    return transaction;
 };

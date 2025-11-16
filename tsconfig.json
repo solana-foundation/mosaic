@@ -1,12 +1,12 @@
 {
-  "extends": "./tsconfig.base.json",
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@mosaic/sdk": ["./packages/sdk/src"],
-      "@mosaic/cli": ["./packages/cli/src"],
-      "@mosaic/app": ["./apps/app/src"]
-    }
-  },
-  "references": [{ "path": "./packages/sdk" }, { "path": "./packages/cli" }]
+    "extends": "./tsconfig.base.json",
+    "compilerOptions": {
+        "baseUrl": ".",
+        "paths": {
+            "@mosaic/sdk": ["./packages/sdk/src"],
+            "@mosaic/cli": ["./packages/cli/src"],
+            "@mosaic/app": ["./apps/app/src"]
+        }
+    },
+    "references": [{ "path": "./packages/sdk" }, { "path": "./packages/cli" }]
 }

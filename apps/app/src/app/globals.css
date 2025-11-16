@@ -1,164 +1,160 @@
 @import 'tailwindcss';
 
 @theme {
-  /* Define custom colors for Tailwind utilities */
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-destructive: hsl(var(--destructive));
-  --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+    /* Define custom colors for Tailwind utilities */
+    --color-background: hsl(var(--background));
+    --color-foreground: hsl(var(--foreground));
+    --color-card: hsl(var(--card));
+    --color-card-foreground: hsl(var(--card-foreground));
+    --color-popover: hsl(var(--popover));
+    --color-popover-foreground: hsl(var(--popover-foreground));
+    --color-primary: hsl(var(--primary));
+    --color-primary-foreground: hsl(var(--primary-foreground));
+    --color-secondary: hsl(var(--secondary));
+    --color-secondary-foreground: hsl(var(--secondary-foreground));
+    --color-muted: hsl(var(--muted));
+    --color-muted-foreground: hsl(var(--muted-foreground));
+    --color-accent: hsl(var(--accent));
+    --color-accent-foreground: hsl(var(--accent-foreground));
+    --color-destructive: hsl(var(--destructive));
+    --color-destructive-foreground: hsl(var(--destructive-foreground));
+    --color-border: hsl(var(--border));
+    --color-input: hsl(var(--input));
+    --color-ring: hsl(var(--ring));
 }
 
 @layer base {
-  :root {
-    --background: 222.2 100% 99.5%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 255 80% 40%;
-    --primary-foreground: 255 0% 100%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
-    --mosaic-gradient-color: #000;
-  }
+    :root {
+        --background: 222.2 100% 99.5%;
+        --foreground: 222.2 84% 4.9%;
+        --card: 0 0% 100%;
+        --card-foreground: 222.2 84% 4.9%;
+        --popover: 0 0% 100%;
+        --popover-foreground: 222.2 84% 4.9%;
+        --primary: 255 80% 40%;
+        --primary-foreground: 255 0% 100%;
+        --secondary: 210 40% 96%;
+        --secondary-foreground: 222.2 47.4% 11.2%;
+        --muted: 210 40% 96%;
+        --muted-foreground: 215.4 16.3% 46.9%;
+        --accent: 210 40% 96%;
+        --accent-foreground: 222.2 47.4% 11.2%;
+        --destructive: 0 84.2% 60.2%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 214.3 31.8% 91.4%;
+        --input: 214.3 31.8% 91.4%;
+        --ring: 222.2 84% 4.9%;
+        --radius: 0.5rem;
+        --mosaic-gradient-color: #000;
+    }
 
-  .dark {
-    --background: 222.2 84% 3%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 255 80% 55%;
-    --primary-foreground: 255 0% 100%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --mosaic-gradient-color: #fff;
-  }
+    .dark {
+        --background: 222.2 84% 3%;
+        --foreground: 210 40% 98%;
+        --card: 222.2 84% 4.9%;
+        --card-foreground: 210 40% 98%;
+        --popover: 222.2 84% 4.9%;
+        --popover-foreground: 210 40% 98%;
+        --primary: 255 80% 55%;
+        --primary-foreground: 255 0% 100%;
+        --secondary: 217.2 32.6% 17.5%;
+        --secondary-foreground: 210 40% 98%;
+        --muted: 217.2 32.6% 17.5%;
+        --muted-foreground: 215 20.2% 65.1%;
+        --accent: 217.2 32.6% 17.5%;
+        --accent-foreground: 210 40% 98%;
+        --destructive: 0 62.8% 30.6%;
+        --destructive-foreground: 210 40% 98%;
+        --border: 217.2 32.6% 17.5%;
+        --input: 217.2 32.6% 17.5%;
+        --ring: 212.7 26.8% 83.9%;
+        --mosaic-gradient-color: #fff;
+    }
 }
 
 @layer base {
-  * {
-    border-color: hsl(var(--border));
-  }
+    * {
+        border-color: hsl(var(--border));
+    }
 
-  body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
-    font-family: var(--font-sans), sans-serif;
-    font-weight: 300;
-  }
+    body {
+        background-color: hsl(var(--background));
+        color: hsl(var(--foreground));
+        font-family: var(--font-sans), sans-serif;
+        font-weight: 300;
+    }
 
-  /* Docs typography */
-  .prose h1 {
-    @apply text-3xl md:text-4xl font-bold mb-4;
-  }
-  .prose h2 {
-    @apply text-2xl font-semibold mt-8 mb-3;
-  }
-  .prose h3 {
-    @apply text-xl font-semibold mt-6 mb-2;
-  }
-  .prose p {
-    @apply leading-relaxed;
-  }
-  .prose ul {
-    @apply list-disc pl-5;
-  }
+    /* Docs typography */
+    .prose h1 {
+        @apply text-3xl md:text-4xl font-bold mb-4;
+    }
+    .prose h2 {
+        @apply text-2xl font-semibold mt-8 mb-3;
+    }
+    .prose h3 {
+        @apply text-xl font-semibold mt-6 mb-2;
+    }
+    .prose p {
+        @apply leading-relaxed;
+    }
+    .prose ul {
+        @apply list-disc pl-5;
+    }
 
-  input,
-  textarea,
-  select {
-    @apply px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent;
-    background-color: hsl(var(--card));
-    color: hsl(var(--foreground));
-    --tw-ring-color: hsl(var(--ring));
-    transition:
-      box-shadow 0.2s,
-      border-color 0.2s;
-  }
+    input,
+    textarea,
+    select {
+        @apply px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:border-transparent;
+        background-color: hsl(var(--card));
+        color: hsl(var(--foreground));
+        --tw-ring-color: hsl(var(--ring));
+        transition:
+            box-shadow 0.2s,
+            border-color 0.2s;
+    }
 
-  input:disabled,
-  textarea:disabled,
-  select:disabled {
-    @apply cursor-not-allowed opacity-70;
-    background-color: hsl(var(--muted));
-    color: hsl(var(--muted-foreground));
-  }
+    input:disabled,
+    textarea:disabled,
+    select:disabled {
+        @apply cursor-not-allowed opacity-70;
+        background-color: hsl(var(--muted));
+        color: hsl(var(--muted-foreground));
+    }
 
-  label {
-    @apply block text-sm font-medium mb-2;
-  }
+    label {
+        @apply block text-sm font-medium mb-2;
+    }
 
-  button {
-    @apply px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2;
-    --tw-ring-color: hsl(var(--ring));
-    transition:
-      background 0.2s,
-      color 0.2s;
-  }
+    button {
+        @apply px-4 py-2 rounded-md font-medium focus:outline-none focus:ring-2;
+        --tw-ring-color: hsl(var(--ring));
+        transition:
+            background 0.2s,
+            color 0.2s;
+    }
 }
 
 .mosaic-text {
-  position: relative;
-  z-index: 1;
-  background-image: radial-gradient(
-    circle,
-    var(--mosaic-gradient-color) 55%,
-    transparent 0%
-  );
-  background-size: 2px 3px;
-  background-position: 0px 1px;
-  background-repeat: repeat;
-  background-clip: text;
-  color: transparent;
+    position: relative;
+    z-index: 1;
+    background-image: radial-gradient(circle, var(--mosaic-gradient-color) 55%, transparent 0%);
+    background-size: 2px 3px;
+    background-position: 0px 1px;
+    background-repeat: repeat;
+    background-clip: text;
+    color: transparent;
 }
 
 .mosaic-text::before {
-  content: '';
-  position: absolute;
-  inset: -5%;
-  z-index: -1;
-  border-radius: 9999px;
-  background:
-    radial-gradient(circle at 30% 40%, #1fff9a 0%, transparent 70%),
-    radial-gradient(circle at 70% 60%, #9945ff 0%, transparent 70%);
-  filter: blur(20px);
-  opacity: 0.3;
-  pointer-events: none;
+    content: '';
+    position: absolute;
+    inset: -5%;
+    z-index: -1;
+    border-radius: 9999px;
+    background:
+        radial-gradient(circle at 30% 40%, #1fff9a 0%, transparent 70%),
+        radial-gradient(circle at 70% 60%, #9945ff 0%, transparent 70%);
+    filter: blur(20px);
+    opacity: 0.3;
+    pointer-events: none;
 }

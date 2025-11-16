@@ -11,55 +11,39 @@ import { SelectedWalletAccountContextProvider } from '@/context/SelectedWalletAc
 import { RpcContextProvider } from '@/context/RpcContextProvider';
 
 const fontSans = Inter({
-  subsets: ['latin'],
-  weight: ['300', '500', '700'],
-  variable: '--font-sans',
+    subsets: ['latin'],
+    weight: ['300', '500', '700'],
+    variable: '--font-sans',
 });
 const fontMono = Fira_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500', '700'],
-  variable: '--font-mono',
+    subsets: ['latin'],
+    weight: ['400', '500', '700'],
+    variable: '--font-mono',
 });
 
 export const metadata: Metadata = {
-  title: 'Mosaic - Tokenization Engine',
-  description:
-    'Create, manage, and deploy stablecoins and tokenized assets on Solana',
+    title: 'Mosaic - Tokenization Engine',
+    description: 'Create, manage, and deploy stablecoins and tokenized assets on Solana',
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={cn(
-          fontSans.variable,
-          fontMono.variable,
-          'font-sans antialiased'
-        )}
-      >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <ChainContextProvider>
-            <SelectedWalletAccountContextProvider>
-              <RpcContextProvider>
-                <div className="flex min-h-screen flex-col bg-background">
-                  <Header />
-                  <main className="flex-1">{children}</main>
-                  <Footer />
-                </div>
-              </RpcContextProvider>
-            </SelectedWalletAccountContextProvider>
-          </ChainContextProvider>
-        </ThemeProvider>
-      </body>
-    </html>
-  );
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <html lang="en" suppressHydrationWarning>
+            <body className={cn(fontSans.variable, fontMono.variable, 'font-sans antialiased')}>
+                <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+                    <ChainContextProvider>
+                        <SelectedWalletAccountContextProvider>
+                            <RpcContextProvider>
+                                <div className="flex min-h-screen flex-col bg-background">
+                                    <Header />
+                                    <main className="flex-1">{children}</main>
+                                    <Footer />
+                                </div>
+                            </RpcContextProvider>
+                        </SelectedWalletAccountContextProvider>
+                    </ChainContextProvider>
+                </ThemeProvider>
+            </body>
+        </html>
+    );
 }

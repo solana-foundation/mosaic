@@ -1,13 +1,13 @@
 import { Token } from '../issuance';
 import type {
-  Rpc,
-  Address,
-  SolanaRpcApi,
-  FullTransaction,
-  TransactionMessageWithFeePayer,
-  TransactionVersion,
-  TransactionWithBlockhashLifetime,
-  TransactionSigner,
+    Rpc,
+    Address,
+    SolanaRpcApi,
+    FullTransaction,
+    TransactionMessageWithFeePayer,
+    TransactionVersion,
+    TransactionWithBlockhashLifetime,
+    TransactionSigner,
 } from 'gill';
 import { createNoopSigner, createTransaction } from 'gill';
 import { Mode } from '@token-acl/abl-sdk';
@@ -38,118 +38,105 @@ import { getSetExtraMetasInstructions } from '../abl/setExtraMetas';
  * @returns A promise that resolves to a FullTransaction object for initializing the stablecoin mint.
  */
 export const createStablecoinInitTransaction = async (
-  rpc: Rpc<SolanaRpcApi>,
-  name: string,
-  symbol: string,
-  decimals: number,
-  uri: string,
-  mintAuthority: Address | TransactionSigner<string>,
-  mint: Address | TransactionSigner<string>,
-  feePayer: Address | TransactionSigner<string>,
-  aclMode?: 'allowlist' | 'blocklist',
-  metadataAuthority?: Address,
-  pausableAuthority?: Address,
-  confidentialBalancesAuthority?: Address,
-  permanentDelegateAuthority?: Address,
-  enableSrfc37?: boolean,
-  freezeAuthority?: Address
-): Promise<
-  FullTransaction<
-    TransactionVersion,
-    TransactionMessageWithFeePayer,
-    TransactionWithBlockhashLifetime
-  >
-> => {
-  const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
-  const feePayerSigner =
-    typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
+    rpc: Rpc<SolanaRpcApi>,
+    name: string,
+    symbol: string,
+    decimals: number,
+    uri: string,
+    mintAuthority: Address | TransactionSigner<string>,
+    mint: Address | TransactionSigner<string>,
+    feePayer: Address | TransactionSigner<string>,
+    aclMode?: 'allowlist' | 'blocklist',
+    metadataAuthority?: Address,
+    pausableAuthority?: Address,
+    confidentialBalancesAuthority?: Address,
+    permanentDelegateAuthority?: Address,
+    enableSrfc37?: boolean,
+    freezeAuthority?: Address,
+): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+    const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
+    const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
 
-  aclMode = aclMode || 'blocklist';
-  const useSrfc37 = enableSrfc37 ?? false;
+    aclMode = aclMode || 'blocklist';
+    const useSrfc37 = enableSrfc37 ?? false;
 
-  // 1. create token
-  const mintAuthorityAddress =
-    typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
-  const instructions = await new Token()
-    .withMetadata({
-      mintAddress: mintSigner.address,
-      authority: metadataAuthority || mintAuthorityAddress,
-      metadata: {
-        name,
-        symbol,
-        uri,
-      },
-      // TODO: add additional metadata
-      additionalMetadata: new Map(),
-    })
-    .withPausable(pausableAuthority || mintAuthorityAddress)
-    .withDefaultAccountState(!useSrfc37)
-    .withConfidentialBalances(
-      confidentialBalancesAuthority || mintAuthorityAddress
-    )
-    .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
-    .buildInstructions({
-      rpc,
-      decimals,
-      mintAuthority,
-      freezeAuthority,
-      mint: mintSigner,
-      feePayer: feePayerSigner,
+    // 1. create token
+    const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
+    const instructions = await new Token()
+        .withMetadata({
+            mintAddress: mintSigner.address,
+            authority: metadataAuthority || mintAuthorityAddress,
+            metadata: {
+                name,
+                symbol,
+                uri,
+            },
+            // TODO: add additional metadata
+            additionalMetadata: new Map(),
+        })
+        .withPausable(pausableAuthority || mintAuthorityAddress)
+        .withDefaultAccountState(!useSrfc37)
+        .withConfidentialBalances(confidentialBalancesAuthority || mintAuthorityAddress)
+        .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
+        .buildInstructions({
+            rpc,
+            decimals,
+            mintAuthority,
+            freezeAuthority,
+            mint: mintSigner,
+            feePayer: feePayerSigner,
+        });
+
+    // 2. create mintConfig (Token ACL) - only if SRFC-37 is enabled
+    if (mintAuthority !== feePayerSigner.address || !useSrfc37) {
+        // Get latest blockhash for transaction
+        const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
+
+        return createTransaction({
+            feePayer,
+            version: 'legacy',
+            latestBlockhash,
+            instructions,
+        });
+    }
+
+    const { instructions: createConfigInstructions } = await getCreateConfigInstructions({
+        authority: feePayerSigner,
+        mint: mintSigner.address,
+        gatingProgram: ABL_PROGRAM_ID,
     });
 
-  // 2. create mintConfig (Token ACL) - only if SRFC-37 is enabled
-  if (mintAuthority !== feePayerSigner.address || !useSrfc37) {
+    // 3. enable permissionless thaw (Token ACL)
+    const enablePermissionlessThawInstructions = await getEnablePermissionlessThawInstructions({
+        authority: feePayerSigner,
+        mint: mintSigner.address,
+    });
+
+    // 4. create list (abl)
+    const { instructions: createListInstructions, listConfig } = await getCreateListInstructions({
+        authority: feePayerSigner,
+        mint: mintSigner.address,
+        mode: aclMode === 'allowlist' ? Mode.Allow : Mode.Block,
+    });
+
+    // 5. set extra metas (abl): this is how we can change the list associated with a given mint
+    const setExtraMetasInstructions = await getSetExtraMetasInstructions({
+        authority: feePayerSigner,
+        mint: mintSigner.address,
+        lists: [listConfig],
+    });
+
+    instructions.push(...createConfigInstructions);
+    instructions.push(...enablePermissionlessThawInstructions);
+    instructions.push(...createListInstructions);
+    instructions.push(...setExtraMetasInstructions);
+
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-
     return createTransaction({
-      feePayer,
-      version: 'legacy',
-      latestBlockhash,
-      instructions,
+        feePayer,
+        version: 'legacy',
+        latestBlockhash,
+        instructions,
     });
-  }
-
-  const { instructions: createConfigInstructions } =
-    await getCreateConfigInstructions({
-      authority: feePayerSigner,
-      mint: mintSigner.address,
-      gatingProgram: ABL_PROGRAM_ID,
-    });
-
-  // 3. enable permissionless thaw (Token ACL)
-  const enablePermissionlessThawInstructions =
-    await getEnablePermissionlessThawInstructions({
-      authority: feePayerSigner,
-      mint: mintSigner.address,
-    });
-
-  // 4. create list (abl)
-  const { instructions: createListInstructions, listConfig } =
-    await getCreateListInstructions({
-      authority: feePayerSigner,
-      mint: mintSigner.address,
-      mode: aclMode === 'allowlist' ? Mode.Allow : Mode.Block,
-    });
-
-  // 5. set extra metas (abl): this is how we can change the list associated with a given mint
-  const setExtraMetasInstructions = await getSetExtraMetasInstructions({
-    authority: feePayerSigner,
-    mint: mintSigner.address,
-    lists: [listConfig],
-  });
-
-  instructions.push(...createConfigInstructions);
-  instructions.push(...enablePermissionlessThawInstructions);
-  instructions.push(...createListInstructions);
-  instructions.push(...setExtraMetasInstructions);
-
-  // Get latest blockhash for transaction
-  const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-  return createTransaction({
-    feePayer,
-    version: 'legacy',
-    latestBlockhash,
-    instructions,
-  });
 };

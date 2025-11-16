@@ -1,14 +1,14 @@
 import {
-  createTransaction,
-  type Address,
-  type FullTransaction,
-  type Instruction,
-  type Rpc,
-  type SolanaRpcApi,
-  type TransactionMessageWithFeePayer,
-  type TransactionSigner,
-  type TransactionVersion,
-  type TransactionWithBlockhashLifetime,
+    createTransaction,
+    type Address,
+    type FullTransaction,
+    type Instruction,
+    type Rpc,
+    type SolanaRpcApi,
+    type TransactionMessageWithFeePayer,
+    type TransactionSigner,
+    type TransactionVersion,
+    type TransactionWithBlockhashLifetime,
 } from 'gill';
 import { findMintConfigPda, getCreateConfigInstruction } from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
@@ -27,30 +27,27 @@ import { TOKEN_ACL_PROGRAM_ID } from './utils';
  * @returns Promise containing the instructions and the mint configuration address
  */
 export const getCreateConfigInstructions = async (input: {
-  authority: TransactionSigner<string>;
-  mint: Address;
-  gatingProgram: Address;
+    authority: TransactionSigner<string>;
+    mint: Address;
+    gatingProgram: Address;
 }): Promise<{ instructions: Instruction<string>[]; mintConfig: Address }> => {
-  const mintConfigPda = await findMintConfigPda(
-    { mint: input.mint },
-    { programAddress: TOKEN_ACL_PROGRAM_ID }
-  );
+    const mintConfigPda = await findMintConfigPda({ mint: input.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
 
-  const createConfigInstruction = getCreateConfigInstruction(
-    {
-      payer: input.authority.address,
-      authority: input.authority,
-      mint: input.mint,
-      mintConfig: mintConfigPda[0],
-      gatingProgram: input.gatingProgram,
-    },
-    { programAddress: TOKEN_ACL_PROGRAM_ID }
-  );
+    const createConfigInstruction = getCreateConfigInstruction(
+        {
+            payer: input.authority.address,
+            authority: input.authority,
+            mint: input.mint,
+            mintConfig: mintConfigPda[0],
+            gatingProgram: input.gatingProgram,
+        },
+        { programAddress: TOKEN_ACL_PROGRAM_ID },
+    );
 
-  return {
-    instructions: [createConfigInstruction],
-    mintConfig: mintConfigPda[0],
-  };
+    return {
+        instructions: [createConfigInstruction],
+        mintConfig: mintConfigPda[0],
+    };
 };
 
 /**
@@ -69,31 +66,25 @@ export const getCreateConfigInstructions = async (input: {
  * @returns Promise containing the full transaction and the mint configuration address
  */
 export const getCreateConfigTransaction = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  payer: TransactionSigner<string>;
-  authority: TransactionSigner<string>;
-  mint: Address;
-  gatingProgram: Address;
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner<string>;
+    authority: TransactionSigner<string>;
+    mint: Address;
+    gatingProgram: Address;
 }): Promise<{
-  transaction: FullTransaction<
-    TransactionVersion,
-    TransactionMessageWithFeePayer,
-    TransactionWithBlockhashLifetime
-  >;
-  mintConfig: Address;
+    transaction: FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>;
+    mintConfig: Address;
 }> => {
-  const { instructions, mintConfig } = await getCreateConfigInstructions(input);
-  const { value: latestBlockhash } = await input.rpc
-    .getLatestBlockhash()
-    .send();
-  const transaction = createTransaction({
-    feePayer: input.payer,
-    version: 'legacy',
-    latestBlockhash,
-    instructions,
-  });
-  return {
-    transaction,
-    mintConfig,
-  };
+    const { instructions, mintConfig } = await getCreateConfigInstructions(input);
+    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
+    const transaction = createTransaction({
+        feePayer: input.payer,
+        version: 'legacy',
+        latestBlockhash,
+        instructions,
+    });
+    return {
+        transaction,
+        mintConfig,
+    };
 };

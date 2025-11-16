@@ -1,28 +1,28 @@
 import {
-  type Address,
-  type Rpc,
-  type SolanaRpcApi,
-  signAndSendTransactionMessageWithSigners,
-  TransactionSendingSigner,
-  isAddress,
+    type Address,
+    type Rpc,
+    type SolanaRpcApi,
+    signAndSendTransactionMessageWithSigners,
+    TransactionSendingSigner,
+    isAddress,
 } from 'gill';
 import {
-  createAddToBlocklistTransaction,
-  createRemoveFromBlocklistTransaction,
-  createAddToAllowlistTransaction,
-  createRemoveFromAllowlistTransaction,
+    createAddToBlocklistTransaction,
+    createRemoveFromBlocklistTransaction,
+    createAddToAllowlistTransaction,
+    createRemoveFromAllowlistTransaction,
 } from '@mosaic/sdk';
 import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface BlocklistOptions {
-  mintAddress: string;
-  walletAddress: string;
+    mintAddress: string;
+    walletAddress: string;
 }
 
 export interface BlocklistResult {
-  success: boolean;
-  error?: string;
-  transactionSignature?: string;
+    success: boolean;
+    error?: string;
+    transactionSignature?: string;
 }
 
 /**
@@ -32,19 +32,19 @@ export interface BlocklistResult {
  * @throws Error if validation fails
  */
 function validateBlocklistOptions(options: BlocklistOptions): void {
-  if (!options.mintAddress || !options.walletAddress) {
-    throw new Error('Mint address and wallet address are required');
-  }
+    if (!options.mintAddress || !options.walletAddress) {
+        throw new Error('Mint address and wallet address are required');
+    }
 
-  // Validate Solana address format
-  if (!isAddress(options.mintAddress)) {
-    throw new Error('Invalid mint address format');
-  }
-  if (!isAddress(options.walletAddress)) {
-    throw new Error('Invalid wallet address format');
-  }
+    // Validate Solana address format
+    if (!isAddress(options.mintAddress)) {
+        throw new Error('Invalid mint address format');
+    }
+    if (!isAddress(options.walletAddress)) {
+        throw new Error('Invalid wallet address format');
+    }
 
-  return;
+    return;
 }
 
 /**
@@ -54,129 +54,125 @@ function validateBlocklistOptions(options: BlocklistOptions): void {
  * @returns Promise that resolves to mint result with signature and details
  */
 export const addAddressToBlocklist = async (
-  rpc: Rpc<SolanaRpcApi>,
-  options: BlocklistOptions,
-  signer: TransactionSendingSigner
+    rpc: Rpc<SolanaRpcApi>,
+    options: BlocklistOptions,
+    signer: TransactionSendingSigner,
 ): Promise<BlocklistResult> => {
-  try {
-    // Validate options
-    validateBlocklistOptions(options);
+    try {
+        // Validate options
+        validateBlocklistOptions(options);
 
-    // Create blocklist transaction using SDK
-    const transaction = await createAddToBlocklistTransaction(
-      rpc,
-      options.mintAddress as Address,
-      options.walletAddress as Address,
-      signer
-    );
+        // Create blocklist transaction using SDK
+        const transaction = await createAddToBlocklistTransaction(
+            rpc,
+            options.mintAddress as Address,
+            options.walletAddress as Address,
+            signer,
+        );
 
-    // Sign and send the transaction
-    const signatureBytes =
-      await signAndSendTransactionMessageWithSigners(transaction);
-    return {
-      success: true,
-      transactionSignature: getSignatureFromBytes(signatureBytes),
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
+        // Sign and send the transaction
+        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        return {
+            success: true,
+            transactionSignature: getSignatureFromBytes(signatureBytes),
+        };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error occurred',
+        };
+    }
 };
 
 export const removeAddressFromBlocklist = async (
-  rpc: Rpc<SolanaRpcApi>,
-  options: BlocklistOptions,
-  signer: TransactionSendingSigner
+    rpc: Rpc<SolanaRpcApi>,
+    options: BlocklistOptions,
+    signer: TransactionSendingSigner,
 ): Promise<BlocklistResult> => {
-  try {
-    // Validate options
-    validateBlocklistOptions(options);
+    try {
+        // Validate options
+        validateBlocklistOptions(options);
 
-    // Create blocklist transaction using SDK
-    const transaction = await createRemoveFromBlocklistTransaction(
-      rpc,
-      options.mintAddress as Address,
-      options.walletAddress as Address,
-      signer
-    );
+        // Create blocklist transaction using SDK
+        const transaction = await createRemoveFromBlocklistTransaction(
+            rpc,
+            options.mintAddress as Address,
+            options.walletAddress as Address,
+            signer,
+        );
 
-    // Sign and send the transaction
-    const signatureBytes =
-      await signAndSendTransactionMessageWithSigners(transaction);
-    return {
-      success: true,
-      transactionSignature: getSignatureFromBytes(signatureBytes),
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
+        // Sign and send the transaction
+        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        return {
+            success: true,
+            transactionSignature: getSignatureFromBytes(signatureBytes),
+        };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error occurred',
+        };
+    }
 };
 
 export const addAddressToAllowlist = async (
-  rpc: Rpc<SolanaRpcApi>,
-  options: BlocklistOptions,
-  signer: TransactionSendingSigner
+    rpc: Rpc<SolanaRpcApi>,
+    options: BlocklistOptions,
+    signer: TransactionSendingSigner,
 ): Promise<BlocklistResult> => {
-  try {
-    // Validate options
-    validateBlocklistOptions(options);
+    try {
+        // Validate options
+        validateBlocklistOptions(options);
 
-    // Create allowlist transaction using SDK
-    const transaction = await createAddToAllowlistTransaction(
-      rpc,
-      options.mintAddress as Address,
-      options.walletAddress as Address,
-      signer
-    );
+        // Create allowlist transaction using SDK
+        const transaction = await createAddToAllowlistTransaction(
+            rpc,
+            options.mintAddress as Address,
+            options.walletAddress as Address,
+            signer,
+        );
 
-    // Sign and send the transaction
-    const signatureBytes =
-      await signAndSendTransactionMessageWithSigners(transaction);
-    return {
-      success: true,
-      transactionSignature: getSignatureFromBytes(signatureBytes),
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
+        // Sign and send the transaction
+        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        return {
+            success: true,
+            transactionSignature: getSignatureFromBytes(signatureBytes),
+        };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error occurred',
+        };
+    }
 };
 
 export const removeAddressFromAllowlist = async (
-  rpc: Rpc<SolanaRpcApi>,
-  options: BlocklistOptions,
-  signer: TransactionSendingSigner
+    rpc: Rpc<SolanaRpcApi>,
+    options: BlocklistOptions,
+    signer: TransactionSendingSigner,
 ): Promise<BlocklistResult> => {
-  try {
-    // Validate options
-    validateBlocklistOptions(options);
+    try {
+        // Validate options
+        validateBlocklistOptions(options);
 
-    // Create allowlist removal transaction using SDK
-    const transaction = await createRemoveFromAllowlistTransaction(
-      rpc,
-      options.mintAddress as Address,
-      options.walletAddress as Address,
-      signer
-    );
+        // Create allowlist removal transaction using SDK
+        const transaction = await createRemoveFromAllowlistTransaction(
+            rpc,
+            options.mintAddress as Address,
+            options.walletAddress as Address,
+            signer,
+        );
 
-    // Sign and send the transaction
-    const signatureBytes =
-      await signAndSendTransactionMessageWithSigners(transaction);
-    return {
-      success: true,
-      transactionSignature: getSignatureFromBytes(signatureBytes),
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
+        // Sign and send the transaction
+        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        return {
+            success: true,
+            transactionSignature: getSignatureFromBytes(signatureBytes),
+        };
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error occurred',
+        };
+    }
 };

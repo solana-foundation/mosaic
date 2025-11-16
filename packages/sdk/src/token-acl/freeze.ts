@@ -1,14 +1,14 @@
 import {
-  createTransaction,
-  type Address,
-  type FullTransaction,
-  type Instruction,
-  type Rpc,
-  type SolanaRpcApi,
-  type TransactionMessageWithFeePayer,
-  type TransactionSigner,
-  type TransactionVersion,
-  type TransactionWithBlockhashLifetime,
+    createTransaction,
+    type Address,
+    type FullTransaction,
+    type Instruction,
+    type Rpc,
+    type SolanaRpcApi,
+    type TransactionMessageWithFeePayer,
+    type TransactionSigner,
+    type TransactionVersion,
+    type TransactionWithBlockhashLifetime,
 } from 'gill';
 import { findMintConfigPda, getFreezeInstruction } from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
@@ -25,52 +25,49 @@ import { TOKEN_ACL_PROGRAM_ID } from './utils';
  * @returns Promise containing the instructions for freezing a token account
  */
 export const getFreezeInstructions = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  authority: TransactionSigner<string>;
-  tokenAccount: Address;
+    rpc: Rpc<SolanaRpcApi>;
+    authority: TransactionSigner<string>;
+    tokenAccount: Address;
 }): Promise<Instruction<string>[]> => {
-  const { value: accountInfo } = await input.rpc
-    .getAccountInfo(input.tokenAccount, { encoding: 'jsonParsed' })
-    .send();
-  if (!accountInfo) {
-    throw new Error('Token account not found');
-  }
+    const { value: accountInfo } = await input.rpc
+        .getAccountInfo(input.tokenAccount, { encoding: 'jsonParsed' })
+        .send();
+    if (!accountInfo) {
+        throw new Error('Token account not found');
+    }
 
-  // Use jsonParsed data which works for both regular SPL and Token-2022 accounts
-  if (!('parsed' in accountInfo.data) || !accountInfo.data.parsed?.info) {
-    throw new Error('Failed to parse token account data');
-  }
+    // Use jsonParsed data which works for both regular SPL and Token-2022 accounts
+    if (!('parsed' in accountInfo.data) || !accountInfo.data.parsed?.info) {
+        throw new Error('Failed to parse token account data');
+    }
 
-  const tokenInfo = accountInfo.data.parsed.info as {
-    mint: Address;
-    owner: Address;
-    tokenAmount: { amount: string };
-    state: string;
-  };
+    const tokenInfo = accountInfo.data.parsed.info as {
+        mint: Address;
+        owner: Address;
+        tokenAmount: { amount: string };
+        state: string;
+    };
 
-  const token = {
-    mint: tokenInfo.mint,
-    owner: tokenInfo.owner,
-    amount: BigInt(tokenInfo.tokenAmount.amount),
-    state: tokenInfo.state,
-  };
+    const token = {
+        mint: tokenInfo.mint,
+        owner: tokenInfo.owner,
+        amount: BigInt(tokenInfo.tokenAmount.amount),
+        state: tokenInfo.state,
+    };
 
-  const mintConfigPda = await findMintConfigPda(
-    { mint: token.mint },
-    { programAddress: TOKEN_ACL_PROGRAM_ID }
-  );
+    const mintConfigPda = await findMintConfigPda({ mint: token.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
 
-  const freezeInstruction = getFreezeInstruction(
-    {
-      authority: input.authority,
-      mintConfig: mintConfigPda[0],
-      mint: token.mint,
-      tokenAccount: input.tokenAccount,
-    },
-    { programAddress: TOKEN_ACL_PROGRAM_ID }
-  );
+    const freezeInstruction = getFreezeInstruction(
+        {
+            authority: input.authority,
+            mintConfig: mintConfigPda[0],
+            mint: token.mint,
+            tokenAccount: input.tokenAccount,
+        },
+        { programAddress: TOKEN_ACL_PROGRAM_ID },
+    );
 
-  return [freezeInstruction];
+    return [freezeInstruction];
 };
 
 /**
@@ -88,26 +85,18 @@ export const getFreezeInstructions = async (input: {
  * @returns Promise containing the full transaction for freezing a token account
  */
 export const getFreezeTransaction = async (input: {
-  rpc: Rpc<SolanaRpcApi>;
-  payer: TransactionSigner<string>;
-  authority: TransactionSigner<string>;
-  tokenAccount: Address;
-}): Promise<
-  FullTransaction<
-    TransactionVersion,
-    TransactionMessageWithFeePayer,
-    TransactionWithBlockhashLifetime
-  >
-> => {
-  const instructions = await getFreezeInstructions(input);
-  const { value: latestBlockhash } = await input.rpc
-    .getLatestBlockhash()
-    .send();
-  const transaction = createTransaction({
-    feePayer: input.payer,
-    version: 'legacy',
-    latestBlockhash,
-    instructions,
-  });
-  return transaction;
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner<string>;
+    authority: TransactionSigner<string>;
+    tokenAccount: Address;
+}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+    const instructions = await getFreezeInstructions(input);
+    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
+    const transaction = createTransaction({
+        feePayer: input.payer,
+        version: 'legacy',
+        latestBlockhash,
+        instructions,
+    });
+    return transaction;
 };
