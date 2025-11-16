@@ -91,7 +91,7 @@ export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
                         <label className="text-sm font-medium text-muted-foreground">Type</label>
                         <div className="space-y-1">
                             <p className="text-lg font-semibold">
-                                {getTokenPatternsLabel(token.type, token.detectedPatterns)}
+                                {getTokenPatternsLabel(token.detectedPatterns)}
                             </p>
                             {token.detectedPatterns && token.detectedPatterns.length > 1 && (
                                 <div className="flex flex-wrap gap-1">

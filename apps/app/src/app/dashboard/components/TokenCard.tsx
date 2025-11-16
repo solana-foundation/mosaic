@@ -100,9 +100,7 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
                     <div className="flex justify-between">
                         <span className="text-muted-foreground">Type:</span>
                         <div className="flex items-center gap-1">
-                            <span className="font-medium">
-                                {getTokenPatternsLabel(token.type, token.detectedPatterns)}
-                            </span>
+                            <span className="font-medium">{getTokenPatternsLabel(token.detectedPatterns)}</span>
                             {token.detectedPatterns && token.detectedPatterns.length > 1 && (
                                 <span className="px-1.5 py-0.5 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400">
                                     {token.detectedPatterns.length} patterns

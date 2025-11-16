@@ -410,7 +410,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                         </Link>
                         <div>
                             <h1 className="text-3xl font-bold">{token.name}</h1>
-                            <p className="text-muted-foreground">Manage your {getTokenTypeLabel(token.type)} token</p>
+                            <p className="text-muted-foreground">
+                                Manage your {getTokenPatternsLabel(token.detectedPatterns)} token
+                            </p>
                         </div>
                     </div>
                     <div className="flex space-x-2">

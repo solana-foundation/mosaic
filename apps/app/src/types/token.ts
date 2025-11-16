@@ -5,7 +5,6 @@ export interface TokenDisplay {
     symbol?: string;
     address?: string;
     supply?: string;
-    type?: string;
     detectedPatterns?: TokenType[];
     decimals?: number;
     mintAuthority?: string;

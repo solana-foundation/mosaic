@@ -393,7 +393,7 @@ describe('Helper functions', () => {
                     freezeAuthority: mockAuthority,
                 },
                 extensions: [{ name: 'TokenMetadata' }, { name: 'PermanentDelegate' }],
-                detectedType: 'arcade-token',
+                detectedPatterns: ['arcade-token'],
                 isPausable: false,
                 aclMode: 'allowlist',
                 enableSrfc37: false,
@@ -406,7 +406,7 @@ describe('Helper functions', () => {
             expect(dashboardData.address).toEqual(mockMintAddress.toString());
             expect(dashboardData.decimals).toEqual(6);
             expect(dashboardData.supply).toEqual('1000000');
-            expect(dashboardData.type).toEqual('arcade-token');
+            expect(dashboardData.detectedPatterns).toEqual(['arcade-token']);
             expect(dashboardData.aclMode).toEqual('allowlist');
             expect(dashboardData.extensions).toEqual(['TokenMetadata', 'PermanentDelegate']);
         });

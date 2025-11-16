@@ -205,7 +205,7 @@ export async function assertToken(
 
     // Verify token type
     if (expected.tokenType) {
-        expect(inspection.detectedType).toBe(expected.tokenType);
+        expect(inspection.detectedPatterns).toContain(expected.tokenType);
     }
 
     // Verify supply info

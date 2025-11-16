@@ -2,9 +2,12 @@ export {
     inspectToken,
     getTokenMetadata,
     getTokenExtensionsDetailed,
-    detectTokenTypeFromMint,
     inspectionResultToDashboardData,
     getTokenDashboardData,
+    detectTokenPatterns,
+    satisfiesStablecoinPattern,
+    satisfiesArcadeTokenPattern,
+    satisfiesSecurityTokenPattern,
 } from './inspectToken';
 export type {
     TokenMetadata,

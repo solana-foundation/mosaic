@@ -4,7 +4,7 @@ import type { TokenType } from '@mosaic/sdk';
  * Token type utilities for display and categorization
  */
 
-export const TOKEN_TYPE_LABELS: Record<string, string> = {
+export const TOKEN_TYPE_LABELS: Record<TokenType, string> = {
     stablecoin: 'Stablecoin',
     'arcade-token': 'Arcade Token',
     'tokenized-security': 'Tokenized Security',
@@ -14,19 +14,19 @@ export const TOKEN_TYPE_LABELS: Record<string, string> = {
 /**
  * Get a user-friendly label for a token type
  */
-export function getTokenTypeLabel(type?: string): string {
+export function getTokenTypeLabel(type?: TokenType): string {
     if (!type) return 'Unknown';
-    return TOKEN_TYPE_LABELS[type] || type;
+    return TOKEN_TYPE_LABELS[type];
 }
 
 /**
  * Get a display label that shows all matching patterns
  * Examples: "Stablecoin", "Stablecoin + Security", "Arcade Token"
  */
-export function getTokenPatternsLabel(primaryType?: string, patterns?: TokenType[]): string {
-    // If no patterns, fall back to primary type
+export function getTokenPatternsLabel(patterns?: TokenType[]): string {
+    // If no patterns, return unknown
     if (!patterns || patterns.length === 0) {
-        return getTokenTypeLabel(primaryType);
+        return 'Unknown';
     }
 
     // If single pattern, just return its label
@@ -42,7 +42,7 @@ export function getTokenPatternsLabel(primaryType?: string, patterns?: TokenType
 /**
  * Get a badge color class based on token type
  */
-export function getTokenTypeBadgeColor(type?: string): string {
+export function getTokenTypeBadgeColor(type?: TokenType): string {
     switch (type) {
         case 'stablecoin':
             return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';

@@ -79,11 +79,13 @@ export function satisfiesSecurityTokenPattern(extensions: TokenExtension[]): boo
 /**
  * Gets all token patterns that this token satisfies
  * Returns an array of matching types since tokens can match multiple patterns
+ * Ordered by specificity: tokenized-security > stablecoin > arcade-token
  */
 export function detectTokenPatterns(extensions: TokenExtension[]): TokenType[] {
     const extensionNames = extensions.map(ext => ext.name);
     const matches: TokenType[] = [];
 
+    // Check in order of specificity (most specific first)
     if (satisfiesSecurityTokenPatternInternal(extensionNames)) {
         matches.push('tokenized-security');
     }
@@ -284,9 +286,8 @@ export async function inspectToken(
         enableSrfc37 = authorities.freezeAuthority === TOKEN_ACL_PROGRAM_ID;
     }
 
-    // Detect token patterns
+    // Detect token patterns (ordered by specificity)
     const detectedPatterns = detectTokenPatterns(extensions);
-    const detectedType = detectedPatterns[0];
 
     return {
         address: mintAddress,
@@ -295,7 +296,6 @@ export async function inspectToken(
         metadata,
         authorities,
         extensions,
-        detectedType,
         detectedPatterns,
         isPausable,
         aclMode,
@@ -323,14 +323,6 @@ export async function getTokenExtensionsDetailed(
     return inspection.extensions;
 }
 
-export async function detectTokenTypeFromMint(
-    rpc: Rpc<SolanaRpcApi>,
-    mintAddress: Address,
-    commitment?: Commitment,
-): Promise<TokenType> {
-    const inspection = await inspectToken(rpc, mintAddress, commitment);
-    return inspection.detectedType;
-}
 
 // Helper function to convert inspection result to dashboard data format
 export function inspectionResultToDashboardData(inspection: TokenInspectionResult): TokenDashboardData {
@@ -340,7 +332,6 @@ export function inspectionResultToDashboardData(inspection: TokenInspectionResul
         metadata,
         authorities,
         extensions,
-        detectedType,
         detectedPatterns,
         aclMode,
         enableSrfc37,
@@ -355,7 +346,6 @@ export function inspectionResultToDashboardData(inspection: TokenInspectionResul
         decimals: supplyInfo.decimals,
         supply: supplyInfo.supply.toString(),
         uri: metadata?.uri,
-        type: detectedType,
         detectedPatterns,
 
         // ACL configuration

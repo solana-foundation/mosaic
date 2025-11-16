@@ -16,6 +16,7 @@ import { TokenStorage } from '@/lib/token/tokenStorage';
 import { TokenDisplay } from '@/types/token';
 import { Loader } from '@/components/ui/loader';
 import { address, type Rpc, type SolanaRpcApi } from 'gill';
+import { getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
 
 export default function ImportTokenPage() {
     const router = useRouter();
@@ -56,7 +57,6 @@ export default function ImportTokenPage() {
             // This preserves all detected patterns while adding the user's explicit selection
             if (tokenType !== 'none') {
                 const selectedType = tokenType as TokenType;
-                tokenData.type = selectedType;
 
                 // Merge: add user-selected type to detectedPatterns if not already present
                 // This ensures no detected patterns are lost when user manually selects a type
@@ -72,7 +72,6 @@ export default function ImportTokenPage() {
                 name: tokenData.name || 'Unknown Token',
                 symbol: tokenData.symbol || 'UNKNOWN',
                 address: tokenData.address,
-                type: tokenData.type === 'unknown' ? undefined : tokenData.type,
                 detectedPatterns: tokenData.detectedPatterns,
                 decimals: tokenData.decimals,
                 supply: tokenData.supply,
@@ -108,7 +107,7 @@ export default function ImportTokenPage() {
             setImportedTokenInfo({
                 name: tokenDisplay.name || '',
                 symbol: tokenDisplay.symbol || '',
-                type: tokenDisplay.type || tokenData.type,
+                type: getTokenPatternsLabel(tokenData.detectedPatterns),
             });
 
             setSuccess(true);
@@ -207,8 +206,9 @@ export default function ImportTokenPage() {
                                 <CheckCircle2 className="h-4 w-4 text-green-600" />
                                 <AlertDescription className="text-green-600 dark:text-green-400">
                                     Successfully imported {importedTokenInfo.name} ({importedTokenInfo.symbol})
-                                    {importedTokenInfo.type !== 'unknown' && ` as ${importedTokenInfo.type}`}
-                                    Redirecting to dashboard...
+                                    {importedTokenInfo.type && importedTokenInfo.type !== 'Unknown' &&
+                                        ` as ${importedTokenInfo.type}`}
+                                    . Redirecting to dashboard...
                                 </AlertDescription>
                             </Alert>
                         )}

@@ -118,11 +118,11 @@ export class TokenStorage {
     }
 
     /**
-     * Get tokens by type
+     * Get tokens by type (filters by detectedPatterns)
      */
     static getTokensByType(type: string): TokenDisplay[] {
         const tokens = this.getAllTokens();
-        return tokens.filter(token => token.type === type);
+        return tokens.filter(token => token.detectedPatterns?.includes(type as any));
     }
 
     /**
