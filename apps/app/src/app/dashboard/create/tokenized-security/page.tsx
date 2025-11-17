@@ -1,24 +1,20 @@
 'use client';
 
-import { useContext } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { CreateTemplateSidebar } from '@/components/CreateTemplateSidebar';
 import { useConnector } from '@solana/connector/react';
-import { ChainContext } from '@/context/ChainContext';
 import { useConnectorSigner } from '@/hooks/useConnectorSigner';
 import { TokenizedSecurityCreateForm } from './TokenizedSecurityCreateForm';
 
-function TokenizedSecurityCreateWithWallet({
-    selectedAccount,
-    currentChain,
-}: {
-    selectedAccount: string;
-    currentChain: string;
-}) {
+function TokenizedSecurityCreateWithWallet() {
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
+
+    if (!transactionSendingSigner) {
+        return null;
+    }
 
     return (
         <div className="flex-1 p-8">
@@ -67,16 +63,10 @@ function TokenizedSecurityCreateWithWallet({
 }
 
 export default function TokenizedSecurityCreatePage() {
-    const { connected, selectedAccount } = useConnector();
-    const { chain: currentChain } = useContext(ChainContext);
+    const { connected, selectedAccount, cluster } = useConnector();
 
-    if (connected && selectedAccount && currentChain) {
-        return (
-            <TokenizedSecurityCreateWithWallet
-                selectedAccount={selectedAccount}
-                currentChain={currentChain}
-            />
-        );
+    if (connected && selectedAccount && cluster) {
+        return <TokenizedSecurityCreateWithWallet />;
     }
 
     return (

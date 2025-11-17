@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Settings, Edit, Check, X, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
@@ -7,7 +7,6 @@ import { updateTokenAuthority } from '@/lib/management/authority';
 import { getTokenAuthorities } from '@/lib/solana/rpc';
 import { AuthorityType } from 'gill/programs/token';
 import { isAddress } from 'gill';
-import { ChainContext } from '@/context/ChainContext';
 import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/hooks/useConnectorSigner';
 
@@ -91,7 +90,6 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
 
     const [isLoadingAuthorities, setIsLoadingAuthorities] = useState(false);
     const { selectedAccount } = useConnector();
-    const { chain: currentChain } = useContext(ChainContext);
 
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();

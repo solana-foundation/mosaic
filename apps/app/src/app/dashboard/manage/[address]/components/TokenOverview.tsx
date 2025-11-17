@@ -2,11 +2,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Coins, Copy, RefreshCw } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
-import { useContext, useEffect, useState, useCallback } from 'react';
-import { RpcContext } from '@/context/RpcContext';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
 import { getTokenTypeLabel, getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
-import { type Address } from 'gill';
+import { type Address, createSolanaRpc } from 'gill';
 
 interface TokenOverviewProps {
     token: TokenDisplay;
@@ -15,12 +15,18 @@ interface TokenOverviewProps {
 }
 
 export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
-    const { rpc } = useContext(RpcContext);
+    const { cluster } = useConnector();
+    
+    // Create RPC client from current cluster
+    const rpc = useMemo(() => {
+        if (!cluster?.url) return null;
+        return createSolanaRpc(cluster.url);
+    }, [cluster?.url]);
     const [currentSupply, setCurrentSupply] = useState<string>(token.supply || '0');
     const [isLoadingSupply, setIsLoadingSupply] = useState(false);
 
     const fetchSupply = useCallback(async () => {
-        if (!token.address) return;
+        if (!token.address || !rpc) return;
 
         setIsLoadingSupply(true);
         try {

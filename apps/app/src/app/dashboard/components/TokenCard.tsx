@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Settings, Coins, Trash2, ExternalLink, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
@@ -10,10 +10,10 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { TokenDisplay } from '@/types/token';
-import { RpcContext } from '@/context/RpcContext';
+import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
 import { getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
-import { type Address } from 'gill';
+import { type Address, createSolanaRpc } from 'gill';
 
 interface TokenCardProps {
     token: TokenDisplay;
@@ -22,12 +22,18 @@ interface TokenCardProps {
 }
 
 export function TokenCard({ token, index, onDelete }: TokenCardProps) {
-    const { rpc } = useContext(RpcContext);
+    const { cluster } = useConnector();
+    
+    // Create RPC client from current cluster
+    const rpc = useMemo(() => {
+        if (!cluster?.url) return null;
+        return createSolanaRpc(cluster.url);
+    }, [cluster?.url]);
     const [currentSupply, setCurrentSupply] = useState<string>(token.supply || '0');
     const [isLoadingSupply, setIsLoadingSupply] = useState(false);
 
     const fetchSupply = useCallback(async () => {
-        if (!token.address) return;
+        if (!token.address || !rpc) return;
 
         setIsLoadingSupply(true);
         try {

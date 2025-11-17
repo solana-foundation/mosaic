@@ -47,10 +47,10 @@ export interface StablecoinCreationResult {
         decimals: number;
         aclMode?: 'allowlist' | 'blocklist';
         mintAuthority: string;
-        metadataAuthority: string;
-        pausableAuthority: string;
-        confidentialBalancesAuthority: string;
-        permanentDelegateAuthority: string;
+        metadataAuthority?: string;
+        pausableAuthority?: string;
+        confidentialBalancesAuthority?: string;
+        permanentDelegateAuthority?: string;
         extensions: string[];
     };
 }
@@ -80,9 +80,9 @@ export interface ArcadeTokenCreationResult {
         symbol: string;
         decimals: number;
         mintAuthority: string;
-        metadataAuthority: string;
-        pausableAuthority: string;
-        permanentDelegateAuthority: string;
+        metadataAuthority?: string;
+        pausableAuthority?: string;
+        permanentDelegateAuthority?: string;
         enableSrfc37: boolean;
         extensions: string[];
     };
@@ -116,10 +116,10 @@ export interface TokenizedSecurityCreationResult {
         decimals: number;
         aclMode?: 'allowlist' | 'blocklist';
         mintAuthority: string;
-        metadataAuthority: string;
-        pausableAuthority: string;
-        confidentialBalancesAuthority: string;
-        permanentDelegateAuthority: string;
+        metadataAuthority?: string;
+        pausableAuthority?: string;
+        confidentialBalancesAuthority?: string;
+        permanentDelegateAuthority?: string;
         multiplier: number;
         extensions: string[];
     };

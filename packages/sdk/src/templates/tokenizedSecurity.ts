@@ -28,7 +28,7 @@ export const createTokenizedSecurityInitTransaction = async (
     symbol: string,
     decimals: number,
     uri: string,
-    mintAuthority: Address,
+    mintAuthority: Address | TransactionSigner<string>,
     mint: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
     freezeAuthority?: Address,
@@ -49,13 +49,14 @@ export const createTokenizedSecurityInitTransaction = async (
 ): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
+    const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
 
     const aclMode = options?.aclMode ?? 'blocklist';
     const useSrfc37 = options?.enableSrfc37 ?? false;
-    const metadataAuthority = options?.metadataAuthority || mintAuthority;
-    const pausableAuthority = options?.pausableAuthority || mintAuthority;
-    const confidentialBalancesAuthority = options?.confidentialBalancesAuthority || mintAuthority;
-    const permanentDelegateAuthority = options?.permanentDelegateAuthority || mintAuthority;
+    const metadataAuthority = options?.metadataAuthority || mintAuthorityAddress;
+    const pausableAuthority = options?.pausableAuthority || mintAuthorityAddress;
+    const confidentialBalancesAuthority = options?.confidentialBalancesAuthority || mintAuthorityAddress;
+    const permanentDelegateAuthority = options?.permanentDelegateAuthority || mintAuthorityAddress;
 
     let tokenBuilder = new Token()
         .withMetadata({
@@ -75,7 +76,7 @@ export const createTokenizedSecurityInitTransaction = async (
 
     // Add Scaled UI Amount extension
     tokenBuilder = tokenBuilder.withScaledUiAmount(
-        options?.scaledUiAmount?.authority || mintAuthority,
+        options?.scaledUiAmount?.authority || mintAuthorityAddress,
         options?.scaledUiAmount?.multiplier ?? 1,
         options?.scaledUiAmount?.newMultiplierEffectiveTimestamp ?? 0n,
         options?.scaledUiAmount?.newMultiplier ?? 1,
@@ -84,7 +85,7 @@ export const createTokenizedSecurityInitTransaction = async (
     const instructions = await tokenBuilder.buildInstructions({
         rpc,
         decimals,
-        mintAuthority,
+        mintAuthority: mintAuthority,
         freezeAuthority,
         mint: mintSigner,
         feePayer: feePayerSigner,

@@ -5,11 +5,11 @@ import { ArcadeTokenBasicParams } from './ArcadeTokenBasicParams';
 import { ArcadeTokenAuthorityParams } from './ArcadeTokenAuthorityParams';
 import { ArcadeTokenCreationResultDisplay } from '@/app/dashboard/create/arcade-token/ArcadeTokenCreationResult';
 import { createArcadeToken } from '@/lib/issuance/arcadeToken';
-import { TransactionSendingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/signers';
 import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/tokenStorage';
 
 interface ArcadeTokenCreateFormProps {
-    transactionSendingSigner: TransactionSendingSigner<string>;
+    transactionSendingSigner: TransactionModifyingSigner<string>;
 }
 
 export function ArcadeTokenCreateForm({ transactionSendingSigner }: ArcadeTokenCreateFormProps) {

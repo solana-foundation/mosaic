@@ -1,25 +1,21 @@
 'use client';
 
-import { useContext } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { CreateTemplateSidebar } from '@/components/CreateTemplateSidebar';
 import { useConnector } from '@solana/connector/react';
-import { ChainContext } from '@/context/ChainContext';
 import { useConnectorSigner } from '@/hooks/useConnectorSigner';
 import { StablecoinCreateForm } from '@/app/dashboard/create/stablecoin/StablecoinCreateForm';
 
 // Component that only renders when wallet is available
-function StablecoinCreateWithWallet({
-    selectedAccount,
-    currentChain,
-}: {
-    selectedAccount: string;
-    currentChain: string;
-}) {
+function StablecoinCreateWithWallet() {
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
+
+    if (!transactionSendingSigner) {
+        return null;
+    }
 
     return (
         <div className="flex-1 p-8">
@@ -74,12 +70,11 @@ function StablecoinCreateWithWallet({
 
 // Simple wrapper component that shows a message when wallet is not connected
 function StablecoinCreatePage() {
-    const { connected, selectedAccount } = useConnector();
-    const { chain: currentChain } = useContext(ChainContext);
+    const { connected, selectedAccount, cluster } = useConnector();
 
     // If wallet is connected and chain is available, render the full component
-    if (connected && selectedAccount && currentChain) {
-        return <StablecoinCreateWithWallet selectedAccount={selectedAccount} currentChain={currentChain} />;
+    if (connected && selectedAccount && cluster) {
+        return <StablecoinCreateWithWallet />;
     }
 
     // Otherwise, show a message to connect wallet

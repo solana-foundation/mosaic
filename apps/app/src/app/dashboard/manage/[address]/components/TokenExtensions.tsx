@@ -1,4 +1,4 @@
-import { useState, useContext } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { updateScaledUiMultiplier } from '@/lib/management/scaledUiAmount';
@@ -6,7 +6,6 @@ import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/hooks/useConnectorSigner';
 import { Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
-import { ChainContext } from '@/context/ChainContext';
 import Link from 'next/link';
 
 interface TokenExtensionsProps {
@@ -14,17 +13,10 @@ interface TokenExtensionsProps {
 }
 
 export function TokenExtensions({ token }: TokenExtensionsProps) {
-    const { connected, selectedAccount } = useConnector();
-    const { chain: currentChain } = useContext(ChainContext);
+    const { connected, selectedAccount, cluster } = useConnector();
 
-    if (connected && selectedAccount && currentChain) {
-        return (
-            <ManageTokenExtensionsWithWallet
-                selectedAccount={selectedAccount}
-                currentChain={currentChain}
-                token={token}
-            />
-        );
+    if (connected && selectedAccount && cluster) {
+        return <ManageTokenExtensionsWithWallet token={token} />;
     }
 
     return (
@@ -59,15 +51,7 @@ export function TokenExtensions({ token }: TokenExtensionsProps) {
     );
 }
 
-function ManageTokenExtensionsWithWallet({
-    selectedAccount,
-    currentChain,
-    token,
-}: {
-    selectedAccount: string;
-    currentChain: string;
-    token: TokenDisplay;
-}) {
+function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [showScaledUiEditor, setShowScaledUiEditor] = useState(false);
     const [newMultiplier, setNewMultiplier] = useState<string>('');

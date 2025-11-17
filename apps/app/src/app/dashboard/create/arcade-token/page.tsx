@@ -1,25 +1,21 @@
 'use client';
 
-import { useContext } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { CreateTemplateSidebar } from '@/components/CreateTemplateSidebar';
 import { useConnector } from '@solana/connector/react';
-import { ChainContext } from '@/context/ChainContext';
 import { useConnectorSigner } from '@/hooks/useConnectorSigner';
 import { ArcadeTokenCreateForm } from '@/app/dashboard/create/arcade-token/ArcadeTokenCreateForm';
 
 // Component that only renders when wallet is available
-function ArcadeTokenCreateWithWallet({
-    selectedAccount,
-    currentChain,
-}: {
-    selectedAccount: string;
-    currentChain: string;
-}) {
+function ArcadeTokenCreateWithWallet() {
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
+
+    if (!transactionSendingSigner) {
+        return null;
+    }
 
     return (
         <div className="flex-1 p-8">
@@ -71,14 +67,11 @@ function ArcadeTokenCreateWithWallet({
 
 // Simple wrapper component that shows a message when wallet is not connected
 function ArcadeTokenCreatePage() {
-    const { connected, selectedAccount } = useConnector();
-    const { chain: currentChain } = useContext(ChainContext);
+    const { connected, selectedAccount, cluster } = useConnector();
 
     // If wallet is connected and chain is available, render the full component
-    if (connected && selectedAccount && currentChain) {
-        return (
-            <ArcadeTokenCreateWithWallet selectedAccount={selectedAccount} currentChain={currentChain} />
-        );
+    if (connected && selectedAccount && cluster) {
+        return <ArcadeTokenCreateWithWallet />;
     }
 
     // Otherwise, show a message to connect wallet

@@ -6,13 +6,13 @@ import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/typ
 import { TokenizedSecurityBasicParams } from './TokenizedSecurityBasicParams';
 import { TokenizedSecurityAuthorityParams } from './TokenizedSecurityAuthorityParams';
 import { createTokenizedSecurity } from '@/lib/issuance/tokenizedSecurity';
-import { TransactionSendingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/signers';
 import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/tokenStorage';
 
 export function TokenizedSecurityCreateForm({
     transactionSendingSigner,
 }: {
-    transactionSendingSigner: TransactionSendingSigner<string>;
+    transactionSendingSigner: TransactionModifyingSigner<string>;
 }) {
     const [options, setOptions] = useState<TokenizedSecurityOptions>({
         name: '',

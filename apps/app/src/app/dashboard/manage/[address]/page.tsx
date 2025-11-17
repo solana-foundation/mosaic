@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
@@ -11,7 +11,6 @@ import { findTokenByAddress } from '@/lib/token/tokenData';
 import { TokenStorage } from '@/lib/token/tokenStorage';
 import { getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
 import { useConnector } from '@solana/connector/react';
-import { ChainContext } from '@/context/ChainContext';
 import { TokenOverview } from './components/TokenOverview';
 import { TokenAuthorities } from './components/TokenAuthorities';
 import { TokenExtensions } from './components/TokenExtensions';
@@ -72,8 +71,7 @@ const getAccessList = async (
 
 function ManageTokenConnected({ address }: { address: string }) {
     const router = useRouter();
-    const { selectedAccount } = useConnector();
-    const { chain: currentChain, solanaRpcUrl } = useContext(ChainContext);
+    const { selectedAccount, cluster } = useConnector();
     const [token, setToken] = useState<TokenDisplay | null>(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
@@ -92,7 +90,10 @@ function ManageTokenConnected({ address }: { address: string }) {
     const [transactionSignature, setTransactionSignature] = useState('');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
-    const rpc = useMemo(() => createSolanaRpc(solanaRpcUrl) as Rpc<SolanaRpcApi>, [solanaRpcUrl]);
+    const rpc = useMemo(() => {
+        if (!cluster?.url) return null;
+        return createSolanaRpc(cluster.url) as Rpc<SolanaRpcApi>;
+    }, [cluster?.url]);
 
     const loadedAccessListRef = useRef<string | null>(null);
 
@@ -108,12 +109,13 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     useEffect(() => {
         const addTokenExtensionsToFoundToken = async (foundToken: TokenDisplay): Promise<void> => {
+            if (!rpc) return;
             const extensions = await getTokenExtensions(rpc, foundToken.address as Address);
             foundToken.extensions = extensions;
             setToken(foundToken);
 
             if (foundToken.address) {
-                const pauseState = await checkTokenPauseState(foundToken.address, solanaRpcUrl);
+                const pauseState = await checkTokenPauseState(foundToken.address, cluster?.url || '');
                 setIsPaused(pauseState);
             }
         };
@@ -130,11 +132,13 @@ function ManageTokenConnected({ address }: { address: string }) {
         };
 
         loadTokenData();
-    }, [address, rpc, solanaRpcUrl]);
+    }, [address, rpc, cluster?.url]);
 
     useEffect(() => {
         const loadAccessList = async () => {
-            const currentKey = `${selectedAccount}-${token?.address}-${solanaRpcUrl}-${refreshTrigger}`;
+            if (!rpc) return;
+            
+            const currentKey = `${selectedAccount}-${token?.address}-${cluster?.url}-${refreshTrigger}`;
 
             if (loadedAccessListRef.current === currentKey) {
                 return;
@@ -153,7 +157,7 @@ function ManageTokenConnected({ address }: { address: string }) {
         if (rpc && selectedAccount && token?.address && token?.isSrfc37) {
             loadAccessList();
         }
-    }, [rpc, selectedAccount, token?.address, token?.isSrfc37, solanaRpcUrl, refreshTrigger]);
+    }, [rpc, selectedAccount, token?.address, token?.isSrfc37, cluster?.url, refreshTrigger]);
 
     const copyToClipboard = async (text: string) => {
         try {
@@ -317,7 +321,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                           mintAddress: token.address,
                           pauseAuthority: token.pausableAuthority,
                           feePayer: selectedAccount,
-                          rpcUrl: solanaRpcUrl,
+                          rpcUrl: cluster?.url || '',
                       },
                       transactionSendingSigner,
                   )
@@ -326,7 +330,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                           mintAddress: token.address,
                           pauseAuthority: token.pausableAuthority,
                           feePayer: selectedAccount,
-                          rpcUrl: solanaRpcUrl,
+                          rpcUrl: cluster?.url || '',
                       },
                       transactionSendingSigner,
                   );

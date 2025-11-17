@@ -1,15 +1,17 @@
 import {
     generateKeyPairSigner,
     createSolanaRpc,
+    createSolanaRpcSubscriptions,
     type Address,
     type Rpc,
     type SolanaRpcApi,
-    signAndSendTransactionMessageWithSigners,
-    TransactionSendingSigner,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+    getSignatureFromTransaction,
+    TransactionModifyingSigner,
 } from 'gill';
 import { ArcadeTokenCreationResult, ArcadeTokenOptions } from '@/types/token';
 import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
-import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 /**
  * Validates arcade token options and returns parsed decimals
@@ -38,7 +40,7 @@ function validateArcadeTokenOptions(options: ArcadeTokenOptions): number {
  */
 export const createArcadeToken = async (
     options: ArcadeTokenOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
 ): Promise<ArcadeTokenCreationResult> => {
     try {
         const decimals = validateArcadeTokenOptions(options);
@@ -56,14 +58,23 @@ export const createArcadeToken = async (
         const mintKeypair = await generateKeyPairSigner();
 
         // Set authorities (default to signer if not provided)
-        const mintAuthority = (options.mintAuthority || signerAddress) as Address;
-        const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
-        const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
-        const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
+        // When TokenMetadata extension is present, mintAuthority must be a TransactionSigner
+        const mintAuthority = options.mintAuthority
+            ? options.mintAuthority === signerAddress
+                ? signer
+                : (options.mintAuthority as Address)
+            : signer;
+
+        const metadataAuthority = options.metadataAuthority ? (options.metadataAuthority as Address) : undefined;
+        const pausableAuthority = options.pausableAuthority ? (options.pausableAuthority as Address) : undefined;
+        const permanentDelegateAuthority = options.permanentDelegateAuthority
+            ? (options.permanentDelegateAuthority as Address)
+            : undefined;
 
         // Create RPC client
         const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         // Create arcade token transaction using SDK
         const transaction = await createArcadeTokenInitTransaction(
@@ -81,22 +92,27 @@ export const createArcadeToken = async (
             enableSrfc37,
         );
 
-        // Sign the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        // Sign the transaction with the modifying signer
+        const signedTransaction = await signTransactionMessageWithSigners(transaction);
+
+        // Send and confirm the signed transaction
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
+            commitment: 'confirmed',
+        });
 
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
             mintAddress: mintKeypair.address,
             details: {
                 name: options.name,
                 symbol: options.symbol,
                 decimals: parseInt(options.decimals),
                 enableSrfc37: options.enableSrfc37 || false,
-                mintAuthority: options.mintAuthority || signerAddress,
-                metadataAuthority: options.metadataAuthority || signerAddress,
-                pausableAuthority: options.pausableAuthority || signerAddress,
-                permanentDelegateAuthority: options.permanentDelegateAuthority || signerAddress,
+                mintAuthority: typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address,
+                metadataAuthority: metadataAuthority?.toString(),
+                pausableAuthority: pausableAuthority?.toString(),
+                permanentDelegateAuthority: permanentDelegateAuthority?.toString(),
                 extensions: ['Metadata', 'Pausable', 'Default Account State (Allowlist)', 'Permanent Delegate'],
             },
         };

@@ -1,15 +1,17 @@
 import {
     generateKeyPairSigner,
     createSolanaRpc,
+    createSolanaRpcSubscriptions,
     type Address,
     type Rpc,
     type SolanaRpcApi,
-    signAndSendTransactionMessageWithSigners,
-    TransactionSendingSigner,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+    getSignatureFromTransaction,
+    TransactionModifyingSigner,
 } from 'gill';
 import { StablecoinCreationResult, StablecoinOptions } from '@/types/token';
 import { createStablecoinInitTransaction } from '@mosaic/sdk';
-import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 /**
  * Validates stablecoin options and returns parsed decimals
@@ -38,7 +40,7 @@ function validateStablecoinOptions(options: StablecoinOptions): number {
  */
 export const createStablecoin = async (
     options: StablecoinOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
 ): Promise<StablecoinCreationResult> => {
     try {
         const decimals = validateStablecoinOptions(options);
@@ -56,15 +58,26 @@ export const createStablecoin = async (
         const mintKeypair = await generateKeyPairSigner();
 
         // Set authorities (default to signer if not provided)
-        const mintAuthority = (options.mintAuthority || signerAddress) as Address;
-        const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
-        const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
-        const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
-        const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
+        // When TokenMetadata extension is present, mintAuthority must be a TransactionSigner
+        const mintAuthority = options.mintAuthority
+            ? options.mintAuthority === signerAddress
+                ? signer
+                : (options.mintAuthority as Address)
+            : signer;
+
+        const metadataAuthority = options.metadataAuthority ? (options.metadataAuthority as Address) : undefined;
+        const pausableAuthority = options.pausableAuthority ? (options.pausableAuthority as Address) : undefined;
+        const confidentialBalancesAuthority = options.confidentialBalancesAuthority
+            ? (options.confidentialBalancesAuthority as Address)
+            : undefined;
+        const permanentDelegateAuthority = options.permanentDelegateAuthority
+            ? (options.permanentDelegateAuthority as Address)
+            : undefined;
 
         // Create RPC client
         const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         // Create stablecoin transaction using SDK
         const transaction = await createStablecoinInitTransaction(
@@ -84,23 +97,28 @@ export const createStablecoin = async (
             enableSrfc37,
         );
 
-        // Sign the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        // Sign the transaction with the modifying signer
+        const signedTransaction = await signTransactionMessageWithSigners(transaction);
+
+        // Send and confirm the signed transaction
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
+            commitment: 'confirmed',
+        });
 
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
             mintAddress: mintKeypair.address,
             details: {
                 name: options.name,
                 symbol: options.symbol,
                 decimals,
                 aclMode: options.aclMode || 'blocklist',
-                mintAuthority,
-                metadataAuthority,
-                pausableAuthority,
-                confidentialBalancesAuthority,
-                permanentDelegateAuthority,
+                mintAuthority: typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address,
+                metadataAuthority: metadataAuthority?.toString(),
+                pausableAuthority: pausableAuthority?.toString(),
+                confidentialBalancesAuthority: confidentialBalancesAuthority?.toString(),
+                permanentDelegateAuthority: permanentDelegateAuthority?.toString(),
                 extensions: ['Metadata', 'Pausable', 'Confidential Balances', 'Permanent Delegate'],
             },
         };
