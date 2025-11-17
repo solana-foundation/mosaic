@@ -17,7 +17,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
     });
 
     test('blocklist add returns freeze instruction when SRFC-37 disabled', async () => {
-        jest.doMock('../../transactionUtil', () => ({
+        jest.doMock('../../transaction-util', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata55555555555555555555555555555555555555',
                 isInitialized: true,
@@ -37,7 +37,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
     });
 
     test('allowlist add returns thaw instruction when SRFC-37 disabled', async () => {
-        jest.doMock('../../transactionUtil', () => ({
+        jest.doMock('../../transaction-util', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata66666666666666666666666666666666666666',
                 isInitialized: true,
@@ -69,7 +69,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
             mint,
             state: 'initialized',
         });
-        jest.doMock('../../transactionUtil', () => ({
+        jest.doMock('../../transaction-util', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata55555555555555555555555555555555555555',
                 isInitialized: true,
@@ -99,7 +99,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
             getList: jest.fn().mockResolvedValue({ mode: 1 }),
             getListConfigPda: jest.fn().mockResolvedValue('ListCfg11111111111111111111111111111111'),
         }));
-        jest.doMock('../../transactionUtil', () => ({
+        jest.doMock('../../transaction-util', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata66666666666666666666666666666666666666',
                 isInitialized: true,

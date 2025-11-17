@@ -21,7 +21,7 @@ describe('force-burn', () => {
 
     describe('createForceBurnTransaction', () => {
         test('basic burn without thaw', async () => {
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -58,7 +58,7 @@ describe('force-burn', () => {
                 state: 'frozen',
             });
 
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -89,7 +89,7 @@ describe('force-burn', () => {
         });
 
         test('no thaw when SRFC-37 disabled even if frozen', async () => {
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -126,7 +126,7 @@ describe('force-burn', () => {
 
             for (const { decimalAmount, decimals, expectedRaw } of testCases) {
                 jest.resetModules();
-                jest.doMock('../../transactionUtil', () => ({
+                jest.doMock('../../transaction-util', () => ({
                     resolveTokenAccount: jest.fn().mockResolvedValue({
                         tokenAccount: tokenAccount,
                         isInitialized: true,
@@ -159,7 +159,7 @@ describe('force-burn', () => {
             const permDelAddress = 'PermDel777777777777777777777777777777777' as Address;
             const feePayerAddress = 'Fee777777777777777777777777777777777777' as Address;
 
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -194,7 +194,7 @@ describe('force-burn', () => {
 
             for (const { wallet: w, tokenAccount: ta } of accounts) {
                 jest.resetModules();
-                jest.doMock('../../transactionUtil', () => ({
+                jest.doMock('../../transaction-util', () => ({
                     resolveTokenAccount: jest.fn().mockResolvedValue({
                         tokenAccount: ta,
                         isInitialized: true,
@@ -224,7 +224,7 @@ describe('force-burn', () => {
         });
 
         test('handles uninitialized token accounts gracefully', async () => {
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: false,
@@ -252,7 +252,7 @@ describe('force-burn', () => {
         });
 
         test('respects different program addresses', async () => {
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -282,7 +282,7 @@ describe('force-burn', () => {
 
     describe('validatePermanentDelegateForBurn', () => {
         test('passes with correct delegate', async () => {
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 getMintDetails: jest.fn().mockResolvedValue({
                     decimals: 6,
                     extensions: [
@@ -300,7 +300,7 @@ describe('force-burn', () => {
         });
 
         test('throws when no permanent delegate extension', async () => {
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 getMintDetails: jest.fn().mockResolvedValue({
                     decimals: 6,
                     extensions: [],
@@ -315,7 +315,7 @@ describe('force-burn', () => {
         });
 
         test('throws on delegate mismatch', async () => {
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 getMintDetails: jest.fn().mockResolvedValue({
                     decimals: 6,
                     extensions: [
@@ -335,7 +335,7 @@ describe('force-burn', () => {
         });
 
         test('throws with other extensions but no permanent delegate', async () => {
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 getMintDetails: jest.fn().mockResolvedValue({
                     decimals: 6,
                     extensions: [
@@ -353,7 +353,7 @@ describe('force-burn', () => {
         });
 
         test('handles undefined delegate in extension', async () => {
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 getMintDetails: jest.fn().mockResolvedValue({
                     decimals: 6,
                     extensions: [
@@ -382,7 +382,7 @@ describe('force-burn', () => {
                 state: 'frozen',
             });
 
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -432,7 +432,7 @@ describe('force-burn', () => {
             const largeAmount = 999999.999999999;
             const expectedRaw = 999999999999999n; // Max safe u64 value
 
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -464,7 +464,7 @@ describe('force-burn', () => {
             const permDelSigner = createMockSigner(permDel.address);
             const feePayerSigner = createMockSigner(feePayer.address);
 
-            jest.doMock('../../transactionUtil', () => ({
+            jest.doMock('../../transaction-util', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,

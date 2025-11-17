@@ -16,7 +16,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
     });
 
     test('createMintToTransaction: no thaw permissionless when SRFC-37 disabled', async () => {
-        jest.doMock('../../transactionUtil', () => ({
+        jest.doMock('../../transaction-util', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata77777777777777777777777777777777777777',
                 isInitialized: true,
@@ -37,7 +37,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
     });
 
     test('createForceTransferTransaction: no thaw permissionless when SRFC-37 disabled', async () => {
-        jest.doMock('../../transactionUtil', () => ({
+        jest.doMock('../../transaction-util', () => ({
             resolveTokenAccount: jest
                 .fn()
                 .mockResolvedValueOnce({
@@ -65,7 +65,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
     });
 
     test('createMintToTransaction: thaw permissionless when SRFC-37 is enabled', async () => {
-        jest.doMock('../../transactionUtil', () => ({
+        jest.doMock('../../transaction-util', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata77777777777777777777777777777777777777',
                 isInitialized: false,
@@ -87,7 +87,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
     });
 
     test('createForceTransferTransaction: thaw permissionless when SRFC-37 is enabled', async () => {
-        jest.doMock('../../transactionUtil', () => ({
+        jest.doMock('../../transaction-util', () => ({
             resolveTokenAccount: jest
                 .fn()
                 .mockResolvedValueOnce({
