@@ -2,8 +2,8 @@ import { useState, useContext } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { updateScaledUiMultiplier } from '@/lib/management/scaledUiAmount';
-import { useWalletAccountTransactionSendingSigner } from '@solana/react';
 import { useConnector } from '@solana/connector/react';
+import { useConnectorSigner } from '@/hooks/useConnectorSigner';
 import { Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 import { ChainContext } from '@/context/ChainContext';
@@ -72,19 +72,8 @@ function ManageTokenExtensionsWithWallet({
     const [showScaledUiEditor, setShowScaledUiEditor] = useState(false);
     const [newMultiplier, setNewMultiplier] = useState<string>('');
     
-    // Create a minimal wallet account object compatible with useWalletAccountTransactionSendingSigner
-    const walletAccount = {
-        address: selectedAccount,
-        chains: [currentChain as `solana:${string}`],
-        features: [],
-        icon: undefined,
-        label: undefined,
-    } as any;
-    
-    const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
-        walletAccount,
-        currentChain as `solana:${string}`,
-    );
+    // Use the connector signer hook which provides a gill-compatible transaction signer
+    const transactionSendingSigner = useConnectorSigner();
 
     return (
         <Card>

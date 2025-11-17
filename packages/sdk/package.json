@@ -28,9 +28,10 @@
     },
     "dependencies": {
         "@solana-program/token-2022": "^0.5.0",
+        "@solana/sysvars": "^3.0.3",
         "@token-acl/abl-sdk": "^0.1.2",
         "@token-acl/sdk": "^0.1.4",
-        "gill": "^0.10.2"
+        "gill": "^0.12.0"
     },
     "devDependencies": {
         "@jest/test-sequencer": "^29.7.0",

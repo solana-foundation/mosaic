@@ -7,9 +7,9 @@ import { updateTokenAuthority } from '@/lib/management/authority';
 import { getTokenAuthorities } from '@/lib/solana/rpc';
 import { AuthorityType } from 'gill/programs/token';
 import { isAddress } from 'gill';
-import { useWalletAccountTransactionSendingSigner } from '@solana/react';
 import { ChainContext } from '@/context/ChainContext';
 import { useConnector } from '@solana/connector/react';
+import { useConnectorSigner } from '@/hooks/useConnectorSigner';
 
 interface TokenAuthoritiesProps {
     token: TokenDisplay;
@@ -93,17 +93,8 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
     const { selectedAccount } = useConnector();
     const { chain: currentChain } = useContext(ChainContext);
 
-    // Create a minimal wallet account object compatible with useWalletAccountTransactionSendingSigner
-    const walletAccount = selectedAccount && currentChain ? {
-        address: selectedAccount,
-        chains: [currentChain as `solana:${string}`],
-        features: [],
-        icon: undefined,
-        label: undefined,
-    } as any : null;
-
-    // Create transaction sending signer if wallet is connected
-    const transactionSendingSigner = useWalletAccountTransactionSendingSigner(walletAccount!, currentChain!);
+    // Use the connector signer hook which provides a gill-compatible transaction signer
+    const transactionSendingSigner = useConnectorSigner();
 
     // Fetch current authorities from blockchain
     useEffect(() => {

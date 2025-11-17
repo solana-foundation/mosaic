@@ -1,14 +1,10 @@
 import type { Metadata } from 'next';
 import localFont from 'next/font/local';
-// Import globals.css before any other components to avoid FOUC during HMR
 import './globals.css';
-import { ThemeProvider } from '@/components/theme-provider';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { cn } from '@/lib/utils';
-import { ChainContextProvider } from '@/context/ChainContextProvider';
-import { SolanaConnectorProvider } from '@/components/solana-connector-provider';
-import { RpcContextProvider } from '@/context/RpcContextProvider';
+import { Providers } from './providers';
 
 // Inter Variable font for body text with weights: 450, 550, 600
 const inter = localFont({
@@ -77,19 +73,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     return (
         <html lang="en" suppressHydrationWarning>
             <body className={cn(inter.variable, abcDiatype.variable, berkeleyMono.variable, 'antialiased')}>
-                <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-                    <ChainContextProvider>
-                        <SolanaConnectorProvider>
-                            <RpcContextProvider>
-                                <div className="flex min-h-screen flex-col bg-background">
-                                    <Header />
-                                    <main className="flex-1">{children}</main>
-                                    <Footer />
-                                </div>
-                            </RpcContextProvider>
-                        </SolanaConnectorProvider>
-                    </ChainContextProvider>
-                </ThemeProvider>
+                <Providers>
+                    <div className="flex min-h-screen flex-col bg-background">
+                        <Header />
+                        <main className="flex-1">{children}</main>
+                        <Footer />
+                    </div>
+                </Providers>
             </body>
         </html>
     );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useContext } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,17 +10,23 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeft, Upload, AlertCircle, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { RpcContext } from '@/context/RpcContext';
+import { useConnector } from '@solana/connector/react';
 import { getTokenDashboardData, TokenType } from '@mosaic/sdk';
 import { TokenStorage } from '@/lib/token/tokenStorage';
 import { TokenDisplay } from '@/types/token';
 import { Spinner } from '@/components/ui/spinner';
-import { address, type Rpc, type SolanaRpcApi } from 'gill';
+import { address, createSolanaRpc, type Rpc, type SolanaRpcApi } from 'gill';
 import { getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
 
 export default function ImportTokenPage() {
     const router = useRouter();
-    const { rpc } = useContext(RpcContext);
+    const { cluster } = useConnector();
+    
+    // Create RPC client from current cluster
+    const rpc = useMemo(() => {
+        if (!cluster?.url) return null;
+        return createSolanaRpc(cluster.url);
+    }, [cluster?.url]);
     const [tokenAddress, setTokenAddress] = useState('');
     const [tokenType, setTokenType] = useState('none');
     const [isLoading, setIsLoading] = useState(false);
@@ -37,6 +43,11 @@ export default function ImportTokenPage() {
         setIsLoading(true);
 
         try {
+            // Validate RPC connection
+            if (!rpc) {
+                throw new Error('No RPC connection available. Please connect your wallet.');
+            }
+            
             // Validate address format
             if (!tokenAddress || tokenAddress.length < 32) {
                 throw new Error('Please enter a valid Solana token address');

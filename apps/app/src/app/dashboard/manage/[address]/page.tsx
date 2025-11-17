@@ -23,7 +23,7 @@ import { ForceTransferModalRefactored as ForceTransferModal } from './components
 import { ForceBurnModalRefactored as ForceBurnModal } from './components/ForceBurnModalRefactored';
 import { ActionResultModal } from './components/ActionResultModal';
 import { PauseConfirmModal } from './components/PauseConfirmModal';
-import { useWalletAccountTransactionSendingSigner } from '@solana/react';
+import { useConnectorSigner } from '@/hooks/useConnectorSigner';
 import {
     addAddressToBlocklist,
     addAddressToAllowlist,
@@ -103,16 +103,8 @@ function ManageTokenConnected({ address }: { address: string }) {
         }, 600);
     };
 
-    // Create a minimal wallet account object compatible with useWalletAccountTransactionSendingSigner
-    const walletAccount = selectedAccount ? {
-        address: selectedAccount,
-        chains: [currentChain as `solana:${string}`],
-        features: [],
-        icon: undefined,
-        label: undefined,
-    } as any : null;
-    
-    const transactionSendingSigner = useWalletAccountTransactionSendingSigner(walletAccount!, currentChain!);
+    // Use the connector signer hook which provides a gill-compatible transaction signer
+    const transactionSendingSigner = useConnectorSigner();
 
     useEffect(() => {
         const addTokenExtensionsToFoundToken = async (foundToken: TokenDisplay): Promise<void> => {

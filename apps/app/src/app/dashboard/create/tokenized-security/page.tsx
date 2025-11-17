@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { CreateTemplateSidebar } from '@/components/CreateTemplateSidebar';
 import { useConnector } from '@solana/connector/react';
 import { ChainContext } from '@/context/ChainContext';
-import { useWalletAccountTransactionSendingSigner } from '@solana/react';
+import { useConnectorSigner } from '@/hooks/useConnectorSigner';
 import { TokenizedSecurityCreateForm } from './TokenizedSecurityCreateForm';
 
 function TokenizedSecurityCreateWithWallet({
@@ -17,20 +17,8 @@ function TokenizedSecurityCreateWithWallet({
     selectedAccount: string;
     currentChain: string;
 }) {
-    // Create a minimal wallet account object compatible with useWalletAccountTransactionSendingSigner
-    // The hook should work with the connector's account format
-    const walletAccount = {
-        address: selectedAccount,
-        chains: [currentChain as `solana:${string}`],
-        features: [],
-        icon: undefined,
-        label: undefined,
-    } as any;
-    
-    const transactionSendingSigner = useWalletAccountTransactionSendingSigner(
-        walletAccount,
-        currentChain as `solana:${string}`,
-    );
+    // Use the connector signer hook which provides a gill-compatible transaction signer
+    const transactionSendingSigner = useConnectorSigner();
 
     return (
         <div className="flex-1 p-8">
