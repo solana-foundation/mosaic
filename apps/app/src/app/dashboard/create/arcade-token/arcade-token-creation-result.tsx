@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Gamepad2, CheckCircle, Settings } from 'lucide-react';
-import { CopyableExplorerField } from '@/components/CopyableExplorerField';
+import { CopyableExplorerField } from '@/components/copyable-explorer-field';
 import { ArcadeTokenCreationResult } from '@/types/token';
 import Link from 'next/link';
 

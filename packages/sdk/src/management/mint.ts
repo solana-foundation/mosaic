@@ -20,7 +20,7 @@ import {
     getMintDetails,
     isDefaultAccountStateSetFrozen,
     resolveTokenAccount,
-} from '../transactionUtil';
+} from '../transaction-util';
 
 /**
  * Creates a transaction to mint tokens to a recipient's associated token account.

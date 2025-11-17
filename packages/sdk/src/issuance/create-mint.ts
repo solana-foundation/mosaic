@@ -22,7 +22,7 @@ import {
     TOKEN_2022_PROGRAM_ADDRESS,
     getInitializeTokenMetadataInstruction,
 } from 'gill/programs/token';
-import { createUpdateFieldInstruction } from './createUpdateFieldInstruction';
+import { createUpdateFieldInstruction } from './create-update-field-instruction';
 
 export class Token {
     private extensions: Extension[] = [];

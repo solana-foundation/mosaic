@@ -12,10 +12,10 @@ import type {
 import { createNoopSigner, createTransaction } from 'gill';
 import { Mode } from '@token-acl/abl-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils';
-import { getCreateConfigInstructions } from '../token-acl/createConfig';
-import { getEnablePermissionlessThawInstructions } from '../token-acl/enablePermissionlessThaw';
+import { getCreateConfigInstructions } from '../token-acl/create-config';
+import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
 import { getCreateListInstructions } from '../abl/list';
-import { getSetExtraMetasInstructions } from '../abl/setExtraMetas';
+import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
 
 /**
  * Creates a transaction to initialize a new stablecoin mint on Solana with common stablecoin features.

@@ -3,10 +3,10 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { CreateTemplateSidebar } from '@/components/CreateTemplateSidebar';
+import { CreateTemplateSidebar } from '@/components/create-template-sidebar';
 import { useConnector } from '@solana/connector/react';
-import { useConnectorSigner } from '@/hooks/useConnectorSigner';
-import { StablecoinCreateForm } from '@/app/dashboard/create/stablecoin/StablecoinCreateForm';
+import { useConnectorSigner } from '@/hooks/use-connector-signer';
+import { StablecoinCreateForm } from '@/app/dashboard/create/stablecoin/stablecoin-create-form';
 
 // Component that only renders when wallet is available
 function StablecoinCreateWithWallet() {

@@ -21,7 +21,7 @@ describe('templates enableSrfc37 option', () => {
     test('arcade token: enableSrfc37 false uses default account state initialized', async () => {
         const mintAuthoritySigner = createMockSigner();
         const decimals = 6;
-        const { createArcadeTokenInitTransaction } = await import('../arcadeToken');
+        const { createArcadeTokenInitTransaction } = await import('../arcade-token');
         const tx = await createArcadeTokenInitTransaction(
             rpc,
             'Name',
@@ -73,7 +73,7 @@ describe('templates enableSrfc37 option', () => {
     test('arcade token: enableSrfc37 true uses default account state frozen', async () => {
         const mintAuthoritySigner = createMockSigner();
         const decimals = 6;
-        const { createArcadeTokenInitTransaction } = await import('../arcadeToken');
+        const { createArcadeTokenInitTransaction } = await import('../arcade-token');
         const tx = await createArcadeTokenInitTransaction(
             rpc,
             'Name',

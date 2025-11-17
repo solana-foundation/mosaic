@@ -13,7 +13,7 @@ import {
     inspectionResultToDashboardData,
     getTokenDashboardData,
 } from '../../inspection';
-import { decimalAmountToRaw } from '../../transactionUtil';
+import { decimalAmountToRaw } from '../../transaction-util';
 
 describeSkipIf()('Inspection Integration Tests', () => {
     let client: Client;

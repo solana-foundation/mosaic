@@ -8,7 +8,7 @@ import type {
     SendAndConfirmTransactionWithSignersFunction,
 } from 'gill';
 import { signTransactionMessageWithSigners } from 'gill';
-import { maybeOutputRawTx } from './rawTx.js';
+import { maybeOutputRawTx } from './raw-tx.js';
 
 type Tx = FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionMessageWithBlockhashLifetime>;
 

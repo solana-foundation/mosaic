@@ -4,12 +4,12 @@ import { mintTokens, type MintOptions } from '@/lib/management/mint';
 import { TransactionModifyingSigner } from '@solana/signers';
 import { Coins } from 'lucide-react';
 
-import { BaseModal } from '@/components/shared/modals/BaseModal';
-import { TransactionSuccessView } from '@/components/shared/modals/TransactionSuccessView';
-import { SolanaAddressInput } from '@/components/shared/form/SolanaAddressInput';
-import { AmountInput } from '@/components/shared/form/AmountInput';
-import { useTransactionModal, useWalletConnection } from '@/hooks/useTransactionModal';
-import { useInputValidation } from '@/hooks/useInputValidation';
+import { BaseModal } from '@/components/shared/modals/base-modal';
+import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
+import { SolanaAddressInput } from '@/components/shared/form/solana-address-input';
+import { AmountInput } from '@/components/shared/form/amount-input';
+import { useTransactionModal, useWalletConnection } from '@/hooks/use-transaction-modal';
+import { useInputValidation } from '@/hooks/use-input-validation';
 
 interface MintModalProps {
     isOpen: boolean;

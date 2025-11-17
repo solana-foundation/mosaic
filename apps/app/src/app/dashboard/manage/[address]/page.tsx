@@ -7,28 +7,28 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { TokenDisplay } from '@/types/token';
 import { Spinner } from '@/components/ui/spinner';
-import { findTokenByAddress } from '@/lib/token/tokenData';
-import { TokenStorage } from '@/lib/token/tokenStorage';
-import { getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
+import { findTokenByAddress } from '@/lib/token/token-data';
+import { TokenStorage } from '@/lib/token/token-storage';
+import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 import { useConnector } from '@solana/connector/react';
-import { TokenOverview } from './components/TokenOverview';
-import { TokenAuthorities } from './components/TokenAuthorities';
-import { TokenExtensions } from './components/TokenExtensions';
-import { TransferRestrictions } from './components/TransferRestrictions';
-import { ActionSidebar } from './components/ActionSidebar';
-import { AddressModal } from './components/AddressModal';
-import { MintModalRefactored as MintModal } from './components/MintModalRefactored';
-import { ForceTransferModalRefactored as ForceTransferModal } from './components/ForceTransferModalRefactored';
-import { ForceBurnModalRefactored as ForceBurnModal } from './components/ForceBurnModalRefactored';
-import { ActionResultModal } from './components/ActionResultModal';
-import { PauseConfirmModal } from './components/PauseConfirmModal';
-import { useConnectorSigner } from '@/hooks/useConnectorSigner';
+import { TokenOverview } from './components/token-overview';
+import { TokenAuthorities } from './components/token-authorities';
+import { TokenExtensions } from './components/token-extensions';
+import { TransferRestrictions } from './components/transfer-restrictions';
+import { ActionSidebar } from './components/action-sidebar';
+import { AddressModal } from './components/address-modal';
+import { MintModalRefactored as MintModal } from './components/mint-modal-refactored';
+import { ForceTransferModalRefactored as ForceTransferModal } from './components/force-transfer-modal-refactored';
+import { ForceBurnModalRefactored as ForceBurnModal } from './components/force-burn-modal-refactored';
+import { ActionResultModal } from './components/action-result-modal';
+import { PauseConfirmModal } from './components/pause-confirm-modal';
+import { useConnectorSigner } from '@/hooks/use-connector-signer';
 import {
     addAddressToBlocklist,
     addAddressToAllowlist,
     removeAddressFromBlocklist,
     removeAddressFromAllowlist,
-} from '@/lib/management/accessList';
+} from '@/lib/management/access-list';
 import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
 import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
 import { Mode } from '@token-acl/abl-sdk';

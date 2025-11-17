@@ -12,11 +12,11 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useConnector } from '@solana/connector/react';
 import { getTokenDashboardData, TokenType } from '@mosaic/sdk';
-import { TokenStorage } from '@/lib/token/tokenStorage';
+import { TokenStorage } from '@/lib/token/token-storage';
 import { TokenDisplay } from '@/types/token';
 import { Spinner } from '@/components/ui/spinner';
 import { address, createSolanaRpc, type Rpc, type SolanaRpcApi } from 'gill';
-import { getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
+import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 
 export default function ImportTokenPage() {
     const router = useRouter();

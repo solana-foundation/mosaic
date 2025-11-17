@@ -15,7 +15,7 @@ import {
     decimalAmountToRaw,
     getMintDetails,
     isDefaultAccountStateSetFrozen,
-} from '../transactionUtil';
+} from '../transaction-util';
 import { TOKEN_ACL_PROGRAM_ID, getThawPermissionlessInstructions } from '../token-acl';
 
 /**

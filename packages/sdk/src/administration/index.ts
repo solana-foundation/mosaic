@@ -1,1 +1,1 @@
-export * from './updateAuthority';
+export * from './update-authority';
