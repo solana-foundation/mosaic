@@ -58,7 +58,9 @@ export const updateScaledUiMultiplier = async (
         });
 
         const signedTransaction = await signTransactionMessageWithSigners(tx);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
+            commitment: 'confirmed',
+        });
         return {
             success: true,
             transactionSignature: getSignatureFromTransaction(signedTransaction),

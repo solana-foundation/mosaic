@@ -92,7 +92,9 @@ export const updateTokenAuthority = async (
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
+            commitment: 'confirmed',
+        });
 
         return {
             success: true,

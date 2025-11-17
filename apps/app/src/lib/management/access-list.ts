@@ -78,7 +78,9 @@ export const addAddressToBlocklist = async (
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
+            commitment: 'confirmed',
+        });
         return {
             success: true,
             transactionSignature: getSignatureFromTransaction(signedTransaction),
@@ -114,7 +116,9 @@ export const removeAddressFromBlocklist = async (
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
+            commitment: 'confirmed',
+        });
         return {
             success: true,
             transactionSignature: getSignatureFromTransaction(signedTransaction),
@@ -150,7 +154,9 @@ export const addAddressToAllowlist = async (
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
+            commitment: 'confirmed',
+        });
         return {
             success: true,
             transactionSignature: getSignatureFromTransaction(signedTransaction),
@@ -186,7 +192,9 @@ export const removeAddressFromAllowlist = async (
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
+            commitment: 'confirmed',
+        });
         return {
             success: true,
             transactionSignature: getSignatureFromTransaction(signedTransaction),

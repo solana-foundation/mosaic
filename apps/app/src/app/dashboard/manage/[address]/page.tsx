@@ -137,18 +137,14 @@ function ManageTokenConnected({ address }: { address: string }) {
     useEffect(() => {
         const loadAccessList = async () => {
             if (!rpc) return;
-            
+
             const currentKey = `${selectedAccount}-${token?.address}-${cluster?.url}-${refreshTrigger}`;
 
             if (loadedAccessListRef.current === currentKey) {
                 return;
             }
 
-            const accessList = await getAccessList(
-                rpc,
-                selectedAccount as Address,
-                token?.address as Address,
-            );
+            const accessList = await getAccessList(rpc, selectedAccount as Address, token?.address as Address);
             setAccessList(accessList.wallets);
             setListType(accessList.type);
             loadedAccessListRef.current = currentKey;

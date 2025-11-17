@@ -11,4 +11,3 @@ export function useConnectorSigner(): TransactionModifyingSigner<string> | null 
     const { signer } = useGillTransactionSigner();
     return signer;
 }
-

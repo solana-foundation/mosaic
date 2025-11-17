@@ -16,7 +16,7 @@ interface TokenOverviewProps {
 
 export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
     const { cluster } = useConnector();
-    
+
     // Create RPC client from current cluster
     const rpc = useMemo(() => {
         if (!cluster?.url) return null;

@@ -21,4 +21,3 @@ export function Logo({ className, width = 28, height = 28 }: LogoProps) {
         </svg>
     );
 }
-

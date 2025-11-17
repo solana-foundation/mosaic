@@ -25,7 +25,7 @@ export function ConnectButton({ className }: ConnectButtonProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const connector = useConnector();
     const { connected, connecting, selectedWallet, selectedAccount, disconnect, wallets, cluster } = connector;
-    
+
     const clusterName = cluster?.label || 'Unknown';
     const isMainnet = cluster?.id === 'solana:mainnet';
 
@@ -66,7 +66,9 @@ export function ConnectButton({ className }: ConnectButtonProps) {
                 <DropdownMenuContent align="start" side="right" className="w-72">
                     <DropdownMenuLabel>
                         <div className="flex flex-col space-y-1">
-                            <p className="text-xs font-abc-diatype leading-none"><span className="opacity-50">Connected to</span> {selectedWallet.name}</p>
+                            <p className="text-xs font-abc-diatype leading-none">
+                                <span className="opacity-50">Connected to</span> {selectedWallet.name}
+                            </p>
                             <p className="text-body-md font-berkeley-mono text-muted-foreground">{shortAddress}</p>
                         </div>
                     </DropdownMenuLabel>
@@ -75,7 +77,8 @@ export function ConnectButton({ className }: ConnectButtonProps) {
                         <div className="flex items-start gap-2">
                             <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
                             <p className="text-xs text-muted-foreground leading-relaxed">
-                                These examples execute SOL transfers (self-transfers to your own address). Each transaction pays standard network fees.
+                                These examples execute SOL transfers (self-transfers to your own address). Each
+                                transaction pays standard network fees.
                             </p>
                         </div>
                     </div>
@@ -92,13 +95,17 @@ export function ConnectButton({ className }: ConnectButtonProps) {
                             <div className="mt-2 flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950 rounded-md">
                                 <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 flex-shrink-0" />
                                 <p className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
-                                    <strong>Mainnet required:</strong> Raydium pools only exist on mainnet. Disconnect and reconnect to switch.
+                                    <strong>Mainnet required:</strong> Raydium pools only exist on mainnet. Disconnect
+                                    and reconnect to switch.
                                 </p>
                             </div>
                         )}
                     </div>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => disconnect()} className="cursor-pointer group hover:!bg-red-600/5 transition-all duration-150 ease-in-out">
+                    <DropdownMenuItem
+                        onClick={() => disconnect()}
+                        className="cursor-pointer group hover:!bg-red-600/5 transition-all duration-150 ease-in-out"
+                    >
                         <LogOut className="mr-2 h-4 w-4 group-hover:text-red-600" />
                         <span className="font-berkeley-mono group-hover:text-red-600">Disconnect</span>
                     </DropdownMenuItem>
@@ -116,4 +123,3 @@ export function ConnectButton({ className }: ConnectButtonProps) {
         </>
     );
 }
-

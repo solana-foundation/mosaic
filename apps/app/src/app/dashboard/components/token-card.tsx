@@ -23,7 +23,7 @@ interface TokenCardProps {
 
 export function TokenCard({ token, index, onDelete }: TokenCardProps) {
     const { cluster } = useConnector();
-    
+
     // Create RPC client from current cluster
     const rpc = useMemo(() => {
         if (!cluster?.url) return null;

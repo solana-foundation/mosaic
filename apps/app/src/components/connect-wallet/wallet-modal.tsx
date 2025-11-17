@@ -218,4 +218,3 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
         </Dialog>
     );
 }
-

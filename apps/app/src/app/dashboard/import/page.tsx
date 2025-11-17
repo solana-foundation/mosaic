@@ -21,7 +21,7 @@ import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 export default function ImportTokenPage() {
     const router = useRouter();
     const { cluster } = useConnector();
-    
+
     // Create RPC client from current cluster
     const rpc = useMemo(() => {
         if (!cluster?.url) return null;
@@ -47,7 +47,7 @@ export default function ImportTokenPage() {
             if (!rpc) {
                 throw new Error('No RPC connection available. Please connect your wallet.');
             }
-            
+
             // Validate address format
             if (!tokenAddress || tokenAddress.length < 32) {
                 throw new Error('Please enter a valid Solana token address');

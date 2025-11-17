@@ -55,7 +55,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [showScaledUiEditor, setShowScaledUiEditor] = useState(false);
     const [newMultiplier, setNewMultiplier] = useState<string>('');
-    
+
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
 
