@@ -3,12 +3,14 @@ import {
     type Address,
     type Rpc,
     type SolanaRpcApi,
-    signAndSendTransactionMessageWithSigners,
-    TransactionSendingSigner,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+    getSignatureFromTransaction,
+    createSolanaRpcSubscriptions,
+    TransactionModifyingSigner,
     isAddress,
 } from 'gill';
 import { createForceBurnTransaction, validatePermanentDelegateForBurn } from '@mosaic/sdk';
-import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface ForceBurnOptions {
     mintAddress: string;
@@ -60,7 +62,7 @@ function validateForceBurnOptions(options: ForceBurnOptions): void {
  */
 export const forceBurnTokens = async (
     options: ForceBurnOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
 ): Promise<ForceBurnResult> => {
     try {
         // Validate options
@@ -91,6 +93,7 @@ export const forceBurnTokens = async (
         // Create RPC client
         const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         // Validate that the mint has permanent delegate extension and it matches our signer
         await validatePermanentDelegateForBurn(
@@ -110,10 +113,11 @@ export const forceBurnTokens = async (
         );
 
         // Sign and send the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
             burnAmount: options.amount,
             fromAddress: options.fromAddress,
         };

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { forceTransferTokens, type ForceTransferOptions } from '@/lib/management/force-transfer';
 import { useConnector } from '@solana/connector/react';
 import { isAddress } from 'gill';
-import { TransactionSendingSigner } from '@solana/signers';
+import { TransactionModifyingSigner } from '@solana/signers';
 import { ExternalLink, AlertCircle } from 'lucide-react';
 
 interface ForceTransferModalProps {
@@ -11,7 +11,7 @@ interface ForceTransferModalProps {
     onClose: () => void;
     mintAddress: string;
     permanentDelegate?: string;
-    transactionSendingSigner: TransactionSendingSigner<string>;
+    transactionSendingSigner: TransactionModifyingSigner<string>;
 }
 
 export function ForceTransferModal({

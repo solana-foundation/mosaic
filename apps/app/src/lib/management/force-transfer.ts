@@ -3,12 +3,14 @@ import {
     type Address,
     type Rpc,
     type SolanaRpcApi,
-    signAndSendTransactionMessageWithSigners,
-    TransactionSendingSigner,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+    getSignatureFromTransaction,
+    createSolanaRpcSubscriptions,
+    TransactionModifyingSigner,
     isAddress,
 } from 'gill';
 import { createForceTransferTransaction, validatePermanentDelegate } from '@mosaic/sdk';
-import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface ForceTransferOptions {
     mintAddress: string;
@@ -65,7 +67,7 @@ function validateForceTransferOptions(options: ForceTransferOptions): void {
  */
 export const forceTransferTokens = async (
     options: ForceTransferOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
 ): Promise<ForceTransferResult> => {
     try {
         // Validate options
@@ -96,6 +98,7 @@ export const forceTransferTokens = async (
         // Create RPC client
         const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         // Validate that the mint has permanent delegate extension and it matches our signer
         await validatePermanentDelegate(rpc, options.mintAddress as Address, permanentDelegateAddress as Address);
@@ -112,10 +115,11 @@ export const forceTransferTokens = async (
         );
 
         // Sign and send the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
             transferAmount: options.amount,
             fromAddress: options.fromAddress,
             toAddress: options.toAddress,

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { forceBurnTokens, type ForceBurnOptions } from '@/lib/management/force-burn';
 import { isAddress } from 'gill';
-import { TransactionSendingSigner } from '@solana/signers';
+import { TransactionModifyingSigner } from '@solana/signers';
 import { ExternalLink, AlertCircle, Flame } from 'lucide-react';
 
 interface ForceBurnModalProps {
@@ -10,7 +10,7 @@ interface ForceBurnModalProps {
     onClose: () => void;
     mintAddress: string;
     permanentDelegate?: string;
-    transactionSendingSigner: TransactionSendingSigner<string>;
+    transactionSendingSigner: TransactionModifyingSigner<string>;
 }
 
 export function ForceBurnModal({

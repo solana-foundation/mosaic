@@ -1,11 +1,14 @@
 import {
     createSolanaRpc,
+    createSolanaRpcSubscriptions,
     type Address,
     type Rpc,
     type SolanaRpcApi,
-    TransactionSendingSigner,
+    TransactionModifyingSigner,
     isAddress,
-    signAndSendTransactionMessageWithSigners,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+    getSignatureFromTransaction,
 } from 'gill';
 import {
     getTokenPauseState,
@@ -13,7 +16,6 @@ import {
     createPauseTransaction,
     createResumeTransaction,
 } from '@mosaic/sdk';
-import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface PauseOptions {
     mintAddress: string;
@@ -46,7 +48,7 @@ function validatePauseOptions(options: PauseOptions): void {
  */
 export const pauseTokenWithWallet = async (
     options: PauseOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
 ): Promise<PauseTokenResult> => {
     try {
         // Validate options
@@ -78,6 +80,7 @@ export const pauseTokenWithWallet = async (
         // Create RPC client
         const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         const { transactionMessage } = await createPauseTransaction(rpc, {
             mint: options.mintAddress as Address,
@@ -85,11 +88,17 @@ export const pauseTokenWithWallet = async (
             feePayer,
         });
 
-        // Sign and send the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transactionMessage);
+        // Sign the transaction
+        const signedTransaction = await signTransactionMessageWithSigners(transactionMessage);
+
+        // Send and confirm the signed transaction
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
+            commitment: 'confirmed',
+        });
+
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
             paused: true,
         };
     } catch (error) {
@@ -108,7 +117,7 @@ export const pauseTokenWithWallet = async (
  */
 export const unpauseTokenWithWallet = async (
     options: PauseOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
 ): Promise<PauseTokenResult> => {
     try {
         // Validate options
@@ -140,6 +149,7 @@ export const unpauseTokenWithWallet = async (
         // Create RPC client
         const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         // Unpause the token using SDK
         const { transactionMessage } = await createResumeTransaction(rpc, {
@@ -148,11 +158,17 @@ export const unpauseTokenWithWallet = async (
             feePayer,
         });
 
-        // Sign and send the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transactionMessage);
+        // Sign the transaction
+        const signedTransaction = await signTransactionMessageWithSigners(transactionMessage);
+
+        // Send and confirm the signed transaction
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
+            commitment: 'confirmed',
+        });
+
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
             paused: false,
         };
     } catch (error) {

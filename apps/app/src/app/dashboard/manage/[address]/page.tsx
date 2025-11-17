@@ -183,7 +183,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     };
 
     const removeFromAccessList = async (address: string) => {
-        if (!selectedAccount || !token?.address || !transactionSendingSigner) {
+        if (!selectedAccount || !token?.address || !transactionSendingSigner || !rpc) {
             setError('Required parameters not available');
             return;
         }
@@ -201,6 +201,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                         walletAddress: address,
                     },
                     transactionSendingSigner,
+                    cluster?.url || '',
                 );
             } else {
                 result = await removeAddressFromAllowlist(
@@ -210,6 +211,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                         walletAddress: address,
                     },
                     transactionSendingSigner,
+                    cluster?.url || '',
                 );
             }
 
@@ -227,8 +229,8 @@ function ManageTokenConnected({ address }: { address: string }) {
     };
 
     const handleAddToAccessList = async (mintAddress: string, address: string) => {
-        if (!selectedAccount) {
-            setError('Wallet not connected');
+        if (!selectedAccount || !rpc) {
+            setError('Wallet not connected or RPC not available');
             return;
         }
 
@@ -249,6 +251,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                         walletAddress: address,
                     },
                     transactionSendingSigner,
+                    cluster?.url || '',
                 );
             } else {
                 result = await addAddressToAllowlist(
@@ -258,6 +261,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                         walletAddress: address,
                     },
                     transactionSendingSigner,
+                    cluster?.url || '',
                 );
             }
 

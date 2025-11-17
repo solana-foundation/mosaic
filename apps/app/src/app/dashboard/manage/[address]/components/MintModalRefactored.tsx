@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { mintTokens, type MintOptions } from '@/lib/management/mint';
-import { TransactionSendingSigner } from '@solana/signers';
+import { TransactionModifyingSigner } from '@solana/signers';
 import { Coins } from 'lucide-react';
 
 import { BaseModal } from '@/components/shared/modals/BaseModal';
@@ -16,7 +16,7 @@ interface MintModalProps {
     onClose: () => void;
     mintAddress: string;
     mintAuthority?: string;
-    transactionSendingSigner: TransactionSendingSigner<string>;
+    transactionSendingSigner: TransactionModifyingSigner<string>;
 }
 
 export function MintModalRefactored({

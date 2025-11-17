@@ -3,12 +3,14 @@ import {
     type Address,
     type Rpc,
     type SolanaRpcApi,
-    signAndSendTransactionMessageWithSigners,
-    TransactionSendingSigner,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+    getSignatureFromTransaction,
+    createSolanaRpcSubscriptions,
+    TransactionModifyingSigner,
     createTransaction,
 } from 'gill';
 import { getUpdateMultiplierScaledUiMintInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
-import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface UpdateScaledUiMultiplierOptions {
     mint: string;
@@ -25,7 +27,7 @@ export interface UpdateScaledUiMultiplierResult {
 
 export const updateScaledUiMultiplier = async (
     options: UpdateScaledUiMultiplierOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
 ): Promise<UpdateScaledUiMultiplierResult> => {
     try {
         if (!options.mint) throw new Error('Mint address is required');
@@ -35,6 +37,7 @@ export const updateScaledUiMultiplier = async (
 
         const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         const ix = getUpdateMultiplierScaledUiMintInstruction(
             {
@@ -54,10 +57,11 @@ export const updateScaledUiMultiplier = async (
             instructions: [ix],
         });
 
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(tx);
+        const signedTransaction = await signTransactionMessageWithSigners(tx);
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
             multiplier: options.multiplier,
         };
     } catch (error) {

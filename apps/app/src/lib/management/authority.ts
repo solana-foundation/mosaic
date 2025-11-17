@@ -3,12 +3,14 @@ import {
     type Address,
     type Rpc,
     type SolanaRpcApi,
-    signAndSendTransactionMessageWithSigners,
-    TransactionSendingSigner,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+    getSignatureFromTransaction,
+    createSolanaRpcSubscriptions,
+    TransactionModifyingSigner,
 } from 'gill';
 import { AuthorityType } from 'gill/programs/token';
 import { getUpdateAuthorityTransaction } from '@mosaic/sdk';
-import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export type AuthorityRole = AuthorityType | 'Metadata';
 
@@ -60,7 +62,7 @@ function validateUpdateAuthorityOptions(options: UpdateAuthorityOptions): void {
  */
 export const updateTokenAuthority = async (
     options: UpdateAuthorityOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
 ): Promise<UpdateAuthorityResult> => {
     try {
         validateUpdateAuthorityOptions(options);
@@ -76,6 +78,7 @@ export const updateTokenAuthority = async (
         // Create RPC client
         const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         // Create authority update transaction using SDK
         const transaction = await getUpdateAuthorityTransaction({
@@ -88,11 +91,12 @@ export const updateTokenAuthority = async (
         });
 
         // Sign and send the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
 
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
             authorityRole: options.role.toString(),
             prevAuthority: signerAddress,
             newAuthority: options.newAuthority,

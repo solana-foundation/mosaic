@@ -3,12 +3,14 @@ import {
     type Address,
     type Rpc,
     type SolanaRpcApi,
-    signAndSendTransactionMessageWithSigners,
-    TransactionSendingSigner,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+    getSignatureFromTransaction,
+    createSolanaRpcSubscriptions,
+    TransactionModifyingSigner,
     isAddress,
 } from 'gill';
 import { createMintToTransaction } from '@mosaic/sdk';
-import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface MintOptions {
     mintAddress: string;
@@ -61,7 +63,7 @@ function validateMintOptions(options: MintOptions): bigint {
  * @param signer - Transaction sending signer instance
  * @returns Promise that resolves to mint result with signature and details
  */
-export const mintTokens = async (options: MintOptions, signer: TransactionSendingSigner): Promise<MintResult> => {
+export const mintTokens = async (options: MintOptions, signer: TransactionModifyingSigner): Promise<MintResult> => {
     try {
         // Validate options
         validateMintOptions(options);
@@ -93,6 +95,7 @@ export const mintTokens = async (options: MintOptions, signer: TransactionSendin
         // Create RPC client
         const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         // Create mint transaction using SDK
         const transaction = await createMintToTransaction(
@@ -105,10 +108,11 @@ export const mintTokens = async (options: MintOptions, signer: TransactionSendin
         );
 
         // Sign and send the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
             mintedAmount: options.amount,
             recipient: options.recipient,
         };

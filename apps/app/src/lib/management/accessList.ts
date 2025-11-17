@@ -2,8 +2,11 @@ import {
     type Address,
     type Rpc,
     type SolanaRpcApi,
-    signAndSendTransactionMessageWithSigners,
-    TransactionSendingSigner,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+    getSignatureFromTransaction,
+    createSolanaRpcSubscriptions,
+    TransactionModifyingSigner,
     isAddress,
 } from 'gill';
 import {
@@ -12,7 +15,6 @@ import {
     createAddToAllowlistTransaction,
     createRemoveFromAllowlistTransaction,
 } from '@mosaic/sdk';
-import { getSignatureFromBytes } from '@/lib/solana/codecs';
 
 export interface BlocklistOptions {
     mintAddress: string;
@@ -56,11 +58,15 @@ function validateBlocklistOptions(options: BlocklistOptions): void {
 export const addAddressToBlocklist = async (
     rpc: Rpc<SolanaRpcApi>,
     options: BlocklistOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
+    rpcUrl: string,
 ): Promise<BlocklistResult> => {
     try {
         // Validate options
         validateBlocklistOptions(options);
+
+        // Create RPC subscriptions for confirmation
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         // Create blocklist transaction using SDK
         const transaction = await createAddToBlocklistTransaction(
@@ -71,10 +77,11 @@ export const addAddressToBlocklist = async (
         );
 
         // Sign and send the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
         };
     } catch (error) {
         return {
@@ -87,11 +94,15 @@ export const addAddressToBlocklist = async (
 export const removeAddressFromBlocklist = async (
     rpc: Rpc<SolanaRpcApi>,
     options: BlocklistOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
+    rpcUrl: string,
 ): Promise<BlocklistResult> => {
     try {
         // Validate options
         validateBlocklistOptions(options);
+
+        // Create RPC subscriptions for confirmation
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         // Create blocklist transaction using SDK
         const transaction = await createRemoveFromBlocklistTransaction(
@@ -102,10 +113,11 @@ export const removeAddressFromBlocklist = async (
         );
 
         // Sign and send the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
         };
     } catch (error) {
         return {
@@ -118,11 +130,15 @@ export const removeAddressFromBlocklist = async (
 export const addAddressToAllowlist = async (
     rpc: Rpc<SolanaRpcApi>,
     options: BlocklistOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
+    rpcUrl: string,
 ): Promise<BlocklistResult> => {
     try {
         // Validate options
         validateBlocklistOptions(options);
+
+        // Create RPC subscriptions for confirmation
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         // Create allowlist transaction using SDK
         const transaction = await createAddToAllowlistTransaction(
@@ -133,10 +149,11 @@ export const addAddressToAllowlist = async (
         );
 
         // Sign and send the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
         };
     } catch (error) {
         return {
@@ -149,11 +166,15 @@ export const addAddressToAllowlist = async (
 export const removeAddressFromAllowlist = async (
     rpc: Rpc<SolanaRpcApi>,
     options: BlocklistOptions,
-    signer: TransactionSendingSigner,
+    signer: TransactionModifyingSigner,
+    rpcUrl: string,
 ): Promise<BlocklistResult> => {
     try {
         // Validate options
         validateBlocklistOptions(options);
+
+        // Create RPC subscriptions for confirmation
+        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 
         // Create allowlist removal transaction using SDK
         const transaction = await createRemoveFromAllowlistTransaction(
@@ -164,10 +185,11 @@ export const removeAddressFromAllowlist = async (
         );
 
         // Sign and send the transaction
-        const signatureBytes = await signAndSendTransactionMessageWithSigners(transaction);
+        const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, { commitment: 'confirmed' });
         return {
             success: true,
-            transactionSignature: getSignatureFromBytes(signatureBytes),
+            transactionSignature: getSignatureFromTransaction(signedTransaction),
         };
     } catch (error) {
         return {

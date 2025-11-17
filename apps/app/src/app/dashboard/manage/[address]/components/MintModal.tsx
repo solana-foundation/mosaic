@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { mintTokens, type MintOptions } from '@/lib/management/mint';
 import { useConnector } from '@solana/connector/react';
 import { isAddress } from 'gill';
-import { TransactionSendingSigner } from '@solana/signers';
+import { TransactionModifyingSigner } from '@solana/signers';
 import { ExternalLink } from 'lucide-react';
 
 interface MintModalProps {
@@ -11,7 +11,7 @@ interface MintModalProps {
     onClose: () => void;
     mintAddress: string;
     mintAuthority?: string;
-    transactionSendingSigner: TransactionSendingSigner<string>;
+    transactionSendingSigner: TransactionModifyingSigner<string>;
 }
 
 export function MintModal({ isOpen, onClose, mintAddress, mintAuthority, transactionSendingSigner }: MintModalProps) {

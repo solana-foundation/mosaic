@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { forceBurnTokens, type ForceBurnOptions } from '@/lib/management/force-burn';
-import { TransactionSendingSigner } from '@solana/signers';
+import { TransactionModifyingSigner } from '@solana/signers';
 import { Flame } from 'lucide-react';
 
 import { BaseModal } from '@/components/shared/modals/BaseModal';
@@ -17,7 +17,7 @@ interface ForceBurnModalProps {
     onClose: () => void;
     mintAddress: string;
     permanentDelegate?: string;
-    transactionSendingSigner: TransactionSendingSigner<string>;
+    transactionSendingSigner: TransactionModifyingSigner<string>;
 }
 
 export function ForceBurnModalRefactored({
