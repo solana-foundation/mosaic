@@ -16,7 +16,7 @@ import {
 import { Token } from '../../issuance';
 import { createMintToTransaction, createForceTransferTransaction, createForceBurnTransaction } from '../../management';
 import { getFreezeTransaction, getThawTransaction, TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
-import { decimalAmountToRaw } from '../../transactionUtil';
+import { decimalAmountToRaw } from '../../transaction-util';
 import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
 
 describeSkipIf()('Management Integration Tests', () => {

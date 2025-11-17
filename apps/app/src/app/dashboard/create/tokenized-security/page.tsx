@@ -3,10 +3,10 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
-import { CreateTemplateSidebar } from '@/components/CreateTemplateSidebar';
+import { CreateTemplateSidebar } from '@/components/create-template-sidebar';
 import { useConnector } from '@solana/connector/react';
-import { useConnectorSigner } from '@/hooks/useConnectorSigner';
-import { TokenizedSecurityCreateForm } from './TokenizedSecurityCreateForm';
+import { useConnectorSigner } from '@/hooks/use-connector-signer';
+import { TokenizedSecurityCreateForm } from './tokenized-security-create-form';
 
 function TokenizedSecurityCreateWithWallet() {
     // Use the connector signer hook which provides a gill-compatible transaction signer

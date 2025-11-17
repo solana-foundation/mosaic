@@ -1,27 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, CheckCircle, Settings } from 'lucide-react';
-import { StablecoinCreationResult } from '@/types/token';
+import { CheckCircle, Settings, CandlestickChart } from 'lucide-react';
+import { CopyableExplorerField } from '@/components/copyable-explorer-field';
+import { TokenizedSecurityCreationResult } from '@/types/token';
 import Link from 'next/link';
-import { CopyableExplorerField } from '@/components/CopyableExplorerField';
 
-interface StablecoinCreationResultProps {
-    result: StablecoinCreationResult;
-}
-
-export function StablecoinCreationResultDisplay({ result }: StablecoinCreationResultProps) {
+export function TokenizedSecurityCreationResultDisplay({ result }: { result: TokenizedSecurityCreationResult }) {
     return (
         <Card className="mb-8">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     {result.success ? (
                         <>
-                            <DollarSign className="h-6 w-6 text-green-600" />
-                            Stablecoin Created Successfully!
+                            <CandlestickChart className="h-6 w-6 text-green-600" />
+                            Tokenized Security Created Successfully!
                         </>
                     ) : (
                         <>
-                            <DollarSign className="h-6 w-6 text-red-600" />
+                            <CandlestickChart className="h-6 w-6 text-red-600" />
                             Creation Failed
                         </>
                     )}
@@ -49,7 +45,7 @@ export function StablecoinCreationResultDisplay({ result }: StablecoinCreationRe
                             cluster="devnet"
                         />
                         <div className="text-sm text-muted-foreground">
-                            Your stablecoin has been successfully created with the following parameters:
+                            Your tokenized security has been created with the following parameters:
                         </div>
                         <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -66,6 +62,9 @@ export function StablecoinCreationResultDisplay({ result }: StablecoinCreationRe
                                 {result.details?.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
                             </div>
                             <div>
+                                <strong>Multiplier:</strong> {result.details?.multiplier}
+                            </div>
+                            <div className="col-span-2">
                                 <strong>Extensions:</strong> {result.details?.extensions?.join(', ')}
                             </div>
                         </div>
@@ -104,7 +103,6 @@ export function StablecoinCreationResultDisplay({ result }: StablecoinCreationRe
                             </div>
                         </div>
 
-                        {/* Manage Token Button */}
                         {result.mintAddress && (
                             <div className="pt-4 border-t">
                                 <Link href={`/dashboard/manage/${result.mintAddress}`}>

@@ -7,7 +7,7 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from 'gill';
-import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transactionUtil';
+import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util';
 import {
     ABL_PROGRAM_ID,
     getAddWalletInstructions,
@@ -17,7 +17,7 @@ import {
 } from '../abl';
 import { findListConfigPda, Mode } from '@token-acl/abl-sdk';
 import { getFreezeInstructions } from '../token-acl/freeze';
-import { getThawPermissionlessInstructions } from '../token-acl/thawPermissionless';
+import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless';
 import { getFreezeAccountInstruction, getThawAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
 
 export const isAblAllowlist = async (rpc: Rpc<SolanaRpcApi>, listConfig: Address) => {

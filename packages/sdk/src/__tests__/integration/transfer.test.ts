@@ -17,7 +17,7 @@ import {
 import { Token } from '../../issuance';
 import { createMintToTransaction } from '../../management';
 import { createTransferTransaction } from '../../transfer';
-import { decimalAmountToRaw } from '../../transactionUtil';
+import { decimalAmountToRaw } from '../../transaction-util';
 import { getFreezeTransaction, TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
 import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
 

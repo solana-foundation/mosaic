@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { StablecoinOptions, StablecoinCreationResult } from '@/types/token';
-import { StablecoinBasicParams } from './StablecoinBasicParams';
-import { StablecoinAuthorityParams } from './StablecoinAuthorityParams';
-import { StablecoinCreationResultDisplay } from '@/app/dashboard/create/stablecoin/StablecoinCreationResult';
+import { StablecoinBasicParams } from './stablecoin-basic-params';
+import { StablecoinAuthorityParams } from './stablecoin-authority-params';
+import { StablecoinCreationResultDisplay } from '@/app/dashboard/create/stablecoin/stablecoin-creation-result';
 import { createStablecoin } from '@/lib/issuance/stablecoin';
 import type { TransactionModifyingSigner } from '@solana/signers';
-import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/tokenStorage';
+import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/token-storage';
 
 interface StablecoinCreateFormProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;

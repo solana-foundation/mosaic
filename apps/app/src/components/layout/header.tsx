@@ -3,7 +3,7 @@ import { ModeToggle } from '@/components/mode-toggle';
 import { Button } from '@/components/ui/button';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { ConnectButton } from '@/components/ConnectWallet/connect-button';
+import { ConnectButton } from '@/components/connect-wallet/connect-button';
 import { Logo } from '@/components/logo';
 
 export function Header() {

@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { forceTransferTokens, type ForceTransferOptions } from '@/lib/management/force-transfer';
+import { forceBurnTokens, type ForceBurnOptions } from '@/lib/management/force-burn';
 import { TransactionModifyingSigner } from '@solana/signers';
-import { ArrowRightLeft } from 'lucide-react';
+import { Flame } from 'lucide-react';
 
-import { BaseModal } from '@/components/shared/modals/BaseModal';
-import { TransactionSuccessView } from '@/components/shared/modals/TransactionSuccessView';
-import { WarningBanner } from '@/components/shared/modals/WarningBanner';
-import { SolanaAddressInput } from '@/components/shared/form/SolanaAddressInput';
-import { AmountInput } from '@/components/shared/form/AmountInput';
-import { useTransactionModal, useWalletConnection } from '@/hooks/useTransactionModal';
-import { useInputValidation } from '@/hooks/useInputValidation';
+import { BaseModal } from '@/components/shared/modals/base-modal';
+import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
+import { WarningBanner } from '@/components/shared/modals/warning-banner';
+import { SolanaAddressInput } from '@/components/shared/form/solana-address-input';
+import { AmountInput } from '@/components/shared/form/amount-input';
+import { useTransactionModal, useWalletConnection } from '@/hooks/use-transaction-modal';
+import { useInputValidation } from '@/hooks/use-input-validation';
 
-interface ForceTransferModalProps {
+interface ForceBurnModalProps {
     isOpen: boolean;
     onClose: () => void;
     mintAddress: string;
@@ -20,13 +20,13 @@ interface ForceTransferModalProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
 }
 
-export function ForceTransferModalRefactored({
+export function ForceBurnModalRefactored({
     isOpen,
     onClose,
     mintAddress,
     permanentDelegate,
     transactionSendingSigner,
-}: ForceTransferModalProps) {
+}: ForceBurnModalProps) {
     const { walletAddress } = useWalletConnection();
     const { validateSolanaAddress, validateAmount } = useInputValidation();
     const {
@@ -42,22 +42,16 @@ export function ForceTransferModalRefactored({
     } = useTransactionModal();
 
     const [fromAddress, setFromAddress] = useState('');
-    const [toAddress, setToAddress] = useState('');
     const [amount, setAmount] = useState('');
 
-    const handleForceTransfer = async () => {
+    const handleForceBurn = async () => {
         if (!walletAddress) {
             setError('Wallet not connected');
             return;
         }
 
         if (!validateSolanaAddress(fromAddress)) {
-            setError('Please enter a valid source Solana address');
-            return;
-        }
-
-        if (!validateSolanaAddress(toAddress)) {
-            setError('Please enter a valid destination Solana address');
+            setError('Please enter a valid source address');
             return;
         }
 
@@ -70,25 +64,24 @@ export function ForceTransferModalRefactored({
         setError('');
 
         try {
-            const forceTransferOptions: ForceTransferOptions = {
+            const options: ForceBurnOptions = {
                 mintAddress,
                 fromAddress,
-                toAddress,
                 amount,
                 permanentDelegate: permanentDelegate || walletAddress,
-                feePayer: walletAddress,
+                rpcUrl: 'https://api.devnet.solana.com',
             };
 
-            const result = await forceTransferTokens(forceTransferOptions, transactionSendingSigner);
+            const result = await forceBurnTokens(options, transactionSendingSigner);
 
-            if (result.success) {
+            if (result.success && result.transactionSignature) {
                 setSuccess(true);
-                setTransactionSignature(result.transactionSignature || '');
+                setTransactionSignature(result.transactionSignature);
             } else {
-                setError(result.error || 'Force transfer failed');
+                setError(result.error || 'Force burn failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
+            setError(err instanceof Error ? err.message : 'An unexpected error occurred');
         } finally {
             setIsLoading(false);
         }
@@ -96,7 +89,6 @@ export function ForceTransferModalRefactored({
 
     const handleClose = () => {
         setFromAddress('');
-        setToAddress('');
         setAmount('');
         reset();
         onClose();
@@ -104,7 +96,6 @@ export function ForceTransferModalRefactored({
 
     const handleContinue = () => {
         setFromAddress('');
-        setToAddress('');
         setAmount('');
         reset();
     };
@@ -112,55 +103,43 @@ export function ForceTransferModalRefactored({
     return (
         <BaseModal isOpen={isOpen}>
             <div className="flex items-center gap-2 mb-4">
-                <ArrowRightLeft className="h-5 w-5" />
-                <h3 className="text-lg font-semibold">
-                    {success ? 'Force Transfer Successful' : 'Force Transfer Tokens'}
-                </h3>
+                <Flame className="h-5 w-5 text-red-500" />
+                <h3 className="text-lg font-semibold">{success ? 'Force Burn Successful' : 'Force Burn Tokens'}</h3>
             </div>
 
             {success ? (
                 <TransactionSuccessView
-                    title="Tokens transferred successfully!"
-                    message={`${amount} tokens transferred from ${fromAddress.slice(0, 8)}...${fromAddress.slice(-6)} to ${toAddress.slice(0, 8)}...${toAddress.slice(-6)}`}
+                    title="Tokens burned successfully!"
+                    message={`${amount} tokens have been permanently burned from ${fromAddress.slice(0, 8)}...${fromAddress.slice(-6)}`}
                     transactionSignature={transactionSignature}
                     onClose={handleClose}
                     onContinue={handleContinue}
-                    continueLabel="Transfer More"
+                    continueLabel="Burn More"
                 />
             ) : (
                 <div className="space-y-4">
                     <WarningBanner
-                        title="Warning: Administrator Action"
-                        message="This will force transfer tokens from any account without the owner's permission. Use with caution."
+                        title="Warning: Irreversible Action"
+                        message="Force burning will permanently destroy tokens from any account. This action cannot be undone. Only use this for compliance or emergency purposes."
                         variant="danger"
                     />
 
                     <SolanaAddressInput
-                        label="Source Address"
+                        label="Burn From Address"
                         value={fromAddress}
                         onChange={setFromAddress}
-                        placeholder="Enter source wallet address..."
-                        helpText="The account from which tokens will be transferred"
-                        required
-                        disabled={isLoading}
-                    />
-
-                    <SolanaAddressInput
-                        label="Destination Address"
-                        value={toAddress}
-                        onChange={setToAddress}
-                        placeholder="Enter destination wallet address..."
-                        helpText="The account to which tokens will be transferred"
+                        placeholder="Enter wallet or token account address..."
+                        helpText="The account from which tokens will be burned"
                         required
                         disabled={isLoading}
                     />
 
                     <AmountInput
-                        label="Amount"
+                        label="Amount to Burn"
                         value={amount}
                         onChange={setAmount}
-                        placeholder="Enter amount to transfer..."
-                        helpText="Number of tokens to transfer"
+                        placeholder="Enter amount to burn..."
+                        helpText="Number of tokens to permanently destroy"
                         required
                         disabled={isLoading}
                     />
@@ -174,6 +153,9 @@ export function ForceTransferModalRefactored({
                                 readOnly
                                 className="w-full p-2 border rounded-md bg-gray-50 text-sm"
                             />
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Only the permanent delegate can execute force burns
+                            </p>
                         </div>
                     )}
 
@@ -184,26 +166,26 @@ export function ForceTransferModalRefactored({
                             Cancel
                         </Button>
                         <Button
-                            onClick={handleForceTransfer}
+                            onClick={handleForceBurn}
                             disabled={
                                 isLoading ||
                                 !fromAddress.trim() ||
-                                !toAddress.trim() ||
                                 !amount.trim() ||
                                 !validateSolanaAddress(fromAddress) ||
-                                !validateSolanaAddress(toAddress) ||
                                 !validateAmount(amount)
                             }
-                            className="flex-1"
-                            variant="destructive"
+                            className="flex-1 bg-red-600 hover:bg-red-700"
                         >
                             {isLoading ? (
                                 <>
                                     <span className="animate-spin mr-2">⏳</span>
-                                    Processing...
+                                    Burning...
                                 </>
                             ) : (
-                                'Force Transfer'
+                                <>
+                                    <Flame className="h-4 w-4 mr-2" />
+                                    Force Burn
+                                </>
                             )}
                         </Button>
                     </div>

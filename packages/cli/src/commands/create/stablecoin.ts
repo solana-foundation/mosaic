@@ -108,7 +108,7 @@ export const createStablecoinCommand = new Command('stablecoin')
             );
 
             if (rawTx) {
-                const { maybeOutputRawTx } = await import('../../utils/rawTx.js');
+                const { maybeOutputRawTx } = await import('../../utils/raw-tx.js');
                 if (maybeOutputRawTx(rawTx, transaction)) {
                     return;
                 }

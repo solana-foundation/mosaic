@@ -1,18 +1,19 @@
-import { EnableSrfc37Toggle } from '@/components/EnableSrfc37Toggle';
+import { EnableSrfc37Toggle } from '@/components/enable-srfc37-toggle';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { StablecoinOptions } from '@/types/token';
+import { TokenizedSecurityOptions } from '@/types/token';
 
-interface StablecoinBasicParamsProps {
-    options: StablecoinOptions;
-    onInputChange: (field: string, value: string) => void;
-}
-
-export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasicParamsProps) {
+export function TokenizedSecurityBasicParams({
+    options,
+    onInputChange,
+}: {
+    options: TokenizedSecurityOptions;
+    onInputChange: (field: keyof TokenizedSecurityOptions, value: string) => void;
+}) {
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Basic Parameters</CardTitle>
-                <CardDescription>Configure the fundamental properties of your stablecoin</CardDescription>
+                <CardDescription>Configure the fundamental properties of your tokenized security</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -21,7 +22,7 @@ export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasi
                         <input
                             type="text"
                             className="w-full p-3 border rounded-lg"
-                            placeholder="e.g., USD Coin"
+                            placeholder="e.g., ABC Security"
                             value={options.name}
                             onChange={e => onInputChange('name', e.target.value)}
                             required
@@ -32,7 +33,7 @@ export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasi
                         <input
                             type="text"
                             className="w-full p-3 border rounded-lg"
-                            placeholder="e.g., USDC"
+                            placeholder="e.g., ABCS"
                             value={options.symbol}
                             onChange={e => onInputChange('symbol', e.target.value)}
                             required
@@ -48,8 +49,8 @@ export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasi
                             placeholder="6"
                             value={options.decimals}
                             onChange={e => onInputChange('decimals', e.target.value)}
-                            min="0"
-                            max="9"
+                            min={0}
+                            max={9}
                             required
                         />
                     </div>
@@ -59,7 +60,7 @@ export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasi
                             type="url"
                             className="w-full p-3 border rounded-lg"
                             placeholder="https://example.com/metadata.json"
-                            value={options.uri}
+                            value={options.uri || ''}
                             onChange={e => onInputChange('uri', e.target.value)}
                         />
                     </div>

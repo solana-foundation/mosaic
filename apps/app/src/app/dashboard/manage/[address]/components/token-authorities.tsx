@@ -8,7 +8,7 @@ import { getTokenAuthorities } from '@/lib/solana/rpc';
 import { AuthorityType } from 'gill/programs/token';
 import { isAddress } from 'gill';
 import { useConnector } from '@solana/connector/react';
-import { useConnectorSigner } from '@/hooks/useConnectorSigner';
+import { useConnectorSigner } from '@/hooks/use-connector-signer';
 
 interface TokenAuthoritiesProps {
     token: TokenDisplay;

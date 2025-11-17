@@ -7,7 +7,7 @@ import {
     inspectionResultToDashboardData,
     getTokenDashboardData,
     detectTokenPatterns,
-} from '../inspectToken';
+} from '../inspect-token';
 import type { TokenInspectionResult } from '../types';
 
 // Mock gill modules

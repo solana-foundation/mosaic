@@ -9,10 +9,10 @@ import {
 } from 'gill';
 import { getFreezeAccountInstruction, getThawAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
 import { findListConfigPda, Mode } from '@token-acl/abl-sdk';
-import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transactionUtil';
+import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util';
 import { ABL_PROGRAM_ID, getAddWalletInstructions, getList, getRemoveWalletInstructions } from '../abl';
 import { getFreezeInstructions } from '../token-acl/freeze';
-import { getThawPermissionlessInstructions } from '../token-acl/thawPermissionless';
+import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless';
 
 export const isAblBlocklist = async (rpc: Rpc<SolanaRpcApi>, listConfig: Address) => {
     const list = await getList({ rpc, listConfig });

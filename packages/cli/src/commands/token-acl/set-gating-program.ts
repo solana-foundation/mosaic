@@ -1,26 +1,30 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { getThawPermissionlessTransaction } from '@mosaic/sdk';
+import ora from 'ora';
+import { getSetGatingProgramTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import { maybeOutputRawTx } from '../../utils/rawTx.js';
 import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner } from 'gill';
-import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
+import { maybeOutputRawTx } from '../../utils/raw-tx.js';
+import { findMintConfigPda } from '@token-acl/sdk';
+import { TOKEN_ACL_PROGRAM_ID } from './util.js';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface CreateConfigOptions {
     mint: string;
+    gatingProgram: string;
 }
 
-export const thawPermissionless = new Command('thaw-permissionless')
-    .description('Thaw permissionless eoas for an existing mint')
+export const setGatingProgram = new Command('set-gating-program')
+    .description('Set the gating program for an existing mint')
     .requiredOption('-m, --mint <mint>', 'Mint address')
+    .requiredOption('-g, --gating-program <gating-program>', 'Gating program address')
     .showHelpAfterError()
     .action(async (options: CreateConfigOptions, command) => {
         const parentOpts = getGlobalOpts(command);
         const rpcUrl = parentOpts.rpcUrl;
         const rawTx: string | undefined = parentOpts.rawTx;
-        const spinner = createSpinner('Thawing permissionless...', rawTx);
+        const spinner = createSpinner('Setting gating program...', rawTx);
 
         try {
             const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
@@ -38,22 +42,18 @@ export const thawPermissionless = new Command('thaw-permissionless')
                 payer = kp;
             }
 
-            const signerAddress = rawTx
-                ? ((parentOpts.authority || authority.address) as Address)
-                : (authority.address as Address);
-            const mint = options.mint as Address;
+            const mintConfigPda = await findMintConfigPda(
+                { mint: options.mint as Address },
+                { programAddress: TOKEN_ACL_PROGRAM_ID },
+            );
+            const gatingProgram = (options.gatingProgram || '11111111111111111111111111111111') as Address;
 
-            spinner.text = 'Building transaction...';
-
-            const ata = await getAssociatedTokenAccountAddress(mint, signerAddress, TOKEN_2022_PROGRAM_ADDRESS);
-
-            const transaction = await getThawPermissionlessTransaction({
+            const transaction = await getSetGatingProgramTransaction({
                 rpc,
                 payer,
                 authority,
-                mint,
-                tokenAccount: ata,
-                tokenAccountOwner: signerAddress,
+                mint: options.mint as Address,
+                gatingProgram: gatingProgram,
             });
 
             if (maybeOutputRawTx(rawTx, transaction)) {
@@ -73,16 +73,24 @@ export const thawPermissionless = new Command('thaw-permissionless')
                 commitment: 'confirmed',
             });
 
-            spinner.succeed('Permissionless thawed successfully!');
+            spinner.succeed('Gating program set successfully!');
 
             // Display results
-            console.log(chalk.green('✅ Permissionless thawed successfully!'));
+            console.log(chalk.green('✅ Gating program set successfully!'));
             console.log(chalk.cyan('📋 Details:'));
-            console.log(`   ${chalk.bold('Token Account:')} ${ata}`);
+            console.log(`   ${chalk.bold('Mint:')} ${options.mint}`);
+            console.log(`   ${chalk.bold('Gating Program:')} ${options.gatingProgram}`);
+            console.log(`   ${chalk.bold('Mint Config:')} ${mintConfigPda[0]}`);
             console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
         } catch (error) {
+            const parentOpts = command.parent?.parent?.opts() || {};
+            const rawTx: string | undefined = parentOpts.rawTx;
             if (!rawTx) {
-                spinner.fail('Failed to thaw permissionless');
+                const spinner = ora({
+                    text: 'Setting gating program...',
+                    isSilent: false,
+                }).start();
+                spinner.fail('Failed to set gating program');
             }
             console.error(chalk.red('❌ Error:'), error instanceof Error ? error.message : 'Unknown error');
 

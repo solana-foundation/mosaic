@@ -13,10 +13,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { TokenDisplay } from '@/types/token';
 import { Spinner } from '@/components/ui/spinner';
-import { getAllTokens, getTokenCount } from '@/lib/token/tokenData';
-import { TokenStorage } from '@/lib/token/tokenStorage';
+import { getAllTokens, getTokenCount } from '@/lib/token/token-data';
+import { TokenStorage } from '@/lib/token/token-storage';
 import { useConnector } from '@solana/connector/react';
-import { TokenCard } from './components/TokenCard';
+import { TokenCard } from './components/token-card';
 
 export default function DashboardPage() {
     const { connected, selectedAccount } = useConnector();

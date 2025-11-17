@@ -12,7 +12,7 @@ import {
 import { TokenDisplay } from '@/types/token';
 import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
-import { getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
+import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 import { type Address, createSolanaRpc } from 'gill';
 
 interface TokenCardProps {

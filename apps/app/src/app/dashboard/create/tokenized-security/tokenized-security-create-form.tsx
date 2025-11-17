@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { TokenizedSecurityCreationResultDisplay } from './TokenizedSecurityCreationResult';
+import { TokenizedSecurityCreationResultDisplay } from './tokenized-security-creation-result';
 import { ChevronRight } from 'lucide-react';
 import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/types/token';
-import { TokenizedSecurityBasicParams } from './TokenizedSecurityBasicParams';
-import { TokenizedSecurityAuthorityParams } from './TokenizedSecurityAuthorityParams';
-import { createTokenizedSecurity } from '@/lib/issuance/tokenizedSecurity';
+import { TokenizedSecurityBasicParams } from './tokenized-security-basic-params';
+import { TokenizedSecurityAuthorityParams } from './tokenized-security-authority-params';
+import { createTokenizedSecurity } from '@/lib/issuance/tokenized-security';
 import type { TransactionModifyingSigner } from '@solana/signers';
-import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/tokenStorage';
+import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/token-storage';
 
 export function TokenizedSecurityCreateForm({
     transactionSendingSigner,

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { updateScaledUiMultiplier } from '@/lib/management/scaledUiAmount';
+import { updateScaledUiMultiplier } from '@/lib/management/scaled-ui-amount';
 import { useConnector } from '@solana/connector/react';
-import { useConnectorSigner } from '@/hooks/useConnectorSigner';
+import { useConnectorSigner } from '@/hooks/use-connector-signer';
 import { Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 import Link from 'next/link';

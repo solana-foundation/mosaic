@@ -9,7 +9,7 @@ import {
 } from 'gill';
 import { createTransferInstructions } from '@mosaic/sdk';
 import { createSpinner, getGlobalOpts } from '../utils/cli.js';
-import { maybeOutputRawTx } from '../utils/rawTx.js';
+import { maybeOutputRawTx } from '../utils/raw-tx.js';
 import { createSolanaClient } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 

@@ -1,4 +1,4 @@
-import { useInputValidation } from '@/hooks/useInputValidation';
+import { useInputValidation } from '@/hooks/use-input-validation';
 
 interface AmountInputProps {
     label: string;

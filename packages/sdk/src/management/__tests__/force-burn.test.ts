@@ -150,7 +150,7 @@ describe('force-burn', () => {
                 const tx = await createForceBurnTransaction(rpc, mint, wallet, decimalAmount, permDel, feePayer);
 
                 expect(tx.instructions).toHaveLength(1);
-                const transactionUtil = await import('../../transactionUtil');
+                const transactionUtil = await import('../../transaction-util');
                 expect(transactionUtil.decimalAmountToRaw).toHaveBeenCalledWith(decimalAmount, decimals);
             }
         });
@@ -218,7 +218,7 @@ describe('force-burn', () => {
                 const tx = await createForceBurnTransaction(rpc, mint, w, 1, permDel, feePayer);
 
                 expect(tx.instructions).toHaveLength(1);
-                const transactionUtil = await import('../../transactionUtil');
+                const transactionUtil = await import('../../transaction-util');
                 expect(transactionUtil.resolveTokenAccount).toHaveBeenCalledWith(rpc, w, mint);
             }
         });
@@ -456,7 +456,7 @@ describe('force-burn', () => {
             const tx = await createForceBurnTransaction(rpc, mint, wallet, largeAmount, permDel, feePayer);
 
             expect(tx.instructions).toHaveLength(1);
-            const transactionUtil = await import('../../transactionUtil');
+            const transactionUtil = await import('../../transaction-util');
             expect(transactionUtil.decimalAmountToRaw).toHaveBeenCalledWith(largeAmount, 18);
         });
 

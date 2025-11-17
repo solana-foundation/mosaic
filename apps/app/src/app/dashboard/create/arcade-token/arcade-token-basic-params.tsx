@@ -1,4 +1,4 @@
-import { EnableSrfc37Toggle } from '@/components/EnableSrfc37Toggle';
+import { EnableSrfc37Toggle } from '@/components/enable-srfc37-toggle';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArcadeTokenOptions } from '@/types/token';
 

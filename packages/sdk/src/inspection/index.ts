@@ -8,7 +8,7 @@ export {
     satisfiesStablecoinPattern,
     satisfiesArcadeTokenPattern,
     satisfiesSecurityTokenPattern,
-} from './inspectToken';
+} from './inspect-token';
 export type {
     TokenMetadata,
     TokenAuthorities,

@@ -1,6 +1,6 @@
 import type { Address, TransactionSigner } from 'gill';
 import { AuthorityType, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
-import { getUpdateAuthorityInstructions } from '../updateAuthority';
+import { getUpdateAuthorityInstructions } from '../update-authority';
 import { createMockSigner, generateMockAddress, TEST_AUTHORITY } from '../../__tests__/test-utils';
 
 describe('getUpdateAuthorityInstructions', () => {

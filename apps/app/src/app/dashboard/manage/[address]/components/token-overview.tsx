@@ -5,7 +5,7 @@ import { TokenDisplay } from '@/types/token';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
-import { getTokenTypeLabel, getTokenPatternsLabel } from '@/lib/token/tokenTypeUtils';
+import { getTokenTypeLabel, getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 import { type Address, createSolanaRpc } from 'gill';
 
 interface TokenOverviewProps {

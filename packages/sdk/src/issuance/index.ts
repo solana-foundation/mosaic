@@ -1,1 +1,1 @@
-export * from './createMint';
+export * from './create-mint';

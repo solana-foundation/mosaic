@@ -15,7 +15,7 @@ import {
     resolveTokenAccount,
     getMintDetails,
     isDefaultAccountStateSetFrozen,
-} from '../transactionUtil';
+} from '../transaction-util';
 import {
     getCreateAssociatedTokenIdempotentInstruction,
     getTransferCheckedInstruction,

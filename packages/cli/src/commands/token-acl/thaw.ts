@@ -4,7 +4,7 @@ import { getThawTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner } from 'gill';
-import { maybeOutputRawTx } from '../../utils/rawTx.js';
+import { maybeOutputRawTx } from '../../utils/raw-tx.js';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface CreateConfigOptions {

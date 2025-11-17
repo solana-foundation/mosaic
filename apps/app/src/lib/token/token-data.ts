@@ -1,5 +1,5 @@
 import { TokenDisplay } from '@/types/token';
-import { TokenStorage } from './tokenStorage';
+import { TokenStorage } from './token-storage';
 
 // Function to find token by address
 export const findTokenByAddress = (address: string): TokenDisplay | null => {
