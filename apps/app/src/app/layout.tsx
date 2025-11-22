@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import localFont from 'next/font/local';
 import './globals.css';
 import { Header } from '@/components/layout/header';
-import { Footer } from '@/components/layout/footer';
+// import { Footer } from '@/components/layout/footer';
 import { cn } from '@/lib/utils';
 import { Providers } from './providers';
 
@@ -74,10 +74,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <html lang="en" suppressHydrationWarning>
             <body className={cn(inter.variable, abcDiatype.variable, berkeleyMono.variable, 'antialiased')}>
                 <Providers>
-                    <div className="flex min-h-screen flex-col bg-background">
+                    <div className="flex bg-bg1/50 mx-auto min-h-screen flex-col bg-background">
                         <Header />
                         <main className="flex-1">{children}</main>
-                        <Footer />
+                        {/* <Footer /> */}
                     </div>
                 </Providers>
             </body>

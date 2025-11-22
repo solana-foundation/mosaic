@@ -3,8 +3,8 @@ import Image from 'next/image';
 
 export function Footer() {
     return (
-        <footer className="border-t bg-background">
-            <div className="container flex h-16 items-center justify-between">
+        <footer className="border-t bg-bg1">
+            <div className="max-w-6xl mx-auto flex h-16 items-center justify-between">
                 <p className="text-sm text-muted-foreground">
                     <a
                         href="https://github.com/solana-foundation/mosaic/blob/main/LICENSE"

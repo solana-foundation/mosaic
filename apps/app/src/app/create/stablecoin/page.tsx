@@ -6,9 +6,10 @@ import Link from 'next/link';
 import { CreateTemplateSidebar } from '@/components/create-template-sidebar';
 import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
-import { TokenizedSecurityCreateForm } from './tokenized-security-create-form';
+import { StablecoinCreateForm } from '@/app/create/stablecoin/stablecoin-create-form';
 
-function TokenizedSecurityCreateWithWallet() {
+// Component that only renders when wallet is available
+function StablecoinCreateWithWallet() {
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
 
@@ -20,28 +21,33 @@ function TokenizedSecurityCreateWithWallet() {
         <div className="flex-1 p-8">
             <div className="max-w-6xl mx-auto">
                 <div className="flex items-center mb-8">
-                    <Link href="/dashboard/create">
+                    <Link href="/create">
                         <Button variant="ghost" className="mr-4">
                             ← Back
                         </Button>
                     </Link>
                     <div>
-                        <h2 className="text-3xl font-bold mb-2">Create Tokenized Security</h2>
-                        <p className="text-muted-foreground">Configure your tokenized security parameters</p>
+                        <h2 className="text-3xl font-bold mb-2">Create Stablecoin</h2>
+                        <p className="text-muted-foreground">Configure your stablecoin parameters</p>
                     </div>
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-6">
-                    <aside className="space-y-4 order-first lg:order-2 lg:w-80 shrink-0">
+                    <aside className="order-first lg:order-2 lg:w-80 shrink-0">
                         <CreateTemplateSidebar
-                            description={<>A security token with the stablecoin feature set plus Scaled UI Amount.</>}
+                            description={
+                                <>
+                                    This stablecoin template is designed for regulatory-compliant issuance with strong
+                                    controls and safety features.
+                                </>
+                            }
                             coreCapabilityKeys={[
                                 'metadata',
                                 'accessControls',
                                 'pausable',
                                 'permanentDelegate',
                                 'confidentialBalances',
-                                'scaledUIAmount',
+                                'confidentialMintBurn',
                             ]}
                             enabledExtensionKeys={[
                                 'extMetadata',
@@ -54,7 +60,7 @@ function TokenizedSecurityCreateWithWallet() {
                         />
                     </aside>
                     <div className="order-last lg:order-1 flex-1">
-                        <TokenizedSecurityCreateForm transactionSendingSigner={transactionSendingSigner} />
+                        <StablecoinCreateForm transactionSendingSigner={transactionSendingSigner} />
                     </div>
                 </div>
             </div>
@@ -62,37 +68,40 @@ function TokenizedSecurityCreateWithWallet() {
     );
 }
 
-export default function TokenizedSecurityCreatePage() {
+// Simple wrapper component that shows a message when wallet is not connected
+function StablecoinCreatePage() {
     const { connected, selectedAccount, cluster } = useConnector();
 
+    // If wallet is connected and chain is available, render the full component
     if (connected && selectedAccount && cluster) {
-        return <TokenizedSecurityCreateWithWallet />;
+        return <StablecoinCreateWithWallet />;
     }
 
+    // Otherwise, show a message to connect wallet
     return (
         <div className="flex-1 p-8">
             <div className="max-w-4xl mx-auto">
                 <div className="flex items-center mb-8">
-                    <Link href="/dashboard/create">
+                    <Link href="/create">
                         <Button variant="ghost" className="mr-4">
                             ← Back
                         </Button>
                     </Link>
                     <div>
-                        <h2 className="text-3xl font-bold mb-2">Create Tokenized Security</h2>
-                        <p className="text-muted-foreground">Configure your tokenized security parameters</p>
+                        <h2 className="text-3xl font-bold mb-2">Create Stablecoin</h2>
+                        <p className="text-muted-foreground">Configure your stablecoin parameters</p>
                     </div>
                 </div>
 
                 <Card>
                     <CardHeader>
                         <CardTitle>Wallet Required</CardTitle>
-                        <CardDescription>Please connect your wallet to create a tokenized security</CardDescription>
+                        <CardDescription>Please connect your wallet to create a stablecoin</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground">
-                            To create a tokenized security, you need to connect a wallet first. Please use the wallet
-                            connection button in the top navigation.
+                            To create a stablecoin, you need to connect a wallet first. Please use the wallet connection
+                            button in the top navigation.
                         </p>
                     </CardContent>
                 </Card>
@@ -100,3 +109,5 @@ export default function TokenizedSecurityCreatePage() {
         </div>
     );
 }
+
+export default StablecoinCreatePage;

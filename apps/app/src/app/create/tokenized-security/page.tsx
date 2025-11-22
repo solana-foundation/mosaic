@@ -6,10 +6,9 @@ import Link from 'next/link';
 import { CreateTemplateSidebar } from '@/components/create-template-sidebar';
 import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
-import { ArcadeTokenCreateForm } from '@/app/dashboard/create/arcade-token/arcade-token-create-form';
+import { TokenizedSecurityCreateForm } from './tokenized-security-create-form';
 
-// Component that only renders when wallet is available
-function ArcadeTokenCreateWithWallet() {
+function TokenizedSecurityCreateWithWallet() {
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
 
@@ -21,43 +20,41 @@ function ArcadeTokenCreateWithWallet() {
         <div className="flex-1 p-8">
             <div className="max-w-6xl mx-auto">
                 <div className="flex items-center mb-8">
-                    <Link href="/dashboard/create">
+                    <Link href="/create">
                         <Button variant="ghost" className="mr-4">
                             ← Back
                         </Button>
                     </Link>
                     <div>
-                        <h2 className="text-3xl font-bold mb-2">Create Arcade Token</h2>
-                        <p className="text-muted-foreground">Configure your arcade token parameters</p>
+                        <h2 className="text-3xl font-bold mb-2">Create Tokenized Security</h2>
+                        <p className="text-muted-foreground">Configure your tokenized security parameters</p>
                     </div>
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-6">
                     <aside className="space-y-4 order-first lg:order-2 lg:w-80 shrink-0">
                         <CreateTemplateSidebar
-                            description={
-                                <>
-                                    Arcade tokens are closed-loop tokens suitable for in-app or game economies that
-                                    require an allowlist.
-                                </>
-                            }
+                            description={<>A security token with the stablecoin feature set plus Scaled UI Amount.</>}
                             coreCapabilityKeys={[
-                                'closedLoopAllowlistOnly',
-                                'pausable',
                                 'metadata',
+                                'accessControls',
+                                'pausable',
                                 'permanentDelegate',
+                                'confidentialBalances',
+                                'scaledUIAmount',
                             ]}
                             enabledExtensionKeys={[
                                 'extMetadata',
                                 'extPausable',
-                                'extDefaultAccountStateAllow',
+                                'extDefaultAccountStateAllowOrBlock',
+                                'extConfidentialBalances',
                                 'extPermanentDelegate',
                             ]}
                             standardKeys={['sRFC37', 'gatingProgram']}
                         />
                     </aside>
                     <div className="order-last lg:order-1 flex-1">
-                        <ArcadeTokenCreateForm transactionSendingSigner={transactionSendingSigner} />
+                        <TokenizedSecurityCreateForm transactionSendingSigner={transactionSendingSigner} />
                     </div>
                 </div>
             </div>
@@ -65,39 +62,36 @@ function ArcadeTokenCreateWithWallet() {
     );
 }
 
-// Simple wrapper component that shows a message when wallet is not connected
-function ArcadeTokenCreatePage() {
+export default function TokenizedSecurityCreatePage() {
     const { connected, selectedAccount, cluster } = useConnector();
 
-    // If wallet is connected and chain is available, render the full component
     if (connected && selectedAccount && cluster) {
-        return <ArcadeTokenCreateWithWallet />;
+        return <TokenizedSecurityCreateWithWallet />;
     }
 
-    // Otherwise, show a message to connect wallet
     return (
         <div className="flex-1 p-8">
             <div className="max-w-4xl mx-auto">
                 <div className="flex items-center mb-8">
-                    <Link href="/dashboard/create">
+                    <Link href="/create">
                         <Button variant="ghost" className="mr-4">
                             ← Back
                         </Button>
                     </Link>
                     <div>
-                        <h2 className="text-3xl font-bold mb-2">Create Arcade Token</h2>
-                        <p className="text-muted-foreground">Configure your arcade token parameters</p>
+                        <h2 className="text-3xl font-bold mb-2">Create Tokenized Security</h2>
+                        <p className="text-muted-foreground">Configure your tokenized security parameters</p>
                     </div>
                 </div>
 
                 <Card>
                     <CardHeader>
                         <CardTitle>Wallet Required</CardTitle>
-                        <CardDescription>Please connect your wallet to create an arcade token</CardDescription>
+                        <CardDescription>Please connect your wallet to create a tokenized security</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground">
-                            To create an arcade token, you need to connect a wallet first. Please use the wallet
+                            To create a tokenized security, you need to connect a wallet first. Please use the wallet
                             connection button in the top navigation.
                         </p>
                     </CardContent>
@@ -106,5 +100,3 @@ function ArcadeTokenCreatePage() {
         </div>
     );
 }
-
-export default ArcadeTokenCreatePage;

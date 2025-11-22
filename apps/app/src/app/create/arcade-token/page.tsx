@@ -6,10 +6,10 @@ import Link from 'next/link';
 import { CreateTemplateSidebar } from '@/components/create-template-sidebar';
 import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
-import { StablecoinCreateForm } from '@/app/dashboard/create/stablecoin/stablecoin-create-form';
+import { ArcadeTokenCreateForm } from '@/app/create/arcade-token/arcade-token-create-form';
 
 // Component that only renders when wallet is available
-function StablecoinCreateWithWallet() {
+function ArcadeTokenCreateWithWallet() {
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
 
@@ -21,46 +21,43 @@ function StablecoinCreateWithWallet() {
         <div className="flex-1 p-8">
             <div className="max-w-6xl mx-auto">
                 <div className="flex items-center mb-8">
-                    <Link href="/dashboard/create">
+                    <Link href="/create">
                         <Button variant="ghost" className="mr-4">
                             ← Back
                         </Button>
                     </Link>
                     <div>
-                        <h2 className="text-3xl font-bold mb-2">Create Stablecoin</h2>
-                        <p className="text-muted-foreground">Configure your stablecoin parameters</p>
+                        <h2 className="text-3xl font-bold mb-2">Create Arcade Token</h2>
+                        <p className="text-muted-foreground">Configure your arcade token parameters</p>
                     </div>
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-6">
-                    <aside className="order-first lg:order-2 lg:w-80 shrink-0">
+                    <aside className="space-y-4 order-first lg:order-2 lg:w-80 shrink-0">
                         <CreateTemplateSidebar
                             description={
                                 <>
-                                    This stablecoin template is designed for regulatory-compliant issuance with strong
-                                    controls and safety features.
+                                    Arcade tokens are closed-loop tokens suitable for in-app or game economies that
+                                    require an allowlist.
                                 </>
                             }
                             coreCapabilityKeys={[
-                                'metadata',
-                                'accessControls',
+                                'closedLoopAllowlistOnly',
                                 'pausable',
+                                'metadata',
                                 'permanentDelegate',
-                                'confidentialBalances',
-                                'confidentialMintBurn',
                             ]}
                             enabledExtensionKeys={[
                                 'extMetadata',
                                 'extPausable',
-                                'extDefaultAccountStateAllowOrBlock',
-                                'extConfidentialBalances',
+                                'extDefaultAccountStateAllow',
                                 'extPermanentDelegate',
                             ]}
                             standardKeys={['sRFC37', 'gatingProgram']}
                         />
                     </aside>
                     <div className="order-last lg:order-1 flex-1">
-                        <StablecoinCreateForm transactionSendingSigner={transactionSendingSigner} />
+                        <ArcadeTokenCreateForm transactionSendingSigner={transactionSendingSigner} />
                     </div>
                 </div>
             </div>
@@ -69,12 +66,12 @@ function StablecoinCreateWithWallet() {
 }
 
 // Simple wrapper component that shows a message when wallet is not connected
-function StablecoinCreatePage() {
+function ArcadeTokenCreatePage() {
     const { connected, selectedAccount, cluster } = useConnector();
 
     // If wallet is connected and chain is available, render the full component
     if (connected && selectedAccount && cluster) {
-        return <StablecoinCreateWithWallet />;
+        return <ArcadeTokenCreateWithWallet />;
     }
 
     // Otherwise, show a message to connect wallet
@@ -82,26 +79,26 @@ function StablecoinCreatePage() {
         <div className="flex-1 p-8">
             <div className="max-w-4xl mx-auto">
                 <div className="flex items-center mb-8">
-                    <Link href="/dashboard/create">
+                    <Link href="/create">
                         <Button variant="ghost" className="mr-4">
                             ← Back
                         </Button>
                     </Link>
                     <div>
-                        <h2 className="text-3xl font-bold mb-2">Create Stablecoin</h2>
-                        <p className="text-muted-foreground">Configure your stablecoin parameters</p>
+                        <h2 className="text-3xl font-bold mb-2">Create Arcade Token</h2>
+                        <p className="text-muted-foreground">Configure your arcade token parameters</p>
                     </div>
                 </div>
 
                 <Card>
                     <CardHeader>
                         <CardTitle>Wallet Required</CardTitle>
-                        <CardDescription>Please connect your wallet to create a stablecoin</CardDescription>
+                        <CardDescription>Please connect your wallet to create an arcade token</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground">
-                            To create a stablecoin, you need to connect a wallet first. Please use the wallet connection
-                            button in the top navigation.
+                            To create an arcade token, you need to connect a wallet first. Please use the wallet
+                            connection button in the top navigation.
                         </p>
                     </CardContent>
                 </Card>
@@ -110,4 +107,4 @@ function StablecoinCreatePage() {
     );
 }
 
-export default StablecoinCreatePage;
+export default ArcadeTokenCreatePage;

@@ -17,7 +17,7 @@ export function Hero() {
                         and full control over your token.
                     </p>
                     <div className="mt-10 flex items-center justify-center gap-x-6">
-                        <Button size="lg" onClick={() => router.push('/dashboard')}>
+                        <Button size="lg" onClick={() => router.push('/')}>
                             Tokenize!
                         </Button>
                     </div>

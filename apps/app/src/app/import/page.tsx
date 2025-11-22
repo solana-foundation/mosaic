@@ -125,7 +125,7 @@ export default function ImportTokenPage() {
 
             // Redirect to dashboard after a short delay
             setTimeout(() => {
-                router.push('/dashboard');
+                router.push('/');
             }, 2000);
         } catch (err) {
             // Error importing token
@@ -157,7 +157,7 @@ export default function ImportTokenPage() {
     return (
         <div className="flex-1 p-8">
             <div className="max-w-2xl mx-auto">
-                <Link href="/dashboard/create">
+                <Link href="/create">
                     <Button variant="ghost" className="mb-6">
                         <ArrowLeft className="h-4 w-4 mr-2" />
                         Back to Create
@@ -248,7 +248,7 @@ export default function ImportTokenPage() {
                                     </>
                                 )}
                             </Button>
-                            <Link href="/dashboard/create" className="flex-1">
+                            <Link href="/create" className="flex-1">
                                 <Button variant="outline" className="w-full" disabled={isLoading}>
                                     Cancel
                                 </Button>

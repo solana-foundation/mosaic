@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ArcadeTokenOptions, ArcadeTokenCreationResult } from '@/types/token';
 import { ArcadeTokenBasicParams } from './arcade-token-basic-params';
 import { ArcadeTokenAuthorityParams } from './arcade-token-authority-params';
-import { ArcadeTokenCreationResultDisplay } from '@/app/dashboard/create/arcade-token/arcade-token-creation-result';
+import { ArcadeTokenCreationResultDisplay } from '@/app/create/arcade-token/arcade-token-creation-result';
 import { createArcadeToken } from '@/lib/issuance/arcade-token';
 import type { TransactionModifyingSigner } from '@solana/signers';
 import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/token-storage';

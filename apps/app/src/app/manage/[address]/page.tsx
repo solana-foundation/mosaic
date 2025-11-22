@@ -281,7 +281,7 @@ function ManageTokenConnected({ address }: { address: string }) {
             )
         ) {
             TokenStorage.removeToken(address);
-            router.push('/dashboard');
+            router.push('/');
         }
     };
 
@@ -381,7 +381,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                         <p className="text-muted-foreground mb-6">
                             The token with address {address} could not be found in your local storage.
                         </p>
-                        <Link href="/dashboard">
+                        <Link href="/">
                             <Button>
                                 <ArrowLeft className="h-4 w-4 mr-2" />
                                 Back to Dashboard
@@ -399,7 +399,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center space-x-4">
-                        <Link href="/dashboard">
+                        <Link href="/">
                             <Button variant="outline" size="sm">
                                 <ArrowLeft className="h-4 w-4 mr-2" />
                                 Back

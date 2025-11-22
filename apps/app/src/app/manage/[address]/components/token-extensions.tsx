@@ -23,7 +23,7 @@ export function TokenExtensions({ token }: TokenExtensionsProps) {
         <div className="flex-1 p-8">
             <div className="max-w-4xl mx-auto">
                 <div className="flex items-center mb-8">
-                    <Link href="/dashboard/create">
+                    <Link href="/create">
                         <Button variant="ghost" className="mr-4">
                             ← Back
                         </Button>
