@@ -10,9 +10,10 @@ import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/token-st
 
 interface StablecoinCreateFormProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    onTokenCreated?: () => void;
 }
 
-export function StablecoinCreateForm({ transactionSendingSigner }: StablecoinCreateFormProps) {
+export function StablecoinCreateForm({ transactionSendingSigner, onTokenCreated }: StablecoinCreateFormProps) {
     const [stablecoinOptions, setStablecoinOptions] = useState<StablecoinOptions>({
         name: '',
         symbol: '',
@@ -67,6 +68,9 @@ export function StablecoinCreateForm({ transactionSendingSigner }: StablecoinCre
 
                 // Save to local storage
                 TokenStorage.saveToken(tokenDisplay);
+
+                // Call the callback to notify parent
+                onTokenCreated?.();
 
                 setResult({
                     success: true,

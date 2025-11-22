@@ -11,8 +11,10 @@ import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/token-st
 
 export function TokenizedSecurityCreateForm({
     transactionSendingSigner,
+    onTokenCreated,
 }: {
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    onTokenCreated?: () => void;
 }) {
     const [options, setOptions] = useState<TokenizedSecurityOptions>({
         name: '',
@@ -46,6 +48,9 @@ export function TokenizedSecurityCreateForm({
             if (result.success && result.mintAddress) {
                 const tokenDisplay = createTokenDisplayFromResult(result, 'tokenized-security', options);
                 TokenStorage.saveToken(tokenDisplay);
+                
+                // Call the callback to notify parent
+                onTokenCreated?.();
             }
             setCreationResult(result);
         } catch (error) {

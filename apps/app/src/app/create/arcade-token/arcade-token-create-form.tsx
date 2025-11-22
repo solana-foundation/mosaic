@@ -10,9 +10,10 @@ import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/token-st
 
 interface ArcadeTokenCreateFormProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    onTokenCreated?: () => void;
 }
 
-export function ArcadeTokenCreateForm({ transactionSendingSigner }: ArcadeTokenCreateFormProps) {
+export function ArcadeTokenCreateForm({ transactionSendingSigner, onTokenCreated }: ArcadeTokenCreateFormProps) {
     const [arcadeTokenOptions, setArcadeTokenOptions] = useState<ArcadeTokenOptions>({
         name: '',
         symbol: '',
@@ -46,6 +47,9 @@ export function ArcadeTokenCreateForm({ transactionSendingSigner }: ArcadeTokenC
 
                 // Save to local storage
                 TokenStorage.saveToken(tokenDisplay);
+
+                // Call the callback to notify parent
+                onTokenCreated?.();
 
                 const addrValue: unknown = (
                     transactionSendingSigner as {

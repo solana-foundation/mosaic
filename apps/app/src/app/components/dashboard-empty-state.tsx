@@ -2,17 +2,13 @@
 
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
-import Link from 'next/link';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { templates } from './templates';
+import { CreateTokenModal } from './create-token-modal';
 
-export function DashboardEmptyState() {
+interface DashboardEmptyStateProps {
+    onTokenCreated?: () => void;
+}
+
+export function DashboardEmptyState({ onTokenCreated }: DashboardEmptyStateProps) {
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     return (
@@ -35,42 +31,8 @@ export function DashboardEmptyState() {
                     </div>
                 </button>
 
-                <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle className="text-2xl">Choose a Template</DialogTitle>
-                            <DialogDescription>
-                                Select the type of token you want to create
-                            </DialogDescription>
-                        </DialogHeader>
-
-                        <div className="flex flex-col gap-3 mt-4">
-                            {templates.map((template) => {
-                                const Icon = template.icon;
-                                return (
-                                    <Link
-                                        key={template.href}
-                                        href={template.href}
-                                        onClick={() => setIsCreateModalOpen(false)}
-                                        className="flex items-start gap-4 p-4 rounded-lg border hover:bg-muted/50 transition-colors group"
-                                    >
-                                        <div className="rounded-lg bg-primary/10 p-3 group-hover:bg-primary/20 transition-colors">
-                                            <Icon className="h-6 w-6 text-primary" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <h4 className="font-semibold mb-1">{template.title}</h4>
-                                            <p className="text-sm text-muted-foreground">
-                                                {template.description}
-                                            </p>
-                                        </div>
-                                    </Link>
-                                );
-                            })}
-                        </div>
-                    </DialogContent>
-                </Dialog>
+                <CreateTokenModal isOpen={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} onTokenCreated={onTokenCreated} />
             </div>
         </div>
     );
 }
-
