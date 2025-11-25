@@ -159,7 +159,7 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
                             <span className="text-muted-foreground text-sm font-medium">Type</span>
                             <Badge
                                 variant="secondary"
-                                className="bg-gray-100 text-gray-700 hover:bg-gray-100 dark:bg-gray-800 dark:text-gray-300 font-medium px-3 rounded-md"
+                                className="bg-primary/10 text-primary hover:bg-primary/[0.10] font-medium px-3 rounded-md"
                             >
                                 {getTokenPatternsLabel(token.detectedPatterns)}
                             </Badge>

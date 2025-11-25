@@ -6,6 +6,7 @@ import { getAllTokens } from '@/lib/token/token-data';
 import { TokenStorage } from '@/lib/token/token-storage';
 import { TokenDisplay } from '@/types/token';
 import { TokenCard } from './token-card';
+import { TokenCardEmptyState } from './token-card-empty-state';
 import { CreateTokenButton } from './create-token-button';
 import { DashboardEmptyState } from './dashboard-empty-state';
 import { IconCircleDottedAndCircle } from 'symbols-react';
@@ -68,6 +69,7 @@ export function DashboardConnected() {
                     {tokens.map((token, index) => (
                         <TokenCard key={index} token={token} index={index} onDelete={handleDeleteToken} />
                     ))}
+                    <TokenCardEmptyState onTokenCreated={handleTokenCreated} />
                 </div>
             </div>
         </div>
