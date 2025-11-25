@@ -124,3 +124,56 @@ export interface TokenizedSecurityCreationResult {
         extensions: string[];
     };
 }
+
+export interface CustomTokenOptions {
+    name: string;
+    symbol: string;
+    decimals: string;
+    uri?: string;
+    // Extension toggles
+    enableMetadata?: boolean;
+    enablePausable?: boolean;
+    enablePermanentDelegate?: boolean;
+    enableDefaultAccountState?: boolean;
+    enableConfidentialBalances?: boolean;
+    enableScaledUiAmount?: boolean;
+    enableSrfc37?: boolean;
+    // ACL mode (only relevant if SRFC-37 is enabled)
+    aclMode?: 'allowlist' | 'blocklist';
+    // Authority addresses
+    mintAuthority?: string;
+    metadataAuthority?: string;
+    pausableAuthority?: string;
+    permanentDelegateAuthority?: string;
+    confidentialBalancesAuthority?: string;
+    scaledUiAmountAuthority?: string;
+    // Scaled UI Amount configuration
+    scaledUiAmountMultiplier?: string;
+    scaledUiAmountNewMultiplier?: string;
+    // Default Account State configuration
+    defaultAccountStateInitialized?: boolean;
+    freezeAuthority?: string;
+    rpcUrl?: string;
+}
+
+export interface CustomTokenCreationResult {
+    success: boolean;
+    error?: string;
+    transactionSignature?: string;
+    mintAddress?: string;
+    details?: {
+        name: string;
+        symbol: string;
+        decimals: number;
+        aclMode?: 'allowlist' | 'blocklist';
+        mintAuthority: string;
+        metadataAuthority?: string;
+        pausableAuthority?: string;
+        confidentialBalancesAuthority?: string;
+        permanentDelegateAuthority?: string;
+        scaledUiAmountAuthority?: string;
+        scaledUiAmountMultiplier?: number;
+        defaultAccountStateInitialized?: boolean;
+        extensions: string[];
+    };
+}

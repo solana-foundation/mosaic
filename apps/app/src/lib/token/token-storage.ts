@@ -149,10 +149,11 @@ export const createTokenDisplayFromResult = (
             pausableAuthority?: string;
             confidentialBalancesAuthority?: string;
             permanentDelegateAuthority?: string;
+            scaledUiAmountAuthority?: string;
             extensions?: string[];
         };
     },
-    type: 'stablecoin' | 'arcade-token' | 'tokenized-security',
+    type: 'stablecoin' | 'arcade-token' | 'tokenized-security' | 'custom-token',
     options: {
         name: string;
         symbol: string;
@@ -171,6 +172,7 @@ export const createTokenDisplayFromResult = (
         pausableAuthority: result.details?.pausableAuthority,
         confidentialBalancesAuthority: result.details?.confidentialBalancesAuthority,
         permanentDelegateAuthority: result.details?.permanentDelegateAuthority,
+        scaledUiAmountAuthority: result.details?.scaledUiAmountAuthority,
         extensions: result.details?.extensions,
         transactionSignature: result.transactionSignature,
         isSrfc37: options.enableSrfc37,

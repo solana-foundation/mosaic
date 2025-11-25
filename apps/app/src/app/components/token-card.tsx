@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Coins, Trash2, ExternalLink, RefreshCw, MoreHorizontal, AlertTriangle } from 'lucide-react';
+import { Trash2, ExternalLink, RefreshCw, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -21,12 +20,12 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { TokenDisplay } from '@/types/token';
 import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
 import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 import { type Address, createSolanaRpc } from 'gill';
+import { IconHexagonFill } from 'symbols-react';
 
 interface TokenCardProps {
     token: TokenDisplay;
@@ -103,9 +102,9 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
                 <CardContent className="p-6 flex-1">
                     {/* Header: Logo and Status */}
                     <div className="flex items-start justify-between mb-6">
-                        <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center border border-primary/20">
-                            {/* Placeholder for logo - using Coins icon */}
-                            <Coins className="h-6 w-6 text-primary" />
+                        <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10">
+                            {/* Placeholder for logo - using hexagon icon */}
+                            <IconHexagonFill className="h-6 w-6 fill-primary/50" width={24} height={24} />
                         </div>
                         <div className="flex-1"></div>
                         <div className="flex items-center gap-2">
@@ -122,9 +121,9 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
                                         <span className="sr-only">Open menu</span>
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
+                                <DropdownMenuContent className="p-1 rounded-xl" align="end">
                                     {token.address && (
-                                        <DropdownMenuItem asChild>
+                                        <DropdownMenuItem className="rounded-lg" asChild>
                                             <a
                                                 href={`https://solscan.io/token/${token.address}`}
                                                 target="_blank"
@@ -137,7 +136,7 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
                                     )}
                                     <DropdownMenuItem 
                                         onClick={() => setIsDeleteOpen(true)} 
-                                        className="text-red-600 focus:text-red-600 focus:bg-red-50"
+                                        className="text-red-600 focus:text-red-600 focus:bg-red-50 rounded-lg"
                                     >
                                         <Trash2 className="h-4 w-4 mr-2" />
                                         Delete from Storage
@@ -148,18 +147,15 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
                     </div>
 
                     {/* Title: Name and Symbol */}
-                    <div className="mb-6">
+                    <div className="mb-4">
                         <h3 className="text-2xl font-bold text-foreground mb-1 leading-tight tracking-tight">
                             {token.name || `Token ${index + 1}`}
                         </h3>
                         <p className="text-md text-muted-foreground font-medium">${token.symbol || 'TKN'}</p>
                     </div>
-
-                    <Separator className="mb-6 bg-border/50" />
-
                     {/* Details List */}
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
+                    <div className="divide-y divide-primary/5">
+                        <div className="flex items-center justify-between bg-primary/5 rounded-t-lg p-4">
                             <span className="text-muted-foreground text-sm font-medium">Type</span>
                             <Badge
                                 variant="secondary"
@@ -169,7 +165,7 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
                             </Badge>
                         </div>
 
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between bg-primary/5 p-4">
                             <span className="text-muted-foreground text-sm font-medium">Supply</span>
                             <div className="flex items-center gap-2">
                                 <span className="font-semibold text-foreground text-sm">
@@ -188,7 +184,7 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between bg-primary/5 rounded-b-lg p-4">
                             <span className="text-muted-foreground text-sm font-medium">Created</span>
                             <span className="font-semibold text-foreground text-sm">
                                 {formatDate(token.createdAt)}
@@ -216,35 +212,37 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
                     }, 0);
                 }
             }}>
-                <AlertDialogContent>
+                <AlertDialogContent className="rounded-[24px] p-4.5">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Token from Storage</AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogTitle className="text-2xl font-bold">Delete Token from Storage</AlertDialogTitle>
+                        <AlertDialogDescription className="text-md">
                             Are you sure you want to remove this token from your local list?
                         </AlertDialogDescription>
                     </AlertDialogHeader>
 
-                    <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>Warning</AlertTitle>
-                        <AlertDescription>
-                            This action only removes the token from your local browser storage. The token will still exist on the blockchain, but you will need to import it again to manage it.
-                        </AlertDescription>
-                    </Alert>
+                    {/* Warning box styled like card */}
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl p-4">
+                        <p className="text-sm text-red-900 dark:text-red-200">
+                            <span className="font-semibold">Warning:</span> This action only removes the token from your local browser storage. The token will still exist on the blockchain, but you will need to import it again to manage it.
+                        </p>
+                    </div>
 
-                    <AlertDialogFooter>
-                        <AlertDialogCancel onClick={() => setIsDeleteOpen(false)}>
-                            Cancel
-                        </AlertDialogCancel>
+                    <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
                         <AlertDialogAction
                             onClick={(e) => {
                                 e.preventDefault();
                                 handleDelete();
                             }}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            className="w-full bg-destructive text-white hover:bg-destructive/90 rounded-xl font-semibold h-11"
                         >
                             Delete Token
                         </AlertDialogAction>
+                        <AlertDialogCancel 
+                            onClick={() => setIsDeleteOpen(false)}
+                            className="w-full rounded-xl font-semibold h-11 mt-0"
+                        >
+                            Cancel
+                        </AlertDialogCancel>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

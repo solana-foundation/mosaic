@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, ChevronRight, Upload } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -10,11 +10,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { templates, importTemplate, type Template } from './templates';
+import { templates, type Template } from './templates';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
 import { StablecoinCreateForm } from '@/app/create/stablecoin/stablecoin-create-form';
 import { ArcadeTokenCreateForm } from '@/app/create/arcade-token/arcade-token-create-form';
 import { TokenizedSecurityCreateForm } from '@/app/create/tokenized-security/tokenized-security-create-form';
+import { CustomTokenCreateForm } from '@/app/create/custom-token/custom-token-create-form';
 import { cn } from '@/lib/utils';
 
 interface CreateTokenModalProps {
@@ -29,11 +30,6 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
 
     const handleTemplateSelect = (template: Template) => {
         setSelectedTemplate(template);
-    };
-
-    const handleImportClick = () => {
-        onOpenChange(false);
-        window.location.href = importTemplate.href;
     };
 
     const handleBack = () => {
@@ -64,6 +60,8 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                 return <ArcadeTokenCreateForm transactionSendingSigner={transactionSendingSigner} onTokenCreated={handleTokenCreated} />;
             case '/create/tokenized-security':
                 return <TokenizedSecurityCreateForm transactionSendingSigner={transactionSendingSigner} onTokenCreated={handleTokenCreated} />;
+            case '/create/custom-token':
+                return <CustomTokenCreateForm transactionSendingSigner={transactionSendingSigner} onTokenCreated={handleTokenCreated} />;
             default:
                 return null;
         }
@@ -72,82 +70,114 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className={cn(
-                "overflow-y-auto sm:rounded-3xl p-0 gap-0 transition-all duration-200",
-                selectedTemplate ? "max-w-4xl max-h-[90vh]" : "max-w-lg"
+                "overflow-hidden sm:rounded-3xl p-0 gap-0 transition-all duration-300",
+                selectedTemplate ? "max-w-4xl" : "max-w-lg"
             )}>
-                {!selectedTemplate ? (
-                    <>
-                        <div className="flex items-center justify-between p-6 pb-4 border-b">
-                            <DialogTitle className="text-xl font-semibold">Create New Token</DialogTitle>
-                            {/* The Close button is automatically rendered by DialogContent, but we can hide it via CSS or rely on it. 
-                                Shadcn's DialogContent includes a Close button absolute positioned. 
-                                We'll let the default close button handle the closing, but it might overlap our header if we aren't careful.
-                                The default close button is right-4 top-4.
-                            */}
-                        </div>
-
-                        <div className="p-6 space-y-4">
-                            {templates.map((template) => {
-                                const Icon = template.icon;
-                                return (
-                                    <button
-                                        key={template.href}
-                                        onClick={() => handleTemplateSelect(template)}
-                                        className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all bg-white group text-left"
-                                    >
-                                        <div className={cn("p-3 rounded-xl shrink-0", template.colorClass)}>
-                                            <Icon className={cn("h-6 w-6", template.iconColorClass)} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="font-semibold text-base mb-1">{template.title}</h4>
-                                            <p className="text-sm text-gray-500 leading-relaxed">
-                                                {template.description}
-                                            </p>
-                                        </div>
-                                        <div className="shrink-0 text-gray-300 group-hover:text-gray-400 transition-colors">
-                                            <ChevronRight className="h-6 w-6" />
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        <div className="p-4 pt-2 pb-6">
-                            <button
-                                onClick={handleImportClick}
-                                className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors font-medium text-gray-900"
-                            >
-                                <Upload className="h-5 w-5 text-gray-700" />
-                                {importTemplate.title}
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    <>
-                        <DialogHeader className="p-6 pb-4 border-b">
-                            <div className="flex items-center gap-2">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handleBack}
-                                    className="h-8 w-8 p-0 -ml-2 mr-1"
-                                >
-                                    <ArrowLeft className="h-4 w-4" />
-                                </Button>
-                                <div>
-                                    <DialogTitle className="text-xl">Create {selectedTemplate.title}</DialogTitle>
-                                    <DialogDescription>
-                                        Configure your token parameters
-                                    </DialogDescription>
+                <div className={cn(
+                    "overflow-hidden transition-all duration-300 ease-in-out",
+                    selectedTemplate ? "max-h-[90vh]" : "max-h-[600px]"
+                )}>
+                    <div className="overflow-y-auto max-h-[90vh]">
+                        {!selectedTemplate ? (
+                            <>
+                                <div className="flex items-center justify-between p-6 pb-4 border-b">
+                                    <DialogTitle className="text-xl font-semibold">Create New Token</DialogTitle>
+                                    {/* The Close button is automatically rendered by DialogContent, but we can hide it via CSS or rely on it. 
+                                        Shadcn's DialogContent includes a Close button absolute positioned. 
+                                        We'll let the default close button handle the closing, but it might overlap our header if we aren't careful.
+                                        The default close button is right-4 top-4.
+                                    */}
                                 </div>
-                            </div>
-                        </DialogHeader>
 
-                        <div className="p-6">
-                            {renderForm()}
-                        </div>
-                    </>
-                )}
+                                <div className="p-6 space-y-4">
+                                    {/* Custom Token - First */}
+                                    {(() => {
+                                        const customToken = templates.find(t => t.href === '/create/custom-token');
+                                        if (!customToken) return null;
+                                        const Icon = customToken.icon;
+                                        return (
+                                            <button
+                                                key={customToken.href}
+                                                onClick={() => handleTemplateSelect(customToken)}
+                                                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all bg-white group text-left"
+                                            >
+                                                <div className={cn("p-3 rounded-xl shrink-0", customToken.colorClass)}>
+                                                    <Icon className={cn("h-6 w-6", customToken.iconColorClass)} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-semibold text-base mb-1">{customToken.title}</h4>
+                                                    <p className="text-sm text-gray-500 leading-relaxed">
+                                                        {customToken.description}
+                                                    </p>
+                                                </div>
+                                                <div className="shrink-0 text-gray-300 group-hover:text-gray-400 transition-colors">
+                                                    <ChevronRight className="h-6 w-6" />
+                                                </div>
+                                            </button>
+                                        );
+                                    })()}
+
+                                    {/* Templates Label */}
+                                    <div className="pt-2 pb-2">
+                                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Templates</h3>
+                                    </div>
+
+                                    {/* Other Templates */}
+                                    {templates
+                                        .filter(template => template.href !== '/create/custom-token')
+                                        .map((template) => {
+                                            const Icon = template.icon;
+                                            return (
+                                                <button
+                                                    key={template.href}
+                                                    onClick={() => handleTemplateSelect(template)}
+                                                    className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all bg-white group text-left"
+                                                >
+                                                    <div className={cn("p-3 rounded-xl shrink-0", template.colorClass)}>
+                                                        <Icon className={cn("h-6 w-6", template.iconColorClass)} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <h4 className="font-semibold text-base mb-1">{template.title}</h4>
+                                                        <p className="text-sm text-gray-500 leading-relaxed">
+                                                            {template.description}
+                                                        </p>
+                                                    </div>
+                                                    <div className="shrink-0 text-gray-300 group-hover:text-gray-400 transition-colors">
+                                                        <ChevronRight className="h-6 w-6" />
+                                                    </div>
+                                                </button>
+                                            );
+                                        })}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <DialogHeader className="p-6 pb-4 border-b">
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={handleBack}
+                                            className="h-8 w-8 p-0 -ml-2 mr-1"
+                                        >
+                                            <ArrowLeft className="h-4 w-4" />
+                                        </Button>
+                                        <div>
+                                            <DialogTitle className="text-xl">Create {selectedTemplate.title}</DialogTitle>
+                                            <DialogDescription>
+                                                Configure your token parameters
+                                            </DialogDescription>
+                                        </div>
+                                    </div>
+                                </DialogHeader>
+
+                                <div className="p-6">
+                                    {renderForm()}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
             </DialogContent>
         </Dialog>
     );
