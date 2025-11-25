@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Plus, X, Shield, Ban, ChevronDown, ChevronUp } from 'lucide-react';
+import { Settings, Plus, X, Shield, Ban } from 'lucide-react';
 
 interface TransferRestrictionsProps {
     accessList: string[];
@@ -16,8 +15,6 @@ export function TransferRestrictions({
     onAddToAccessList,
     onRemoveFromAccessList,
 }: TransferRestrictionsProps) {
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
     // Configuration for blocklist vs allowlist
     const listConfig = {
         blocklist: {
@@ -67,42 +64,34 @@ export function TransferRestrictions({
     return (
         <Card>
             <CardHeader>
-                <button
-                    type="button"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center justify-between w-full text-left"
-                >
-                    <CardTitle className="flex items-center">
-                        <Settings className="h-5 w-5 mr-2" />
-                        Transfer Restrictions
-                    </CardTitle>
-                    {isDropdownOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                </button>
+                <CardTitle className="flex items-center">
+                    <Settings className="h-5 w-5 mr-2" />
+                    Transfer Restrictions
+                </CardTitle>
                 <CardDescription>Control who can transfer tokens</CardDescription>
             </CardHeader>
-            {isDropdownOpen && (
-                <CardContent>
-                    <div className="space-y-3">
-                        <div>
-                            <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center">
-                                    <IconComponent className={`h-4 w-4 mr-2 ${config.iconClasses}`} />
-                                    <h5 className="font-medium">{config.title}</h5>
-                                    <span className={`ml-2 text-xs px-2 py-1 rounded ${config.badgeClasses}`}>
-                                        {config.badgeText}
-                                    </span>
-                                </div>
-                                <Button variant="outline" size="sm" onClick={onAddToAccessList}>
-                                    <Plus className="h-4 w-4 mr-1" />
-                                    Add Address
-                                </Button>
+            <CardContent>
+                <div className="space-y-3">
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center">
+                                <IconComponent className={`h-4 w-4 mr-2 ${config.iconClasses}`} />
+                                <h5 className="font-medium">{config.title}</h5>
+                                <span className={`ml-2 text-xs px-2 py-1 rounded ${config.badgeClasses}`}>
+                                    {config.badgeText}
+                                </span>
                             </div>
-                            <p className="text-sm text-muted-foreground mb-3">{config.description}</p>
-                            {renderAddressList()}
+                            <Button variant="outline" size="sm" onClick={onAddToAccessList}>
+                                <Plus className="h-4 w-4 mr-1" />
+                                Add Address
+                            </Button>
                         </div>
+                        <p className="text-sm text-muted-foreground mb-3">{config.description}</p>
+                        {renderAddressList()}
                     </div>
-                </CardContent>
-            )}
+                </div>
+            </CardContent>
         </Card>
     );
 }
+

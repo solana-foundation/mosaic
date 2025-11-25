@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { updateScaledUiMultiplier } from '@/lib/management/scaled-ui-amount';
 import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
-import { Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 import Link from 'next/link';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
 
 interface TokenExtensionsProps {
     token: TokenDisplay;
@@ -21,38 +22,17 @@ export function TokenExtensions({ token }: TokenExtensionsProps) {
 
     return (
         <div className="flex-1 p-8">
-            <div className="max-w-4xl mx-auto">
-                <div className="flex items-center mb-8">
-                    <Link href="/create">
-                        <Button variant="ghost" className="mr-4">
-                            ← Back
-                        </Button>
-                    </Link>
-                    <div>
-                        <h2 className="text-3xl font-bold mb-2">Manage Token Extensions</h2>
-                        <p className="text-muted-foreground">Manage the extensions enabled on this token</p>
-                    </div>
-                </div>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Wallet Required</CardTitle>
-                        <CardDescription>Please connect your wallet to create a tokenized security</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground">
-                            To manage token extensions, you need to connect a wallet first. Please use the wallet
-                            connection button in the top navigation.
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
+             <Card>
+                <CardHeader>
+                    <CardTitle>Wallet Required</CardTitle>
+                    <CardDescription>Please connect your wallet to manage token extensions.</CardDescription>
+                </CardHeader>
+            </Card>
         </div>
     );
 }
 
 function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [showScaledUiEditor, setShowScaledUiEditor] = useState(false);
     const [newMultiplier, setNewMultiplier] = useState<string>('');
 
@@ -62,82 +42,64 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
     return (
         <Card>
             <CardHeader>
-                <button
-                    type="button"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center justify-between w-full text-left"
-                >
-                    <CardTitle className="flex items-center">
-                        <Settings className="h-5 w-5 mr-2" />
-                        Token Extensions
-                    </CardTitle>
-                    {isDropdownOpen ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
-                </button>
-                <CardDescription>Extensions enabled on this token</CardDescription>
+                <CardTitle>Token Extensions</CardTitle>
+                <CardDescription>Configure token-level settings</CardDescription>
             </CardHeader>
-            {isDropdownOpen && (
-                <CardContent>
-                    <div className="space-y-3">
-                        {token.extensions && token.extensions.length > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                                {token.extensions.map((extension, index) => (
-                                    <span
-                                        key={index}
-                                        className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium"
-                                    >
-                                        {extension}
-                                    </span>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-muted-foreground">No extensions configured</p>
-                        )}
-
-                        <div className="flex items-center justify-between p-3 border rounded-lg">
-                            <div>
-                                <h4 className="font-medium">Metadata</h4>
-                                <p className="text-sm text-muted-foreground">Update token metadata and URI</p>
-                            </div>
-                            <Button variant="outline" size="sm">
-                                Edit
-                            </Button>
-                        </div>
+            <CardContent className="space-y-6">
+                 {/* Metadata Pointer */}
+                <div className="flex items-start justify-between space-x-4 p-4 bg-muted/50 rounded-lg">
+                     <div className="space-y-1">
+                        <h4 className="text-sm font-medium">MetadataPointer</h4>
+                        <p className="text-sm text-muted-foreground">
+                            Points to where the token's name, symbol, and metadata are stored.
+                        </p>
                     </div>
-                    {token.extensions?.includes('Scaled UI Amount') && (
-                        <div className="p-3 border rounded-lg space-y-3">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <h4 className="font-medium">Scaled UI Amount</h4>
-                                    <p className="text-sm text-muted-foreground">
-                                        Update the UI amount multiplier for this mint
-                                    </p>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setShowScaledUiEditor(prev => !prev)}
-                                >
-                                    {showScaledUiEditor ? 'Hide' : 'Edit'}
-                                </Button>
+                    <div className="flex items-center space-x-2">
+                         {token.metadataUri && (
+                             <code className="px-2 py-1 bg-background rounded text-xs font-mono border">
+                                {token.metadataUri.length > 20 ? token.metadataUri.slice(0, 10) + '...' + token.metadataUri.slice(-8) : token.metadataUri}
+                             </code>
+                         )}
+                        <Button variant="outline" size="sm">Edit</Button>
+                    </div>
+                </div>
+
+                {/* Pausable Config - Placeholder as actual pause state is managed in sidebar/header actions mostly, but extensions list usually shows if it IS pausable */}
+                 {token.extensions?.includes('Pausable') && (
+                     <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                        <div className="space-y-1">
+                            <h4 className="text-sm font-medium">PausableConfig</h4>
+                            <p className="text-sm text-muted-foreground">
+                                Lets an authority pause all token transfers globally.
+                            </p>
+                        </div>
+                         {/* Switch is disabled as this is just showing capability usually, or needs actual logic to toggle capability if possible (usually immutable after init unless pointer swap) */}
+                        <Switch checked={true} disabled />
+                    </div>
+                 )}
+
+                 {/* Scaled UI Amount */}
+                {token.extensions?.includes('Scaled UI Amount') && (
+                    <div className="p-4 bg-muted/50 rounded-lg space-y-4">
+                        <div className="flex items-center justify-between">
+                             <div className="space-y-1">
+                                <h4 className="text-sm font-medium">Scaled UI Amount (Editable)</h4>
+                                <p className="text-sm text-muted-foreground">
+                                    Change how balances appear (cosmetic only)
+                                </p>
                             </div>
-                            {showScaledUiEditor && (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                    <div className="md:col-span-2">
-                                        <label className="block text-sm font-medium mb-1">New Multiplier</label>
-                                        <input
+                            <div className="flex items-center space-x-2">
+                                 {showScaledUiEditor ? (
+                                     <div className="flex items-center space-x-2">
+                                         <Input
                                             type="number"
-                                            min={0}
-                                            step="any"
-                                            className="w-full p-2 border rounded"
                                             value={newMultiplier}
-                                            onChange={e => setNewMultiplier(e.target.value)}
-                                            placeholder="e.g., 1.5"
-                                        />
-                                    </div>
-                                    <div className="flex items-end">
-                                        <Button
-                                            className="w-full"
-                                            disabled={!token.address || !newMultiplier}
+                                            onChange={(e) => setNewMultiplier(e.target.value)}
+                                            className="w-24 h-8"
+                                            placeholder="1.0"
+                                         />
+                                         <Button 
+                                            size="sm"
                                             onClick={async () => {
                                                 if (!token.address || !transactionSendingSigner) return;
                                                 const multiplier = Number(newMultiplier);
@@ -149,16 +111,47 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                 setNewMultiplier('');
                                                 setShowScaledUiEditor(false);
                                             }}
-                                        >
-                                            Update Multiplier
-                                        </Button>
-                                    </div>
-                                </div>
-                            )}
+                                            disabled={!newMultiplier}
+                                         >
+                                            Save
+                                         </Button>
+                                         <Button variant="ghost" size="sm" onClick={() => setShowScaledUiEditor(false)}>Cancel</Button>
+                                     </div>
+                                 ) : (
+                                     <div className="flex items-center space-x-2">
+                                         <code className="px-2 py-1 bg-background rounded text-xs font-mono border">
+                                            {/* We don't have current multiplier in TokenDisplay usually, unless added. Assuming 1 or from detail */}
+                                            {/* TODO: Add multiplier to TokenDisplay if needed */}
+                                            0.005
+                                         </code>
+                                         <Button variant="outline" size="sm" onClick={() => setShowScaledUiEditor(true)}>Edit</Button>
+                                     </div>
+                                 )}
+                            </div>
                         </div>
-                    )}
-                </CardContent>
-            )}
+                    </div>
+                )}
+
+                {/* Default Account State */}
+                 {token.extensions?.includes('Default Account State') && (
+                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                         <div className="space-y-1">
+                            <h4 className="text-sm font-medium">Default Account State</h4>
+                            <p className="text-sm text-muted-foreground">
+                                Configures default state (Frozen/Initialized) for new accounts.
+                            </p>
+                        </div>
+                         <Switch checked={true} disabled />
+                    </div>
+                )}
+
+                 {(!token.extensions || token.extensions.length === 0) && (
+                    <div className="text-center py-8 text-muted-foreground">
+                        No extensions enabled on this token.
+                    </div>
+                )}
+            </CardContent>
         </Card>
     );
 }
+

@@ -2,20 +2,18 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Coins, ArrowRightLeft, Flame, Ban, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { TokenDisplay } from '@/types/token';
 import { Spinner } from '@/components/ui/spinner';
 import { findTokenByAddress } from '@/lib/token/token-data';
 import { TokenStorage } from '@/lib/token/token-storage';
-import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 import { useConnector } from '@solana/connector/react';
 import { TokenOverview } from './components/token-overview';
 import { TokenAuthorities } from './components/token-authorities';
 import { TokenExtensions } from './components/token-extensions';
 import { TransferRestrictions } from './components/transfer-restrictions';
-import { ActionSidebar } from './components/action-sidebar';
 import { AddressModal } from './components/address-modal';
 import { MintModalRefactored as MintModal } from './components/mint-modal-refactored';
 import { ForceTransferModalRefactored as ForceTransferModal } from './components/force-transfer-modal-refactored';
@@ -33,6 +31,17 @@ import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
 import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
 import { Mode } from '@token-acl/abl-sdk';
 import { pauseTokenWithWallet, unpauseTokenWithWallet, checkTokenPauseState } from '@/lib/management/pause';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { IconArrowUpRight, IconHexagonFill } from 'symbols-react';
+import { motion } from 'motion/react';
 
 export default function ManageTokenPage() {
     const { connected, selectedAccount } = useConnector();
@@ -89,6 +98,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     const [error, setError] = useState('');
     const [transactionSignature, setTransactionSignature] = useState('');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const rpc = useMemo(() => {
         if (!cluster?.url) return null;
@@ -383,7 +393,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                         </p>
                         <Link href="/">
                             <Button>
-                                <ArrowLeft className="h-4 w-4 mr-2" />
+                                <ChevronLeft className="h-4 w-4 mr-2" />
                                 Back to Dashboard
                             </Button>
                         </Link>
@@ -395,54 +405,138 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     return (
         <div className="flex-1 p-8">
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-6xl mx-auto space-y-8">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center space-x-4">
-                        <Link href="/">
-                            <Button variant="outline" size="sm">
-                                <ArrowLeft className="h-4 w-4 mr-2" />
-                                Back
+                <div className="flex flex-col gap-4">                    
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                        <Link className="p-0" href="/">
+                            <Button 
+                                variant="ghost" 
+                                size="icon"
+                                className="w-6 h-10 group transition-transform"
+                            >
+                                <ChevronLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200 ease-in-out" />
                             </Button>
                         </Link>
-                        <div>
-                            <h1 className="text-3xl font-bold">{token.name}</h1>
-                            <p className="text-muted-foreground">
-                                Manage your {getTokenPatternsLabel(token.detectedPatterns)} token
-                            </p>
+                            <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10">
+                                <IconHexagonFill className="h-6 w-6 fill-primary/50" width={32} height={32} />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-bold">{token.name}</h1>
+                                <p className="text-md text-muted-foreground -mt-1">
+                                    {token.symbol}
+                                </p>
+                            </div>
                         </div>
-                    </div>
-                    <div className="flex space-x-2">
-                        <Button variant="outline" onClick={openInExplorer}>
-                            <ExternalLink className="h-4 w-4 mr-2" />
-                            View on Explorer
-                        </Button>
+                        
+                        <div className="flex space-x-2">
+                            <Button size="sm" variant="secondary" className="bg-primary/5 hover:bg-primary/10" onClick={openInExplorer}>
+                                Explorer
+                                <IconArrowUpRight className="size-2.5 fill-primary/50" />
+                            </Button>
+                            
+                            <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+                                <DropdownMenuTrigger asChild>
+                                    <Button size="sm" variant="default" className="bg-primary hover:bg-primary/80 text-white">
+                                        Admin Actions 
+                                        <motion.div
+                                            animate={{ rotate: isDropdownOpen ? -180 : 0 }}
+                                            transition={{ duration: 0.2, ease: 'easeInOut' }}
+                                            className="ml-2"
+                                        >
+                                            <ChevronDown className="h-4 w-4" />
+                                        </motion.div>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem className="cursor-pointer rounded-lg" onClick={() => setShowMintModal(true)}>
+                                        <Coins className="h-4 w-4 mr-2" />
+                                        Mint Tokens
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer rounded-lg" onClick={() => setShowForceTransferModal(true)}>
+                                        <ArrowRightLeft className="h-4 w-4 mr-2" />
+                                        Force Transfer
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="cursor-pointer rounded-lg" onClick={() => setShowForceBurnModal(true)}>
+                                        <Flame className="h-4 w-4 mr-2" />
+                                        Force Burn
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem className="cursor-pointer rounded-lg" onClick={togglePause}>
+                                        {isPaused ? (
+                                            <>
+                                                <Coins className="h-4 w-4 mr-2" /> Unpause Token
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Ban className="h-4 w-4 mr-2" /> Pause Token
+                                            </>
+                                        )}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem className="cursor-pointer rounded-lg text-red-600 hover:!bg-red-50 hover:!text-red-600" onClick={handleRemoveFromStorage}>
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Remove from Storage
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* Main Content */}
-                    <div className="lg:col-span-2 space-y-6">
-                        <TokenOverview token={token} copied={copied} onCopy={copyToClipboard} />
-                        <TokenAuthorities setError={setError} token={token} />
-                        <TransferRestrictions
-                            accessList={accessList}
-                            listType={listType}
-                            onAddToAccessList={() => setShowAccessListModal(true)}
-                            onRemoveFromAccessList={removeFromAccessList}
-                        />
-                        <TokenExtensions token={token} />
-                    </div>
+                {/* Token Overview */}
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-semibold tracking-tight">Token Overview</h2>
+                    <TokenOverview token={token} copied={copied} onCopy={copyToClipboard} />
+                </div>
 
-                    {/* Sidebar */}
-                    <ActionSidebar
-                        isPaused={isPaused}
-                        onTogglePause={togglePause}
-                        onMintTokens={() => setShowMintModal(true)}
-                        onForceTransfer={() => setShowForceTransferModal(true)}
-                        onForceBurn={() => setShowForceBurnModal(true)}
-                        onRemoveFromStorage={handleRemoveFromStorage}
-                    />
+                {/* Settings */}
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
+                    <Tabs defaultValue="extensions" className="w-full">
+                         <div className="w-full border-b-2 border-border">
+                            <TabsList className="translate-y-0.5 w-full justify-start rounded-none h-auto p-0 bg-transparent space-x-6 ring-0">
+                                <TabsTrigger 
+                                    value="permissions" 
+                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-white data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                >
+                                    Permissions
+                                </TabsTrigger>
+                                <TabsTrigger 
+                                    value="blocklist" 
+                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-white data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                >
+                                    {listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+                                </TabsTrigger>
+                                <TabsTrigger 
+                                    value="extensions" 
+                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-white data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                >
+                                    Token Extensions
+                                </TabsTrigger>
+                            </TabsList>
+                        </div>
+                        
+                        <div className="mt-6">
+                            <TabsContent value="permissions">
+                                <TokenAuthorities setError={setError} token={token} />
+                            </TabsContent>
+                            <TabsContent value="blocklist">
+                                <TransferRestrictions
+                                    accessList={accessList}
+                                    listType={listType}
+                                    onAddToAccessList={() => setShowAccessListModal(true)}
+                                    onRemoveFromAccessList={removeFromAccessList}
+                                />
+                            </TabsContent>
+                            <TabsContent value="extensions">
+                                <TokenExtensions token={token} />
+                            </TabsContent>
+                        </div>
+                    </Tabs>
                 </div>
             </div>
 

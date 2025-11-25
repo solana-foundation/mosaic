@@ -1,12 +1,13 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Coins, Copy, RefreshCw } from 'lucide-react';
+import { Copy } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
-import { getTokenTypeLabel, getTokenPatternsLabel } from '@/lib/token/token-type-utils';
+import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 import { type Address, createSolanaRpc } from 'gill';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 
 interface TokenOverviewProps {
     token: TokenDisplay;
@@ -14,7 +15,7 @@ interface TokenOverviewProps {
     onCopy: (text: string) => void;
 }
 
-export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
+export function TokenOverview({ token, onCopy }: TokenOverviewProps) {
     const { cluster } = useConnector();
 
     // Create RPC client from current cluster
@@ -49,118 +50,76 @@ export function TokenOverview({ token, copied, onCopy }: TokenOverviewProps) {
         if (!dateString) return 'Unknown';
         return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
-            month: 'long',
+            month: 'short',
             day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
         });
+    };
+
+    const formatAddress = (address?: string) => {
+        if (!address) return 'Unknown';
+        return `${address.slice(0, 6)}...${address.slice(-4)}`;
     };
 
     return (
         <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center">
-                    <Coins className="h-5 w-5 mr-2" />
-                    Token Overview
-                </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground">Name</label>
-                        <p className="text-lg font-semibold">{token.name}</p>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground">Symbol</label>
-                        <p className="text-lg font-semibold">{token.symbol}</p>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground">Supply</label>
-                        <div className="flex items-center space-x-2">
-                            <p className="text-lg font-semibold">{isLoadingSupply ? 'Loading...' : currentSupply}</p>
+            <CardContent className="p-6 px-8 rounded-[20px]">
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center py-2 border-b last:border-0">
+                        <span className="text-sm text-muted-foreground">Token Address</span>
+                        <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm">{formatAddress(token.address)}</span>
                             <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={fetchSupply}
-                                disabled={isLoadingSupply}
-                                className="h-6 w-6 p-0"
+                                variant="ghost"
+                                size="icon"
+                                className="h-4 w-4"
+                                onClick={() => onCopy(token.address || '')}
                             >
-                                <RefreshCw className={`h-3 w-3 ${isLoadingSupply ? 'animate-spin' : ''}`} />
+                                <Copy className="h-3 w-3" />
                             </Button>
                         </div>
                     </div>
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground">Decimals</label>
-                        <p className="text-lg font-semibold">{token.decimals || '6'}</p>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground">Type</label>
-                        <div className="space-y-1">
-                            <p className="text-lg font-semibold">{getTokenPatternsLabel(token.detectedPatterns)}</p>
-                            {token.detectedPatterns && token.detectedPatterns.length > 1 && (
-                                <div className="flex flex-wrap gap-1">
-                                    {token.detectedPatterns.map((pattern, idx) => (
-                                        <span
-                                            key={`${pattern ?? 'pattern'}-${idx}`}
-                                            className="px-2 py-0.5 text-xs rounded bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
-                                        >
-                                            {getTokenTypeLabel(pattern)}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground">Created</label>
-                        <p className="text-lg font-semibold">{formatDate(token.createdAt)}</p>
-                    </div>
-                </div>
 
-                <div>
-                    <label className="text-sm font-medium text-muted-foreground">Token Address</label>
-                    <div className="flex items-start space-x-2 mt-1">
-                        <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono break-all">
-                            {token.address}
-                        </code>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onCopy(token.address || '')}
-                            className="flex-shrink-0"
-                        >
-                            <Copy className="h-4 w-4" />
-                        </Button>
-                    </div>
-                    {copied && <p className="text-sm text-green-600 mt-1">Copied to clipboard!</p>}
-                </div>
-
-                {token.transactionSignature && (
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground">Creation Transaction</label>
-                        <div className="flex items-start space-x-2 mt-1">
-                            <code className="flex-1 bg-muted px-3 py-2 rounded text-sm font-mono break-all">
-                                {token.transactionSignature}
-                            </code>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => onCopy(token.transactionSignature || '')}
-                                className="flex-shrink-0"
+                    <div className="flex justify-between items-center py-2 border-b last:border-0">
+                        <span className="text-sm text-muted-foreground">Creation Address</span>
+                        <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm">{formatAddress(token.mintAuthority || token.transactionSignature)}</span>
+                             <Button
+                                variant="secondary"
+                                size="icon"
+                                className="h-4 w-4"
+                                onClick={() => onCopy(token.mintAuthority || token.transactionSignature || '')}
                             >
-                                <Copy className="h-4 w-4" />
+                                <Copy className="h-3 w-3" />
                             </Button>
                         </div>
                     </div>
-                )}
 
-                {token.metadataUri && (
-                    <div>
-                        <label className="text-sm font-medium text-muted-foreground">Metadata URI</label>
-                        <p className="text-sm bg-muted px-3 py-2 rounded mt-1">{token.metadataUri}</p>
+                    <div className="flex justify-between items-center py-2 border-b last:border-0">
+                        <span className="text-sm text-muted-foreground">Supply</span>
+                        <div className="flex items-center gap-2">
+                             <span className="font-semibold">{isLoadingSupply ? 'Loading...' : currentSupply}</span>
+                        </div>
                     </div>
-                )}
+
+                    <div className="flex justify-between items-center py-2 border-b last:border-0">
+                        <span className="text-sm text-muted-foreground">Created</span>
+                        <span className="font-semibold">{formatDate(token.createdAt)}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center py-2 border-b last:border-0">
+                        <span className="text-sm text-muted-foreground">Template</span>
+                        <Badge variant="secondary" className="rounded-full">
+                            {getTokenPatternsLabel(token.detectedPatterns)}
+                        </Badge>
+                    </div>
+
+                     <div className="flex justify-between items-center py-2 border-b last:border-0">
+                        <span className="text-sm text-muted-foreground">Decimals</span>
+                        <span className="font-semibold">{token.decimals || '6'}</span>
+                    </div>
+                </div>
             </CardContent>
         </Card>
     );
 }
+
