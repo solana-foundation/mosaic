@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { Button } from '@/components/ui/button';
 import { forceTransferTokens, type ForceTransferOptions } from '@/lib/management/force-transfer';
 import { TransactionModifyingSigner } from '@solana/signers';
 import { ArrowRightLeft } from 'lucide-react';
+import { useConnector } from '@solana/connector/react';
 
 import { BaseModal } from '@/components/shared/modals/base-modal';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
@@ -28,6 +29,8 @@ export function ForceTransferModalRefactored({
     transactionSendingSigner,
 }: ForceTransferModalProps) {
     const { walletAddress } = useWalletConnection();
+    const headerId = useId();
+    const { cluster } = useConnector();
     const { validateSolanaAddress, validateAmount } = useInputValidation();
     const {
         isLoading,
@@ -61,8 +64,18 @@ export function ForceTransferModalRefactored({
             return;
         }
 
+        if (fromAddress === toAddress) {
+            setError('Source and destination addresses must be different');
+            return;
+        }
+
         if (!validateAmount(amount)) {
             setError('Please enter a valid amount');
+            return;
+        }
+
+        if (parseFloat(amount) <= 0) {
+            setError('Please enter an amount greater than zero');
             return;
         }
 
@@ -109,12 +122,14 @@ export function ForceTransferModalRefactored({
         reset();
     };
 
+    const modalTitle = success ? 'Force Transfer Successful' : 'Force Transfer Tokens';
+
     return (
-        <BaseModal isOpen={isOpen}>
+        <BaseModal isOpen={isOpen} onClose={handleClose} labelledBy={headerId}>
             <div className="flex items-center gap-2 mb-4">
                 <ArrowRightLeft className="h-5 w-5" />
-                <h3 className="text-lg font-semibold">
-                    {success ? 'Force Transfer Successful' : 'Force Transfer Tokens'}
+                <h3 id={headerId} className="text-lg font-semibold">
+                    {modalTitle}
                 </h3>
             </div>
 
@@ -123,6 +138,7 @@ export function ForceTransferModalRefactored({
                     title="Tokens transferred successfully!"
                     message={`${amount} tokens transferred from ${fromAddress.slice(0, 8)}...${fromAddress.slice(-6)} to ${toAddress.slice(0, 8)}...${toAddress.slice(-6)}`}
                     transactionSignature={transactionSignature}
+                    cluster={(cluster as { name?: string })?.name}
                     onClose={handleClose}
                     onContinue={handleContinue}
                     continueLabel="Transfer More"

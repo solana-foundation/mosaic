@@ -14,6 +14,104 @@ interface ForceTransferModalProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
 }
 
+/**
+ * Maps internal cluster names to Solana Explorer cluster query parameter values.
+ * Returns undefined for mainnet to omit the cluster param.
+ */
+function getExplorerClusterParam(clusterName?: string): string | undefined {
+    if (!clusterName) return undefined;
+    
+    // Map internal cluster names to explorer values
+    const clusterMap: Record<string, string | undefined> = {
+        'mainnet-beta': undefined, // Omit cluster param for mainnet
+        'mainnet': undefined,
+        'devnet': 'devnet',
+        'testnet': 'testnet',
+    };
+    
+    return clusterMap[clusterName.toLowerCase()] ?? clusterName.toLowerCase();
+}
+
+/**
+ * Safely extracts cluster name from cluster object.
+ * Handles different cluster object structures from @solana/connector.
+ */
+function getClusterName(cluster: unknown): string | undefined {
+    if (!cluster || typeof cluster !== 'object') return undefined;
+    
+    // Try to access name property (may not be in type definition but exists at runtime)
+    const clusterObj = cluster as Record<string, unknown>;
+    if (typeof clusterObj.name === 'string') {
+        return clusterObj.name;
+    }
+    
+    // Fallback: try to infer from id (e.g., 'solana:mainnet' -> 'mainnet')
+    if (typeof clusterObj.id === 'string') {
+        const idParts = clusterObj.id.split(':');
+        if (idParts.length > 1) {
+            const network = idParts[1];
+            // Map 'mainnet' to 'mainnet-beta' for consistency
+            return network === 'mainnet' ? 'mainnet-beta' : network;
+        }
+    }
+    
+    // Fallback: try to infer from URL
+    if (typeof clusterObj.url === 'string') {
+        const url = clusterObj.url.toLowerCase();
+        if (url.includes('mainnet') || url.includes('api.mainnet')) {
+            return 'mainnet-beta';
+        }
+        if (url.includes('devnet') || url.includes('api.devnet')) {
+            return 'devnet';
+        }
+        if (url.includes('testnet') || url.includes('api.testnet')) {
+            return 'testnet';
+        }
+    }
+    
+    return undefined;
+}
+
+/**
+ * Gets the cluster name from various sources with fallback priority:
+ * 1. Provided cluster name
+ * 2. Environment variable NEXT_PUBLIC_SOLANA_NETWORK
+ * 3. Default to 'devnet'
+ */
+function getEffectiveClusterName(clusterName?: string): string {
+    if (clusterName) return clusterName;
+    
+    // Check environment variable as fallback
+    const envNetwork = process.env.NEXT_PUBLIC_SOLANA_NETWORK;
+    if (envNetwork) {
+        // Sanitize and validate the env value
+        const sanitized = envNetwork.trim().toLowerCase();
+        if (['devnet', 'testnet', 'mainnet', 'mainnet-beta'].includes(sanitized)) {
+            return sanitized === 'mainnet' ? 'mainnet-beta' : sanitized;
+        }
+    }
+    
+    // Default fallback
+    return 'devnet';
+}
+
+/**
+ * Builds a Solana Explorer URL for a transaction signature.
+ * Omits the cluster query param for mainnet.
+ * Defaults to devnet if cluster cannot be determined.
+ */
+function buildExplorerUrl(signature: string, clusterName?: string): string {
+    const baseUrl = `https://explorer.solana.com/tx/${signature}`;
+    const effectiveClusterName = getEffectiveClusterName(clusterName);
+    const clusterParam = getExplorerClusterParam(effectiveClusterName);
+    
+    if (clusterParam) {
+        return `${baseUrl}?cluster=${clusterParam}`;
+    }
+    
+    return baseUrl;
+}
+
 export function ForceTransferModal({
     isOpen,
     onClose,
@@ -21,7 +119,7 @@ export function ForceTransferModal({
     permanentDelegate,
     transactionSendingSigner,
 }: ForceTransferModalProps) {
-    const { selectedAccount } = useConnector();
+    const { selectedAccount, cluster } = useConnector();
     const [fromAddress, setFromAddress] = useState('');
     const [toAddress, setToAddress] = useState('');
     const [amount, setAmount] = useState('');
@@ -148,7 +246,8 @@ export function ForceTransferModal({
                                         variant="outline"
                                         size="sm"
                                         onClick={() => {
-                                            const explorerUrl = `https://explorer.solana.com/tx/${transactionSignature}?cluster=devnet`;
+                                            const clusterName = getClusterName(cluster);
+                                            const explorerUrl = buildExplorerUrl(transactionSignature, clusterName);
                                             window.open(explorerUrl, '_blank');
                                         }}
                                     >

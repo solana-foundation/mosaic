@@ -5,7 +5,7 @@ import { StablecoinOptions } from '@/types/token';
 
 interface StablecoinAuthorityParamsProps {
     options: StablecoinOptions;
-    onInputChange: (field: string, value: string) => void;
+    onInputChange: (field: string, value: string | boolean) => void;
 }
 
 export function StablecoinAuthorityParams({ options, onInputChange }: StablecoinAuthorityParamsProps) {

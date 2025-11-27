@@ -7,15 +7,14 @@ import { signTransactionMessageWithSigners, type Address, type TransactionSigner
 import { maybeOutputRawTx } from '../../utils/raw-tx.js';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
-interface CreateConfigOptions {
+interface EnablePermissionlessThawOptions {
     mint: string;
-    gatingProgram: string;
 }
 
 export const enablePermissionlessThaw = new Command('enable-permissionless-thaw')
     .description('Enable permissionless thaw for an existing mint')
     .requiredOption('-m, --mint <mint>', 'Mint address')
-    .action(async (options: CreateConfigOptions, command) => {
+    .action(async (options: EnablePermissionlessThawOptions, command) => {
         const parentOpts = getGlobalOpts(command);
         const rpcUrl = parentOpts.rpcUrl;
         const rawTx: string | undefined = parentOpts.rawTx;
@@ -57,7 +56,6 @@ export const enablePermissionlessThaw = new Command('enable-permissionless-thaw'
 
             // Send and confirm transaction
             const signature = await sendAndConfirmTransaction(signedTransaction, {
-                skipPreflight: true,
                 commitment: 'confirmed',
             });
 

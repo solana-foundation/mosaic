@@ -82,7 +82,7 @@ export const createArcadeTokenInitTransaction = async (
         });
 
     // 2. create mintConfig (Token ACL) - only if SRFC-37 is enabled
-    if (mintAuthority !== feePayerSigner.address || !useSrfc37) {
+    if (mintAuthorityAddress !== feePayerSigner.address || !useSrfc37) {
         // Get latest blockhash for transaction
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 

@@ -34,7 +34,7 @@ export function ArcadeTokenAuthorityParams({ options, onInputChange }: ArcadeTok
                 </button>
             </CardHeader>
             {showOptionalParams && (
-                <CardContent className="space-y-4">
+                <CardContent id="arcade-token-authority-params" className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium mb-2">Mint Authority</label>
                         <input

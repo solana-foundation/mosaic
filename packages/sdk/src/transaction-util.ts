@@ -68,14 +68,37 @@ export function decimalAmountToRaw(decimalAmount: number, decimals: number): big
         throw new Error('Decimals must be between 0 and 9');
     }
 
-    const multiplier = Math.pow(10, decimals);
-    const rawAmount = Math.floor(decimalAmount * multiplier);
+    // Convert to string to avoid floating-point precision issues
+    const amountStr = decimalAmount.toString();
 
-    if (rawAmount < 0) {
+    // Reject negative amounts
+    if (amountStr.startsWith('-')) {
         throw new Error('Amount must be positive');
     }
 
-    return BigInt(rawAmount);
+    // Split into integer and fractional parts
+    const [integerPart, fractionalPart = ''] = amountStr.split('.');
+
+    // Pad or truncate fractional part to match decimals
+    let adjustedFractional: string;
+    if (fractionalPart.length > decimals) {
+        // Truncate if fractional part is longer than decimals
+        adjustedFractional = fractionalPart.slice(0, decimals);
+    } else {
+        // Pad with zeros if fractional part is shorter than decimals
+        adjustedFractional = fractionalPart.padEnd(decimals, '0');
+    }
+
+    // Concatenate integer and fractional parts
+    const rawAmountStr = integerPart + adjustedFractional;
+
+    // Validate that the resulting string is a valid numeric representation
+    if (!/^\d+$/.test(rawAmountStr)) {
+        throw new Error('Invalid amount format');
+    }
+
+    // Convert to BigInt
+    return BigInt(rawAmountStr);
 }
 
 /**

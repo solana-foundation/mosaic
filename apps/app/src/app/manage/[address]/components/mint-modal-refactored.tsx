@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { Button } from '@/components/ui/button';
 import { mintTokens, type MintOptions } from '@/lib/management/mint';
 import { TransactionModifyingSigner } from '@solana/signers';
 import { Coins } from 'lucide-react';
+import { useConnector } from '@solana/connector/react';
 
 import { BaseModal } from '@/components/shared/modals/base-modal';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
@@ -27,6 +28,8 @@ export function MintModalRefactored({
     transactionSendingSigner,
 }: MintModalProps) {
     const { walletAddress } = useWalletConnection();
+    const headerId = useId();
+    const { cluster } = useConnector();
     const { validateSolanaAddress, validateAmount } = useInputValidation();
     const {
         isLoading,
@@ -99,11 +102,15 @@ export function MintModalRefactored({
         reset();
     };
 
+    const modalTitle = success ? 'Mint Successful' : 'Mint Tokens';
+
     return (
-        <BaseModal isOpen={isOpen}>
+        <BaseModal isOpen={isOpen} onClose={handleClose} labelledBy={headerId}>
             <div className="flex items-center gap-2 mb-4">
                 <Coins className="h-5 w-5" />
-                <h3 className="text-lg font-semibold">{success ? 'Mint Successful' : 'Mint Tokens'}</h3>
+                <h3 id={headerId} className="text-lg font-semibold">
+                    {modalTitle}
+                </h3>
             </div>
 
             {success ? (
@@ -111,6 +118,7 @@ export function MintModalRefactored({
                     title="Tokens minted successfully!"
                     message={`${amount} tokens minted to ${recipient}`}
                     transactionSignature={transactionSignature}
+                    cluster={(cluster as { name?: string })?.name}
                     onClose={handleClose}
                     onContinue={handleContinue}
                     continueLabel="Mint More"

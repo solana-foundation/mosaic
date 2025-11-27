@@ -8,13 +8,11 @@ import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../uti
 
 interface CreateConfigOptions {
     mint: string;
-    gatingProgram: string;
 }
 
 export const createList = new Command('create-list')
     .description('Create a new list for an existing mint')
     .requiredOption('-m, --mint <mint>', 'Mint address')
-    .requiredOption('-g, --gating-program <gating-program>', 'Gating program address')
     .showHelpAfterError()
     .action(async (options: CreateConfigOptions, command) => {
         const parentOpts = getGlobalOpts(command);

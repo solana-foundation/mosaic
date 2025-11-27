@@ -50,10 +50,12 @@ function validateBlocklistOptions(options: BlocklistOptions): void {
 }
 
 /**
- * Mints tokens to a recipient using the wallet standard transaction signer
- * @param options - Configuration options for minting
- * @param signer - Transaction sending signer instance
- * @returns Promise that resolves to mint result with signature and details
+ * Adds an address to the blocklist for a token mint
+ * @param rpc - Solana RPC client instance
+ * @param options - Blocklist configuration options containing mint address and wallet address
+ * @param signer - Transaction signing signer instance
+ * @param rpcUrl - RPC endpoint URL for transaction confirmation
+ * @returns Promise that resolves to blocklist result with success status, optional error, and transaction signature
  */
 export const addAddressToBlocklist = async (
     rpc: Rpc<SolanaRpcApi>,

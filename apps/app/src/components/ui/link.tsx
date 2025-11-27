@@ -66,7 +66,7 @@ export const Link: typeof NextLink = (({ children, ...props }) => {
             entries => {
                 const entry = entries[0];
                 if (entry.isIntersecting) {
-                    // Set a timeout to trigger prefetch after 1 second
+                    // Set a timeout to trigger prefetch after 300ms
                     prefetchTimeoutRef.current = setTimeout(async () => {
                         router.prefetch(String(props.href));
                         await sleep(0); // We want the doc prefetches to happen first.
@@ -77,7 +77,7 @@ export const Link: typeof NextLink = (({ children, ...props }) => {
                         observer.unobserve(entry.target);
                     }, 300); // 300ms delay
                 } else if (prefetchTimeoutRef.current) {
-                    // If the element leaves the viewport before 1 second, cancel the prefetch
+                    // If the element leaves the viewport before 300ms, cancel the prefetch
                     clearTimeout(prefetchTimeoutRef.current);
                     prefetchTimeoutRef.current = null;
                 }

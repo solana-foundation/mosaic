@@ -216,7 +216,7 @@ export async function inspectToken(
                     scaledUiAmount = {
                         enabled: true,
                         multiplier: ext.multiplier,
-                        authority: authorities.metadataAuthority,
+                        authority: ext.authority ? ext.authority : null,
                     };
                     break;
 

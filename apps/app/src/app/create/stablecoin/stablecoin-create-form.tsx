@@ -32,7 +32,7 @@ export function StablecoinCreateForm({ transactionSendingSigner, onTokenCreated 
     const [isCreating, setIsCreating] = useState(false);
     const [result, setResult] = useState<StablecoinCreationResult | null>(null);
 
-    const handleInputChange = (field: string, value: string) => {
+    const handleInputChange = (field: string, value: string | boolean) => {
         setStablecoinOptions(prev => ({ ...prev, [field]: value }));
     };
 

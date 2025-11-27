@@ -39,8 +39,8 @@ export function DashboardConnected() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {tokens.map((token, index) => (
-                        <TokenCard key={index} token={token} index={index} onDelete={handleDeleteToken} />
+                    {tokens.map((token) => (
+                        <TokenCard key={token.address} token={token} onDelete={handleDeleteToken} />
                     ))}
                     <TokenCardEmptyState onTokenCreated={handleTokenCreated} />
                 </div>

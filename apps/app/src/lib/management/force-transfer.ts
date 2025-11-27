@@ -98,7 +98,13 @@ export const forceTransferTokens = async (
         // Create RPC client
         const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
+        
+        // Convert HTTP(S) URL to WebSocket URL by replacing only the protocol
+        const url = new URL(rpcUrl);
+        const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        url.protocol = wsProtocol;
+        const wsUrl = url.toString();
+        const rpcSubscriptions = createSolanaRpcSubscriptions(wsUrl);
 
         // Validate that the mint has permanent delegate extension and it matches our signer
         await validatePermanentDelegate(rpc, options.mintAddress as Address, permanentDelegateAddress as Address);

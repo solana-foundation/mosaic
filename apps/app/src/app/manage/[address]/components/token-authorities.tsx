@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Settings, Edit, Check, X, Loader2 } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 import { updateTokenAuthority } from '@/lib/management/authority';
-import { getTokenAuthorities } from '@/lib/solana/rpc';
+import { getTokenAuthorities, getRpcUrl } from '@/lib/solana/rpc';
 import { AuthorityType } from 'gill/programs/token';
 import { isAddress } from 'gill';
 import { useConnector } from '@solana/connector/react';
@@ -166,7 +166,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                     mint: token.address,
                     role: authority.role,
                     newAuthority: authority.newAuthority.trim(),
-                    rpcUrl: 'https://api.devnet.solana.com',
+                    rpcUrl: getRpcUrl(),
                 },
                 transactionSendingSigner,
             );
@@ -186,7 +186,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                     ),
                 );
             } else {
-                alert(`Failed to update authority: ${result.error}`);
+                setError(`Failed to update authority: ${result.error}`);
             }
         } catch (error) {
             setError(error instanceof Error ? error.message : 'Failed to update authority');
@@ -216,80 +216,83 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                 <div className="space-y-4">
                     {authorities
                         .filter(authority => authority.currentAuthority)
-                        .map((authority, index) => (
-                            <div key={authority.role} className="border rounded-lg p-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <label className="text-sm font-medium text-muted-foreground">
-                                        {authority.label}
-                                    </label>
-                                    {!authority.isEditing && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => startEditing(index)}
-                                            disabled={!selectedAccount}
-                                        >
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
+                        .map((authority) => {
+                            const originalIndex = authorities.findIndex(a => a.role === authority.role);
+                            return (
+                                <div key={authority.role} className="border rounded-lg p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-sm font-medium text-muted-foreground">
+                                            {authority.label}
+                                        </label>
+                                        {!authority.isEditing && (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => startEditing(originalIndex)}
+                                                disabled={!selectedAccount}
+                                            >
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                    </div>
+
+                                    {authority.isEditing ? (
+                                        <div className="space-y-2">
+                                            <div className="flex items-center space-x-2">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Enter new authority address"
+                                                    value={authority.newAuthority}
+                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                                        setAuthorities(prev =>
+                                                            prev.map((auth, i) =>
+                                                                i === originalIndex
+                                                                    ? { ...auth, newAuthority: e.target.value }
+                                                                    : auth,
+                                                            ),
+                                                        )
+                                                    }
+                                                    className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                />
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => updateAuthority(originalIndex)}
+                                                    disabled={
+                                                        authority.isLoading ||
+                                                        !validateSolanaAddress(authority.newAuthority)
+                                                    }
+                                                >
+                                                    {authority.isLoading ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <Check className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => cancelEditing(originalIndex)}
+                                                    disabled={authority.isLoading}
+                                                >
+                                                    <X className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                            {authority.newAuthority &&
+                                                !validateSolanaAddress(authority.newAuthority) && (
+                                                    <p className="text-sm text-red-500">
+                                                        Please enter a valid Solana address
+                                                    </p>
+                                                )}
+                                        </div>
+                                    ) : (
+                                        <code className="block text-sm bg-muted px-2 py-1 rounded font-mono">
+                                            {authority.currentAuthority?.slice(0, 8)}...
+                                            {authority.currentAuthority?.slice(-8)}
+                                        </code>
                                     )}
                                 </div>
-
-                                {authority.isEditing ? (
-                                    <div className="space-y-2">
-                                        <div className="flex items-center space-x-2">
-                                            <input
-                                                type="text"
-                                                placeholder="Enter new authority address"
-                                                value={authority.newAuthority}
-                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                                    setAuthorities(prev =>
-                                                        prev.map((auth, i) =>
-                                                            i === index
-                                                                ? { ...auth, newAuthority: e.target.value }
-                                                                : auth,
-                                                        ),
-                                                    )
-                                                }
-                                                className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                            />
-                                            <Button
-                                                size="sm"
-                                                onClick={() => updateAuthority(index)}
-                                                disabled={
-                                                    authority.isLoading ||
-                                                    !validateSolanaAddress(authority.newAuthority)
-                                                }
-                                            >
-                                                {authority.isLoading ? (
-                                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                                ) : (
-                                                    <Check className="h-4 w-4" />
-                                                )}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => cancelEditing(index)}
-                                                disabled={authority.isLoading}
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </Button>
-                                        </div>
-                                        {authority.newAuthority &&
-                                            !validateSolanaAddress(authority.newAuthority) && (
-                                                <p className="text-sm text-red-500">
-                                                    Please enter a valid Solana address
-                                                </p>
-                                            )}
-                                    </div>
-                                ) : (
-                                    <code className="block text-sm bg-muted px-2 py-1 rounded font-mono">
-                                        {authority.currentAuthority?.slice(0, 8)}...
-                                        {authority.currentAuthority?.slice(-8)}
-                                    </code>
-                                )}
-                            </div>
-                        ))}
+                            );
+                        })}
                 </div>
 
                 {!selectedAccount && (

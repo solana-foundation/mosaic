@@ -30,7 +30,7 @@ export function ArcadeTokenCreateForm({ transactionSendingSigner, onTokenCreated
     const [isCreating, setIsCreating] = useState(false);
     const [result, setResult] = useState<ArcadeTokenCreationResult | null>(null);
 
-    const handleInputChange = (field: string, value: string) => {
+    const handleInputChange = (field: string, value: string | boolean) => {
         setArcadeTokenOptions(prev => ({ ...prev, [field]: value }));
     };
 

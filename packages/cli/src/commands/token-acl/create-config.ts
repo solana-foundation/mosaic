@@ -72,7 +72,7 @@ export const createConfig = new Command('create')
             console.log(chalk.green('✅ Token ACL config created successfully!'));
             console.log(chalk.cyan('📋 Details:'));
             console.log(`   ${chalk.bold('Mint:')} ${options.mint}`);
-            console.log(`   ${chalk.bold('Gating Program:')} ${options.gatingProgram}`);
+            console.log(`   ${chalk.bold('Gating Program:')} ${gatingProgram}`);
             console.log(`   ${chalk.bold('Mint Config:')} ${mintConfig}`);
             console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
         } catch (error) {

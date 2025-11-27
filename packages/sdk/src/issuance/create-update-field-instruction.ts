@@ -61,7 +61,7 @@ function getFieldConfig(field: Field | string): FieldLayout {
     }
 }
 
-interface UpdateFieldInstruction {
+export interface UpdateFieldInstruction {
     programAddress: Address;
     metadata: Address;
     updateAuthority: Address;

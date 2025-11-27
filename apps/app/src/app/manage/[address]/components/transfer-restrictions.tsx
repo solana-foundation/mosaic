@@ -47,8 +47,8 @@ export function TransferRestrictions({
 
         return (
             <div className="space-y-2">
-                {accessList.map((addr, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                {accessList.map((addr) => (
+                    <div key={addr} className="flex items-center justify-between p-2 bg-muted rounded">
                         <code className="text-xs font-mono flex-1">
                             {addr.slice(0, 8)}...{addr.slice(-8)}
                         </code>

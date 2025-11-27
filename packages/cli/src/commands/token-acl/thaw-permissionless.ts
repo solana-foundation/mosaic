@@ -8,7 +8,7 @@ import { createNoopSigner, signTransactionMessageWithSigners, type Address, type
 import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
-interface CreateConfigOptions {
+interface ThawPermissionlessOptions {
     mint: string;
 }
 
@@ -16,7 +16,7 @@ export const thawPermissionless = new Command('thaw-permissionless')
     .description('Thaw permissionless eoas for an existing mint')
     .requiredOption('-m, --mint <mint>', 'Mint address')
     .showHelpAfterError()
-    .action(async (options: CreateConfigOptions, command) => {
+    .action(async (options: ThawPermissionlessOptions, command) => {
         const parentOpts = getGlobalOpts(command);
         const rpcUrl = parentOpts.rpcUrl;
         const rawTx: string | undefined = parentOpts.rawTx;

@@ -72,10 +72,50 @@ const getAccessList = async (
     });
     const list = await getList({ rpc, listConfig: listConfigPda });
     return {
-        type: list.mode === Mode.Allow ? 'allowlist' : 'blocklist',
-        wallets: list.wallets,
-    };
+    type: list.mode === Mode.Allow ? 'allowlist' : 'blocklist',
+    wallets: list.wallets,
 };
+};
+
+/**
+ * Safely extracts cluster name from cluster object.
+ * Handles different cluster object structures from @solana/connector.
+ */
+function getClusterName(cluster: unknown): string | undefined {
+    if (!cluster || typeof cluster !== 'object') return undefined;
+    
+    // Try to access name property (may not be in type definition but exists at runtime)
+    const clusterObj = cluster as Record<string, unknown>;
+    if (typeof clusterObj.name === 'string') {
+        return clusterObj.name;
+    }
+    
+    // Fallback: try to infer from id (e.g., 'solana:mainnet' -> 'mainnet')
+    if (typeof clusterObj.id === 'string') {
+        const idParts = clusterObj.id.split(':');
+        if (idParts.length > 1) {
+            const network = idParts[1];
+            // Map 'mainnet' to 'mainnet-beta' for consistency
+            return network === 'mainnet' ? 'mainnet-beta' : network;
+        }
+    }
+    
+    // Fallback: try to infer from URL
+    if (typeof clusterObj.url === 'string') {
+        const url = clusterObj.url.toLowerCase();
+        if (url.includes('mainnet') || url.includes('api.mainnet')) {
+            return 'mainnet-beta';
+        }
+        if (url.includes('devnet') || url.includes('api.devnet')) {
+            return 'devnet';
+        }
+        if (url.includes('testnet') || url.includes('api.testnet')) {
+            return 'testnet';
+        }
+    }
+    
+    return undefined;
+}
 
 function ManageTokenConnected({ address }: { address: string }) {
     const router = useRouter();
@@ -175,7 +215,12 @@ function ManageTokenConnected({ address }: { address: string }) {
     };
 
     const openInExplorer = () => {
-        window.open(`https://explorer.solana.com/address/${address}?cluster=devnet`, '_blank');
+        const clusterName = getClusterName(cluster) || 'devnet';
+        const isMainnet = clusterName === 'mainnet' || clusterName === 'mainnet-beta';
+        const explorerUrl = isMainnet
+            ? `https://explorer.solana.com/address/${address}`
+            : `https://explorer.solana.com/address/${address}?cluster=${clusterName}`;
+        window.open(explorerUrl, '_blank');
     };
 
     const addToAccessList = async () => {

@@ -9,6 +9,9 @@ interface SpinnerProps {
 export const Spinner = ({ size = 24, className }: SpinnerProps) => {
     return (
         <motion.svg
+            role="status"
+            aria-live="polite"
+            aria-label="Loading"
             initial={{ opacity: 0, scale: 0.5, rotate: 0 }}
             animate={{
                 opacity: 1,

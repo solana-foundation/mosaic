@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
 import { Button } from '@/components/ui/button';
 import { forceBurnTokens, type ForceBurnOptions } from '@/lib/management/force-burn';
 import { TransactionModifyingSigner } from '@solana/signers';
 import { Flame } from 'lucide-react';
+import { useConnector } from '@solana/connector/react';
 
 import { BaseModal } from '@/components/shared/modals/base-modal';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
@@ -28,6 +29,8 @@ export function ForceBurnModalRefactored({
     transactionSendingSigner,
 }: ForceBurnModalProps) {
     const { walletAddress } = useWalletConnection();
+    const headerId = useId();
+    const { cluster } = useConnector();
     const { validateSolanaAddress, validateAmount } = useInputValidation();
     const {
         isLoading,
@@ -64,12 +67,15 @@ export function ForceBurnModalRefactored({
         setError('');
 
         try {
+            // Get RPC URL from cluster, environment variable, or default to devnet
+            const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+
             const options: ForceBurnOptions = {
                 mintAddress,
                 fromAddress,
                 amount,
                 permanentDelegate: permanentDelegate || walletAddress,
-                rpcUrl: 'https://api.devnet.solana.com',
+                rpcUrl,
             };
 
             const result = await forceBurnTokens(options, transactionSendingSigner);
@@ -100,11 +106,15 @@ export function ForceBurnModalRefactored({
         reset();
     };
 
+    const modalTitle = success ? 'Force Burn Successful' : 'Force Burn Tokens';
+
     return (
-        <BaseModal isOpen={isOpen}>
+        <BaseModal isOpen={isOpen} onClose={handleClose} labelledBy={headerId}>
             <div className="flex items-center gap-2 mb-4">
                 <Flame className="h-5 w-5 text-red-500" />
-                <h3 className="text-lg font-semibold">{success ? 'Force Burn Successful' : 'Force Burn Tokens'}</h3>
+                <h3 id={headerId} className="text-lg font-semibold">
+                    {modalTitle}
+                </h3>
             </div>
 
             {success ? (
@@ -112,6 +122,7 @@ export function ForceBurnModalRefactored({
                     title="Tokens burned successfully!"
                     message={`${amount} tokens have been permanently burned from ${fromAddress.slice(0, 8)}...${fromAddress.slice(-6)}`}
                     transactionSignature={transactionSignature}
+                    cluster={(cluster as { name?: string })?.name}
                     onClose={handleClose}
                     onContinue={handleContinue}
                     continueLabel="Burn More"

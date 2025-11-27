@@ -13,12 +13,27 @@ export interface TokenAuthorities {
 }
 
 /**
+ * Gets the Solana RPC URL from environment variable or returns a default fallback.
+ * Reads from NEXT_PUBLIC_SOLANA_RPC_URL environment variable.
+ * Falls back to devnet if not set.
+ *
+ * @param overrideUrl - Optional RPC URL to override the default behavior
+ * @returns RPC URL string
+ */
+export function getRpcUrl(overrideUrl?: string): string {
+    if (overrideUrl) {
+        return overrideUrl;
+    }
+    return process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+}
+
+/**
  * Creates a Solana RPC client
- * @param rpcUrl - Optional RPC URL, defaults to devnet
+ * @param rpcUrl - Optional RPC URL, defaults to NEXT_PUBLIC_SOLANA_RPC_URL or devnet
  * @returns RPC client instance
  */
 export function createRpcClient(rpcUrl?: string): Rpc<SolanaRpcApi> {
-    const url = rpcUrl || 'https://api.devnet.solana.com';
+    const url = getRpcUrl(rpcUrl);
     return createSolanaRpc(url);
 }
 

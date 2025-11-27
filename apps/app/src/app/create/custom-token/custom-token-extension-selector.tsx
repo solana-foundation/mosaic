@@ -85,7 +85,8 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
             <CardContent className="space-y-4">
                 {extensions.map((extension) => {
                     const Icon = extension.icon;
-                    const isEnabled = options[extension.key] ?? extension.defaultEnabled ?? false;
+                    const value = options[extension.key];
+                    const isEnabled = typeof value === 'boolean' ? value : (extension.defaultEnabled ?? false);
                     
                     return (
                         <div

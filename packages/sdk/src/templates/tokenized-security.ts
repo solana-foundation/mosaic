@@ -91,7 +91,7 @@ export const createTokenizedSecurityInitTransaction = async (
         feePayer: feePayerSigner,
     });
 
-    if (mintAuthority !== feePayerSigner.address || !useSrfc37) {
+    if (mintAuthorityAddress !== feePayerSigner.address || !useSrfc37) {
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
         return createTransaction({
             feePayer,

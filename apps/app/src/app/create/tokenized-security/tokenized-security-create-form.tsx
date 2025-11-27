@@ -37,8 +37,14 @@ export function TokenizedSecurityCreateForm({
     const [creationResult, setCreationResult] = useState<TokenizedSecurityCreationResult | null>(null);
     const [showOptional, setShowOptional] = useState(false);
 
-    const handleInputChange = (field: keyof TokenizedSecurityOptions, value: string) => {
-        setOptions(prev => ({ ...prev, [field]: value }));
+    const handleInputChange = (field: keyof TokenizedSecurityOptions, value: string | boolean) => {
+        setOptions(prev => {
+            // Keep booleans as booleans for toggle fields, strings for text inputs
+            if (typeof value === 'boolean') {
+                return { ...prev, [field]: value };
+            }
+            return { ...prev, [field]: value };
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -151,8 +157,9 @@ export function TokenizedSecurityCreateForm({
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium">Access Control Mode</label>
+                                <label className="block text-sm font-medium" htmlFor="access-control-mode">Access Control Mode</label>
                                 <select
+                                    id="access-control-mode"
                                     className="w-full p-3 border rounded-lg"
                                     value={options.aclMode || 'blocklist'}
                                     onChange={e => handleInputChange('aclMode', e.target.value)}

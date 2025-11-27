@@ -6,7 +6,7 @@ import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
 
-interface CreateConfigOptions {
+interface SetExtraMetasOptions {
     mint: string;
     list: string;
 }
@@ -15,7 +15,7 @@ export const setExtraMetas = new Command('set-extra-metas')
     .description('Set extra metas for an existing list')
     .requiredOption('-m, --mint <mint>', 'Mint address')
     .requiredOption('-l, --list <list>', 'List address')
-    .action(async (options: CreateConfigOptions, command) => {
+    .action(async (options: SetExtraMetasOptions, command) => {
         const parentOpts = getGlobalOpts(command);
         const rpcUrl = parentOpts.rpcUrl;
         const rawTx: string | undefined = parentOpts.rawTx;

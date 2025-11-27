@@ -24,7 +24,7 @@ export function ProgressiveBlur({
     ...props
 }: ProgressiveBlurProps) {
     const layers = Math.max(blurLayers, 2);
-    const segmentSize = 1 / (blurLayers + 1);
+    const segmentSize = 1 / (layers + 1);
 
     return (
         <div className={cn('relative', className)}>

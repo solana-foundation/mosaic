@@ -80,6 +80,10 @@ src/
 - RPC/cluster: provided by `ChainContextProvider` and `RpcContextProvider` (Devnet/Testnet/Mainnet)
 - SDK: all blockchain operations use `@mosaic/sdk`
 
+### Environment Variables
+
+- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom Solana RPC endpoint URL. If not set, defaults to `https://api.devnet.solana.com`. This variable is exposed to the client-side and available in production builds. See `.env.example` for more details.
+
 ## Development
 
 ```bash

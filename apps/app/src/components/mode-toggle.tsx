@@ -23,7 +23,7 @@ export function ModeToggle() {
       variant="ghost"
       size="icon"
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      className="relative rounded-md cursor-pointer border-0 border-transparent outline-transparent ring-0 ring-transparent focus:border-transparent focus:outline-transparent focus:ring-transparent active:scale-[0.98] active:border-0 active:border-transparent active:outline-0 active:ring-0 active:ring-transparent"
+      className="relative rounded-md cursor-pointer border-0 border-transparent outline-transparent ring-0 ring-transparent active:scale-[0.98] active:border-0 active:border-transparent active:outline-0 active:ring-0 active:ring-transparent"
     >
       <AnimatePresence mode="popLayout" initial={false}>
         {resolvedTheme === "light" ? (

@@ -4,7 +4,7 @@ import { ArcadeTokenOptions } from '@/types/token';
 
 interface ArcadeTokenBasicParamsProps {
     options: ArcadeTokenOptions;
-    onInputChange: (field: string, value: string) => void;
+    onInputChange: (field: string, value: string | boolean) => void;
 }
 
 export function ArcadeTokenBasicParams({ options, onInputChange }: ArcadeTokenBasicParamsProps) {

@@ -3,7 +3,7 @@ export function EnableSrfc37Toggle({
     setEnabled,
 }: {
     enabled?: boolean | string;
-    setEnabled: (value: 'true' | 'false') => void;
+    setEnabled: (value: boolean) => void;
 }) {
     const isChecked = (enabled as unknown) === true || enabled === 'true';
     return (
@@ -13,7 +13,7 @@ export function EnableSrfc37Toggle({
                     type="checkbox"
                     className="mt-1"
                     checked={isChecked}
-                    onChange={e => setEnabled(e.target.checked ? 'true' : 'false')}
+                    onChange={e => setEnabled(e.target.checked)}
                 />
                 <span>
                     <span className="font-medium">Enable advanced allowlist/blocklist (Token ACL)</span>

@@ -74,7 +74,18 @@ export const createArcadeToken = async (
         // Create RPC client
         const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
+        
+        // Convert HTTP/HTTPS URL to WebSocket URL (ws/wss)
+        const parsedUrl = new URL(rpcUrl);
+        const protocolMap: Record<string, string> = {
+            'http:': 'ws:',
+            'https:': 'wss:',
+            'ws:': 'ws:',
+            'wss:': 'wss:',
+        };
+        parsedUrl.protocol = protocolMap[parsedUrl.protocol] || 'wss:';
+        const wsUrl = parsedUrl.toString();
+        const rpcSubscriptions = createSolanaRpcSubscriptions(wsUrl);
 
         // Create arcade token transaction using SDK
         const transaction = await createArcadeTokenInitTransaction(
@@ -100,6 +111,17 @@ export const createArcadeToken = async (
             commitment: 'confirmed',
         });
 
+        // Build extensions list for result
+        const extensions: string[] = [
+            'Metadata',
+            'Pausable',
+            'Default Account State (Allowlist)',
+            'Permanent Delegate',
+        ];
+        if (enableSrfc37) {
+            extensions.push('SRFC-37 (Allowlist)');
+        }
+
         return {
             success: true,
             transactionSignature: getSignatureFromTransaction(signedTransaction),
@@ -107,13 +129,13 @@ export const createArcadeToken = async (
             details: {
                 name: options.name,
                 symbol: options.symbol,
-                decimals: parseInt(options.decimals),
+                decimals: decimals,
                 enableSrfc37: options.enableSrfc37 || false,
                 mintAuthority: typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address,
                 metadataAuthority: metadataAuthority?.toString(),
                 pausableAuthority: pausableAuthority?.toString(),
                 permanentDelegateAuthority: permanentDelegateAuthority?.toString(),
-                extensions: ['Metadata', 'Pausable', 'Default Account State (Allowlist)', 'Permanent Delegate'],
+                extensions,
             },
         };
     } catch (error) {

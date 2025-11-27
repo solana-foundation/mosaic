@@ -154,7 +154,7 @@ export class Token {
             typeof mintAuthority === 'string'
         ) {
             throw new Error(
-                'mintAuthority must be a TransactionSigner<string> (or undefined)when TokenMetadata extension is present.',
+                'mintAuthority must be a TransactionSigner<string> (or undefined) when TokenMetadata extension is present.',
             );
         }
 

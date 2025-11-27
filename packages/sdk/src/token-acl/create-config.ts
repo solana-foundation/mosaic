@@ -24,18 +24,22 @@ import { TOKEN_ACL_PROGRAM_ID } from './utils';
  * @param input.authority - The authority signer who will control the mint configuration
  * @param input.mint - The mint address for which to create the configuration
  * @param input.gatingProgram - The program address that will gate operations on this mint
+ * @param input.payer - Optional payer signer for the instruction. Defaults to authority.address if not provided
  * @returns Promise containing the instructions and the mint configuration address
  */
 export const getCreateConfigInstructions = async (input: {
     authority: TransactionSigner<string>;
     mint: Address;
     gatingProgram: Address;
+    payer?: TransactionSigner<string>;
 }): Promise<{ instructions: Instruction<string>[]; mintConfig: Address }> => {
     const mintConfigPda = await findMintConfigPda({ mint: input.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
 
+    const payer = input.payer?.address ?? input.authority.address;
+
     const createConfigInstruction = getCreateConfigInstruction(
         {
-            payer: input.authority.address,
+            payer,
             authority: input.authority,
             mint: input.mint,
             mintConfig: mintConfigPda[0],

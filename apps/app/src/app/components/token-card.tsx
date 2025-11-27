@@ -29,11 +29,10 @@ import { IconHexagonFill } from 'symbols-react';
 
 interface TokenCardProps {
     token: TokenDisplay;
-    index: number;
     onDelete: (address: string) => void;
 }
 
-export function TokenCard({ token, index, onDelete }: TokenCardProps) {
+export function TokenCard({ token, onDelete }: TokenCardProps) {
     const { cluster } = useConnector();
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
@@ -149,7 +148,7 @@ export function TokenCard({ token, index, onDelete }: TokenCardProps) {
                     {/* Title: Name and Symbol */}
                     <div className="mb-4">
                         <h3 className="text-2xl font-bold text-foreground mb-1 leading-tight tracking-tight">
-                            {token.name || `Token ${index + 1}`}
+                            {token.name || (token.address ? `Token ${token.address.slice(0, 4)}...${token.address.slice(-4)}` : 'Token')}
                         </h3>
                         <p className="text-md text-muted-foreground font-medium">${token.symbol || 'TKN'}</p>
                     </div>

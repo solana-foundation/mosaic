@@ -1,6 +1,5 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import ora from 'ora';
 import { getSetGatingProgramTransaction } from '@mosaic/sdk';
 import { createSolanaClient } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
@@ -10,7 +9,7 @@ import { findMintConfigPda } from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './util.js';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
-interface CreateConfigOptions {
+interface SetGatingProgramOptions {
     mint: string;
     gatingProgram: string;
 }
@@ -20,7 +19,7 @@ export const setGatingProgram = new Command('set-gating-program')
     .requiredOption('-m, --mint <mint>', 'Mint address')
     .requiredOption('-g, --gating-program <gating-program>', 'Gating program address')
     .showHelpAfterError()
-    .action(async (options: CreateConfigOptions, command) => {
+    .action(async (options: SetGatingProgramOptions, command) => {
         const parentOpts = getGlobalOpts(command);
         const rpcUrl = parentOpts.rpcUrl;
         const rawTx: string | undefined = parentOpts.rawTx;
@@ -83,13 +82,7 @@ export const setGatingProgram = new Command('set-gating-program')
             console.log(`   ${chalk.bold('Mint Config:')} ${mintConfigPda[0]}`);
             console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
         } catch (error) {
-            const parentOpts = command.parent?.parent?.opts() || {};
-            const rawTx: string | undefined = parentOpts.rawTx;
-            if (!rawTx) {
-                const spinner = ora({
-                    text: 'Setting gating program...',
-                    isSilent: false,
-                }).start();
+            if (spinner && !rawTx) {
                 spinner.fail('Failed to set gating program');
             }
             console.error(chalk.red('❌ Error:'), error instanceof Error ? error.message : 'Unknown error');

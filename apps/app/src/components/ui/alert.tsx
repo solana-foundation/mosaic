@@ -32,7 +32,7 @@ function AlertTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingEle
     return <h5 className={cn('mb-1 font-medium leading-none tracking-tight', className)} {...props} />;
 }
 
-function AlertDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {
+function AlertDescription({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
     return <div className={cn('text-sm [&_p]:leading-relaxed', className)} {...props} />;
 }
 

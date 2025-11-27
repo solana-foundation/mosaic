@@ -7,7 +7,7 @@ export function TokenizedSecurityBasicParams({
     onInputChange,
 }: {
     options: TokenizedSecurityOptions;
-    onInputChange: (field: keyof TokenizedSecurityOptions, value: string) => void;
+    onInputChange: (field: keyof TokenizedSecurityOptions, value: string | boolean) => void;
 }) {
     return (
         <Card>

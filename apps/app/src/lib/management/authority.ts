@@ -11,6 +11,7 @@ import {
 } from 'gill';
 import { AuthorityType } from 'gill/programs/token';
 import { getUpdateAuthorityTransaction } from '@mosaic/sdk';
+import { getRpcUrl } from '@/lib/solana/rpc';
 
 export type AuthorityRole = AuthorityType | 'Metadata';
 
@@ -76,7 +77,7 @@ export const updateTokenAuthority = async (
         const signerAddress = walletPublicKey.toString();
 
         // Create RPC client
-        const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
+        const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
         const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
 

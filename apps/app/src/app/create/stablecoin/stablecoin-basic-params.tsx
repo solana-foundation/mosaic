@@ -4,7 +4,7 @@ import { StablecoinOptions } from '@/types/token';
 
 interface StablecoinBasicParamsProps {
     options: StablecoinOptions;
-    onInputChange: (field: string, value: string) => void;
+    onInputChange: (field: string, value: string | boolean) => void;
 }
 
 export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasicParamsProps) {
