@@ -7,7 +7,8 @@ import { TokenizedSecurityBasicParams } from './tokenized-security-basic-params'
 import { TokenizedSecurityAuthorityParams } from './tokenized-security-authority-params';
 import { createTokenizedSecurity } from '@/lib/issuance/tokenized-security';
 import type { TransactionModifyingSigner } from '@solana/signers';
-import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/token-storage';
+import { createTokenDisplayFromResult } from '@/lib/token/token-storage';
+import { useTokenStore } from '@/stores/token-store';
 
 export function TokenizedSecurityCreateForm({
     transactionSendingSigner,
@@ -16,6 +17,7 @@ export function TokenizedSecurityCreateForm({
     transactionSendingSigner: TransactionModifyingSigner<string>;
     onTokenCreated?: () => void;
 }) {
+    const addToken = useTokenStore((state) => state.addToken);
     const [options, setOptions] = useState<TokenizedSecurityOptions>({
         name: '',
         symbol: '',
@@ -46,8 +48,21 @@ export function TokenizedSecurityCreateForm({
         try {
             const result = await createTokenizedSecurity(options, transactionSendingSigner);
             if (result.success && result.mintAddress) {
-                const tokenDisplay = createTokenDisplayFromResult(result, 'tokenized-security', options);
-                TokenStorage.saveToken(tokenDisplay);
+                const addrValue: unknown = (
+                    transactionSendingSigner as {
+                        address?: unknown;
+                    }
+                ).address;
+                const creatorWallet =
+                    typeof addrValue === 'string'
+                        ? addrValue
+                        : typeof addrValue === 'object' && addrValue !== null && 'toString' in addrValue
+                          ? String((addrValue as { toString: () => string }).toString())
+                          : '';
+
+                const tokenDisplay = createTokenDisplayFromResult(result, 'tokenized-security', options, creatorWallet);
+                // Save to store (automatically persists to localStorage)
+                addToken(tokenDisplay);
                 
                 // Call the callback to notify parent
                 onTokenCreated?.();

@@ -1,138 +1,5 @@
 import { TokenDisplay } from '@/types/token';
 
-const STORAGE_KEY = 'mosaic_tokens';
-
-/**
- * Token storage utility for managing created tokens in local storage
- */
-export class TokenStorage {
-    /**
-     * Get all tokens from local storage
-     */
-    static getAllTokens(): TokenDisplay[] {
-        if (typeof window === 'undefined') {
-            return [];
-        }
-
-        try {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (!stored) return [];
-
-            const tokens = JSON.parse(stored) as TokenDisplay[];
-            return Array.isArray(tokens) ? tokens : [];
-        } catch {
-            // Silently handle errors and return empty array
-            return [];
-        }
-    }
-
-    /**
-     * Save a new token to local storage
-     */
-    static saveToken(token: TokenDisplay): void {
-        if (typeof window === 'undefined') {
-            return;
-        }
-
-        try {
-            const existingTokens = this.getAllTokens();
-
-            // Check if token already exists (by address)
-            const existingIndex = existingTokens.findIndex(t => t.address === token.address);
-
-            if (existingIndex >= 0) {
-                // Update existing token
-                existingTokens[existingIndex] = {
-                    ...existingTokens[existingIndex],
-                    ...token,
-                    createdAt: existingTokens[existingIndex].createdAt || new Date().toISOString(),
-                };
-            } else {
-                // Add new token
-                const newToken = {
-                    ...token,
-                    createdAt: new Date().toISOString(),
-                };
-                existingTokens.push(newToken);
-            }
-
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(existingTokens));
-        } catch {
-            // Silently handle errors
-        }
-    }
-
-    /**
-     * Save multiple tokens to local storage
-     */
-    static saveTokens(tokens: TokenDisplay[]): void {
-        if (typeof window === 'undefined') {
-            return;
-        }
-
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
-        } catch {
-            // Silently handle errors
-        }
-    }
-
-    /**
-     * Find a token by its address
-     */
-    static findTokenByAddress(address: string): TokenDisplay | null {
-        const tokens = this.getAllTokens();
-        return tokens.find(token => token.address === address) || null;
-    }
-
-    /**
-     * Remove a token from local storage by its address
-     */
-    static removeToken(address: string): void {
-        if (typeof window === 'undefined') {
-            return;
-        }
-
-        try {
-            const tokens = this.getAllTokens();
-            const filteredTokens = tokens.filter(token => token.address !== address);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredTokens));
-        } catch {
-            // Silently handle errors
-        }
-    }
-
-    /**
-     * Clear all tokens from local storage
-     */
-    static clearAllTokens(): void {
-        if (typeof window === 'undefined') {
-            return;
-        }
-
-        try {
-            localStorage.removeItem(STORAGE_KEY);
-        } catch {
-            // Silently handle errors
-        }
-    }
-
-    /**
-     * Get tokens by type (filters by detectedPatterns)
-     */
-    static getTokensByType(type: string): TokenDisplay[] {
-        const tokens = this.getAllTokens();
-        return tokens.filter(token => token.detectedPatterns?.includes(type as any));
-    }
-
-    /**
-     * Get the total number of tokens
-     */
-    static getTokenCount(): number {
-        return this.getAllTokens().length;
-    }
-}
-
 /**
  * Helper function to convert creation result to TokenDisplay
  */
@@ -160,12 +27,15 @@ export const createTokenDisplayFromResult = (
         uri?: string;
         enableSrfc37?: boolean;
     },
+    creatorWallet?: string,
 ): TokenDisplay => {
+    // Map custom-token to unknown for SDK compatibility
+    const sdkType = type === 'custom-token' ? 'unknown' : type;
     return {
         name: result.details?.name || options.name,
         symbol: result.details?.symbol || options.symbol,
         address: result.mintAddress,
-        detectedPatterns: [type],
+        detectedPatterns: [sdkType],
         decimals: result.details?.decimals,
         mintAuthority: result.details?.mintAuthority,
         metadataAuthority: result.details?.metadataAuthority,
@@ -178,5 +48,6 @@ export const createTokenDisplayFromResult = (
         isSrfc37: options.enableSrfc37,
         metadataUri: options.uri,
         supply: '0', // Initial supply is 0 for new tokens
+        creatorWallet,
     };
 };

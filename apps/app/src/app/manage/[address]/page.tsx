@@ -7,9 +7,8 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { TokenDisplay } from '@/types/token';
 import { Spinner } from '@/components/ui/spinner';
-import { findTokenByAddress } from '@/lib/token/token-data';
-import { TokenStorage } from '@/lib/token/token-storage';
 import { useConnector } from '@solana/connector/react';
+import { useTokenStore } from '@/stores/token-store';
 import { TokenOverview } from './components/token-overview';
 import { TokenAuthorities } from './components/token-authorities';
 import { TokenExtensions } from './components/token-extensions';
@@ -81,6 +80,8 @@ const getAccessList = async (
 function ManageTokenConnected({ address }: { address: string }) {
     const router = useRouter();
     const { selectedAccount, cluster } = useConnector();
+    const findTokenByAddress = useTokenStore((state) => state.findTokenByAddress);
+    const removeToken = useTokenStore((state) => state.removeToken);
     const [token, setToken] = useState<TokenDisplay | null>(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
@@ -142,7 +143,7 @@ function ManageTokenConnected({ address }: { address: string }) {
         };
 
         loadTokenData();
-    }, [address, rpc, cluster?.url]);
+    }, [address, rpc, cluster?.url, findTokenByAddress]);
 
     useEffect(() => {
         const loadAccessList = async () => {
@@ -290,7 +291,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                 'Are you sure you want to remove this token from your local storage? This only removes it from your browser - the token will continue to exist on the blockchain.',
             )
         ) {
-            TokenStorage.removeToken(address);
+            removeToken(address);
             router.push('/');
         }
     };
@@ -350,15 +351,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                 setIsPaused(result.paused ?? !isPaused);
                 setShowPauseModal(false);
 
-                // Update token in local storage
-                const storedTokens = JSON.parse(localStorage.getItem('mosaic_tokens') || '[]') as TokenDisplay[];
-                const updatedTokens = storedTokens.map(t => {
-                    if (t.address === token.address) {
-                        return { ...t, isPaused: result.paused ?? !isPaused };
-                    }
-                    return t;
-                });
-                localStorage.setItem('mosaic_tokens', JSON.stringify(updatedTokens));
+                // Update token in store - note: isPaused is not stored in TokenDisplay, 
+                // it's fetched from blockchain state, so we just update local state
+                // The token object in store doesn't need to track pause state
             } else {
                 setPauseError(result.error || 'Operation failed');
             }

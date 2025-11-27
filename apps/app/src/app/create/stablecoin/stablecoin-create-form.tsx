@@ -6,7 +6,8 @@ import { StablecoinAuthorityParams } from './stablecoin-authority-params';
 import { StablecoinCreationResultDisplay } from '@/app/create/stablecoin/stablecoin-creation-result';
 import { createStablecoin } from '@/lib/issuance/stablecoin';
 import type { TransactionModifyingSigner } from '@solana/signers';
-import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/token-storage';
+import { createTokenDisplayFromResult } from '@/lib/token/token-storage';
+import { useTokenStore } from '@/stores/token-store';
 
 interface StablecoinCreateFormProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
@@ -14,6 +15,7 @@ interface StablecoinCreateFormProps {
 }
 
 export function StablecoinCreateForm({ transactionSendingSigner, onTokenCreated }: StablecoinCreateFormProps) {
+    const addToken = useTokenStore((state) => state.addToken);
     const [stablecoinOptions, setStablecoinOptions] = useState<StablecoinOptions>({
         name: '',
         symbol: '',
@@ -63,11 +65,11 @@ export function StablecoinCreateForm({ transactionSendingSigner, onTokenCreated 
                     stablecoinOptions.confidentialBalancesAuthority || derivedMintAuthority;
                 const derivedPermanentDelegateAuthority =
                     stablecoinOptions.permanentDelegateAuthority || derivedMintAuthority;
-                // Create token display object
-                const tokenDisplay = createTokenDisplayFromResult(result, 'stablecoin', stablecoinOptions);
+                // Create token display object with creator wallet
+                const tokenDisplay = createTokenDisplayFromResult(result, 'stablecoin', stablecoinOptions, defaultAuthority);
 
-                // Save to local storage
-                TokenStorage.saveToken(tokenDisplay);
+                // Save to store (automatically persists to localStorage)
+                addToken(tokenDisplay);
 
                 // Call the callback to notify parent
                 onTokenCreated?.();

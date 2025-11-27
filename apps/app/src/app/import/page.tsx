@@ -12,15 +12,17 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useConnector } from '@solana/connector/react';
 import { getTokenDashboardData, TokenType } from '@mosaic/sdk';
-import { TokenStorage } from '@/lib/token/token-storage';
 import { TokenDisplay } from '@/types/token';
+import { useTokenStore } from '@/stores/token-store';
 import { Spinner } from '@/components/ui/spinner';
 import { address, createSolanaRpc, type Rpc, type SolanaRpcApi } from 'gill';
 import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 
 export default function ImportTokenPage() {
     const router = useRouter();
-    const { cluster } = useConnector();
+    const { cluster, selectedAccount } = useConnector();
+    const addToken = useTokenStore((state) => state.addToken);
+    const findTokenByAddress = useTokenStore((state) => state.findTokenByAddress);
 
     // Create RPC client from current cluster
     const rpc = useMemo(() => {
@@ -97,10 +99,11 @@ export default function ImportTokenPage() {
                 isSrfc37: tokenData.enableSrfc37,
                 metadataUri: tokenData.uri,
                 createdAt: new Date().toISOString(),
+                creatorWallet: selectedAccount || undefined,
             };
 
             // Check if token already exists
-            const existingToken = TokenStorage.findTokenByAddress(tokenData.address);
+            const existingToken = findTokenByAddress(tokenData.address);
             if (existingToken) {
                 const confirmUpdate = window.confirm(
                     'This token already exists in your dashboard. Do you want to update it with the latest information?',
@@ -111,8 +114,8 @@ export default function ImportTokenPage() {
                 }
             }
 
-            // Save to local storage
-            TokenStorage.saveToken(tokenDisplay);
+            // Save to store (automatically persists to localStorage)
+            addToken(tokenDisplay);
 
             // Store info for success message
             setImportedTokenInfo({

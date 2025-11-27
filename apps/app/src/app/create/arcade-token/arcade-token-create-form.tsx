@@ -6,7 +6,8 @@ import { ArcadeTokenAuthorityParams } from './arcade-token-authority-params';
 import { ArcadeTokenCreationResultDisplay } from '@/app/create/arcade-token/arcade-token-creation-result';
 import { createArcadeToken } from '@/lib/issuance/arcade-token';
 import type { TransactionModifyingSigner } from '@solana/signers';
-import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/token-storage';
+import { createTokenDisplayFromResult } from '@/lib/token/token-storage';
+import { useTokenStore } from '@/stores/token-store';
 
 interface ArcadeTokenCreateFormProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
@@ -14,6 +15,7 @@ interface ArcadeTokenCreateFormProps {
 }
 
 export function ArcadeTokenCreateForm({ transactionSendingSigner, onTokenCreated }: ArcadeTokenCreateFormProps) {
+    const addToken = useTokenStore((state) => state.addToken);
     const [arcadeTokenOptions, setArcadeTokenOptions] = useState<ArcadeTokenOptions>({
         name: '',
         symbol: '',
@@ -42,15 +44,6 @@ export function ArcadeTokenCreateForm({ transactionSendingSigner, onTokenCreated
             const result = await createArcadeToken(arcadeTokenOptions, transactionSendingSigner);
 
             if (result.success && result.mintAddress) {
-                // Create token display object
-                const tokenDisplay = createTokenDisplayFromResult(result, 'arcade-token', arcadeTokenOptions);
-
-                // Save to local storage
-                TokenStorage.saveToken(tokenDisplay);
-
-                // Call the callback to notify parent
-                onTokenCreated?.();
-
                 const addrValue: unknown = (
                     transactionSendingSigner as {
                         address?: unknown;
@@ -62,6 +55,15 @@ export function ArcadeTokenCreateForm({ transactionSendingSigner, onTokenCreated
                         : typeof addrValue === 'object' && addrValue !== null && 'toString' in addrValue
                           ? String((addrValue as { toString: () => string }).toString())
                           : '';
+
+                // Create token display object with creator wallet
+                const tokenDisplay = createTokenDisplayFromResult(result, 'arcade-token', arcadeTokenOptions, defaultAuthority);
+
+                // Save to store (automatically persists to localStorage)
+                addToken(tokenDisplay);
+
+                // Call the callback to notify parent
+                onTokenCreated?.();
 
                 setResult({
                     success: true,

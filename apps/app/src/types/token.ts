@@ -19,6 +19,7 @@ export interface TokenDisplay {
     createdAt?: string;
     isSrfc37?: boolean;
     metadataUri?: string;
+    creatorWallet?: string;
 }
 
 export interface StablecoinOptions {

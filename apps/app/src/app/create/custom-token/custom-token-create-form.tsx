@@ -7,7 +7,8 @@ import { CustomTokenAuthorityParams } from './custom-token-authority-params';
 import { CustomTokenCreationResultDisplay } from './custom-token-creation-result';
 import { createCustomToken } from '@/lib/issuance/custom-token';
 import type { TransactionModifyingSigner } from '@solana/signers';
-import { TokenStorage, createTokenDisplayFromResult } from '@/lib/token/token-storage';
+import { createTokenDisplayFromResult } from '@/lib/token/token-storage';
+import { useTokenStore } from '@/stores/token-store';
 
 interface CustomTokenCreateFormProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
@@ -15,6 +16,7 @@ interface CustomTokenCreateFormProps {
 }
 
 export function CustomTokenCreateForm({ transactionSendingSigner, onTokenCreated }: CustomTokenCreateFormProps) {
+    const addToken = useTokenStore((state) => state.addToken);
     const [customTokenOptions, setCustomTokenOptions] = useState<CustomTokenOptions>({
         name: '',
         symbol: '',
@@ -94,11 +96,11 @@ export function CustomTokenCreateForm({ transactionSendingSigner, onTokenCreated
                     extensions.push(`SRFC-37 (${customTokenOptions.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'})`);
                 }
 
-                // Create token display object
-                const tokenDisplay = createTokenDisplayFromResult(result, 'custom-token', customTokenOptions);
+                // Create token display object with creator wallet
+                const tokenDisplay = createTokenDisplayFromResult(result, 'custom-token', customTokenOptions, defaultAuthority);
 
-                // Save to local storage
-                TokenStorage.saveToken(tokenDisplay);
+                // Save to store (automatically persists to localStorage)
+                addToken(tokenDisplay);
 
                 // Call the callback to notify parent
                 onTokenCreated?.();
