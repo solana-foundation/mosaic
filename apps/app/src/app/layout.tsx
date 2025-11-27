@@ -74,7 +74,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <html lang="en" suppressHydrationWarning>
             <body className={cn(inter.variable, abcDiatype.variable, berkeleyMono.variable, 'antialiased')}>
                 <Providers>
-                    <div className="flex bg-bg1/50 mx-auto min-h-screen flex-col bg-background">
+                    <div className="flex bg-bg1/50 dark:bg-background mx-auto min-h-screen flex-col">
                         <Header />
                         <main className="flex-1">{children}</main>
                         {/* <Footer /> */}

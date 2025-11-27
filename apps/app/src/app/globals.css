@@ -126,6 +126,7 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+    --diagonal-pattern-color: oklch(0.927 0.0122 96.43 / 0.5);
 }
 
 /* Responsive typography classes matching Figma specs */
@@ -235,11 +236,6 @@
     letter-spacing: -0.28px;
 }
 
-body {
-    background-color: var(--color-bg1);
-    color: oklch(0.1725 0.0078 264.05);
-}
-
 @theme inline {
     --radius-sm: calc(var(--radius) - 4px);
     --radius-md: calc(var(--radius) - 2px);
@@ -313,6 +309,9 @@ body {
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+    --color-border-low: oklch(0.269 0 0);
+    --color-border-medium: oklch(0.3356 0.0046 39.42);
+    --diagonal-pattern-color: oklch(0.269 0 0 / 0.3);
 }
 
 @layer base {
@@ -328,8 +327,8 @@ body {
 .border-l-dashed-wide {
     background: repeating-linear-gradient(
             to bottom,
-            oklch(0.927 0.0122 96.43) 0px,
-            oklch(0.927 0.0122 96.43) 12px,
+            var(--color-border-low) 0px,
+            var(--color-border-low) 12px,
             transparent 12px,
             transparent 24px
         )
@@ -339,8 +338,8 @@ body {
 .border-r-dashed-wide {
     background: repeating-linear-gradient(
             to bottom,
-            oklch(0.927 0.0122 96.43) 0px,
-            oklch(0.927 0.0122 96.43) 12px,
+            var(--color-border-low) 0px,
+            var(--color-border-low) 12px,
             transparent 12px,
             transparent 24px
         )
@@ -351,16 +350,16 @@ body {
     background:
         repeating-linear-gradient(
                 to bottom,
-                oklch(0.927 0.0122 96.43) 0px,
-                oklch(0.927 0.0122 96.43) 12px,
+                var(--color-border-low) 0px,
+                var(--color-border-low) 12px,
                 transparent 12px,
                 transparent 24px
             )
             left/1px 100% no-repeat,
         repeating-linear-gradient(
                 to bottom,
-                oklch(0.927 0.0122 96.43) 0px,
-                oklch(0.927 0.0122 96.43) 12px,
+                var(--color-border-low) 0px,
+                var(--color-border-low) 12px,
                 transparent 12px,
                 transparent 24px
             )
@@ -371,16 +370,16 @@ body {
     background:
         repeating-linear-gradient(
                 to right,
-                oklch(0.927 0.0122 96.43) 0px,
-                oklch(0.927 0.0122 96.43) 12px,
+                var(--color-border-low) 0px,
+                var(--color-border-low) 12px,
                 transparent 12px,
                 transparent 24px
             )
             top/100% 1px no-repeat,
         repeating-linear-gradient(
                 to right,
-                oklch(0.927 0.0122 96.43) 0px,
-                oklch(0.927 0.0122 96.43) 12px,
+                var(--color-border-low) 0px,
+                var(--color-border-low) 12px,
                 transparent 12px,
                 transparent 24px
             )
@@ -390,8 +389,8 @@ body {
 .border-vertical-dashed-wide {
     background: repeating-linear-gradient(
             to bottom,
-            oklch(0.927 0.0122 96.43) 0px,
-            oklch(0.927 0.0122 96.43) 12px,
+            var(--color-border-low) 0px,
+            var(--color-border-low) 12px,
             transparent 12px,
             transparent 24px
         )
@@ -403,32 +402,32 @@ body {
     background:
         repeating-linear-gradient(
                 to right,
-                oklch(0.884 0.0163 82.79) 0px,
-                oklch(0.884 0.0163 82.79) 6px,
+                var(--color-border-medium) 0px,
+                var(--color-border-medium) 6px,
                 transparent 6px,
                 transparent 12px
             )
             top/100% 1px no-repeat,
         repeating-linear-gradient(
                 to right,
-                oklch(0.884 0.0163 82.79) 0px,
-                oklch(0.884 0.0163 82.79) 6px,
+                var(--color-border-medium) 0px,
+                var(--color-border-medium) 6px,
                 transparent 6px,
                 transparent 12px
             )
             bottom/100% 1px no-repeat,
         repeating-linear-gradient(
                 to bottom,
-                oklch(0.884 0.0163 82.79) 0px,
-                oklch(0.884 0.0163 82.79) 6px,
+                var(--color-border-medium) 0px,
+                var(--color-border-medium) 6px,
                 transparent 6px,
                 transparent 12px
             )
             left/1px 100% no-repeat,
         repeating-linear-gradient(
                 to bottom,
-                oklch(0.884 0.0163 82.79) 0px,
-                oklch(0.884 0.0163 82.79) 6px,
+                var(--color-border-medium) 0px,
+                var(--color-border-medium) 6px,
                 transparent 6px,
                 transparent 12px
             )
@@ -439,16 +438,16 @@ body {
     background:
         repeating-linear-gradient(
                 to bottom,
-                oklch(0.884 0.0163 82.79) 0px,
-                oklch(0.884 0.0163 82.79) 6px,
+                var(--color-border-medium) 0px,
+                var(--color-border-medium) 6px,
                 transparent 6px,
                 transparent 12px
             )
             left/1px 100% no-repeat,
         repeating-linear-gradient(
                 to bottom,
-                oklch(0.884 0.0163 82.79) 0px,
-                oklch(0.884 0.0163 82.79) 6px,
+                var(--color-border-medium) 0px,
+                var(--color-border-medium) 6px,
                 transparent 6px,
                 transparent 12px
             )

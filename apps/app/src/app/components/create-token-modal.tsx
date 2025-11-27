@@ -99,7 +99,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                             <button
                                                 key={customToken.href}
                                                 onClick={() => handleTemplateSelect(customToken)}
-                                                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all bg-white group text-left"
+                                                className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-300 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
                                             >
                                                 <div className={cn("p-3 rounded-xl shrink-0", customToken.colorClass)}>
                                                     <Icon className={cn("h-6 w-6", customToken.iconColorClass)} />
@@ -131,8 +131,8 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                                 <button
                                                     key={template.href}
                                                     onClick={() => handleTemplateSelect(template)}
-                                                    className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-200 hover:border-gray-300 hover:shadow-sm transition-all bg-white group text-left"
-                                                >
+                                                    className="w-full flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-300 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
+                                                    >
                                                     <div className={cn("p-3 rounded-xl shrink-0", template.colorClass)}>
                                                         <Icon className={cn("h-6 w-6", template.iconColorClass)} />
                                                     </div>

@@ -22,8 +22,8 @@ export function TokenCardEmptyState({ onTokenCreated }: TokenCardEmptyStateProps
                       45deg,
                       transparent,
                       transparent 10px,
-                      rgba(233, 231, 222, 0.5) 10px,
-                      rgba(233, 231, 222, 0.5) 11px
+                      var(--diagonal-pattern-color) 10px,
+                      var(--diagonal-pattern-color) 11px
                     )`
                   }}
             >
@@ -47,5 +47,6 @@ export function TokenCardEmptyState({ onTokenCreated }: TokenCardEmptyStateProps
         </>
     );
 }
+
 
 

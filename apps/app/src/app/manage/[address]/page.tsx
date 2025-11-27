@@ -501,19 +501,19 @@ function ManageTokenConnected({ address }: { address: string }) {
                             <TabsList className="translate-y-0.5 w-full justify-start rounded-none h-auto p-0 bg-transparent space-x-6 ring-0">
                                 <TabsTrigger 
                                     value="permissions" 
-                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-white data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
                                 >
                                     Permissions
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="blocklist" 
-                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-white data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
                                 >
                                     {listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="extensions" 
-                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-white data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
                                 >
                                     Token Extensions
                                 </TabsTrigger>
