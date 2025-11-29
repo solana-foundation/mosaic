@@ -11,10 +11,11 @@ import { useTokenStore } from '@/stores/token-store';
 
 interface StablecoinCreateFormProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    rpcUrl?: string;
     onTokenCreated?: () => void;
 }
 
-export function StablecoinCreateForm({ transactionSendingSigner, onTokenCreated }: StablecoinCreateFormProps) {
+export function StablecoinCreateForm({ transactionSendingSigner, rpcUrl, onTokenCreated }: StablecoinCreateFormProps) {
     const addToken = useTokenStore((state) => state.addToken);
     const [stablecoinOptions, setStablecoinOptions] = useState<StablecoinOptions>({
         name: '',
@@ -43,7 +44,7 @@ export function StablecoinCreateForm({ transactionSendingSigner, onTokenCreated 
         setResult(null);
 
         try {
-            const result = await createStablecoin(stablecoinOptions, transactionSendingSigner);
+            const result = await createStablecoin({ ...stablecoinOptions, rpcUrl }, transactionSendingSigner);
 
             if (result.success && result.mintAddress) {
                 const addrValue: unknown = (

@@ -8,7 +8,7 @@ import { useConnectorSigner } from '@/hooks/use-connector-signer';
 import { CustomTokenCreateForm } from '@/app/create/custom-token/custom-token-create-form';
 
 // Component that only renders when wallet is available
-function CustomTokenCreateWithWallet() {
+function CustomTokenCreateWithWallet({ rpcUrl }: { rpcUrl: string }) {
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
 
@@ -31,7 +31,7 @@ function CustomTokenCreateWithWallet() {
                     </div>
                 </div>
 
-                <CustomTokenCreateForm transactionSendingSigner={transactionSendingSigner} />
+                <CustomTokenCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} />
             </div>
         </div>
     );
@@ -40,10 +40,13 @@ function CustomTokenCreateWithWallet() {
 // Simple wrapper component that shows a message when wallet is not connected
 function CustomTokenCreatePage() {
     const { connected, selectedAccount, cluster } = useConnector();
+    
+    // Get RPC URL from the current cluster
+    const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
     // If wallet is connected and chain is available, render the full component
     if (connected && selectedAccount && cluster) {
-        return <CustomTokenCreateWithWallet />;
+        return <CustomTokenCreateWithWallet rpcUrl={rpcUrl} />;
     }
 
     // Otherwise, show a message to connect wallet

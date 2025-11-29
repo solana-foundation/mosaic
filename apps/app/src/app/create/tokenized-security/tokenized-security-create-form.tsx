@@ -12,9 +12,11 @@ import { useTokenStore } from '@/stores/token-store';
 
 export function TokenizedSecurityCreateForm({
     transactionSendingSigner,
+    rpcUrl,
     onTokenCreated,
 }: {
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    rpcUrl?: string;
     onTokenCreated?: () => void;
 }) {
     const addToken = useTokenStore((state) => state.addToken);
@@ -52,7 +54,7 @@ export function TokenizedSecurityCreateForm({
         setIsCreating(true);
         setCreationResult(null);
         try {
-            const result = await createTokenizedSecurity(options, transactionSendingSigner);
+            const result = await createTokenizedSecurity({ ...options, rpcUrl }, transactionSendingSigner);
             if (result.success && result.mintAddress) {
                 const addrValue: unknown = (
                     transactionSendingSigner as {

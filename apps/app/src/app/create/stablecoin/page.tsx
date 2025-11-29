@@ -9,7 +9,7 @@ import { useConnectorSigner } from '@/hooks/use-connector-signer';
 import { StablecoinCreateForm } from '@/app/create/stablecoin/stablecoin-create-form';
 
 // Component that only renders when wallet is available
-function StablecoinCreateWithWallet() {
+function StablecoinCreateWithWallet({ rpcUrl }: { rpcUrl: string }) {
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
 
@@ -60,7 +60,7 @@ function StablecoinCreateWithWallet() {
                         />
                     </aside>
                     <div className="order-last lg:order-1 flex-1">
-                        <StablecoinCreateForm transactionSendingSigner={transactionSendingSigner} />
+                        <StablecoinCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} />
                     </div>
                 </div>
             </div>
@@ -71,10 +71,13 @@ function StablecoinCreateWithWallet() {
 // Simple wrapper component that shows a message when wallet is not connected
 function StablecoinCreatePage() {
     const { connected, selectedAccount, cluster } = useConnector();
+    
+    // Get RPC URL from the current cluster
+    const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
     // If wallet is connected and chain is available, render the full component
     if (connected && selectedAccount && cluster) {
-        return <StablecoinCreateWithWallet />;
+        return <StablecoinCreateWithWallet rpcUrl={rpcUrl} />;
     }
 
     // Otherwise, show a message to connect wallet

@@ -9,7 +9,7 @@ import { useConnectorSigner } from '@/hooks/use-connector-signer';
 import { ArcadeTokenCreateForm } from '@/app/create/arcade-token/arcade-token-create-form';
 
 // Component that only renders when wallet is available
-function ArcadeTokenCreateWithWallet() {
+function ArcadeTokenCreateWithWallet({ rpcUrl }: { rpcUrl: string }) {
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
 
@@ -57,7 +57,7 @@ function ArcadeTokenCreateWithWallet() {
                         />
                     </aside>
                     <div className="order-last lg:order-1 flex-1">
-                        <ArcadeTokenCreateForm transactionSendingSigner={transactionSendingSigner} />
+                        <ArcadeTokenCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} />
                     </div>
                 </div>
             </div>
@@ -68,10 +68,13 @@ function ArcadeTokenCreateWithWallet() {
 // Simple wrapper component that shows a message when wallet is not connected
 function ArcadeTokenCreatePage() {
     const { connected, selectedAccount, cluster } = useConnector();
+    
+    // Get RPC URL from the current cluster
+    const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
     // If wallet is connected and chain is available, render the full component
     if (connected && selectedAccount && cluster) {
-        return <ArcadeTokenCreateWithWallet />;
+        return <ArcadeTokenCreateWithWallet rpcUrl={rpcUrl} />;
     }
 
     // Otherwise, show a message to connect wallet

@@ -12,10 +12,11 @@ import { useTokenStore } from '@/stores/token-store';
 
 interface CustomTokenCreateFormProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    rpcUrl?: string;
     onTokenCreated?: () => void;
 }
 
-export function CustomTokenCreateForm({ transactionSendingSigner, onTokenCreated }: CustomTokenCreateFormProps) {
+export function CustomTokenCreateForm({ transactionSendingSigner, rpcUrl, onTokenCreated }: CustomTokenCreateFormProps) {
     const addToken = useTokenStore((state) => state.addToken);
     const [customTokenOptions, setCustomTokenOptions] = useState<CustomTokenOptions>({
         name: '',
@@ -55,7 +56,7 @@ export function CustomTokenCreateForm({ transactionSendingSigner, onTokenCreated
         setResult(null);
 
         try {
-            const result = await createCustomToken(customTokenOptions, transactionSendingSigner);
+            const result = await createCustomToken({ ...customTokenOptions, rpcUrl }, transactionSendingSigner);
 
             if (result.success && result.mintAddress) {
                 const addrValue: unknown = (

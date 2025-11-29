@@ -161,13 +161,20 @@ function ManageTokenConnected({ address }: { address: string }) {
     useEffect(() => {
         const addTokenExtensionsToFoundToken = async (foundToken: TokenDisplay): Promise<void> => {
             if (!rpc) return;
-            const extensions = await getTokenExtensions(rpc, foundToken.address as Address);
-            foundToken.extensions = extensions;
-            setToken(foundToken);
+            
+            try {
+                const extensions = await getTokenExtensions(rpc, foundToken.address as Address);
+                foundToken.extensions = extensions;
+                setToken(foundToken);
 
-            if (foundToken.address) {
-                const pauseState = await checkTokenPauseState(foundToken.address, cluster?.url || '');
-                setIsPaused(pauseState);
+                if (foundToken.address) {
+                    const pauseState = await checkTokenPauseState(foundToken.address, cluster?.url || '');
+                    setIsPaused(pauseState);
+                }
+            } catch (err) {
+                // Token might not exist on this network - show the token with empty extensions
+                console.warn('Failed to fetch token extensions:', err instanceof Error ? err.message : err);
+                setToken(foundToken);
             }
         };
 

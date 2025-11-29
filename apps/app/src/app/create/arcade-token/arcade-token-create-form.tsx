@@ -11,10 +11,11 @@ import { useTokenStore } from '@/stores/token-store';
 
 interface ArcadeTokenCreateFormProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    rpcUrl?: string;
     onTokenCreated?: () => void;
 }
 
-export function ArcadeTokenCreateForm({ transactionSendingSigner, onTokenCreated }: ArcadeTokenCreateFormProps) {
+export function ArcadeTokenCreateForm({ transactionSendingSigner, rpcUrl, onTokenCreated }: ArcadeTokenCreateFormProps) {
     const addToken = useTokenStore((state) => state.addToken);
     const [arcadeTokenOptions, setArcadeTokenOptions] = useState<ArcadeTokenOptions>({
         name: '',
@@ -41,7 +42,7 @@ export function ArcadeTokenCreateForm({ transactionSendingSigner, onTokenCreated
         setResult(null);
 
         try {
-            const result = await createArcadeToken(arcadeTokenOptions, transactionSendingSigner);
+            const result = await createArcadeToken({ ...arcadeTokenOptions, rpcUrl }, transactionSendingSigner);
 
             if (result.success && result.mintAddress) {
                 const addrValue: unknown = (

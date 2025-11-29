@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Settings, Edit, Check, X, Loader2 } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 import { updateTokenAuthority } from '@/lib/management/authority';
-import { getTokenAuthorities, getRpcUrl } from '@/lib/solana/rpc';
+import { getTokenAuthorities } from '@/lib/solana/rpc';
 import { AuthorityType } from 'gill/programs/token';
 import { isAddress } from 'gill';
 import { useConnector } from '@solana/connector/react';
@@ -87,7 +87,10 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
 
     const [authorities, setAuthorities] = useState<AuthorityInfo[]>(baseAuthorities);
     const [isLoadingAuthorities, setIsLoadingAuthorities] = useState(false);
-    const { selectedAccount } = useConnector();
+    const { selectedAccount, cluster } = useConnector();
+
+    // Get RPC URL from the current cluster
+    const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
@@ -99,7 +102,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
 
             setIsLoadingAuthorities(true);
             try {
-                const blockchainAuthorities = await getTokenAuthorities(token.address);
+                const blockchainAuthorities = await getTokenAuthorities(token.address, rpcUrl);
 
                 setAuthorities(prev =>
                     prev.map(auth => ({
@@ -123,14 +126,21 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                     })),
                 );
             } catch (error) {
-                setError(error instanceof Error ? error.message : 'Failed to fetch authorities');
+                // Silently handle "Mint account not found" - the token may not exist on this network
+                // Just use the local data we already have from the token prop
+                const errorMessage = error instanceof Error ? error.message : '';
+                if (!errorMessage.includes('Mint account not found') && !errorMessage.includes('Not a Token-2022 mint')) {
+                    setError(errorMessage || 'Failed to fetch authorities');
+                }
+                // Otherwise, just log and continue with local data
+                console.warn('Failed to fetch authorities from blockchain:', errorMessage);
             } finally {
                 setIsLoadingAuthorities(false);
             }
         };
 
         fetchAuthorities();
-    }, [token.address, setError]);
+    }, [token.address, rpcUrl, setError]);
 
     const startEditing = (index: number) => {
         setAuthorities(prev =>
@@ -166,7 +176,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                     mint: token.address,
                     role: authority.role,
                     newAuthority: authority.newAuthority.trim(),
-                    rpcUrl: getRpcUrl(),
+                    rpcUrl,
                 },
                 transactionSendingSigner,
             );

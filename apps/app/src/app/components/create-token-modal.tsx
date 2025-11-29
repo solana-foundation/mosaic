@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { templates, type Template } from './templates';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
+import { useConnector } from '@solana/connector/react';
 import { StablecoinCreateForm } from '@/app/create/stablecoin/stablecoin-create-form';
 import { ArcadeTokenCreateForm } from '@/app/create/arcade-token/arcade-token-create-form';
 import { TokenizedSecurityCreateForm } from '@/app/create/tokenized-security/tokenized-security-create-form';
@@ -27,6 +28,10 @@ interface CreateTokenModalProps {
 export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: CreateTokenModalProps) {
     const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
     const transactionSendingSigner = useConnectorSigner();
+    const { cluster } = useConnector();
+    
+    // Get RPC URL from the current cluster
+    const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
     const handleTemplateSelect = (template: Template) => {
         setSelectedTemplate(template);
@@ -55,13 +60,13 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
 
         switch (selectedTemplate.href) {
             case '/create/stablecoin':
-                return <StablecoinCreateForm transactionSendingSigner={transactionSendingSigner} onTokenCreated={handleTokenCreated} />;
+                return <StablecoinCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} onTokenCreated={handleTokenCreated} />;
             case '/create/arcade-token':
-                return <ArcadeTokenCreateForm transactionSendingSigner={transactionSendingSigner} onTokenCreated={handleTokenCreated} />;
+                return <ArcadeTokenCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} onTokenCreated={handleTokenCreated} />;
             case '/create/tokenized-security':
-                return <TokenizedSecurityCreateForm transactionSendingSigner={transactionSendingSigner} onTokenCreated={handleTokenCreated} />;
+                return <TokenizedSecurityCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} onTokenCreated={handleTokenCreated} />;
             case '/create/custom-token':
-                return <CustomTokenCreateForm transactionSendingSigner={transactionSendingSigner} onTokenCreated={handleTokenCreated} />;
+                return <CustomTokenCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} onTokenCreated={handleTokenCreated} />;
             default:
                 return null;
         }
@@ -71,11 +76,11 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
         <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className={cn(
                 "overflow-hidden sm:rounded-3xl p-0 gap-0 transition-all duration-300",
-                selectedTemplate ? "max-w-4xl" : "max-w-lg"
+                selectedTemplate ? "max-w-3xl" : "max-w-xl"
             )}>
                 <div className={cn(
                     "overflow-hidden transition-all duration-300 ease-in-out",
-                    selectedTemplate ? "max-h-[90vh]" : "max-h-[600px]"
+                    selectedTemplate ? "max-h-[90vh]" : "max-h-[700px]"
                 )}>
                     <div className="overflow-y-auto max-h-[90vh]">
                         {!selectedTemplate ? (

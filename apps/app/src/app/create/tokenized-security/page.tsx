@@ -8,7 +8,7 @@ import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
 import { TokenizedSecurityCreateForm } from './tokenized-security-create-form';
 
-function TokenizedSecurityCreateWithWallet() {
+function TokenizedSecurityCreateWithWallet({ rpcUrl }: { rpcUrl: string }) {
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
 
@@ -54,7 +54,7 @@ function TokenizedSecurityCreateWithWallet() {
                         />
                     </aside>
                     <div className="order-last lg:order-1 flex-1">
-                        <TokenizedSecurityCreateForm transactionSendingSigner={transactionSendingSigner} />
+                        <TokenizedSecurityCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} />
                     </div>
                 </div>
             </div>
@@ -64,9 +64,12 @@ function TokenizedSecurityCreateWithWallet() {
 
 export default function TokenizedSecurityCreatePage() {
     const { connected, selectedAccount, cluster } = useConnector();
+    
+    // Get RPC URL from the current cluster
+    const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
     if (connected && selectedAccount && cluster) {
-        return <TokenizedSecurityCreateWithWallet />;
+        return <TokenizedSecurityCreateWithWallet rpcUrl={rpcUrl} />;
     }
 
     return (
