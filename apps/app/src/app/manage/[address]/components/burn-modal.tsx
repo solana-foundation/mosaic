@@ -106,9 +106,7 @@ export function BurnModalContent({
     };
 
     return (
-        <AlertDialogContent className={cn(
-            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
-        )}>
+        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
             <div className="overflow-hidden">
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
@@ -163,8 +161,8 @@ export function BurnModalContent({
                                     </span>
                                 </div>
                                 <p className="text-sm text-orange-700/80 dark:text-orange-300/80 leading-relaxed">
-                                    Burning tokens permanently removes them from your wallet and reduces the total supply. 
-                                    This action cannot be undone.
+                                    Burning tokens permanently removes them from your wallet and reduces the total
+                                    supply. This action cannot be undone.
                                 </p>
                             </div>
 
@@ -192,11 +190,7 @@ export function BurnModalContent({
                                 </AlertDialogCancel>
                                 <Button
                                     onClick={handleBurn}
-                                    disabled={
-                                        isLoading ||
-                                        !amount.trim() ||
-                                        !validateAmount(amount)
-                                    }
+                                    disabled={isLoading || !amount.trim() || !validateAmount(amount)}
                                     className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all bg-orange-500 hover:bg-orange-600 text-white"
                                 >
                                     {isLoading ? (

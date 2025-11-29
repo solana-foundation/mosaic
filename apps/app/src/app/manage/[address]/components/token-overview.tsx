@@ -21,7 +21,10 @@ export interface TokenOverviewRef {
     refreshSupply: () => Promise<void>;
 }
 
-export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(function TokenOverview({ token, onCopy, refreshTrigger }, ref) {
+export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(function TokenOverview(
+    { token, onCopy, refreshTrigger },
+    ref,
+) {
     const { cluster } = useConnector();
 
     // Create RPC client from current cluster
@@ -60,9 +63,13 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
     }, [refreshTrigger, fetchSupply]);
 
     // Expose refreshSupply to parent components
-    useImperativeHandle(ref, () => ({
-        refreshSupply: fetchSupply,
-    }), [fetchSupply]);
+    useImperativeHandle(
+        ref,
+        () => ({
+            refreshSupply: fetchSupply,
+        }),
+        [fetchSupply],
+    );
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'Unknown';
@@ -100,8 +107,10 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
                     <div className="flex justify-between items-center py-2 border-b last:border-0">
                         <span className="text-sm text-muted-foreground">Creation Address</span>
                         <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm">{formatAddress(token.mintAuthority || token.transactionSignature)}</span>
-                             <Button
+                            <span className="font-mono text-sm">
+                                {formatAddress(token.mintAuthority || token.transactionSignature)}
+                            </span>
+                            <Button
                                 variant="secondary"
                                 size="icon"
                                 className="h-4 w-4"
@@ -115,9 +124,9 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
                     <div className="flex justify-between items-center py-2 border-b last:border-0">
                         <span className="text-sm text-muted-foreground">Supply</span>
                         <div className="flex items-center gap-2">
-                             {isLoadingSupply ? (
+                            {isLoadingSupply ? (
                                 <Spinner size={14} className="text-muted-foreground" />
-                             ) : (
+                            ) : (
                                 <>
                                     <span className="font-semibold">{currentSupply}</span>
                                     <Button
@@ -130,7 +139,7 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
                                         <RefreshCw className="h-3 w-3" />
                                     </Button>
                                 </>
-                             )}
+                            )}
                         </div>
                     </div>
 
@@ -146,7 +155,7 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
                         </Badge>
                     </div>
 
-                     <div className="flex justify-between items-center py-2 border-b last:border-0">
+                    <div className="flex justify-between items-center py-2 border-b last:border-0">
                         <span className="text-sm text-muted-foreground">Decimals</span>
                         <span className="font-semibold">{token.decimals || '6'}</span>
                     </div>

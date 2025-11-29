@@ -54,7 +54,10 @@ function TokenizedSecurityCreateWithWallet({ rpcUrl }: { rpcUrl: string }) {
                         />
                     </aside>
                     <div className="order-last lg:order-1 flex-1">
-                        <TokenizedSecurityCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} />
+                        <TokenizedSecurityCreateForm
+                            transactionSendingSigner={transactionSendingSigner}
+                            rpcUrl={rpcUrl}
+                        />
                     </div>
                 </div>
             </div>
@@ -64,7 +67,7 @@ function TokenizedSecurityCreateWithWallet({ rpcUrl }: { rpcUrl: string }) {
 
 export default function TokenizedSecurityCreatePage() {
     const { connected, selectedAccount, cluster } = useConnector();
-    
+
     // Get RPC URL from the current cluster
     const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 

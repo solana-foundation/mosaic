@@ -15,8 +15,12 @@ interface ArcadeTokenCreateFormProps {
     onTokenCreated?: () => void;
 }
 
-export function ArcadeTokenCreateForm({ transactionSendingSigner, rpcUrl, onTokenCreated }: ArcadeTokenCreateFormProps) {
-    const addToken = useTokenStore((state) => state.addToken);
+export function ArcadeTokenCreateForm({
+    transactionSendingSigner,
+    rpcUrl,
+    onTokenCreated,
+}: ArcadeTokenCreateFormProps) {
+    const addToken = useTokenStore(state => state.addToken);
     const [arcadeTokenOptions, setArcadeTokenOptions] = useState<ArcadeTokenOptions>({
         name: '',
         symbol: '',
@@ -58,7 +62,12 @@ export function ArcadeTokenCreateForm({ transactionSendingSigner, rpcUrl, onToke
                           : '';
 
                 // Create token display object with creator wallet
-                const tokenDisplay = createTokenDisplayFromResult(result, 'arcade-token', arcadeTokenOptions, defaultAuthority);
+                const tokenDisplay = createTokenDisplayFromResult(
+                    result,
+                    'arcade-token',
+                    arcadeTokenOptions,
+                    defaultAuthority,
+                );
 
                 // Save to store (automatically persists to localStorage)
                 addToken(tokenDisplay);

@@ -108,9 +108,7 @@ export function CloseAccountModalContent({
     };
 
     return (
-        <AlertDialogContent className={cn(
-            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
-        )}>
+        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
             <div className="overflow-hidden">
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
@@ -153,7 +151,9 @@ export function CloseAccountModalContent({
                                     </span>
                                 </div>
                                 <ul className="text-sm text-amber-700/80 dark:text-amber-300/80 leading-relaxed list-disc pl-5 space-y-1">
-                                    <li>Your token account must have a <strong>zero balance</strong></li>
+                                    <li>
+                                        Your token account must have a <strong>zero balance</strong>
+                                    </li>
                                     <li>Closing the account will reclaim ~0.002 SOL in rent</li>
                                     <li>This action cannot be undone</li>
                                 </ul>
@@ -211,8 +211,7 @@ export function CloseAccountModalContent({
                                 <Button
                                     onClick={handleCloseAccount}
                                     disabled={
-                                        isLoading ||
-                                        (useCustomDestination && !validateSolanaAddress(destination))
+                                        isLoading || (useCustomDestination && !validateSolanaAddress(destination))
                                     }
                                     className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all bg-red-500 hover:bg-red-600 text-white"
                                 >

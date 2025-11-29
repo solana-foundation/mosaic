@@ -11,10 +11,10 @@ import { useWalletTokens, useTokenStore } from '@/stores/token-store';
 export function DashboardConnected() {
     const { selectedAccount } = useConnector();
     const tokens = useWalletTokens(selectedAccount || undefined);
-    const removeToken = useTokenStore((state) => state.removeToken);
+    const removeToken = useTokenStore(state => state.removeToken);
 
     const handleDeleteToken = (address: string) => {
-            removeToken(address);
+        removeToken(address);
     };
 
     const handleTokenCreated = () => {
@@ -37,7 +37,7 @@ export function DashboardConnected() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {tokens.map((token) => (
+                    {tokens.map(token => (
                         <TokenCard key={token.address} token={token} onDelete={handleDeleteToken} />
                     ))}
                     <TokenCardEmptyState onTokenCreated={handleTokenCreated} />
@@ -46,4 +46,3 @@ export function DashboardConnected() {
         </div>
     );
 }
-

@@ -33,4 +33,3 @@ export function useWalletBalance() {
 
     return { balance, isLoading };
 }
-

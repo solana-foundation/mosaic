@@ -10,9 +10,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-    AlertDialog,
-} from '@/components/ui/alert-dialog';
+import { AlertDialog } from '@/components/ui/alert-dialog';
 import { DeleteTokenModalContent } from './delete-token-modal';
 import { TokenDisplay } from '@/types/token';
 import { useConnector } from '@solana/connector/react';
@@ -98,7 +96,7 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
 
     const handleDialogOpenChange = (open: boolean) => {
         setIsDeleteDialogOpen(open);
-        
+
         if (!open) {
             // Dialog is closing
             // Force cleanup body styles
@@ -107,7 +105,7 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
                 document.body.style.overflow = '';
                 document.body.style.removeProperty('pointer-events');
                 document.body.style.removeProperty('overflow');
-                
+
                 // If we're pending delete, do it after cleanup
                 if (pendingDeleteRef.current && token.address) {
                     pendingDeleteRef.current = false;
@@ -155,7 +153,7 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
                                             </a>
                                         </DropdownMenuItem>
                                     )}
-                                    <DropdownMenuItem 
+                                    <DropdownMenuItem
                                         onClick={handleDeleteClick}
                                         className="text-red-600 hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-600 dark:hover:!bg-red-800/40 rounded-lg"
                                     >
@@ -170,7 +168,10 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
                     {/* Title: Name and Symbol */}
                     <div className="mb-4">
                         <h3 className="text-2xl font-bold text-foreground mb-1 leading-tight tracking-tight">
-                            {token.name || (token.address ? `Token ${token.address.slice(0, 4)}...${token.address.slice(-4)}` : 'Token')}
+                            {token.name ||
+                                (token.address
+                                    ? `Token ${token.address.slice(0, 4)}...${token.address.slice(-4)}`
+                                    : 'Token')}
                         </h3>
                         <p className="text-md text-muted-foreground font-medium">${token.symbol || 'TKN'}</p>
                     </div>
@@ -207,16 +208,18 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
 
                         <div className="flex items-center justify-between bg-primary/5 rounded-b-lg p-4">
                             <span className="text-muted-foreground text-sm font-medium">Created</span>
-                            <span className="font-semibold text-foreground text-sm">
-                                {formatDate(token.createdAt)}
-                            </span>
+                            <span className="font-semibold text-foreground text-sm">{formatDate(token.createdAt)}</span>
                         </div>
                     </div>
                 </CardContent>
 
                 <CardFooter className="p-6 pt-0">
                     <Link href={`/manage/${token.address}`} className="w-full">
-                        <Button variant="default" className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold h-11" size="lg">
+                        <Button
+                            variant="default"
+                            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 rounded-xl font-semibold h-11"
+                            size="lg"
+                        >
                             Manage
                         </Button>
                     </Link>
@@ -225,10 +228,7 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
 
             {/* Delete confirmation dialog - rendered outside the card */}
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDialogOpenChange}>
-                <DeleteTokenModalContent 
-                    tokenName={token.name} 
-                    onConfirm={handleDeleteConfirm} 
-                />
+                <DeleteTokenModalContent tokenName={token.name} onConfirm={handleDeleteConfirm} />
             </AlertDialog>
         </>
     );

@@ -118,9 +118,7 @@ export function TransferModalContent({
     };
 
     return (
-        <AlertDialogContent className={cn(
-            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
-        )}>
+        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
             <div className="overflow-hidden">
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
@@ -181,7 +179,7 @@ export function TransferModalContent({
                                 </label>
                                 <Input
                                     value={memo}
-                                    onChange={(e) => setMemo(e.target.value)}
+                                    onChange={e => setMemo(e.target.value)}
                                     placeholder="Add a memo to the transaction..."
                                     className="rounded-xl"
                                     disabled={isLoading}

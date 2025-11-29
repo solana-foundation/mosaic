@@ -12,7 +12,7 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
     const [showOptionalParams, setShowOptionalParams] = useState(false);
 
     // Check if any extension that requires authorities is enabled
-    const hasEnabledExtensions = 
+    const hasEnabledExtensions =
         options.enableMetadata ||
         options.enablePausable ||
         options.enablePermanentDelegate ||
@@ -57,7 +57,7 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                             onChange={e => onInputChange('mintAuthority', e.target.value)}
                         />
                     </div>
-                    
+
                     {options.enableMetadata && (
                         <div>
                             <label className="block text-sm font-medium mb-2">Metadata Authority</label>
@@ -70,7 +70,7 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                             />
                         </div>
                     )}
-                    
+
                     {options.enablePausable && (
                         <div>
                             <label className="block text-sm font-medium mb-2">Pausable Authority</label>
@@ -83,7 +83,7 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                             />
                         </div>
                     )}
-                    
+
                     {options.enablePermanentDelegate && (
                         <div>
                             <label className="block text-sm font-medium mb-2">Permanent Delegate Authority</label>
@@ -96,7 +96,7 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                             />
                         </div>
                     )}
-                    
+
                     {options.enableConfidentialBalances && (
                         <div>
                             <label className="block text-sm font-medium mb-2">Confidential Balances Authority</label>
@@ -109,7 +109,7 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                             />
                         </div>
                     )}
-                    
+
                     {options.enableScaledUiAmount && (
                         <>
                             <div>
@@ -150,7 +150,7 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                             </div>
                         </>
                     )}
-                    
+
                     {options.enableDefaultAccountState && (
                         <div>
                             <label className="block text-sm font-medium mb-2">Default Account State</label>
@@ -180,7 +180,7 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                             </div>
                         </div>
                     )}
-                    
+
                     <div>
                         <label className="block text-sm font-medium mb-2">Freeze Authority (Optional)</label>
                         <input
@@ -196,10 +196,3 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
         </Card>
     );
 }
-
-
-
-
-
-
-

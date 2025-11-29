@@ -51,7 +51,7 @@ function validateCloseAccountOptions(options: CloseAccountOptions): void {
 /**
  * Closes an empty token account and reclaims the rent.
  * The token account must have a zero balance.
- * 
+ *
  * @param options - Configuration options for closing the account
  * @param signer - Transaction sending signer instance (must be token account owner)
  * @returns Promise that resolves to close result with signature and details

@@ -71,7 +71,7 @@ function StablecoinCreateWithWallet({ rpcUrl }: { rpcUrl: string }) {
 // Simple wrapper component that shows a message when wallet is not connected
 function StablecoinCreatePage() {
     const { connected, selectedAccount, cluster } = useConnector();
-    
+
     // Get RPC URL from the current cluster
     const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 

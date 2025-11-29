@@ -28,7 +28,7 @@ interface FreezeThawModalContentProps {
 }
 
 export function FreezeThawModalContent({
-    mintAddress,
+    mintAddress: _mintAddress,
     freezeAuthority,
     transactionSendingSigner,
     mode,
@@ -113,17 +113,12 @@ export function FreezeThawModalContent({
     };
 
     return (
-        <AlertDialogContent className={cn(
-            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
-        )}>
+        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
             <div className="overflow-hidden">
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <Icon className={cn(
-                                "h-5 w-5",
-                                isFreeze ? "text-blue-500" : "text-amber-500"
-                            )} />
+                            <Icon className={cn('h-5 w-5', isFreeze ? 'text-blue-500' : 'text-amber-500')} />
                             <AlertDialogTitle className="text-xl font-semibold">
                                 {success ? successTitle : title}
                             </AlertDialogTitle>
@@ -165,41 +160,51 @@ export function FreezeThawModalContent({
                                 disabled={isLoading}
                             />
 
-                            <div className={cn(
-                                "rounded-2xl p-5 space-y-3 border",
-                                isFreeze 
-                                    ? "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800"
-                                    : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
-                            )}>
+                            <div
+                                className={cn(
+                                    'rounded-2xl p-5 space-y-3 border',
+                                    isFreeze
+                                        ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+                                        : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800',
+                                )}
+                            >
                                 <div className="flex items-center gap-3">
-                                    <div className={cn(
-                                        "p-2 rounded-xl",
-                                        isFreeze 
-                                            ? "bg-blue-100 dark:bg-blue-900/50"
-                                            : "bg-amber-100 dark:bg-amber-900/50"
-                                    )}>
-                                        <Icon className={cn(
-                                            "h-5 w-5",
-                                            isFreeze 
-                                                ? "text-blue-600 dark:text-blue-400"
-                                                : "text-amber-600 dark:text-amber-400"
-                                        )} />
+                                    <div
+                                        className={cn(
+                                            'p-2 rounded-xl',
+                                            isFreeze
+                                                ? 'bg-blue-100 dark:bg-blue-900/50'
+                                                : 'bg-amber-100 dark:bg-amber-900/50',
+                                        )}
+                                    >
+                                        <Icon
+                                            className={cn(
+                                                'h-5 w-5',
+                                                isFreeze
+                                                    ? 'text-blue-600 dark:text-blue-400'
+                                                    : 'text-amber-600 dark:text-amber-400',
+                                            )}
+                                        />
                                     </div>
-                                    <span className={cn(
-                                        "font-semibold",
-                                        isFreeze 
-                                            ? "text-blue-700 dark:text-blue-300"
-                                            : "text-amber-700 dark:text-amber-300"
-                                    )}>
+                                    <span
+                                        className={cn(
+                                            'font-semibold',
+                                            isFreeze
+                                                ? 'text-blue-700 dark:text-blue-300'
+                                                : 'text-amber-700 dark:text-amber-300',
+                                        )}
+                                    >
                                         {isFreeze ? 'Account Freeze' : 'Account Thaw'}
                                     </span>
                                 </div>
-                                <p className={cn(
-                                    "text-sm leading-relaxed",
-                                    isFreeze 
-                                        ? "text-blue-700/80 dark:text-blue-300/80"
-                                        : "text-amber-700/80 dark:text-amber-300/80"
-                                )}>
+                                <p
+                                    className={cn(
+                                        'text-sm leading-relaxed',
+                                        isFreeze
+                                            ? 'text-blue-700/80 dark:text-blue-300/80'
+                                            : 'text-amber-700/80 dark:text-amber-300/80',
+                                    )}
+                                >
                                     {isFreeze
                                         ? 'Freezing an account will prevent the owner from transferring tokens. This is different from pausing, which affects all accounts.'
                                         : 'Thawing an account will restore the ability for the owner to transfer tokens. Only the freeze authority can perform this action.'}
@@ -230,16 +235,10 @@ export function FreezeThawModalContent({
                                 </AlertDialogCancel>
                                 <Button
                                     onClick={handleAction}
-                                    disabled={
-                                        isLoading ||
-                                        !tokenAccount.trim() ||
-                                        !validateSolanaAddress(tokenAccount)
-                                    }
+                                    disabled={isLoading || !tokenAccount.trim() || !validateSolanaAddress(tokenAccount)}
                                     className={cn(
-                                        "w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all text-white",
-                                        isFreeze 
-                                            ? "bg-blue-500 hover:bg-blue-600"
-                                            : "bg-amber-500 hover:bg-amber-600"
+                                        'w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all text-white',
+                                        isFreeze ? 'bg-blue-500 hover:bg-blue-600' : 'bg-amber-500 hover:bg-amber-600',
                                     )}
                                 >
                                     {isLoading ? (

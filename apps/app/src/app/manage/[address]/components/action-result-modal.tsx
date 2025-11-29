@@ -29,15 +29,15 @@ interface ActionResultModalProps {
  */
 function getExplorerClusterParam(clusterName?: string): string | undefined {
     if (!clusterName) return undefined;
-    
+
     // Map internal cluster names to explorer values
     const clusterMap: Record<string, string | undefined> = {
         'mainnet-beta': undefined, // Omit cluster param for mainnet
-        'mainnet': undefined,
-        'devnet': 'devnet',
-        'testnet': 'testnet',
+        mainnet: undefined,
+        devnet: 'devnet',
+        testnet: 'testnet',
     };
-    
+
     return clusterMap[clusterName.toLowerCase()] ?? clusterName.toLowerCase();
 }
 
@@ -47,13 +47,13 @@ function getExplorerClusterParam(clusterName?: string): string | undefined {
  */
 function getClusterName(cluster: unknown): string | undefined {
     if (!cluster || typeof cluster !== 'object') return undefined;
-    
+
     // Try to access name property (may not be in type definition but exists at runtime)
     const clusterObj = cluster as Record<string, unknown>;
     if (typeof clusterObj.name === 'string') {
         return clusterObj.name;
     }
-    
+
     // Fallback: try to infer from id (e.g., 'solana:mainnet' -> 'mainnet')
     if (typeof clusterObj.id === 'string') {
         const idParts = clusterObj.id.split(':');
@@ -63,7 +63,7 @@ function getClusterName(cluster: unknown): string | undefined {
             return network === 'mainnet' ? 'mainnet-beta' : network;
         }
     }
-    
+
     // Fallback: try to infer from URL
     if (typeof clusterObj.url === 'string') {
         const url = clusterObj.url.toLowerCase();
@@ -77,7 +77,7 @@ function getClusterName(cluster: unknown): string | undefined {
             return 'testnet';
         }
     }
-    
+
     return undefined;
 }
 
@@ -90,11 +90,11 @@ function getClusterName(cluster: unknown): string | undefined {
  */
 function getEffectiveClusterName(clusterName?: string, connectorCluster?: unknown): string {
     if (clusterName) return clusterName;
-    
+
     // Try to get from connector cluster
     const connectorClusterName = getClusterName(connectorCluster);
     if (connectorClusterName) return connectorClusterName;
-    
+
     // Check environment variable as fallback
     const envNetwork = process.env.NEXT_PUBLIC_SOLANA_NETWORK;
     if (envNetwork) {
@@ -104,7 +104,7 @@ function getEffectiveClusterName(clusterName?: string, connectorCluster?: unknow
             return sanitized === 'mainnet' ? 'mainnet-beta' : sanitized;
         }
     }
-    
+
     // Default fallback to mainnet-beta
     return 'mainnet-beta';
 }
@@ -118,13 +118,13 @@ function buildExplorerUrl(signature: string, clusterName?: string, connectorClus
     const baseUrl = `https://explorer.solana.com/tx/${encodeURIComponent(signature)}`;
     const effectiveClusterName = getEffectiveClusterName(clusterName, connectorCluster);
     const clusterParam = getExplorerClusterParam(effectiveClusterName);
-    
+
     if (clusterParam) {
         // Validate and encode the cluster parameter
         const encodedCluster = encodeURIComponent(clusterParam);
         return `${baseUrl}?cluster=${encodedCluster}`;
     }
-    
+
     return baseUrl;
 }
 
@@ -137,17 +137,20 @@ export function ActionResultModal({
     cluster: clusterProp,
 }: ActionResultModalProps) {
     const { cluster: connectorCluster } = useConnector();
-    
+
     // Use provided cluster prop, fall back to connector cluster, then to default
     const clusterName = clusterProp || getClusterName(connectorCluster);
 
     const title = actionInProgress ? 'Action in progress...' : error ? 'Error' : 'Success';
 
     return (
-        <AlertDialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-            <AlertDialogContent className={cn(
-                "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
-            )}>
+        <AlertDialog
+            open={isOpen}
+            onOpenChange={open => {
+                if (!open) onClose();
+            }}
+        >
+            <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
                 <div className="overflow-hidden">
                     <AlertDialogHeader className="p-6 pb-4 border-b">
                         <div className="flex items-center justify-between">
@@ -171,12 +174,11 @@ export function ActionResultModal({
                             )}
                         </div>
                         <AlertDialogDescription>
-                            {actionInProgress 
+                            {actionInProgress
                                 ? 'Please wait while the action completes'
-                                : error 
-                                    ? 'An error occurred'
-                                    : 'Operation completed successfully'
-                            }
+                                : error
+                                  ? 'An error occurred'
+                                  : 'Operation completed successfully'}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
 
@@ -193,9 +195,7 @@ export function ActionResultModal({
                         {/* Error Message */}
                         {error && (
                             <div className="bg-red-50 dark:bg-red-950/30 rounded-2xl p-5 border border-red-200 dark:border-red-800">
-                                <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">
-                                    {error}
-                                </p>
+                                <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">{error}</p>
                             </div>
                         )}
 
@@ -227,9 +227,7 @@ export function ActionResultModal({
                         {/* Close Button */}
                         {!actionInProgress && (
                             <div className="pt-2">
-                                <AlertDialogCancel className="w-full h-12 rounded-xl mt-0">
-                                    Close
-                                </AlertDialogCancel>
+                                <AlertDialogCancel className="w-full h-12 rounded-xl mt-0">Close</AlertDialogCancel>
                             </div>
                         )}
                     </div>

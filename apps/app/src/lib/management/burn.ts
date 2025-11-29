@@ -51,15 +51,12 @@ function validateBurnOptions(options: BurnOptions): void {
 /**
  * Burns tokens from the connected wallet.
  * This is a self-burn operation - the wallet owner burns their own tokens.
- * 
+ *
  * @param options - Configuration options for burning
  * @param signer - Transaction sending signer instance (token owner)
  * @returns Promise that resolves to burn result with signature and details
  */
-export const burnTokens = async (
-    options: BurnOptions,
-    signer: TransactionModifyingSigner,
-): Promise<BurnResult> => {
+export const burnTokens = async (options: BurnOptions, signer: TransactionModifyingSigner): Promise<BurnResult> => {
     try {
         validateBurnOptions(options);
 

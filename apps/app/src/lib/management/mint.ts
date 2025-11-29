@@ -57,7 +57,7 @@ function validateMintOptions(options: MintOptions): void {
  * Mints tokens to a recipient using the wallet standard transaction signer.
  * The SDK's createMintToTransaction internally fetches mint decimals and
  * converts the amount appropriately.
- * 
+ *
  * @param options - Configuration options for minting
  * @param signer - Transaction sending signer instance
  * @returns Promise that resolves to mint result with signature and details

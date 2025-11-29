@@ -67,10 +67,3 @@ export function CustomTokenBasicParams({ options, onInputChange }: CustomTokenBa
         </Card>
     );
 }
-
-
-
-
-
-
-

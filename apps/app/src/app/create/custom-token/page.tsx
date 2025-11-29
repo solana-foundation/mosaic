@@ -40,7 +40,7 @@ function CustomTokenCreateWithWallet({ rpcUrl }: { rpcUrl: string }) {
 // Simple wrapper component that shows a message when wallet is not connected
 function CustomTokenCreatePage() {
     const { connected, selectedAccount, cluster } = useConnector();
-    
+
     // Get RPC URL from the current cluster
     const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
@@ -72,8 +72,8 @@ function CustomTokenCreatePage() {
                     </CardHeader>
                     <CardContent>
                         <p className="text-muted-foreground">
-                            To create a custom token, you need to connect a wallet first. Please use the wallet connection
-                            button in the top navigation.
+                            To create a custom token, you need to connect a wallet first. Please use the wallet
+                            connection button in the top navigation.
                         </p>
                     </CardContent>
                 </Card>
@@ -83,10 +83,3 @@ function CustomTokenCreatePage() {
 }
 
 export default CustomTokenCreatePage;
-
-
-
-
-
-
-

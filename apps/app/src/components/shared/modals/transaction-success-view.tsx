@@ -20,15 +20,15 @@ interface TransactionSuccessViewProps {
  */
 function getExplorerClusterParam(clusterName?: string): string | undefined {
     if (!clusterName) return undefined;
-    
+
     // Map internal cluster names to explorer values
     const clusterMap: Record<string, string | undefined> = {
         'mainnet-beta': undefined, // Omit cluster param for mainnet
-        'mainnet': undefined,
-        'devnet': 'devnet',
-        'testnet': 'testnet',
+        mainnet: undefined,
+        devnet: 'devnet',
+        testnet: 'testnet',
     };
-    
+
     return clusterMap[clusterName.toLowerCase()] ?? clusterName.toLowerCase();
 }
 
@@ -39,11 +39,11 @@ function getExplorerClusterParam(clusterName?: string): string | undefined {
 function buildExplorerUrl(signature: string, clusterName?: string): string {
     const baseUrl = `https://explorer.solana.com/tx/${signature}`;
     const clusterParam = getExplorerClusterParam(clusterName);
-    
+
     if (clusterParam) {
         return `${baseUrl}?cluster=${clusterParam}`;
     }
-    
+
     return baseUrl;
 }
 
@@ -53,13 +53,13 @@ function buildExplorerUrl(signature: string, clusterName?: string): string {
  */
 function getClusterName(cluster: unknown): string | undefined {
     if (!cluster || typeof cluster !== 'object') return undefined;
-    
+
     // Try to access name property (may not be in type definition but exists at runtime)
     const clusterObj = cluster as Record<string, unknown>;
     if (typeof clusterObj.name === 'string') {
         return clusterObj.name;
     }
-    
+
     // Fallback: try to infer from id (e.g., 'solana:mainnet' -> 'mainnet')
     if (typeof clusterObj.id === 'string') {
         const idParts = clusterObj.id.split(':');
@@ -69,7 +69,7 @@ function getClusterName(cluster: unknown): string | undefined {
             return network === 'mainnet' ? 'mainnet-beta' : network;
         }
     }
-    
+
     // Fallback: try to infer from URL
     if (typeof clusterObj.url === 'string') {
         const url = clusterObj.url.toLowerCase();
@@ -83,7 +83,7 @@ function getClusterName(cluster: unknown): string | undefined {
             return 'testnet';
         }
     }
-    
+
     return undefined;
 }
 
@@ -97,10 +97,10 @@ export function TransactionSuccessView({
     cluster: clusterProp,
 }: TransactionSuccessViewProps) {
     const { cluster: connectorCluster } = useConnector();
-    
+
     // Use provided cluster prop, fall back to connector cluster, then to undefined
     const clusterName = clusterProp || getClusterName(connectorCluster);
-    
+
     const handleExplorerClick = () => {
         if (!transactionSignature) return;
         const explorerUrl = buildExplorerUrl(transactionSignature, clusterName);
@@ -125,11 +125,7 @@ export function TransactionSuccessView({
                             readOnly
                             className="flex-1 p-2 border rounded-md bg-muted text-muted-foreground text-sm"
                         />
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleExplorerClick}
-                        >
+                        <Button variant="outline" size="sm" onClick={handleExplorerClick}>
                             <ExternalLink className="h-4 w-4" />
                         </Button>
                     </div>

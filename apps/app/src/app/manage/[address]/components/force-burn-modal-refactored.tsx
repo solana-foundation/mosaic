@@ -125,9 +125,7 @@ export function ForceBurnModalContent({
     };
 
     return (
-        <AlertDialogContent className={cn(
-            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
-        )}>
+        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
             <div className="overflow-hidden">
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
@@ -143,9 +141,7 @@ export function ForceBurnModalContent({
                             <X className="h-4 w-4" />
                         </AlertDialogCancel>
                     </div>
-                    <AlertDialogDescription>
-                        Permanently destroy tokens from any account
-                    </AlertDialogDescription>
+                    <AlertDialogDescription>Permanently destroy tokens from any account</AlertDialogDescription>
                 </AlertDialogHeader>
 
                 <div className="p-6 space-y-5">
@@ -180,22 +176,27 @@ export function ForceBurnModalContent({
                                 required
                                 disabled={isLoading}
                             />
-                            
+
                             <div className="bg-red-50 dark:bg-red-950/30 rounded-2xl p-5 space-y-3 border border-red-200 dark:border-red-800">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/50">
                                         <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
                                     </div>
-                                    <span className="font-semibold text-red-700 dark:text-red-300">Irreversible Action</span>
+                                    <span className="font-semibold text-red-700 dark:text-red-300">
+                                        Irreversible Action
+                                    </span>
                                 </div>
                                 <p className="text-sm text-red-700/80 dark:text-red-300/80 leading-relaxed">
-                                    Force burning will permanently destroy tokens from any account. This action cannot be undone. Only use this for compliance or emergency purposes.
+                                    Force burning will permanently destroy tokens from any account. This action cannot
+                                    be undone. Only use this for compliance or emergency purposes.
                                 </p>
                             </div>
-                            
+
                             {permanentDelegate && (
                                 <div>
-                                    <label className="block text-sm font-medium mb-2">Permanent Delegate Authority</label>
+                                    <label className="block text-sm font-medium mb-2">
+                                        Permanent Delegate Authority
+                                    </label>
                                     <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
                                         {permanentDelegate}
                                     </div>
@@ -214,7 +215,8 @@ export function ForceBurnModalContent({
                                                 Not Authorized
                                             </p>
                                             <p className="text-xs text-amber-600/80 dark:text-amber-400/80">
-                                                Your connected wallet is not the permanent delegate. Only the permanent delegate can force burn tokens.
+                                                Your connected wallet is not the permanent delegate. Only the permanent
+                                                delegate can force burn tokens.
                                             </p>
                                         </div>
                                     </div>

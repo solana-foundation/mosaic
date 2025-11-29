@@ -3,13 +3,7 @@
 import { useState } from 'react';
 import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { templates, type Template } from './templates';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
 import { useConnector } from '@solana/connector/react';
@@ -29,7 +23,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
     const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
     const transactionSendingSigner = useConnectorSigner();
     const { cluster } = useConnector();
-    
+
     // Get RPC URL from the current cluster
     const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
@@ -60,13 +54,37 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
 
         switch (selectedTemplate.href) {
             case '/create/stablecoin':
-                return <StablecoinCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} onTokenCreated={handleTokenCreated} />;
+                return (
+                    <StablecoinCreateForm
+                        transactionSendingSigner={transactionSendingSigner}
+                        rpcUrl={rpcUrl}
+                        onTokenCreated={handleTokenCreated}
+                    />
+                );
             case '/create/arcade-token':
-                return <ArcadeTokenCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} onTokenCreated={handleTokenCreated} />;
+                return (
+                    <ArcadeTokenCreateForm
+                        transactionSendingSigner={transactionSendingSigner}
+                        rpcUrl={rpcUrl}
+                        onTokenCreated={handleTokenCreated}
+                    />
+                );
             case '/create/tokenized-security':
-                return <TokenizedSecurityCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} onTokenCreated={handleTokenCreated} />;
+                return (
+                    <TokenizedSecurityCreateForm
+                        transactionSendingSigner={transactionSendingSigner}
+                        rpcUrl={rpcUrl}
+                        onTokenCreated={handleTokenCreated}
+                    />
+                );
             case '/create/custom-token':
-                return <CustomTokenCreateForm transactionSendingSigner={transactionSendingSigner} rpcUrl={rpcUrl} onTokenCreated={handleTokenCreated} />;
+                return (
+                    <CustomTokenCreateForm
+                        transactionSendingSigner={transactionSendingSigner}
+                        rpcUrl={rpcUrl}
+                        onTokenCreated={handleTokenCreated}
+                    />
+                );
             default:
                 return null;
         }
@@ -74,14 +92,18 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className={cn(
-                "overflow-hidden sm:rounded-3xl p-0 gap-0 transition-all duration-300",
-                selectedTemplate ? "max-w-3xl" : "max-w-xl"
-            )}>
-                <div className={cn(
-                    "overflow-hidden transition-all duration-300 ease-in-out",
-                    selectedTemplate ? "max-h-[90vh]" : "max-h-[700px]"
-                )}>
+            <DialogContent
+                className={cn(
+                    'overflow-hidden sm:rounded-3xl p-0 gap-0 transition-all duration-300',
+                    selectedTemplate ? 'max-w-3xl' : 'max-w-xl',
+                )}
+            >
+                <div
+                    className={cn(
+                        'overflow-hidden transition-all duration-300 ease-in-out',
+                        selectedTemplate ? 'max-h-[90vh]' : 'max-h-[700px]',
+                    )}
+                >
                     <div className="overflow-y-auto max-h-[90vh]">
                         {!selectedTemplate ? (
                             <>
@@ -106,11 +128,13 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                                 onClick={() => handleTemplateSelect(customToken)}
                                                 className="w-full cursor-pointer active:scale-[0.98] flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-200 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
                                             >
-                                                <div className={cn("p-3 rounded-xl shrink-0", customToken.colorClass)}>
-                                                    <Icon className={cn("h-6 w-6", customToken.iconColorClass)} />
+                                                <div className={cn('p-3 rounded-xl shrink-0', customToken.colorClass)}>
+                                                    <Icon className={cn('h-6 w-6', customToken.iconColorClass)} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <h4 className="font-semibold text-base mb-1">{customToken.title}</h4>
+                                                    <h4 className="font-semibold text-base mb-1">
+                                                        {customToken.title}
+                                                    </h4>
                                                     <p className="text-sm text-gray-500 leading-relaxed">
                                                         {customToken.description}
                                                     </p>
@@ -124,25 +148,29 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
 
                                     {/* Templates Label */}
                                     <div className="pt-2 pb-2">
-                                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">Templates</h3>
+                                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                                            Templates
+                                        </h3>
                                     </div>
 
                                     {/* Other Templates */}
                                     {templates
                                         .filter(template => template.href !== '/create/custom-token')
-                                        .map((template) => {
+                                        .map(template => {
                                             const Icon = template.icon;
                                             return (
                                                 <button
                                                     key={template.href}
                                                     onClick={() => handleTemplateSelect(template)}
                                                     className="w-full cursor-pointer active:scale-[0.98] flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-200 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
-                                                    >
-                                                    <div className={cn("p-3 rounded-xl shrink-0", template.colorClass)}>
-                                                        <Icon className={cn("h-6 w-6", template.iconColorClass)} />
+                                                >
+                                                    <div className={cn('p-3 rounded-xl shrink-0', template.colorClass)}>
+                                                        <Icon className={cn('h-6 w-6', template.iconColorClass)} />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <h4 className="font-semibold text-base mb-1">{template.title}</h4>
+                                                        <h4 className="font-semibold text-base mb-1">
+                                                            {template.title}
+                                                        </h4>
                                                         <p className="text-sm text-gray-500 leading-relaxed">
                                                             {template.description}
                                                         </p>
@@ -168,17 +196,15 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                             <ArrowLeft className="h-4 w-4" />
                                         </Button>
                                         <div>
-                                            <DialogTitle className="text-xl">Create {selectedTemplate.title}</DialogTitle>
-                                            <DialogDescription>
-                                                Configure your token parameters
-                                            </DialogDescription>
+                                            <DialogTitle className="text-xl">
+                                                Create {selectedTemplate.title}
+                                            </DialogTitle>
+                                            <DialogDescription>Configure your token parameters</DialogDescription>
                                         </div>
                                     </div>
                                 </DialogHeader>
 
-                                <div className="p-6">
-                                    {renderForm()}
-                                </div>
+                                <div className="p-6">{renderForm()}</div>
                             </>
                         )}
                     </div>

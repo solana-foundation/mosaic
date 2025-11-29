@@ -32,9 +32,7 @@ function validateCustomTokenOptions(options: CustomTokenOptions): number {
 
     // Validate scaled UI amount multiplier if enabled
     if (options.enableScaledUiAmount) {
-        const multiplier = options.scaledUiAmountMultiplier
-            ? parseFloat(options.scaledUiAmountMultiplier)
-            : 1;
+        const multiplier = options.scaledUiAmountMultiplier ? parseFloat(options.scaledUiAmountMultiplier) : 1;
         if (isNaN(multiplier) || multiplier <= 0) {
             throw new Error('Scaled UI Amount multiplier must be a positive number');
         }
@@ -144,7 +142,7 @@ export const createCustomToken = async (
         if (options.enablePermanentDelegate) extensions.push('Permanent Delegate');
         if (options.enableDefaultAccountState) {
             extensions.push(
-                `Default Account State (${options.defaultAccountStateInitialized !== false ? 'Initialized' : 'Frozen'})`
+                `Default Account State (${options.defaultAccountStateInitialized !== false ? 'Initialized' : 'Frozen'})`,
             );
         }
         if (options.enableConfidentialBalances) extensions.push('Confidential Balances');
@@ -182,10 +180,3 @@ export const createCustomToken = async (
         };
     }
 };
-
-
-
-
-
-
-

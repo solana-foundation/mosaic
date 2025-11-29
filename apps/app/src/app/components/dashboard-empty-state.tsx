@@ -24,20 +24,26 @@ export function DashboardEmptyState({ onTokenCreated }: DashboardEmptyStateProps
                         transparent 10px,
                         var(--diagonal-pattern-color) 10px,
                         var(--diagonal-pattern-color) 11px
-                        )`
-                    }}                
+                        )`,
+                    }}
                 >
                     <div className="flex flex-col items-center justify-center gap-4 text-center">
                         <div className="rounded-2xl bg-primary/5 backdrop-blur-sm p-3 group-hover:opacity-70 transition-all duration-200 ease-in-out">
                             <Plus className="h-10 w-10 text-muted-foreground group-hover:rotate-90 group-active:scale-[0.90] transition-all duration-200 ease-in-out" />
                         </div>
                         <div>
-                            <h3 className="text-xl text-muted-foreground group-hover:text-primary transition-all duration-200 ease-in-out font-semibold mb-1">Create Token</h3>
+                            <h3 className="text-xl text-muted-foreground group-hover:text-primary transition-all duration-200 ease-in-out font-semibold mb-1">
+                                Create Token
+                            </h3>
                         </div>
                     </div>
                 </button>
 
-                <CreateTokenModal isOpen={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} onTokenCreated={onTokenCreated} />
+                <CreateTokenModal
+                    isOpen={isCreateModalOpen}
+                    onOpenChange={setIsCreateModalOpen}
+                    onTokenCreated={onTokenCreated}
+                />
             </div>
         </div>
     );

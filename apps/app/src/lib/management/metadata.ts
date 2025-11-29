@@ -71,7 +71,7 @@ function validateUpdateMetadataOptions(options: UpdateMetadataOptions): void {
 /**
  * Updates token metadata (name, symbol, or URI).
  * Requires the connected wallet to be the metadata update authority.
- * 
+ *
  * @param options - Configuration options for the metadata update
  * @param signer - Transaction sending signer instance (must be metadata authority)
  * @returns Promise that resolves to update result with signature and details

@@ -16,8 +16,12 @@ interface CustomTokenCreateFormProps {
     onTokenCreated?: () => void;
 }
 
-export function CustomTokenCreateForm({ transactionSendingSigner, rpcUrl, onTokenCreated }: CustomTokenCreateFormProps) {
-    const addToken = useTokenStore((state) => state.addToken);
+export function CustomTokenCreateForm({
+    transactionSendingSigner,
+    rpcUrl,
+    onTokenCreated,
+}: CustomTokenCreateFormProps) {
+    const addToken = useTokenStore(state => state.addToken);
     const [customTokenOptions, setCustomTokenOptions] = useState<CustomTokenOptions>({
         name: '',
         symbol: '',
@@ -88,17 +92,24 @@ export function CustomTokenCreateForm({ transactionSendingSigner, rpcUrl, onToke
                 if (customTokenOptions.enablePermanentDelegate) extensions.push('Permanent Delegate');
                 if (customTokenOptions.enableDefaultAccountState) {
                     extensions.push(
-                        `Default Account State (${customTokenOptions.defaultAccountStateInitialized ? 'Initialized' : 'Frozen'})`
+                        `Default Account State (${customTokenOptions.defaultAccountStateInitialized ? 'Initialized' : 'Frozen'})`,
                     );
                 }
                 if (customTokenOptions.enableConfidentialBalances) extensions.push('Confidential Balances');
                 if (customTokenOptions.enableScaledUiAmount) extensions.push('Scaled UI Amount');
                 if (customTokenOptions.enableSrfc37) {
-                    extensions.push(`SRFC-37 (${customTokenOptions.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'})`);
+                    extensions.push(
+                        `SRFC-37 (${customTokenOptions.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'})`,
+                    );
                 }
 
                 // Create token display object with creator wallet
-                const tokenDisplay = createTokenDisplayFromResult(result, 'custom-token', customTokenOptions, defaultAuthority);
+                const tokenDisplay = createTokenDisplayFromResult(
+                    result,
+                    'custom-token',
+                    customTokenOptions,
+                    defaultAuthority,
+                );
 
                 // Save to store (automatically persists to localStorage)
                 addToken(tokenDisplay);
@@ -161,10 +172,3 @@ export function CustomTokenCreateForm({ transactionSendingSigner, rpcUrl, onToke
         </form>
     );
 }
-
-
-
-
-
-
-

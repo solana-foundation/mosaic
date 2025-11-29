@@ -157,10 +157,3 @@ export function CustomTokenCreationResultDisplay({ result }: CustomTokenCreation
         </Card>
     );
 }
-
-
-
-
-
-
-

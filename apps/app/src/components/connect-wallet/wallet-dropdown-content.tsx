@@ -51,7 +51,6 @@ export function WalletDropdownContent({
         setTimeout(() => setCopied(false), 2000);
     }
 
-
     async function handleNetworkSwitch(network: NetworkOption) {
         await setCluster(network.id);
     }
@@ -113,11 +112,7 @@ export function WalletDropdownContent({
                 </div>
 
                 {/* Disconnect Button */}
-                <Button
-                    variant="default"
-                    className="w-full h-12 text-base rounded-[12px]"
-                    onClick={onDisconnect}
-                >
+                <Button variant="default" className="w-full h-12 text-base rounded-[12px]" onClick={onDisconnect}>
                     Disconnect
                 </Button>
             </motion.div>
@@ -163,9 +158,7 @@ export function WalletDropdownContent({
                             <span className="font-medium">{network.label}</span>
                             <div
                                 className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-colors ${
-                                    isSelected
-                                        ? 'bg-primary border-primary'
-                                        : 'border-muted-foreground/30'
+                                    isSelected ? 'bg-primary border-primary' : 'border-muted-foreground/30'
                                 }`}
                             >
                                 {isSelected && <Check className="h-3 w-3 text-primary-foreground" />}
@@ -190,4 +183,3 @@ export function WalletDropdownContent({
         </motion.div>
     );
 }
-

@@ -38,7 +38,7 @@
 
 @theme {
     --color-cream: oklch(0.9553 0.0029 84.56);
-    --color-bg1: oklch(97.40% 0.004 286.33);
+    --color-bg1: oklch(97.4% 0.004 286.33);
 
     /* Border colors mapped to sand scale */
     --color-border-strong: oklch(0.839 0.0187 78.23); /* sand/400 */

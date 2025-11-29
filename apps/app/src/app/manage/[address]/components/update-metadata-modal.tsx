@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { updateTokenMetadata, type UpdateMetadataOptions } from '@/lib/management/metadata';
 import { TransactionModifyingSigner } from '@solana/signers';
@@ -7,13 +7,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 import {
     AlertDialogContent,
@@ -69,23 +63,26 @@ export function UpdateMetadataModalContent({
     const [value, setValue] = useState('');
 
     // Get current value based on selected field
-    const getCurrentValue = (selectedField: MetadataField): string => {
-        switch (selectedField) {
-            case 'name':
-                return currentName || '';
-            case 'symbol':
-                return currentSymbol || '';
-            case 'uri':
-                return currentUri || '';
-            default:
-                return '';
-        }
-    };
+    const getCurrentValue = useCallback(
+        (selectedField: MetadataField): string => {
+            switch (selectedField) {
+                case 'name':
+                    return currentName || '';
+                case 'symbol':
+                    return currentSymbol || '';
+                case 'uri':
+                    return currentUri || '';
+                default:
+                    return '';
+            }
+        },
+        [currentName, currentSymbol, currentUri],
+    );
 
     // Update value when field changes
     useEffect(() => {
         setValue(getCurrentValue(field));
-    }, [field, currentName, currentSymbol, currentUri]);
+    }, [field, getCurrentValue]);
 
     const handleUpdate = async () => {
         if (!walletAddress) {
@@ -149,9 +146,7 @@ export function UpdateMetadataModalContent({
     };
 
     return (
-        <AlertDialogContent className={cn(
-            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
-        )}>
+        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
             <div className="overflow-hidden">
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
@@ -188,7 +183,7 @@ export function UpdateMetadataModalContent({
                         <>
                             <div className="space-y-2">
                                 <Label>Field to Update</Label>
-                                <Select value={field} onValueChange={(v) => setField(v as MetadataField)}>
+                                <Select value={field} onValueChange={v => setField(v as MetadataField)}>
                                     <SelectTrigger className="rounded-xl h-12">
                                         <SelectValue placeholder="Select field" />
                                     </SelectTrigger>
@@ -204,7 +199,7 @@ export function UpdateMetadataModalContent({
                                 <Label>{fieldLabels[field].label}</Label>
                                 <Input
                                     value={value}
-                                    onChange={(e) => setValue(e.target.value)}
+                                    onChange={e => setValue(e.target.value)}
                                     placeholder={fieldLabels[field].placeholder}
                                     className="rounded-xl h-12"
                                     disabled={isLoading}
@@ -239,11 +234,7 @@ export function UpdateMetadataModalContent({
                                 </AlertDialogCancel>
                                 <Button
                                     onClick={handleUpdate}
-                                    disabled={
-                                        isLoading ||
-                                        !value.trim() ||
-                                        value.length > fieldLabels[field].maxLength
-                                    }
+                                    disabled={isLoading || !value.trim() || value.length > fieldLabels[field].maxLength}
                                     className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
                                 >
                                     {isLoading ? (

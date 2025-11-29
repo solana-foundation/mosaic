@@ -18,9 +18,7 @@ interface DeleteTokenModalContentProps {
 
 export function DeleteTokenModalContent({ tokenName, onConfirm }: DeleteTokenModalContentProps) {
     return (
-        <AlertDialogContent className={cn(
-            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
-        )}>
+        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
             <div className="overflow-hidden">
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
@@ -32,14 +30,14 @@ export function DeleteTokenModalContent({ tokenName, onConfirm }: DeleteTokenMod
                             <X className="h-4 w-4" />
                         </AlertDialogCancel>
                     </div>
-                    <AlertDialogDescription>
-                        Remove token from your local browser storage
-                    </AlertDialogDescription>
+                    <AlertDialogDescription>Remove token from your local browser storage</AlertDialogDescription>
                 </AlertDialogHeader>
 
                 <div className="p-6 space-y-5">
                     <p className="text-muted-foreground leading-relaxed">
-                        You are about to remove {tokenName ? <span className="font-medium text-foreground">{tokenName}</span> : 'this token'} from your local list.
+                        You are about to remove{' '}
+                        {tokenName ? <span className="font-medium text-foreground">{tokenName}</span> : 'this token'}{' '}
+                        from your local list.
                     </p>
 
                     <div className="bg-red-50 dark:bg-red-950/30 rounded-2xl p-5 space-y-3 border border-red-200 dark:border-red-800">
@@ -56,7 +54,10 @@ export function DeleteTokenModalContent({ tokenName, onConfirm }: DeleteTokenMod
                                 'You will need to import it again to manage it',
                                 'This action cannot be undone locally',
                             ].map((item, index) => (
-                                <li key={index} className="flex items-start gap-2.5 text-red-700/80 dark:text-red-300/80 text-sm">
+                                <li
+                                    key={index}
+                                    className="flex items-start gap-2.5 text-red-700/80 dark:text-red-300/80 text-sm"
+                                >
                                     <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-red-500 dark:bg-red-400 flex-shrink-0" />
                                     <span>{item}</span>
                                 </li>
@@ -65,9 +66,7 @@ export function DeleteTokenModalContent({ tokenName, onConfirm }: DeleteTokenMod
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-2">
-                        <AlertDialogCancel className="w-full h-12 rounded-xl mt-0">
-                            Cancel
-                        </AlertDialogCancel>
+                        <AlertDialogCancel className="w-full h-12 rounded-xl mt-0">Cancel</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={onConfirm}
                             className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all bg-red-500 hover:bg-red-600 text-white"

@@ -14,7 +14,7 @@ export function TokenCardEmptyState({ onTokenCreated }: TokenCardEmptyStateProps
 
     return (
         <>
-            <Card 
+            <Card
                 className="h-full flex flex-col bg-transparent rounded-[24px] border-dashed border border-primary/10 shadow-sm hover:shadow-none shadow-none transition-all duration-200 cursor-pointer group"
                 onClick={() => setIsCreateModalOpen(true)}
                 style={{
@@ -24,8 +24,8 @@ export function TokenCardEmptyState({ onTokenCreated }: TokenCardEmptyStateProps
                       transparent 10px,
                       var(--diagonal-pattern-color) 10px,
                       var(--diagonal-pattern-color) 11px
-                    )`
-                  }}
+                    )`,
+                }}
             >
                 <CardContent className="group p-6 flex-1 flex items-center justify-center">
                     <div className="flex flex-col items-center justify-center gap-4 text-center">
@@ -33,20 +33,19 @@ export function TokenCardEmptyState({ onTokenCreated }: TokenCardEmptyStateProps
                             <Plus className="h-10 w-10 text-muted-foreground group-hover:rotate-90 group-active:scale-[0.90] transition-all duration-200 ease-in-out" />
                         </div>
                         <div>
-                            <h3 className="text-xl text-muted-foreground group-hover:text-primary transition-all duration-200 ease-in-out font-semibold mb-1">Create Token</h3>
+                            <h3 className="text-xl text-muted-foreground group-hover:text-primary transition-all duration-200 ease-in-out font-semibold mb-1">
+                                Create Token
+                            </h3>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
-            <CreateTokenModal 
-                isOpen={isCreateModalOpen} 
-                onOpenChange={setIsCreateModalOpen} 
-                onTokenCreated={onTokenCreated} 
+            <CreateTokenModal
+                isOpen={isCreateModalOpen}
+                onOpenChange={setIsCreateModalOpen}
+                onTokenCreated={onTokenCreated}
             />
         </>
     );
 }
-
-
-

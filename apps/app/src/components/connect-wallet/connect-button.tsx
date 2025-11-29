@@ -39,7 +39,7 @@ export function ConnectButton({ className }: ConnectButtonProps) {
         return (
             <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="default" size="sm" className={cn("pr-2", className)}>
+                    <Button variant="default" size="sm" className={cn('pr-2', className)}>
                         <Avatar className="h-5 w-5">
                             {walletIcon && <AvatarImage src={walletIcon} alt={selectedWallet.name} />}
                             <AvatarFallback>

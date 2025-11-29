@@ -40,10 +40,13 @@ export function AddressModal({
     const isValidAddress = newAddress.trim() && isAddress(newAddress.trim());
 
     return (
-        <AlertDialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-            <AlertDialogContent className={cn(
-                "sm:rounded-3xl p-0 gap-0 max-w-md overflow-hidden"
-            )}>
+        <AlertDialog
+            open={isOpen}
+            onOpenChange={open => {
+                if (!open) onClose();
+            }}
+        >
+            <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-md overflow-hidden')}>
                 <div className="overflow-hidden">
                     <AlertDialogHeader className="p-6 pb-4 border-b">
                         <div className="flex items-center justify-between">
@@ -55,9 +58,7 @@ export function AddressModal({
                                 <X className="h-4 w-4" />
                             </AlertDialogCancel>
                         </div>
-                        <AlertDialogDescription>
-                            Enter a valid Solana wallet address
-                        </AlertDialogDescription>
+                        <AlertDialogDescription>Enter a valid Solana wallet address</AlertDialogDescription>
                     </AlertDialogHeader>
 
                     <div className="p-6 space-y-4">
@@ -72,8 +73,8 @@ export function AddressModal({
                                 onChange={e => onAddressChange(e.target.value)}
                                 placeholder={placeholder}
                                 className={cn(
-                                    "w-full p-3 border rounded-xl bg-background",
-                                    newAddress.trim() && !isValidAddress ? 'border-red-500' : ''
+                                    'w-full p-3 border rounded-xl bg-background',
+                                    newAddress.trim() && !isValidAddress ? 'border-red-500' : '',
                                 )}
                                 aria-invalid={newAddress.trim() && !isValidAddress ? true : undefined}
                                 aria-describedby={newAddress.trim() && !isValidAddress ? errorId : undefined}
@@ -87,9 +88,7 @@ export function AddressModal({
                             )}
                         </div>
                         <div className="flex space-x-2 pt-2">
-                            <AlertDialogCancel className="flex-1 h-11 rounded-xl mt-0">
-                                Cancel
-                            </AlertDialogCancel>
+                            <AlertDialogCancel className="flex-1 h-11 rounded-xl mt-0">Cancel</AlertDialogCancel>
                             <Button onClick={onAdd} disabled={!isValidAddress} className="flex-1 h-11 rounded-xl">
                                 {buttonText}
                             </Button>

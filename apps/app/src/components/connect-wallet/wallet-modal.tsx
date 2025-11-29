@@ -97,7 +97,7 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md [&>button]:hidden">
-                    <DialogHeader className="flex flex-row items-center justify-between">
+                <DialogHeader className="flex flex-row items-center justify-between">
                     <Button
                         type="button"
                         className="rounded-full size-8 shrink-0 p-2 cursor-pointer"
@@ -105,8 +105,8 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
                     >
                         <IconQuestionmark className="size-3" />
                     </Button>
-                        <DialogTitle>Connect your wallet</DialogTitle>
-                        <DialogPrimitive.Close asChild>
+                    <DialogTitle>Connect your wallet</DialogTitle>
+                    <DialogPrimitive.Close asChild>
                         <Button
                             variant="default"
                             className="rounded-full size-8 p-2 shrink-0 cursor-pointer"
@@ -115,7 +115,7 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
                             <IconXmark className="size-3" />
                         </Button>
                     </DialogPrimitive.Close>
-                    </DialogHeader>
+                </DialogHeader>
 
                 <div className="space-y-4">
                     {!isClient ? (
@@ -194,7 +194,8 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
                                             <AccordionContent>
                                                 <div className="grid gap-2 pt-2">
                                                     {otherWallets.map(walletInfo => {
-                                                        const isConnecting = connectingWallet === walletInfo.wallet.name;
+                                                        const isConnecting =
+                                                            connectingWallet === walletInfo.wallet.name;
                                                         const isRecent = recentlyConnected === walletInfo.wallet.name;
 
                                                         return (
@@ -202,7 +203,9 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
                                                                 key={walletInfo.wallet.name}
                                                                 variant="default"
                                                                 className="h-auto justify-between p-4"
-                                                                onClick={() => handleSelectWallet(walletInfo.wallet.name)}
+                                                                onClick={() =>
+                                                                    handleSelectWallet(walletInfo.wallet.name)
+                                                                }
                                                                 disabled={connecting || isConnecting}
                                                             >
                                                                 <div className="flex items-center gap-3 flex-1">
@@ -212,7 +215,10 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
                                                                                 {walletInfo.wallet.name}
                                                                             </span>
                                                                             {isRecent && (
-                                                                                <Badge variant="secondary" className="text-xs">
+                                                                                <Badge
+                                                                                    variant="secondary"
+                                                                                    className="text-xs"
+                                                                                >
                                                                                     Recent
                                                                                 </Badge>
                                                                             )}
@@ -232,7 +238,8 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
                                                                                 src={walletInfo.wallet.icon}
                                                                                 alt={walletInfo.wallet.name}
                                                                                 onError={e => {
-                                                                                    e.currentTarget.style.display = 'none';
+                                                                                    e.currentTarget.style.display =
+                                                                                        'none';
                                                                                 }}
                                                                             />
                                                                         )}

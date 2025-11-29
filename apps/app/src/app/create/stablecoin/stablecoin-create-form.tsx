@@ -16,7 +16,7 @@ interface StablecoinCreateFormProps {
 }
 
 export function StablecoinCreateForm({ transactionSendingSigner, rpcUrl, onTokenCreated }: StablecoinCreateFormProps) {
-    const addToken = useTokenStore((state) => state.addToken);
+    const addToken = useTokenStore(state => state.addToken);
     const [stablecoinOptions, setStablecoinOptions] = useState<StablecoinOptions>({
         name: '',
         symbol: '',
@@ -67,7 +67,12 @@ export function StablecoinCreateForm({ transactionSendingSigner, rpcUrl, onToken
                 const derivedPermanentDelegateAuthority =
                     stablecoinOptions.permanentDelegateAuthority || derivedMintAuthority;
                 // Create token display object with creator wallet
-                const tokenDisplay = createTokenDisplayFromResult(result, 'stablecoin', stablecoinOptions, defaultAuthority);
+                const tokenDisplay = createTokenDisplayFromResult(
+                    result,
+                    'stablecoin',
+                    stablecoinOptions,
+                    defaultAuthority,
+                );
 
                 // Save to store (automatically persists to localStorage)
                 addToken(tokenDisplay);

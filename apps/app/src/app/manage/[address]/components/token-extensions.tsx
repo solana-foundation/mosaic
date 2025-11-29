@@ -30,41 +30,47 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
     TokenMetadata: {
         displayName: 'Metadata',
         description: 'Token name, symbol, and metadata stored directly in the mint.',
-        helpText: 'Stores token metadata (name, symbol, URI) directly on-chain. This is immutable after creation unless an update authority is set.',
+        helpText:
+            'Stores token metadata (name, symbol, URI) directly on-chain. This is immutable after creation unless an update authority is set.',
         type: 'readonly',
     },
     MetadataPointer: {
         displayName: 'Metadata Pointer',
-        description: 'Points to where the token\'s name, symbol, and metadata are stored.',
-        helpText: 'Points to where metadata is stored. Can point to the mint itself or an external account. Used to establish canonical metadata location.',
+        description: "Points to where the token's name, symbol, and metadata are stored.",
+        helpText:
+            'Points to where metadata is stored. Can point to the mint itself or an external account. Used to establish canonical metadata location.',
         type: 'address',
-        getValue: (token) => token.metadataUri,
+        getValue: token => token.metadataUri,
     },
     PausableConfig: {
         displayName: 'Pausable',
         description: 'Lets an authority pause all token transfers globally.',
-        helpText: 'When paused, all token transfers are halted. Only the pause authority can pause/unpause. Use Admin Actions to toggle pause state.',
+        helpText:
+            'When paused, all token transfers are halted. Only the pause authority can pause/unpause. Use Admin Actions to toggle pause state.',
         type: 'toggle',
         getValue: () => true, // Always true if extension exists
     },
     DefaultAccountState: {
         displayName: 'Default Account State',
         description: 'Configures default state (Frozen/Initialized) for new accounts.',
-        helpText: 'New token accounts are created in this state (Frozen or Initialized). Cannot be changed after mint creation. Frozen by default enables allowlist mode.',
+        helpText:
+            'New token accounts are created in this state (Frozen or Initialized). Cannot be changed after mint creation. Frozen by default enables allowlist mode.',
         type: 'toggle',
         getValue: () => true, // Always true if extension exists
     },
     ConfidentialTransferMint: {
         displayName: 'Confidential Balances',
         description: 'Enables confidential transfer functionality for privacy.',
-        helpText: 'Enables encrypted token balances and transfers for privacy. Balances are hidden from public view. Requires special handling in wallets and dApps.',
+        helpText:
+            'Enables encrypted token balances and transfers for privacy. Balances are hidden from public view. Requires special handling in wallets and dApps.',
         type: 'toggle',
         getValue: () => true, // Always true if extension exists
     },
     ScaledUiAmountConfig: {
         displayName: 'Scaled UI Amount',
         description: 'Change how balances appear (cosmetic only)',
-        helpText: 'Multiplier that changes how balances display in UIs. Does not affect actual token amounts. Useful for displaying fractional shares or adjusting decimal precision.',
+        helpText:
+            'Multiplier that changes how balances display in UIs. Does not affect actual token amounts. Useful for displaying fractional shares or adjusting decimal precision.',
         type: 'number',
         editable: true,
         getValue: () => undefined, // Will be fetched separately or shown as placeholder
@@ -72,26 +78,30 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
     TransferFeeConfig: {
         displayName: 'Transfer Fee',
         description: 'Assesses a fee on every token transfer.',
-        helpText: 'Automatically deducts a fee from every transfer. Fees accumulate in recipient accounts and can be withdrawn by the withdraw authority. Requires transfer_checked instructions.',
+        helpText:
+            'Automatically deducts a fee from every transfer. Fees accumulate in recipient accounts and can be withdrawn by the withdraw authority. Requires transfer_checked instructions.',
         type: 'readonly',
     },
     InterestBearingConfig: {
         displayName: 'Interest Bearing',
         description: 'Tokens accrue interest over time (cosmetic only).',
-        helpText: 'Tokens continuously accrue interest based on a configured rate. Interest is calculated on-chain but displayed cosmetically - no new tokens are minted.',
+        helpText:
+            'Tokens continuously accrue interest based on a configured rate. Interest is calculated on-chain but displayed cosmetically - no new tokens are minted.',
         type: 'readonly',
     },
     NonTransferable: {
         displayName: 'Non-Transferable',
         description: 'Tokens cannot be transferred to other accounts (soul-bound).',
-        helpText: 'Tokens are permanently bound to the account they are minted to. Cannot be transferred, but can be burned or the account can be closed. Used for achievements, credentials, or identity tokens.',
+        helpText:
+            'Tokens are permanently bound to the account they are minted to. Cannot be transferred, but can be burned or the account can be closed. Used for achievements, credentials, or identity tokens.',
         type: 'toggle',
         getValue: () => true,
     },
     TransferHook: {
         displayName: 'Transfer Hook',
         description: 'Custom program logic executed on every transfer.',
-        helpText: 'Executes custom program logic on every transfer. Used for royalties, additional validation, or custom transfer logic. Requires a deployed program implementing the transfer hook interface.',
+        helpText:
+            'Executes custom program logic on every transfer. Used for royalties, additional validation, or custom transfer logic. Requires a deployed program implementing the transfer hook interface.',
         type: 'readonly',
     },
 };
@@ -128,7 +138,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
 
     // Get extensions that are present and have config
     const presentExtensions = (token.extensions || [])
-        .map((extName) => {
+        .map(extName => {
             // Map common display names to SDK names
             const sdkName = mapDisplayNameToSdkName(extName);
             const config = EXTENSION_CONFIG[sdkName];
@@ -158,10 +168,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
         setError('');
 
         try {
-            await updateScaledUiMultiplier(
-                { mint: token.address, multiplier },
-                transactionSendingSigner,
-            );
+            await updateScaledUiMultiplier({ mint: token.address, multiplier }, transactionSendingSigner);
             setNewMultiplier('');
             setShowScaledUiEditor(false);
         } catch (err) {
@@ -178,9 +185,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                     <h3 className="font-semibold text-foreground text-lg">Token Extensions</h3>
                     <p className="text-sm text-muted-foreground mt-1">Configure token-level settings</p>
                 </div>
-                <div className="px-5 pb-8 text-center text-muted-foreground">
-                    No extensions enabled on this token.
-                </div>
+                <div className="px-5 pb-8 text-center text-muted-foreground">No extensions enabled on this token.</div>
             </div>
         );
     }
@@ -196,125 +201,133 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
             {/* Extensions List */}
             <div className="p-2">
                 <div className="bg-muted border border-border rounded-2xl">
-                <div className="divide-y divide-border">
-                    {presentExtensions.map(({ sdkName, config }) => {
-                        const value = config.getValue?.(token);
-                        
-                        return (
-                            <div key={sdkName} className="p-5">
-                                {sdkName === 'ScaledUiAmountConfig' && showScaledUiEditor ? (
-                                    // Scaled UI Amount Edit Mode
-                                    <div className="space-y-4">
-                                        <div>
-                                            <div className="flex items-center gap-1.5">
-                                                <h4 className="font-semibold text-foreground">{config.displayName}</h4>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                                                    </TooltipTrigger>
-                                                    <TooltipContent className="max-w-xs">
-                                                        {config.helpText}
-                                                    </TooltipContent>
-                                                </Tooltip>
+                    <div className="divide-y divide-border">
+                        {presentExtensions.map(({ sdkName, config }) => {
+                            const value = config.getValue?.(token);
+
+                            return (
+                                <div key={sdkName} className="p-5">
+                                    {sdkName === 'ScaledUiAmountConfig' && showScaledUiEditor ? (
+                                        // Scaled UI Amount Edit Mode
+                                        <div className="space-y-4">
+                                            <div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <h4 className="font-semibold text-foreground">
+                                                        {config.displayName}
+                                                    </h4>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="max-w-xs">
+                                                            {config.helpText}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground mt-0.5">
+                                                    {config.description}
+                                                </p>
                                             </div>
-                                            <p className="text-sm text-muted-foreground mt-0.5">{config.description}</p>
-                                        </div>
-                                        <div className="space-y-3">
-                                            <AmountInput
-                                                label="Multiplier"
-                                                value={newMultiplier}
-                                                onChange={setNewMultiplier}
-                                                placeholder="0.005"
-                                                disabled={isSaving}
-                                                showValidation={false}
-                                            />
-                                            {error && (
-                                                <Alert variant="destructive">
-                                                    <AlertDescription>{error}</AlertDescription>
-                                                </Alert>
-                                            )}
-                                            <div className="flex items-center gap-2">
-                                                <Button
-                                                    size="sm"
-                                                    className="h-10 px-4 rounded-xl"
-                                                    onClick={handleSaveMultiplier}
-                                                    disabled={isSaving || !newMultiplier.trim()}
-                                                >
-                                                    {isSaving ? 'Saving...' : 'Save'}
-                                                </Button>
-                                                <Button
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    className="h-10 px-4 rounded-xl"
-                                                    onClick={() => {
-                                                        setShowScaledUiEditor(false);
-                                                        setNewMultiplier('');
-                                                        setError('');
-                                                    }}
+                                            <div className="space-y-3">
+                                                <AmountInput
+                                                    label="Multiplier"
+                                                    value={newMultiplier}
+                                                    onChange={setNewMultiplier}
+                                                    placeholder="0.005"
                                                     disabled={isSaving}
-                                                >
-                                                    Cancel
-                                                </Button>
+                                                    showValidation={false}
+                                                />
+                                                {error && (
+                                                    <Alert variant="destructive">
+                                                        <AlertDescription>{error}</AlertDescription>
+                                                    </Alert>
+                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-10 px-4 rounded-xl"
+                                                        onClick={handleSaveMultiplier}
+                                                        disabled={isSaving || !newMultiplier.trim()}
+                                                    >
+                                                        {isSaving ? 'Saving...' : 'Save'}
+                                                    </Button>
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="h-10 px-4 rounded-xl"
+                                                        onClick={() => {
+                                                            setShowScaledUiEditor(false);
+                                                            setNewMultiplier('');
+                                                            setError('');
+                                                        }}
+                                                        disabled={isSaving}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ) : (
-                                    // View Mode
-                                    <div className="flex items-center justify-between gap-4">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-1.5">
-                                                <h4 className="font-semibold text-foreground">{config.displayName}</h4>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                                                    </TooltipTrigger>
-                                                    <TooltipContent className="max-w-xs">
-                                                        {config.helpText}
-                                                    </TooltipContent>
-                                                </Tooltip>
+                                    ) : (
+                                        // View Mode
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5">
+                                                    <h4 className="font-semibold text-foreground">
+                                                        {config.displayName}
+                                                    </h4>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="max-w-xs">
+                                                            {config.helpText}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground mt-0.5">
+                                                    {config.description}
+                                                </p>
                                             </div>
-                                            <p className="text-sm text-muted-foreground mt-0.5">{config.description}</p>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                {config.type === 'address' && value && typeof value === 'string' && (
+                                                    <div className="px-3 py-2 bg-muted rounded-xl font-mono text-sm">
+                                                        {truncateAddress(value)}
+                                                    </div>
+                                                )}
+                                                {config.type === 'toggle' && (
+                                                    <Switch checked={value === true} disabled />
+                                                )}
+                                                {config.type === 'number' && (
+                                                    <div className="px-3 py-2 bg-muted rounded-xl font-mono text-sm">
+                                                        {value || '0.005'}
+                                                    </div>
+                                                )}
+                                                {config.type === 'readonly' && (
+                                                    <div className="px-3 py-2 bg-muted rounded-xl text-sm text-muted-foreground">
+                                                        Enabled
+                                                    </div>
+                                                )}
+                                                {config.editable && (
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="h-9 px-4 rounded-xl"
+                                                        onClick={() => {
+                                                            if (sdkName === 'ScaledUiAmountConfig') {
+                                                                setShowScaledUiEditor(true);
+                                                            }
+                                                        }}
+                                                    >
+                                                        Edit
+                                                    </Button>
+                                                )}
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2 shrink-0">
-                                            {config.type === 'address' && value && typeof value === 'string' && (
-                                                <div className="px-3 py-2 bg-muted rounded-xl font-mono text-sm">
-                                                    {truncateAddress(value)}
-                                                </div>
-                                            )}
-                                            {config.type === 'toggle' && (
-                                                <Switch checked={value === true} disabled />
-                                            )}
-                                            {config.type === 'number' && (
-                                                <div className="px-3 py-2 bg-muted rounded-xl font-mono text-sm">
-                                                    {value || '0.005'}
-                                                </div>
-                                            )}
-                                            {config.type === 'readonly' && (
-                                                <div className="px-3 py-2 bg-muted rounded-xl text-sm text-muted-foreground">
-                                                    Enabled
-                                                </div>
-                                            )}
-                                            {config.editable && (
-                                                <Button
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    className="h-9 px-4 rounded-xl"
-                                                    onClick={() => {
-                                                        if (sdkName === 'ScaledUiAmountConfig') {
-                                                            setShowScaledUiEditor(true);
-                                                        }
-                                                    }}
-                                                >
-                                                    Edit
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         </div>
@@ -324,8 +337,8 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
 // Helper function to map display names (from creation) to SDK extension names
 function mapDisplayNameToSdkName(displayName: string): string {
     const mapping: Record<string, string> = {
-        'Metadata': 'TokenMetadata',
-        'Pausable': 'PausableConfig',
+        Metadata: 'TokenMetadata',
+        Pausable: 'PausableConfig',
         'Scaled UI Amount': 'ScaledUiAmountConfig',
         'Default Account State': 'DefaultAccountState',
         'Default Account State (Initialized)': 'DefaultAccountState',

@@ -19,7 +19,7 @@ export function TokenizedSecurityCreateForm({
     rpcUrl?: string;
     onTokenCreated?: () => void;
 }) {
-    const addToken = useTokenStore((state) => state.addToken);
+    const addToken = useTokenStore(state => state.addToken);
     const [options, setOptions] = useState<TokenizedSecurityOptions>({
         name: '',
         symbol: '',
@@ -71,7 +71,7 @@ export function TokenizedSecurityCreateForm({
                 const tokenDisplay = createTokenDisplayFromResult(result, 'tokenized-security', options, creatorWallet);
                 // Save to store (automatically persists to localStorage)
                 addToken(tokenDisplay);
-                
+
                 // Call the callback to notify parent
                 onTokenCreated?.();
             }
@@ -159,7 +159,9 @@ export function TokenizedSecurityCreateForm({
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium" htmlFor="access-control-mode">Access Control Mode</label>
+                                <label className="block text-sm font-medium" htmlFor="access-control-mode">
+                                    Access Control Mode
+                                </label>
                                 <select
                                     id="access-control-mode"
                                     className="w-full p-3 border rounded-lg"

@@ -148,7 +148,10 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                 // Silently handle "Mint account not found" - the token may not exist on this network
                 // Just use the local data we already have from the token prop
                 const errorMessage = error instanceof Error ? error.message : '';
-                if (!errorMessage.includes('Mint account not found') && !errorMessage.includes('Not a Token-2022 mint')) {
+                if (
+                    !errorMessage.includes('Mint account not found') &&
+                    !errorMessage.includes('Not a Token-2022 mint')
+                ) {
                     setError(errorMessage || 'Failed to fetch authorities');
                 }
                 // Otherwise, just log and continue with local data
@@ -294,9 +297,9 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
     return (
         <div className="rounded-3xl border bg-card overflow-hidden">
             <div className="divide-y divide-border">
-                {filteredAuthorities.map((authority) => {
+                {filteredAuthorities.map(authority => {
                     const originalIndex = authorities.findIndex(a => a.role === authority.role);
-                    
+
                     return (
                         <div key={authority.role} className="p-5">
                             {authority.isEditing ? (
@@ -327,8 +330,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                             className="h-10 px-4 rounded-xl"
                                             onClick={() => updateAuthority(originalIndex)}
                                             disabled={
-                                                authority.isLoading ||
-                                                !validateSolanaAddress(authority.newAuthority)
+                                                authority.isLoading || !validateSolanaAddress(authority.newAuthority)
                                             }
                                         >
                                             {authority.isLoading ? (
@@ -347,12 +349,9 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
-                                    {authority.newAuthority &&
-                                        !validateSolanaAddress(authority.newAuthority) && (
-                                            <p className="text-sm text-red-500">
-                                                Please enter a valid Solana address
-                                            </p>
-                                        )}
+                                    {authority.newAuthority && !validateSolanaAddress(authority.newAuthority) && (
+                                        <p className="text-sm text-red-500">Please enter a valid Solana address</p>
+                                    )}
                                 </div>
                             ) : (
                                 // View mode
@@ -398,15 +397,18 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                                         <AlertDialogTitle>Revoke {authority.label}?</AlertDialogTitle>
                                                     </div>
                                                     <AlertDialogDescription className="text-left">
-                                                        This action is <strong>irreversible</strong>. Once revoked, no one will be able to perform actions that require this authority.
+                                                        This action is <strong>irreversible</strong>. Once revoked, no
+                                                        one will be able to perform actions that require this authority.
                                                         {authority.role === AuthorityType.MintTokens && (
                                                             <span className="block mt-2 text-red-600 dark:text-red-400">
-                                                                Warning: Revoking mint authority means no more tokens can ever be minted.
+                                                                Warning: Revoking mint authority means no more tokens
+                                                                can ever be minted.
                                                             </span>
                                                         )}
                                                         {authority.role === AuthorityType.FreezeAccount && (
                                                             <span className="block mt-2 text-red-600 dark:text-red-400">
-                                                                Warning: Revoking freeze authority means accounts can never be frozen or unfrozen.
+                                                                Warning: Revoking freeze authority means accounts can
+                                                                never be frozen or unfrozen.
                                                             </span>
                                                         )}
                                                     </AlertDialogDescription>

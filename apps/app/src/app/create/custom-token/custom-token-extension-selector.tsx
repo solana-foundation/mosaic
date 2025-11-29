@@ -2,15 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { CustomTokenOptions } from '@/types/token';
-import { 
-    FileText, 
-    Pause, 
-    Shield, 
-    Lock, 
-    EyeOff, 
-    Calculator,
-    Users
-} from 'lucide-react';
+import { FileText, Pause, Shield, Lock, EyeOff, Calculator, Users } from 'lucide-react';
 
 interface CustomTokenExtensionSelectorProps {
     options: CustomTokenOptions;
@@ -83,11 +75,11 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
                 <CardDescription>Select which Token-2022 extensions to enable for your token</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                {extensions.map((extension) => {
+                {extensions.map(extension => {
                     const Icon = extension.icon;
                     const value = options[extension.key];
                     const isEnabled = typeof value === 'boolean' ? value : (extension.defaultEnabled ?? false);
-                    
+
                     return (
                         <div
                             key={extension.key}
@@ -104,7 +96,7 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
                                     <Switch
                                         id={extension.key}
                                         checked={isEnabled}
-                                        onCheckedChange={(checked) => handleToggle(extension.key, checked)}
+                                        onCheckedChange={checked => handleToggle(extension.key, checked)}
                                     />
                                 </div>
                                 <p className="text-sm text-muted-foreground">{extension.description}</p>
@@ -112,7 +104,7 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
                         </div>
                     );
                 })}
-                
+
                 {options.enableSrfc37 && (
                     <div className="mt-4 p-4 bg-muted/50 rounded-lg">
                         <Label className="block text-sm font-medium mb-2">ACL Mode</Label>
@@ -146,10 +138,3 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
         </Card>
     );
 }
-
-
-
-
-
-
-

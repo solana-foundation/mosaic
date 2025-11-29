@@ -49,8 +49,8 @@ export function TransferRestrictions({
                     <h3 className="font-semibold text-foreground text-lg">{config.title}</h3>
                     <p className="text-sm text-muted-foreground mt-1">{config.description}</p>
                 </div>
-                <Button 
-                    variant="secondary" 
+                <Button
+                    variant="secondary"
                     size="sm"
                     className="h-9 px-4 rounded-xl shrink-0"
                     onClick={onAddToAccessList}
@@ -63,19 +63,17 @@ export function TransferRestrictions({
             {/* Address List */}
             {accessList.length > 0 ? (
                 <div className="divide-y divide-border border-t">
-                    {accessList.map((addr) => (
+                    {accessList.map(addr => (
                         <div key={addr} className="flex items-center justify-between px-5 py-4">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/30">
                                     <ClipboardList className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                                 </div>
-                                <span className="font-medium text-foreground">
-                                    {truncateAddress(addr)}
-                                </span>
+                                <span className="font-medium text-foreground">{truncateAddress(addr)}</span>
                             </div>
-                            <Button 
-                                variant="secondary" 
-                                size="sm" 
+                            <Button
+                                variant="secondary"
+                                size="sm"
                                 className="h-9 px-4 rounded-xl"
                                 onClick={() => onRemoveFromAccessList(addr)}
                             >
@@ -91,9 +89,7 @@ export function TransferRestrictions({
                         <EmptyIcon className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <h4 className="font-medium text-foreground mb-1">{config.emptyTitle}</h4>
-                    <p className="text-sm text-muted-foreground max-w-[280px]">
-                        {config.emptyDescription}
-                    </p>
+                    <p className="text-sm text-muted-foreground max-w-[280px]">{config.emptyDescription}</p>
                 </div>
             )}
         </div>

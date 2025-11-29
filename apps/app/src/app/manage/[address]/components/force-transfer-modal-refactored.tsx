@@ -132,9 +132,7 @@ export function ForceTransferModalContent({
     };
 
     return (
-        <AlertDialogContent className={cn(
-            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
-        )}>
+        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
             <div className="overflow-hidden">
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
@@ -168,7 +166,6 @@ export function ForceTransferModalContent({
                         />
                     ) : (
                         <>
-
                             <SolanaAddressInput
                                 label="Source Address"
                                 value={fromAddress}
@@ -203,16 +200,21 @@ export function ForceTransferModalContent({
                                     <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/50">
                                         <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                                     </div>
-                                    <span className="font-semibold text-amber-700 dark:text-amber-300">Administrator Action</span>
+                                    <span className="font-semibold text-amber-700 dark:text-amber-300">
+                                        Administrator Action
+                                    </span>
                                 </div>
                                 <p className="text-sm text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
-                                    This will force transfer tokens from any account without the owner&apos;s permission. Use with caution.
+                                    This will force transfer tokens from any account without the owner&apos;s
+                                    permission. Use with caution.
                                 </p>
                             </div>
 
                             {permanentDelegate && (
                                 <div>
-                                    <label className="block text-sm font-medium mb-2">Permanent Delegate Authority</label>
+                                    <label className="block text-sm font-medium mb-2">
+                                        Permanent Delegate Authority
+                                    </label>
                                     <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
                                         {permanentDelegate}
                                     </div>

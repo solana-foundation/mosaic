@@ -21,8 +21,8 @@ import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 export default function ImportTokenPage() {
     const router = useRouter();
     const { cluster, selectedAccount } = useConnector();
-    const addToken = useTokenStore((state) => state.addToken);
-    const findTokenByAddress = useTokenStore((state) => state.findTokenByAddress);
+    const addToken = useTokenStore(state => state.addToken);
+    const findTokenByAddress = useTokenStore(state => state.findTokenByAddress);
 
     // Create RPC client from current cluster
     const rpc = useMemo(() => {
