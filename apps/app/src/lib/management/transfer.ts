@@ -10,32 +10,31 @@ import {
     TransactionModifyingSigner,
     isAddress,
 } from 'gill';
-import { createMintToTransaction } from '@mosaic/sdk';
+import { createTransferTransaction } from '@mosaic/sdk';
 import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
 
-export interface MintOptions {
+export interface TransferTokensOptions {
     mintAddress: string;
     recipient: string;
     amount: string;
-    mintAuthority?: string;
-    feePayer?: string;
+    memo?: string;
     rpcUrl?: string;
 }
 
-export interface MintResult {
+export interface TransferTokensResult {
     success: boolean;
     error?: string;
     transactionSignature?: string;
-    mintedAmount?: string;
+    transferAmount?: string;
     recipient?: string;
 }
 
 /**
- * Validates mint options
- * @param options - Mint configuration options
+ * Validates transfer options
+ * @param options - Transfer configuration options
  * @throws Error if validation fails
  */
-function validateMintOptions(options: MintOptions): void {
+function validateTransferOptions(options: TransferTokensOptions): void {
     if (!options.mintAddress || !options.recipient || !options.amount) {
         throw new Error('Mint address, recipient, and amount are required');
     }
@@ -54,17 +53,17 @@ function validateMintOptions(options: MintOptions): void {
 }
 
 /**
- * Mints tokens to a recipient using the wallet standard transaction signer.
- * The SDK's createMintToTransaction internally fetches mint decimals and
- * converts the amount appropriately.
- * 
- * @param options - Configuration options for minting
+ * Transfers tokens from the connected wallet to a recipient
+ * @param options - Configuration options for the transfer
  * @param signer - Transaction sending signer instance
- * @returns Promise that resolves to mint result with signature and details
+ * @returns Promise that resolves to transfer result with signature and details
  */
-export const mintTokens = async (options: MintOptions, signer: TransactionModifyingSigner): Promise<MintResult> => {
+export const transferTokens = async (
+    options: TransferTokensOptions,
+    signer: TransactionModifyingSigner,
+): Promise<TransferTokensResult> => {
     try {
-        validateMintOptions(options);
+        validateTransferOptions(options);
 
         const walletPublicKey = signer.address;
         if (!walletPublicKey) {
@@ -73,36 +72,21 @@ export const mintTokens = async (options: MintOptions, signer: TransactionModify
 
         const signerAddress = walletPublicKey.toString();
 
-        // Set authorities (default to signer if not provided)
-        const mintAuthorityAddress = options.mintAuthority || signerAddress;
-        const feePayerAddress = options.feePayer || signerAddress;
-
-        // Only allow minting if the wallet is the mint authority
-        if (mintAuthorityAddress !== feePayerAddress) {
-            throw new Error(
-                'Only the mint authority can mint tokens. Please ensure the connected wallet is the mint authority.',
-            );
-        }
-
-        // Use the wallet signer for both mint authority and fee payer
-        const mintAuthority = signer;
-        const feePayer = signer;
-
-        // Create RPC client using standardized URL handling
         const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
         const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
 
-        // Create mint transaction using SDK
-        // The SDK internally fetches mint decimals and converts the amount
-        const transaction = await createMintToTransaction(
+        // Create transfer transaction using SDK
+        const transaction = await createTransferTransaction({
             rpc,
-            options.mintAddress as Address,
-            options.recipient as Address,
-            parseFloat(options.amount),
-            mintAuthority,
-            feePayer,
-        );
+            mint: options.mintAddress as Address,
+            from: signerAddress as Address,
+            to: options.recipient as Address,
+            feePayer: signer,
+            authority: signer,
+            amount: options.amount,
+            memo: options.memo,
+        });
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
@@ -113,7 +97,7 @@ export const mintTokens = async (options: MintOptions, signer: TransactionModify
         return {
             success: true,
             transactionSignature: getSignatureFromTransaction(signedTransaction),
-            mintedAmount: options.amount,
+            transferAmount: options.amount,
             recipient: options.recipient,
         };
     } catch (error) {

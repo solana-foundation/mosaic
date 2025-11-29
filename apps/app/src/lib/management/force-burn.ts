@@ -11,6 +11,7 @@ import {
     isAddress,
 } from 'gill';
 import { createForceBurnTransaction, validatePermanentDelegateForBurn } from '@mosaic/sdk';
+import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
 
 export interface ForceBurnOptions {
     mintAddress: string;
@@ -90,10 +91,10 @@ export const forceBurnTokens = async (
         const permanentDelegate = signer;
         const feePayer = signer;
 
-        // Create RPC client
-        const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
+        // Create RPC client using standardized URL handling
+        const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
+        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
 
         // Validate that the mint has permanent delegate extension and it matches our signer
         await validatePermanentDelegateForBurn(

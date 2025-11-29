@@ -12,6 +12,7 @@ import {
 } from 'gill';
 import { ArcadeTokenCreationResult, ArcadeTokenOptions } from '@/types/token';
 import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
+import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
 
 /**
  * Validates arcade token options and returns parsed decimals
@@ -71,21 +72,10 @@ export const createArcadeToken = async (
             ? (options.permanentDelegateAuthority as Address)
             : undefined;
 
-        // Create RPC client
-        const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
+        // Create RPC client using standardized URL handling
+        const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        
-        // Convert HTTP/HTTPS URL to WebSocket URL (ws/wss)
-        const parsedUrl = new URL(rpcUrl);
-        const protocolMap: Record<string, string> = {
-            'http:': 'ws:',
-            'https:': 'wss:',
-            'ws:': 'ws:',
-            'wss:': 'wss:',
-        };
-        parsedUrl.protocol = protocolMap[parsedUrl.protocol] || 'wss:';
-        const wsUrl = parsedUrl.toString();
-        const rpcSubscriptions = createSolanaRpcSubscriptions(wsUrl);
+        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
 
         // Create arcade token transaction using SDK
         const transaction = await createArcadeTokenInitTransaction(

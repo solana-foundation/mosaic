@@ -16,6 +16,7 @@ import {
     createPauseTransaction,
     createResumeTransaction,
 } from '@mosaic/sdk';
+import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
 
 export interface PauseOptions {
     mintAddress: string;
@@ -77,10 +78,10 @@ export const pauseTokenWithWallet = async (
         const pauseAuthority = signer;
         const feePayer = signer;
 
-        // Create RPC client
-        const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
+        // Create RPC client using standardized URL handling
+        const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
+        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
 
         const { transactionMessage } = await createPauseTransaction(rpc, {
             mint: options.mintAddress as Address,
@@ -146,10 +147,10 @@ export const unpauseTokenWithWallet = async (
         const pauseAuthority = signer;
         const feePayer = signer;
 
-        // Create RPC client
-        const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
+        // Create RPC client using standardized URL handling
+        const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
+        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
 
         // Unpause the token using SDK
         const { transactionMessage } = await createResumeTransaction(rpc, {
@@ -191,7 +192,7 @@ export const checkTokenPauseState = async (mintAddress: string, rpcUrl?: string)
             throw new Error('Invalid mint address format');
         }
 
-        const url = rpcUrl || 'https://api.devnet.solana.com';
+        const url = getRpcUrl(rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(url);
 
         return await getTokenPauseState(rpc, mintAddress as Address);

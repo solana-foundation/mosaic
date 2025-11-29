@@ -12,6 +12,7 @@ import {
 } from 'gill';
 import { StablecoinCreationResult, StablecoinOptions } from '@/types/token';
 import { createStablecoinInitTransaction } from '@mosaic/sdk';
+import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
 
 /**
  * Validates stablecoin options and returns parsed decimals
@@ -74,10 +75,10 @@ export const createStablecoin = async (
             ? (options.permanentDelegateAuthority as Address)
             : undefined;
 
-        // Create RPC client
-        const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
+        // Create RPC client using standardized URL handling
+        const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
+        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
 
         // Create stablecoin transaction using SDK
         const transaction = await createStablecoinInitTransaction(

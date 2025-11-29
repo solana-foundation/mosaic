@@ -28,6 +28,24 @@ export function getRpcUrl(overrideUrl?: string): string {
 }
 
 /**
+ * Converts an HTTP(S) RPC URL to a WebSocket URL.
+ * Handles both standard URLs and URLs with ports/paths.
+ *
+ * @param rpcUrl - The HTTP(S) RPC URL to convert
+ * @returns WebSocket URL string
+ */
+export function getWsUrl(rpcUrl: string): string {
+    try {
+        const url = new URL(rpcUrl);
+        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        return url.toString();
+    } catch {
+        // Fallback for invalid URLs
+        return rpcUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    }
+}
+
+/**
  * Creates a Solana RPC client
  * @param rpcUrl - Optional RPC URL, defaults to NEXT_PUBLIC_SOLANA_RPC_URL or devnet
  * @returns RPC client instance

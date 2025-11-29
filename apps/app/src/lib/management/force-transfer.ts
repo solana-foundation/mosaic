@@ -11,6 +11,7 @@ import {
     isAddress,
 } from 'gill';
 import { createForceTransferTransaction, validatePermanentDelegate } from '@mosaic/sdk';
+import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
 
 export interface ForceTransferOptions {
     mintAddress: string;
@@ -95,16 +96,10 @@ export const forceTransferTokens = async (
         const permanentDelegate = signer;
         const feePayer = signer;
 
-        // Create RPC client
-        const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
+        // Create RPC client using standardized URL handling
+        const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        
-        // Convert HTTP(S) URL to WebSocket URL by replacing only the protocol
-        const url = new URL(rpcUrl);
-        const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-        url.protocol = wsProtocol;
-        const wsUrl = url.toString();
-        const rpcSubscriptions = createSolanaRpcSubscriptions(wsUrl);
+        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
 
         // Validate that the mint has permanent delegate extension and it matches our signer
         await validatePermanentDelegate(rpc, options.mintAddress as Address, permanentDelegateAddress as Address);

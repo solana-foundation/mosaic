@@ -1,14 +1,25 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Check, X } from 'lucide-react';
+import { Check, X, Trash2, AlertTriangle } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { TokenDisplay } from '@/types/token';
-import { updateTokenAuthority } from '@/lib/management/authority';
+import { updateTokenAuthority, removeTokenAuthority } from '@/lib/management/authority';
 import { getTokenAuthorities } from '@/lib/solana/rpc';
 import { AuthorityType } from 'gill/programs/token';
 import { isAddress } from 'gill';
 import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface TokenAuthoritiesProps {
     token: TokenDisplay;
@@ -213,6 +224,47 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
         }
     };
 
+    const revokeAuthority = async (index: number) => {
+        if (!token.address || !transactionSendingSigner) return;
+
+        const authority = authorities[index];
+
+        setAuthorities(prev => prev.map((auth, i) => (i === index ? { ...auth, isLoading: true } : auth)));
+
+        try {
+            const result = await removeTokenAuthority(
+                {
+                    mint: token.address,
+                    role: authority.role,
+                    rpcUrl,
+                },
+                transactionSendingSigner,
+            );
+
+            if (result.success) {
+                setAuthorities(prev =>
+                    prev.map((auth, i) =>
+                        i === index
+                            ? {
+                                  ...auth,
+                                  currentAuthority: undefined,
+                                  isEditing: false,
+                                  newAuthority: '',
+                                  isLoading: false,
+                              }
+                            : auth,
+                    ),
+                );
+            } else {
+                setError(`Failed to revoke authority: ${result.error}`);
+            }
+        } catch (error) {
+            setError(error instanceof Error ? error.message : 'Failed to revoke authority');
+        } finally {
+            setAuthorities(prev => prev.map((auth, i) => (i === index ? { ...auth, isLoading: false } : auth)));
+        }
+    };
+
     const validateSolanaAddress = (address: string) => {
         return isAddress(address);
     };
@@ -318,10 +370,58 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                             size="sm"
                                             className="h-9 px-4 rounded-xl"
                                             onClick={() => startEditing(originalIndex)}
-                                            disabled={!selectedAccount}
+                                            disabled={!selectedAccount || authority.isLoading}
                                         >
                                             Edit
                                         </Button>
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-9 px-3 rounded-xl text-red-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 border-red-200 dark:border-red-800"
+                                                    disabled={!selectedAccount || authority.isLoading}
+                                                >
+                                                    {authority.isLoading ? (
+                                                        <Spinner size={14} />
+                                                    ) : (
+                                                        <Trash2 className="h-4 w-4" />
+                                                    )}
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent className="sm:rounded-2xl">
+                                                <AlertDialogHeader>
+                                                    <div className="flex items-center gap-3 mb-2">
+                                                        <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/50">
+                                                            <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                                                        </div>
+                                                        <AlertDialogTitle>Revoke {authority.label}?</AlertDialogTitle>
+                                                    </div>
+                                                    <AlertDialogDescription className="text-left">
+                                                        This action is <strong>irreversible</strong>. Once revoked, no one will be able to perform actions that require this authority.
+                                                        {authority.role === AuthorityType.MintTokens && (
+                                                            <span className="block mt-2 text-red-600 dark:text-red-400">
+                                                                Warning: Revoking mint authority means no more tokens can ever be minted.
+                                                            </span>
+                                                        )}
+                                                        {authority.role === AuthorityType.FreezeAccount && (
+                                                            <span className="block mt-2 text-red-600 dark:text-red-400">
+                                                                Warning: Revoking freeze authority means accounts can never be frozen or unfrozen.
+                                                            </span>
+                                                        )}
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        onClick={() => revokeAuthority(originalIndex)}
+                                                        className="rounded-xl bg-red-500 hover:bg-red-600 text-white"
+                                                    >
+                                                        Revoke Authority
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                     </div>
                                 </div>
                             )}

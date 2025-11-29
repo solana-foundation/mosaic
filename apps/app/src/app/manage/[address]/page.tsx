@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronDown, Coins, ArrowRightLeft, Flame, Ban, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Coins, ArrowRightLeft, Flame, Ban, Trash2, Snowflake, Sun, Send, FileText, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { TokenDisplay } from '@/types/token';
@@ -19,6 +19,11 @@ import { ForceTransferModalContent } from './components/force-transfer-modal-ref
 import { ForceBurnModalContent } from './components/force-burn-modal-refactored';
 import { ActionResultModal } from './components/action-result-modal';
 import { PauseConfirmModalContent } from './components/pause-confirm-modal';
+import { FreezeThawModalContent } from './components/freeze-thaw-modal';
+import { TransferModalContent } from './components/transfer-modal';
+import { BurnModalContent } from './components/burn-modal';
+import { UpdateMetadataModalContent } from './components/update-metadata-modal';
+import { CloseAccountModalContent } from './components/close-account-modal';
 import { DeleteTokenModalContent } from '@/app/components/delete-token-modal';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
 import {
@@ -69,16 +74,23 @@ const getAccessList = async (
     rpc: Rpc<SolanaRpcApi>,
     authority: Address,
     mint: Address,
-): Promise<{ type: 'allowlist' | 'blocklist'; wallets: string[] }> => {
-    const listConfigPda = await getListConfigPda({
-        authority,
-        mint,
-    });
-    const list = await getList({ rpc, listConfig: listConfigPda });
-    return {
-    type: list.mode === Mode.Allow ? 'allowlist' : 'blocklist',
-    wallets: list.wallets,
-};
+): Promise<{ type: 'allowlist' | 'blocklist'; wallets: string[] } | null> => {
+    try {
+        const listConfigPda = await getListConfigPda({
+            authority,
+            mint,
+        });
+        const list = await getList({ rpc, listConfig: listConfigPda });
+        return {
+            type: list.mode === Mode.Allow ? 'allowlist' : 'blocklist',
+            wallets: list.wallets,
+        };
+    } catch (error) {
+        // List config account doesn't exist yet - this is normal for tokens that
+        // have SRFC-37 enabled but haven't had their access list initialized
+        console.warn('Failed to fetch access list:', error);
+        return null;
+    }
 };
 
 /**
@@ -139,6 +151,12 @@ function ManageTokenConnected({ address }: { address: string }) {
     const [error, setError] = useState('');
     const [transactionSignature, setTransactionSignature] = useState('');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [supplyRefreshTrigger, setSupplyRefreshTrigger] = useState(0);
+
+    // Function to trigger supply refresh after mint/burn actions
+    const refreshSupply = () => {
+        setSupplyRefreshTrigger(prev => prev + 1);
+    };
 
     const rpc = useMemo(() => {
         if (!cluster?.url) return null;
@@ -201,9 +219,14 @@ function ManageTokenConnected({ address }: { address: string }) {
                 return;
             }
 
-            const accessList = await getAccessList(rpc, selectedAccount as Address, token?.address as Address);
-            setAccessList(accessList.wallets);
-            setListType(accessList.type);
+            const result = await getAccessList(rpc, selectedAccount as Address, token?.address as Address);
+            if (result) {
+                setAccessList(result.wallets);
+                setListType(result.type);
+            } else {
+                // Access list not initialized yet - set empty list
+                setAccessList([]);
+            }
             loadedAccessListRef.current = currentKey;
         };
 
@@ -490,8 +513,63 @@ function ManageTokenConnected({ address }: { address: string }) {
                                                     mintAddress={address}
                                                     mintAuthority={token?.mintAuthority}
                                                     transactionSendingSigner={transactionSendingSigner}
+                                                    onSuccess={refreshSupply}
                                                 />
                                             </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem 
+                                                        className="cursor-pointer rounded-lg" 
+                                                        onSelect={(e) => e.preventDefault()}
+                                                    >
+                                                        <Send className="h-4 w-4 mr-2" />
+                                                        Transfer Tokens
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <TransferModalContent
+                                                    mintAddress={address}
+                                                    tokenSymbol={token?.symbol}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                />
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem 
+                                                        className="cursor-pointer rounded-lg" 
+                                                        onSelect={(e) => e.preventDefault()}
+                                                    >
+                                                        <Flame className="h-4 w-4 mr-2" />
+                                                        Burn Tokens
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <BurnModalContent
+                                                    mintAddress={address}
+                                                    tokenSymbol={token?.symbol}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                    onSuccess={refreshSupply}
+                                                />
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem 
+                                                        className="cursor-pointer rounded-lg" 
+                                                        onSelect={(e) => e.preventDefault()}
+                                                    >
+                                                        <FileText className="h-4 w-4 mr-2" />
+                                                        Update Metadata
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <UpdateMetadataModalContent
+                                                    mintAddress={address}
+                                                    currentName={token?.name}
+                                                    currentSymbol={token?.symbol}
+                                                    currentUri={token?.metadataUri}
+                                                    metadataAuthority={token?.metadataAuthority}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                />
+                                            </AlertDialog>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuLabel>Admin Actions</DropdownMenuLabel>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <DropdownMenuItem 
@@ -521,6 +599,59 @@ function ManageTokenConnected({ address }: { address: string }) {
                                                 <ForceBurnModalContent
                                                     mintAddress={address}
                                                     permanentDelegate={token?.permanentDelegateAuthority}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                    onSuccess={refreshSupply}
+                                                />
+                                            </AlertDialog>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuLabel>Account Management</DropdownMenuLabel>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem 
+                                                        className="cursor-pointer rounded-lg" 
+                                                        onSelect={(e) => e.preventDefault()}
+                                                    >
+                                                        <Snowflake className="h-4 w-4 mr-2" />
+                                                        Freeze Account
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <FreezeThawModalContent
+                                                    mintAddress={address}
+                                                    freezeAuthority={token?.freezeAuthority}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                    mode="freeze"
+                                                />
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem 
+                                                        className="cursor-pointer rounded-lg" 
+                                                        onSelect={(e) => e.preventDefault()}
+                                                    >
+                                                        <Sun className="h-4 w-4 mr-2" />
+                                                        Thaw Account
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <FreezeThawModalContent
+                                                    mintAddress={address}
+                                                    freezeAuthority={token?.freezeAuthority}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                    mode="thaw"
+                                                />
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem 
+                                                        className="cursor-pointer rounded-lg" 
+                                                        onSelect={(e) => e.preventDefault()}
+                                                    >
+                                                        <XCircle className="h-4 w-4 mr-2" />
+                                                        Close Token Account
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <CloseAccountModalContent
+                                                    mintAddress={address}
+                                                    tokenSymbol={token?.symbol}
                                                     transactionSendingSigner={transactionSendingSigner}
                                                 />
                                             </AlertDialog>
@@ -581,7 +712,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                 {/* Token Overview */}
                 <div className="space-y-4">
                     <h2 className="text-2xl font-semibold tracking-tight">Token Overview</h2>
-                    <TokenOverview token={token} copied={copied} onCopy={copyToClipboard} />
+                    <TokenOverview token={token} copied={copied} onCopy={copyToClipboard} refreshTrigger={supplyRefreshTrigger} />
                 </div>
 
                 {/* Settings */}

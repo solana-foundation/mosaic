@@ -12,6 +12,7 @@ import {
 } from 'gill';
 import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/types/token';
 import { createTokenizedSecurityInitTransaction } from '@mosaic/sdk';
+import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
 
 function validateOptions(options: TokenizedSecurityOptions): number {
     if (!options.name || !options.symbol) {
@@ -69,10 +70,10 @@ export const createTokenizedSecurity = async (
 
         const multiplier = Number(options.multiplier ?? '1');
 
-        // Create RPC client
-        const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
+        // Create RPC client using standardized URL handling
+        const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
+        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
 
         const transaction = await createTokenizedSecurityInitTransaction(
             rpc,

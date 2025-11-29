@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { mintTokens, type MintOptions } from '@/lib/management/mint';
 import { TransactionModifyingSigner } from '@solana/signers';
-import { X } from 'lucide-react';
+import { X, AlertTriangle, Coins } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 
@@ -24,12 +24,14 @@ interface MintModalContentProps {
     mintAddress: string;
     mintAuthority?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    onSuccess?: () => void;
 }
 
 export function MintModalContent({
     mintAddress,
     mintAuthority,
     transactionSendingSigner,
+    onSuccess,
 }: MintModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
@@ -48,6 +50,12 @@ export function MintModalContent({
 
     const [recipient, setRecipient] = useState('');
     const [amount, setAmount] = useState('');
+
+    // Check if connected wallet is the mint authority
+    const hasAuthority = useMemo(() => {
+        if (!walletAddress || !mintAuthority) return false;
+        return walletAddress.toLowerCase() === mintAuthority.toLowerCase();
+    }, [walletAddress, mintAuthority]);
 
     const handleMint = async () => {
         if (!walletAddress) {
@@ -82,6 +90,7 @@ export function MintModalContent({
             if (result.success) {
                 setSuccess(true);
                 setTransactionSignature(result.transactionSignature || '');
+                onSuccess?.();
             } else {
                 setError(result.error || 'Minting failed');
             }
@@ -177,6 +186,22 @@ export function MintModalContent({
                                 </div>
                             )}
 
+                            {!hasAuthority && walletAddress && mintAuthority && (
+                                <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
+                                    <div className="flex items-start gap-3">
+                                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                                                Not Authorized
+                                            </p>
+                                            <p className="text-xs text-amber-600/80 dark:text-amber-400/80">
+                                                Your connected wallet is not the mint authority. Only the mint authority can create new tokens.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {error && (
                                 <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-800">
                                     {error}
@@ -194,7 +219,8 @@ export function MintModalContent({
                                         !recipient.trim() ||
                                         !amount.trim() ||
                                         !validateSolanaAddress(recipient) ||
-                                        !validateAmount(amount)
+                                        !validateAmount(amount) ||
+                                        !hasAuthority
                                     }
                                     className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
                                 >
@@ -204,7 +230,10 @@ export function MintModalContent({
                                             Minting...
                                         </>
                                     ) : (
-                                        'Mint Tokens'
+                                        <>
+                                            <Coins className="h-4 w-4 mr-2" />
+                                            Mint Tokens
+                                        </>
                                     )}
                                 </Button>
                             </div>

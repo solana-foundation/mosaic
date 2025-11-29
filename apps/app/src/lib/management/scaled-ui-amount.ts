@@ -11,6 +11,7 @@ import {
     createTransaction,
 } from 'gill';
 import { getUpdateMultiplierScaledUiMintInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
+import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
 
 export interface UpdateScaledUiMultiplierOptions {
     mint: string;
@@ -35,9 +36,9 @@ export const updateScaledUiMultiplier = async (
             throw new Error('Multiplier must be a positive number');
         }
 
-        const rpcUrl = options.rpcUrl || 'https://api.devnet.solana.com';
+        const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(rpcUrl.replace('http', 'ws'));
+        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
 
         const ix = getUpdateMultiplierScaledUiMintInstruction(
             {

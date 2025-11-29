@@ -1,21 +1,27 @@
 import { Button } from '@/components/ui/button';
-import { Copy } from 'lucide-react';
+import { Copy, RefreshCw } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
 import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 import { type Address, createSolanaRpc } from 'gill';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Spinner } from '@/components/ui/spinner';
 
 interface TokenOverviewProps {
     token: TokenDisplay;
     copied: boolean;
     onCopy: (text: string) => void;
+    refreshTrigger?: number;
 }
 
-export function TokenOverview({ token, onCopy }: TokenOverviewProps) {
+export interface TokenOverviewRef {
+    refreshSupply: () => Promise<void>;
+}
+
+export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(function TokenOverview({ token, onCopy, refreshTrigger }, ref) {
     const { cluster } = useConnector();
 
     // Create RPC client from current cluster
@@ -45,6 +51,18 @@ export function TokenOverview({ token, onCopy }: TokenOverviewProps) {
     useEffect(() => {
         fetchSupply();
     }, [fetchSupply]);
+
+    // Refresh supply when trigger changes (after mint/burn actions)
+    useEffect(() => {
+        if (refreshTrigger !== undefined && refreshTrigger > 0) {
+            fetchSupply();
+        }
+    }, [refreshTrigger, fetchSupply]);
+
+    // Expose refreshSupply to parent components
+    useImperativeHandle(ref, () => ({
+        refreshSupply: fetchSupply,
+    }), [fetchSupply]);
 
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'Unknown';
@@ -97,7 +115,22 @@ export function TokenOverview({ token, onCopy }: TokenOverviewProps) {
                     <div className="flex justify-between items-center py-2 border-b last:border-0">
                         <span className="text-sm text-muted-foreground">Supply</span>
                         <div className="flex items-center gap-2">
-                             <span className="font-semibold">{isLoadingSupply ? 'Loading...' : currentSupply}</span>
+                             {isLoadingSupply ? (
+                                <Spinner size={14} className="text-muted-foreground" />
+                             ) : (
+                                <>
+                                    <span className="font-semibold">{currentSupply}</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6"
+                                        onClick={fetchSupply}
+                                        title="Refresh supply"
+                                    >
+                                        <RefreshCw className="h-3 w-3" />
+                                    </Button>
+                                </>
+                             )}
                         </div>
                     </div>
 
@@ -121,5 +154,4 @@ export function TokenOverview({ token, onCopy }: TokenOverviewProps) {
             </CardContent>
         </Card>
     );
-}
-
+});

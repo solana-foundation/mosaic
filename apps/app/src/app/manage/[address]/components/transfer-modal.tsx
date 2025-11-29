@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { forceBurnTokens, type ForceBurnOptions } from '@/lib/management/force-burn';
+import { transferTokens, type TransferTokensOptions } from '@/lib/management/transfer';
 import { TransactionModifyingSigner } from '@solana/signers';
-import { X, AlertTriangle, Flame } from 'lucide-react';
+import { X, Send } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 
@@ -19,20 +19,19 @@ import { AmountInput } from '@/components/shared/form/amount-input';
 import { useTransactionModal, useWalletConnection } from '@/hooks/use-transaction-modal';
 import { useInputValidation } from '@/hooks/use-input-validation';
 import { cn } from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
-interface ForceBurnModalContentProps {
+interface TransferModalContentProps {
     mintAddress: string;
-    permanentDelegate?: string;
+    tokenSymbol?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
-    onSuccess?: () => void;
 }
 
-export function ForceBurnModalContent({
+export function TransferModalContent({
     mintAddress,
-    permanentDelegate,
+    tokenSymbol,
     transactionSendingSigner,
-    onSuccess,
-}: ForceBurnModalContentProps) {
+}: TransferModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
     const { validateSolanaAddress, validateAmount } = useInputValidation();
@@ -48,23 +47,18 @@ export function ForceBurnModalContent({
         reset,
     } = useTransactionModal();
 
-    const [fromAddress, setFromAddress] = useState('');
+    const [recipient, setRecipient] = useState('');
     const [amount, setAmount] = useState('');
+    const [memo, setMemo] = useState('');
 
-    // Check if connected wallet is the permanent delegate
-    const hasAuthority = useMemo(() => {
-        if (!walletAddress || !permanentDelegate) return false;
-        return walletAddress.toLowerCase() === permanentDelegate.toLowerCase();
-    }, [walletAddress, permanentDelegate]);
-
-    const handleForceBurn = async () => {
+    const handleTransfer = async () => {
         if (!walletAddress) {
             setError('Wallet not connected');
             return;
         }
 
-        if (!validateSolanaAddress(fromAddress)) {
-            setError('Please enter a valid source address');
+        if (!validateSolanaAddress(recipient)) {
+            setError('Please enter a valid recipient address');
             return;
         }
 
@@ -77,25 +71,23 @@ export function ForceBurnModalContent({
         setError('');
 
         try {
-            // Get RPC URL from cluster, environment variable, or default to devnet
             const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
-            const options: ForceBurnOptions = {
+            const options: TransferTokensOptions = {
                 mintAddress,
-                fromAddress,
+                recipient,
                 amount,
-                permanentDelegate: permanentDelegate || walletAddress,
+                memo: memo.trim() || undefined,
                 rpcUrl,
             };
 
-            const result = await forceBurnTokens(options, transactionSendingSigner);
+            const result = await transferTokens(options, transactionSendingSigner);
 
             if (result.success && result.transactionSignature) {
                 setSuccess(true);
                 setTransactionSignature(result.transactionSignature);
-                onSuccess?.();
             } else {
-                setError(result.error || 'Force burn failed');
+                setError(result.error || 'Transfer failed');
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An unexpected error occurred');
@@ -105,16 +97,17 @@ export function ForceBurnModalContent({
     };
 
     const resetForm = () => {
-        setFromAddress('');
+        setRecipient('');
         setAmount('');
+        setMemo('');
         reset();
     };
 
-    // Reset form when component unmounts (dialog closes)
     useEffect(() => {
         return () => {
-            setFromAddress('');
+            setRecipient('');
             setAmount('');
+            setMemo('');
             reset();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -132,8 +125,9 @@ export function ForceBurnModalContent({
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
+                            <Send className="h-5 w-5 text-primary" />
                             <AlertDialogTitle className="text-xl font-semibold">
-                                {success ? 'Force Burn Successful' : 'Force Burn Tokens'}
+                                {success ? 'Transfer Successful' : 'Transfer Tokens'}
                             </AlertDialogTitle>
                         </div>
                         <AlertDialogCancel
@@ -144,80 +138,69 @@ export function ForceBurnModalContent({
                         </AlertDialogCancel>
                     </div>
                     <AlertDialogDescription>
-                        Permanently destroy tokens from any account
+                        Send {tokenSymbol || 'tokens'} from your wallet to another address
                     </AlertDialogDescription>
                 </AlertDialogHeader>
 
                 <div className="p-6 space-y-5">
                     {success ? (
                         <TransactionSuccessView
-                            title="Tokens burned successfully!"
-                            message={`${amount} tokens have been permanently burned from ${fromAddress.slice(0, 8)}...${fromAddress.slice(-6)}`}
+                            title="Transfer successful!"
+                            message={`${amount} ${tokenSymbol || 'tokens'} sent to ${recipient.slice(0, 8)}...${recipient.slice(-6)}`}
                             transactionSignature={transactionSignature}
                             cluster={(cluster as { name?: string })?.name}
                             onClose={handleContinue}
                             onContinue={handleContinue}
-                            continueLabel="Burn More"
+                            continueLabel="Transfer More"
                         />
                     ) : (
                         <>
                             <SolanaAddressInput
-                                label="Burn From Address"
-                                value={fromAddress}
-                                onChange={setFromAddress}
-                                placeholder="Enter wallet or token account address..."
-                                helpText="The account from which tokens will be burned"
+                                label="Recipient Address"
+                                value={recipient}
+                                onChange={setRecipient}
+                                placeholder="Enter recipient Solana address..."
+                                helpText="The wallet that will receive the tokens"
                                 required
                                 disabled={isLoading}
                             />
 
                             <AmountInput
-                                label="Amount to Burn"
+                                label="Amount"
                                 value={amount}
                                 onChange={setAmount}
-                                placeholder="Enter amount to burn..."
-                                helpText="Number of tokens to permanently destroy"
+                                placeholder="Enter amount to send..."
+                                helpText={`Number of ${tokenSymbol || 'tokens'} to transfer`}
                                 required
                                 disabled={isLoading}
                             />
-                            
-                            <div className="bg-red-50 dark:bg-red-950/30 rounded-2xl p-5 space-y-3 border border-red-200 dark:border-red-800">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/50">
-                                        <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                                    </div>
-                                    <span className="font-semibold text-red-700 dark:text-red-300">Irreversible Action</span>
-                                </div>
-                                <p className="text-sm text-red-700/80 dark:text-red-300/80 leading-relaxed">
-                                    Force burning will permanently destroy tokens from any account. This action cannot be undone. Only use this for compliance or emergency purposes.
+
+                            <div>
+                                <label className="block text-sm font-medium mb-2">
+                                    Memo <span className="text-muted-foreground font-normal">(optional)</span>
+                                </label>
+                                <Input
+                                    value={memo}
+                                    onChange={(e) => setMemo(e.target.value)}
+                                    placeholder="Add a memo to the transaction..."
+                                    className="rounded-xl"
+                                    disabled={isLoading}
+                                    maxLength={280}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1.5">
+                                    Optional message attached to the transaction
                                 </p>
                             </div>
-                            
-                            {permanentDelegate && (
+
+                            {walletAddress && (
                                 <div>
-                                    <label className="block text-sm font-medium mb-2">Permanent Delegate Authority</label>
+                                    <label className="block text-sm font-medium mb-2">From</label>
                                     <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
-                                        {permanentDelegate}
+                                        {walletAddress}
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1.5">
-                                        Only the permanent delegate can execute force burns
+                                        Tokens will be sent from your connected wallet
                                     </p>
-                                </div>
-                            )}
-
-                            {!hasAuthority && walletAddress && permanentDelegate && (
-                                <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
-                                    <div className="flex items-start gap-3">
-                                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                                                Not Authorized
-                                            </p>
-                                            <p className="text-xs text-amber-600/80 dark:text-amber-400/80">
-                                                Your connected wallet is not the permanent delegate. Only the permanent delegate can force burn tokens.
-                                            </p>
-                                        </div>
-                                    </div>
                                 </div>
                             )}
 
@@ -232,26 +215,25 @@ export function ForceBurnModalContent({
                                     Cancel
                                 </AlertDialogCancel>
                                 <Button
-                                    onClick={handleForceBurn}
+                                    onClick={handleTransfer}
                                     disabled={
                                         isLoading ||
-                                        !fromAddress.trim() ||
+                                        !recipient.trim() ||
                                         !amount.trim() ||
-                                        !validateSolanaAddress(fromAddress) ||
-                                        !validateAmount(amount) ||
-                                        !hasAuthority
+                                        !validateSolanaAddress(recipient) ||
+                                        !validateAmount(amount)
                                     }
-                                    className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all bg-red-500 hover:bg-red-600 text-white"
+                                    className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
                                 >
                                     {isLoading ? (
                                         <>
                                             <Spinner size={16} className="mr-2" />
-                                            Burning...
+                                            Sending...
                                         </>
                                     ) : (
                                         <>
-                                            <Flame className="h-4 w-4 mr-2" />
-                                            Force Burn
+                                            <Send className="h-4 w-4 mr-2" />
+                                            Send Tokens
                                         </>
                                     )}
                                 </Button>
