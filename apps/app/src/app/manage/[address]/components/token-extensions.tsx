@@ -1,16 +1,103 @@
+'use client';
+
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { updateScaledUiMultiplier } from '@/lib/management/scaled-ui-amount';
 import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
 import { TokenDisplay } from '@/types/token';
 import { Switch } from '@/components/ui/switch';
-import { Input } from '@/components/ui/input';
+import { AmountInput } from '@/components/shared/form/amount-input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { HelpCircle } from 'lucide-react';
 
 interface TokenExtensionsProps {
     token: TokenDisplay;
+}
+
+interface ExtensionConfig {
+    displayName: string;
+    description: string;
+    helpText: string;
+    type: 'address' | 'toggle' | 'number' | 'readonly';
+    editable?: boolean;
+    getValue?: (token: TokenDisplay) => string | number | boolean | undefined;
+}
+
+// Extension configuration map - maps SDK extension names to display config
+const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
+    TokenMetadata: {
+        displayName: 'Metadata',
+        description: 'Token name, symbol, and metadata stored directly in the mint.',
+        helpText: 'Stores token metadata (name, symbol, URI) directly on-chain. This is immutable after creation unless an update authority is set.',
+        type: 'readonly',
+    },
+    MetadataPointer: {
+        displayName: 'Metadata Pointer',
+        description: 'Points to where the token\'s name, symbol, and metadata are stored.',
+        helpText: 'Points to where metadata is stored. Can point to the mint itself or an external account. Used to establish canonical metadata location.',
+        type: 'address',
+        getValue: (token) => token.metadataUri,
+    },
+    PausableConfig: {
+        displayName: 'Pausable',
+        description: 'Lets an authority pause all token transfers globally.',
+        helpText: 'When paused, all token transfers are halted. Only the pause authority can pause/unpause. Use Admin Actions to toggle pause state.',
+        type: 'toggle',
+        getValue: () => true, // Always true if extension exists
+    },
+    DefaultAccountState: {
+        displayName: 'Default Account State',
+        description: 'Configures default state (Frozen/Initialized) for new accounts.',
+        helpText: 'New token accounts are created in this state (Frozen or Initialized). Cannot be changed after mint creation. Frozen by default enables allowlist mode.',
+        type: 'toggle',
+        getValue: () => true, // Always true if extension exists
+    },
+    ConfidentialTransferMint: {
+        displayName: 'Confidential Balances',
+        description: 'Enables confidential transfer functionality for privacy.',
+        helpText: 'Enables encrypted token balances and transfers for privacy. Balances are hidden from public view. Requires special handling in wallets and dApps.',
+        type: 'toggle',
+        getValue: () => true, // Always true if extension exists
+    },
+    ScaledUiAmountConfig: {
+        displayName: 'Scaled UI Amount',
+        description: 'Change how balances appear (cosmetic only)',
+        helpText: 'Multiplier that changes how balances display in UIs. Does not affect actual token amounts. Useful for displaying fractional shares or adjusting decimal precision.',
+        type: 'number',
+        editable: true,
+        getValue: () => undefined, // Will be fetched separately or shown as placeholder
+    },
+    TransferFeeConfig: {
+        displayName: 'Transfer Fee',
+        description: 'Assesses a fee on every token transfer.',
+        helpText: 'Automatically deducts a fee from every transfer. Fees accumulate in recipient accounts and can be withdrawn by the withdraw authority. Requires transfer_checked instructions.',
+        type: 'readonly',
+    },
+    InterestBearingConfig: {
+        displayName: 'Interest Bearing',
+        description: 'Tokens accrue interest over time (cosmetic only).',
+        helpText: 'Tokens continuously accrue interest based on a configured rate. Interest is calculated on-chain but displayed cosmetically - no new tokens are minted.',
+        type: 'readonly',
+    },
+    NonTransferable: {
+        displayName: 'Non-Transferable',
+        description: 'Tokens cannot be transferred to other accounts (soul-bound).',
+        helpText: 'Tokens are permanently bound to the account they are minted to. Cannot be transferred, but can be burned or the account can be closed. Used for achievements, credentials, or identity tokens.',
+        type: 'toggle',
+        getValue: () => true,
+    },
+    TransferHook: {
+        displayName: 'Transfer Hook',
+        description: 'Custom program logic executed on every transfer.',
+        helpText: 'Executes custom program logic on every transfer. Used for royalties, additional validation, or custom transfer logic. Requires a deployed program implementing the transfer hook interface.',
+        type: 'readonly',
+    },
+};
+
+function truncateAddress(address: string): string {
+    return `${address.slice(0, 8)}... ${address.slice(-7)}`;
 }
 
 export function TokenExtensions({ token }: TokenExtensionsProps) {
@@ -21,13 +108,11 @@ export function TokenExtensions({ token }: TokenExtensionsProps) {
     }
 
     return (
-        <div className="flex-1 p-8">
-             <Card>
-                <CardHeader>
-                    <CardTitle>Wallet Required</CardTitle>
-                    <CardDescription>Please connect your wallet to manage token extensions.</CardDescription>
-                </CardHeader>
-            </Card>
+        <div className="rounded-2xl border bg-card p-8 flex items-center justify-center">
+            <div className="text-center text-muted-foreground">
+                <p className="font-medium mb-1">Wallet Required</p>
+                <p className="text-sm">Please connect your wallet to manage token extensions.</p>
+            </div>
         </div>
     );
 }
@@ -41,166 +126,221 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
     // Use the connector signer hook which provides a gill-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
 
-    return (
-        <Card className="">
-            <CardHeader className="p-5">
-                <CardTitle className="font-semibold text-foreground text-lg">Token Extensions</CardTitle>
-                <CardDescription className="text-sm text-muted-foreground -mt-1">Configure token-level settings</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 p-2">
-                 {/* Metadata Pointer */}
-                <div className="flex items-start justify-between space-x-4 p-4 bg-muted/50 rounded-lg">
-                     <div className="space-y-1">
-                        <h4 className="text-sm font-medium">MetadataPointer</h4>
-                        <p className="text-sm text-muted-foreground">
-                            Points to where the token&apos;s name, symbol, and metadata are stored.
-                        </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                         {token.metadataUri && (
-                             <code className="px-2 py-1 bg-background rounded text-xs font-mono border">
-                                {token.metadataUri.length > 20 ? token.metadataUri.slice(0, 10) + '...' + token.metadataUri.slice(-8) : token.metadataUri}
-                             </code>
-                         )}
-                        <Button variant="outline" size="sm">Edit</Button>
-                    </div>
+    // Get extensions that are present and have config
+    const presentExtensions = (token.extensions || [])
+        .map((extName) => {
+            // Map common display names to SDK names
+            const sdkName = mapDisplayNameToSdkName(extName);
+            const config = EXTENSION_CONFIG[sdkName];
+            return config ? { sdkName, displayName: extName, config } : null;
+        })
+        .filter((ext): ext is NonNullable<typeof ext> => ext !== null);
+
+    const handleSaveMultiplier = async () => {
+        if (!token.address || !transactionSendingSigner) {
+            setError('Wallet not connected');
+            return;
+        }
+
+        const trimmedValue = newMultiplier.trim();
+        if (!trimmedValue) {
+            setError('Please enter a multiplier value');
+            return;
+        }
+
+        const multiplier = parseFloat(trimmedValue);
+        if (!Number.isFinite(multiplier) || multiplier <= 0) {
+            setError('Please enter a valid multiplier greater than 0');
+            return;
+        }
+
+        setIsSaving(true);
+        setError('');
+
+        try {
+            await updateScaledUiMultiplier(
+                { mint: token.address, multiplier },
+                transactionSendingSigner,
+            );
+            setNewMultiplier('');
+            setShowScaledUiEditor(false);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to update scaled UI multiplier');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (presentExtensions.length === 0) {
+        return (
+            <div className="rounded-2xl border bg-card overflow-hidden">
+                <div className="p-5 pb-4">
+                    <h3 className="font-semibold text-foreground text-lg">Token Extensions</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Configure token-level settings</p>
                 </div>
+                <div className="px-5 pb-8 text-center text-muted-foreground">
+                    No extensions enabled on this token.
+                </div>
+            </div>
+        );
+    }
 
-                {/* Pausable Config - Placeholder as actual pause state is managed in sidebar/header actions mostly, but extensions list usually shows if it IS pausable */}
-                 {token.extensions?.includes('Pausable') && (
-                     <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                        <div className="space-y-1">
-                            <h4 className="text-sm font-medium">PausableConfig</h4>
-                            <p className="text-sm text-muted-foreground">
-                                Lets an authority pause all token transfers globally.
-                            </p>
-                        </div>
-                         {/* Switch is disabled as this is just showing capability usually, or needs actual logic to toggle capability if possible (usually immutable after init unless pointer swap) */}
-                        <Switch checked={true} disabled />
-                    </div>
-                 )}
+    return (
+        <div className="rounded-3xl border bg-card overflow-hidden">
+            {/* Header */}
+            <div className="p-5 pb-4">
+                <h3 className="font-semibold text-foreground text-lg">Extensions</h3>
+                <p className="text-sm text-muted-foreground mt-1">Configure token-level settings</p>
+            </div>
 
-                 {/* Scaled UI Amount */}
-                {token.extensions?.includes('Scaled UI Amount') && (
-                    <div className="p-4 bg-muted/50 rounded-lg space-y-4">
-                        <div className="flex items-center justify-between">
-                             <div className="space-y-1">
-                                <h4 className="text-sm font-medium">Scaled UI Amount (Editable)</h4>
-                                <p className="text-sm text-muted-foreground">
-                                    Change how balances appear (cosmetic only)
-                                </p>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                                 {showScaledUiEditor ? (
-                                     <div className="space-y-2">
-                                         <div className="flex items-center space-x-2">
-                                             <Input
-                                                type="number"
+            {/* Extensions List */}
+            <div className="p-2">
+                <div className="bg-muted border border-border rounded-2xl">
+                <div className="divide-y divide-border">
+                    {presentExtensions.map(({ sdkName, config }) => {
+                        const value = config.getValue?.(token);
+                        
+                        return (
+                            <div key={sdkName} className="p-5">
+                                {sdkName === 'ScaledUiAmountConfig' && showScaledUiEditor ? (
+                                    // Scaled UI Amount Edit Mode
+                                    <div className="space-y-4">
+                                        <div>
+                                            <div className="flex items-center gap-1.5">
+                                                <h4 className="font-semibold text-foreground">{config.displayName}</h4>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="max-w-xs">
+                                                        {config.helpText}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground mt-0.5">{config.description}</p>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <AmountInput
+                                                label="Multiplier"
                                                 value={newMultiplier}
-                                                onChange={(e) => {
-                                                    setNewMultiplier(e.target.value);
-                                                    setError('');
-                                                }}
-                                                className="w-24 h-8"
-                                                placeholder="1.0"
+                                                onChange={setNewMultiplier}
+                                                placeholder="0.005"
                                                 disabled={isSaving}
-                                             />
-                                             <Button 
-                                                size="sm"
-                                                onClick={async () => {
-                                                    if (!token.address || !transactionSendingSigner) {
-                                                        setError('Wallet not connected');
-                                                        return;
-                                                    }
-
-                                                    // Parse and validate multiplier
-                                                    const trimmedValue = newMultiplier.trim();
-                                                    if (!trimmedValue) {
-                                                        setError('Please enter a multiplier value');
-                                                        return;
-                                                    }
-
-                                                    const multiplier = parseFloat(trimmedValue);
-                                                    if (!Number.isFinite(multiplier) || multiplier <= 0) {
-                                                        setError('Please enter a valid multiplier greater than 0');
-                                                        return;
-                                                    }
-
-                                                    setIsSaving(true);
-                                                    setError('');
-
-                                                    try {
-                                                        await updateScaledUiMultiplier(
-                                                            { mint: token.address, multiplier },
-                                                            transactionSendingSigner,
-                                                        );
-                                                        // Only clear and close on success
-                                                        setNewMultiplier('');
+                                                showValidation={false}
+                                            />
+                                            {error && (
+                                                <Alert variant="destructive">
+                                                    <AlertDescription>{error}</AlertDescription>
+                                                </Alert>
+                                            )}
+                                            <div className="flex items-center gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    className="h-10 px-4 rounded-xl"
+                                                    onClick={handleSaveMultiplier}
+                                                    disabled={isSaving || !newMultiplier.trim()}
+                                                >
+                                                    {isSaving ? 'Saving...' : 'Save'}
+                                                </Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    className="h-10 px-4 rounded-xl"
+                                                    onClick={() => {
                                                         setShowScaledUiEditor(false);
-                                                    } catch (err) {
-                                                        setError(err instanceof Error ? err.message : 'Failed to update scaled UI multiplier');
-                                                    } finally {
-                                                        setIsSaving(false);
-                                                    }
-                                                }}
-                                                disabled={isSaving || !newMultiplier.trim()}
-                                             >
-                                                {isSaving ? 'Saving...' : 'Save'}
-                                             </Button>
-                                             <Button 
-                                                variant="ghost" 
-                                                size="sm" 
-                                                onClick={() => {
-                                                    setShowScaledUiEditor(false);
-                                                    setNewMultiplier('');
-                                                    setError('');
-                                                }}
-                                                disabled={isSaving}
-                                             >
-                                                Cancel
-                                             </Button>
-                                         </div>
-                                         {error && (
-                                             <Alert variant="destructive">
-                                                 <AlertDescription>{error}</AlertDescription>
-                                             </Alert>
-                                         )}
-                                     </div>
-                                 ) : (
-                                     <div className="flex items-center space-x-2">
-                                         <code className="px-2 py-1 bg-background rounded text-xs font-mono border">
-                                            {/* We don't have current multiplier in TokenDisplay usually, unless added. Assuming 1 or from detail */}
-                                            {/* TODO: Add multiplier to TokenDisplay if needed */}
-                                            0.005
-                                         </code>
-                                         <Button variant="outline" size="sm" onClick={() => setShowScaledUiEditor(true)}>Edit</Button>
-                                     </div>
-                                 )}
+                                                        setNewMultiplier('');
+                                                        setError('');
+                                                    }}
+                                                    disabled={isSaving}
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    // View Mode
+                                    <div className="flex items-center justify-between gap-4">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5">
+                                                <h4 className="font-semibold text-foreground">{config.displayName}</h4>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                    </TooltipTrigger>
+                                                    <TooltipContent className="max-w-xs">
+                                                        {config.helpText}
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </div>
+                                            <p className="text-sm text-muted-foreground mt-0.5">{config.description}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {config.type === 'address' && value && typeof value === 'string' && (
+                                                <div className="px-3 py-2 bg-muted rounded-xl font-mono text-sm">
+                                                    {truncateAddress(value)}
+                                                </div>
+                                            )}
+                                            {config.type === 'toggle' && (
+                                                <Switch checked={value === true} disabled />
+                                            )}
+                                            {config.type === 'number' && (
+                                                <div className="px-3 py-2 bg-muted rounded-xl font-mono text-sm">
+                                                    {value || '0.005'}
+                                                </div>
+                                            )}
+                                            {config.type === 'readonly' && (
+                                                <div className="px-3 py-2 bg-muted rounded-xl text-sm text-muted-foreground">
+                                                    Enabled
+                                                </div>
+                                            )}
+                                            {config.editable && (
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    className="h-9 px-4 rounded-xl"
+                                                    onClick={() => {
+                                                        if (sdkName === 'ScaledUiAmountConfig') {
+                                                            setShowScaledUiEditor(true);
+                                                        }
+                                                    }}
+                                                >
+                                                    Edit
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Default Account State */}
-                 {token.extensions?.includes('Default Account State') && (
-                    <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                         <div className="space-y-1">
-                            <h4 className="text-sm font-medium">Default Account State</h4>
-                            <p className="text-sm text-muted-foreground">
-                                Configures default state (Frozen/Initialized) for new accounts.
-                            </p>
-                        </div>
-                         <Switch checked={true} disabled />
-                    </div>
-                )}
-
-                 {(!token.extensions || token.extensions.length === 0) && (
-                    <div className="text-center py-8 text-muted-foreground">
-                        No extensions enabled on this token.
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                        );
+                    })}
+                </div>
+                </div>
+            </div>
+        </div>
     );
 }
 
+// Helper function to map display names (from creation) to SDK extension names
+function mapDisplayNameToSdkName(displayName: string): string {
+    const mapping: Record<string, string> = {
+        'Metadata': 'TokenMetadata',
+        'Pausable': 'PausableConfig',
+        'Scaled UI Amount': 'ScaledUiAmountConfig',
+        'Default Account State': 'DefaultAccountState',
+        'Default Account State (Initialized)': 'DefaultAccountState',
+        'Default Account State (Frozen)': 'DefaultAccountState',
+        'Default Account State (Allowlist)': 'DefaultAccountState',
+        'Default Account State (Blocklist)': 'DefaultAccountState',
+        'Confidential Balances': 'ConfidentialTransferMint',
+        'Permanent Delegate': 'PermanentDelegate',
+    };
+
+    // Check if it's already an SDK name
+    if (EXTENSION_CONFIG[displayName]) {
+        return displayName;
+    }
+
+    // Map display name to SDK name
+    return mapping[displayName] || displayName;
+}

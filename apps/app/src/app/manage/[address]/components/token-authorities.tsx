@@ -240,7 +240,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
     }
 
     return (
-        <div className="rounded-2xl border bg-card overflow-hidden">
+        <div className="rounded-3xl border bg-card overflow-hidden">
             <div className="divide-y divide-border">
                 {filteredAuthorities.map((authority) => {
                     const originalIndex = authorities.findIndex(a => a.role === authority.role);

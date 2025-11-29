@@ -42,7 +42,7 @@ export function TransferRestrictions({
     };
 
     return (
-        <div className="rounded-2xl border bg-card overflow-hidden">
+        <div className="rounded-3xl border bg-card overflow-hidden">
             {/* Header */}
             <div className="p-5 flex items-start justify-between gap-4">
                 <div>

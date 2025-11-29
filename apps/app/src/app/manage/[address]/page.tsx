@@ -606,7 +606,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                                     value="extensions" 
                                     className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
                                 >
-                                    Token Extensions
+                                    Extensions
                                 </TabsTrigger>
                             </TabsList>
                         </div>
