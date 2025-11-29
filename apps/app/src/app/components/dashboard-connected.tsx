@@ -14,9 +14,7 @@ export function DashboardConnected() {
     const removeToken = useTokenStore((state) => state.removeToken);
 
     const handleDeleteToken = (address: string) => {
-        if (confirm('Are you sure you want to remove this token from your local storage?')) {
-            removeToken(address);
-        }
+        removeToken(address);
     };
 
     const handleTokenCreated = () => {

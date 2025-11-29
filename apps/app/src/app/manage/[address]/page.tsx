@@ -14,11 +14,12 @@ import { TokenAuthorities } from './components/token-authorities';
 import { TokenExtensions } from './components/token-extensions';
 import { TransferRestrictions } from './components/transfer-restrictions';
 import { AddressModal } from './components/address-modal';
-import { MintModalRefactored as MintModal } from './components/mint-modal-refactored';
-import { ForceTransferModalRefactored as ForceTransferModal } from './components/force-transfer-modal-refactored';
-import { ForceBurnModalRefactored as ForceBurnModal } from './components/force-burn-modal-refactored';
+import { MintModalContent } from './components/mint-modal-refactored';
+import { ForceTransferModalContent } from './components/force-transfer-modal-refactored';
+import { ForceBurnModalContent } from './components/force-burn-modal-refactored';
 import { ActionResultModal } from './components/action-result-modal';
-import { PauseConfirmModal } from './components/pause-confirm-modal';
+import { PauseConfirmModalContent } from './components/pause-confirm-modal';
+import { DeleteTokenModalContent } from '@/app/components/delete-token-modal';
 import { useConnectorSigner } from '@/hooks/use-connector-signer';
 import {
     addAddressToBlocklist,
@@ -39,8 +40,11 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+    AlertDialog,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { IconArrowUpRight, IconHexagonFill } from 'symbols-react';
-import { motion } from 'motion/react';
 
 export default function ManageTokenPage() {
     const { connected, selectedAccount } = useConnector();
@@ -129,17 +133,12 @@ function ManageTokenConnected({ address }: { address: string }) {
     const [listType, setListType] = useState<'allowlist' | 'blocklist'>('blocklist');
     const [newAddress, setNewAddress] = useState('');
     const [showAccessListModal, setShowAccessListModal] = useState(false);
-    const [showMintModal, setShowMintModal] = useState(false);
-    const [showForceTransferModal, setShowForceTransferModal] = useState(false);
-    const [showForceBurnModal, setShowForceBurnModal] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
-    const [showPauseModal, setShowPauseModal] = useState(false);
     const [pauseError, setPauseError] = useState('');
     const [actionInProgress, setActionInProgress] = useState(false);
     const [error, setError] = useState('');
     const [transactionSignature, setTransactionSignature] = useState('');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const rpc = useMemo(() => {
         if (!cluster?.url) return null;
@@ -338,34 +337,8 @@ function ManageTokenConnected({ address }: { address: string }) {
     };
 
     const handleRemoveFromStorage = () => {
-        if (
-            confirm(
-                'Are you sure you want to remove this token from your local storage? This only removes it from your browser - the token will continue to exist on the blockchain.',
-            )
-        ) {
-            removeToken(address);
-            router.push('/');
-        }
-    };
-
-    const togglePause = async () => {
-        if (!selectedAccount || !token?.address || !transactionSendingSigner) {
-            setError('Required parameters not available');
-            return;
-        }
-
-        // Check if the connected wallet has pause authority
-        const walletAddress = selectedAccount;
-        if (token.pausableAuthority !== walletAddress) {
-            setPauseError(
-                'Connected wallet does not have pause authority. Only the pause authority can pause/unpause this token.',
-            );
-            setShowPauseModal(true);
-            return;
-        }
-
-        // Show confirmation modal
-        setShowPauseModal(true);
+        removeToken(address);
+        router.push('/');
     };
 
     const handlePauseConfirm = async () => {
@@ -374,8 +347,21 @@ function ManageTokenConnected({ address }: { address: string }) {
             return;
         }
 
-        setActionInProgress(true);
+        // Check if the connected wallet has pause authority
+        // Convert both to strings for comparison (selectedAccount might be an Address object)
+        const walletAddress = String(selectedAccount);
+        const pauseAuthority = token.pausableAuthority ? String(token.pausableAuthority) : '';
+        
+        if (pauseAuthority && pauseAuthority !== walletAddress) {
+            setPauseError(
+                'Connected wallet does not have pause authority. Only the pause authority can pause/unpause this token.',
+            );
+            return;
+        }
+
+        // Clear any previous errors and start the action
         setPauseError('');
+        setActionInProgress(true);
 
         try {
             const result = isPaused
@@ -401,16 +387,11 @@ function ManageTokenConnected({ address }: { address: string }) {
             if (result.success) {
                 setTransactionSignature(result.transactionSignature || '');
                 setIsPaused(result.paused ?? !isPaused);
-                setShowPauseModal(false);
-
-                // Update token in store - note: isPaused is not stored in TokenDisplay, 
-                // it's fetched from blockchain state, so we just update local state
-                // The token object in store doesn't need to track pause state
             } else {
-                setPauseError(result.error || 'Operation failed');
+                setError(result.error || 'Operation failed');
             }
         } catch (err) {
-            setPauseError(err instanceof Error ? err.message : 'An error occurred');
+            setError(err instanceof Error ? err.message : 'An error occurred');
         } finally {
             setActionInProgress(false);
         }
@@ -483,51 +464,114 @@ function ManageTokenConnected({ address }: { address: string }) {
                                 <IconArrowUpRight className="size-2.5 fill-primary/50" />
                             </Button>
                             
-                            <DropdownMenu open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+                            <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button size="sm" variant="default" className="bg-primary hover:bg-primary/80 text-white">
                                         Admin Actions 
-                                        <motion.div
-                                            animate={{ rotate: isDropdownOpen ? -180 : 0 }}
-                                            transition={{ duration: 0.2, ease: 'easeInOut' }}
-                                            className="ml-2"
-                                        >
-                                            <ChevronDown className="h-4 w-4" />
-                                        </motion.div>
+                                        <ChevronDown className="h-4 w-4 ml-2" />
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56 rounded-xl">
                                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="cursor-pointer rounded-lg" onClick={() => setShowMintModal(true)}>
-                                        <Coins className="h-4 w-4 mr-2" />
-                                        Mint Tokens
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem className="cursor-pointer rounded-lg" onClick={() => setShowForceTransferModal(true)}>
-                                        <ArrowRightLeft className="h-4 w-4 mr-2" />
-                                        Force Transfer
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem className="cursor-pointer rounded-lg" onClick={() => setShowForceBurnModal(true)}>
-                                        <Flame className="h-4 w-4 mr-2" />
-                                        Force Burn
-                                    </DropdownMenuItem>
+                                    {transactionSendingSigner && (
+                                        <>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem 
+                                                        className="cursor-pointer rounded-lg" 
+                                                        onSelect={(e) => e.preventDefault()}
+                                                    >
+                                                        <Coins className="h-4 w-4 mr-2" />
+                                                        Mint Tokens
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <MintModalContent
+                                                    mintAddress={address}
+                                                    mintAuthority={token?.mintAuthority}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                />
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem 
+                                                        className="cursor-pointer rounded-lg" 
+                                                        onSelect={(e) => e.preventDefault()}
+                                                    >
+                                                        <ArrowRightLeft className="h-4 w-4 mr-2" />
+                                                        Force Transfer
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <ForceTransferModalContent
+                                                    mintAddress={address}
+                                                    permanentDelegate={token?.permanentDelegateAuthority}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                />
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem 
+                                                        className="cursor-pointer rounded-lg" 
+                                                        onSelect={(e) => e.preventDefault()}
+                                                    >
+                                                        <Flame className="h-4 w-4 mr-2" />
+                                                        Force Burn
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <ForceBurnModalContent
+                                                    mintAddress={address}
+                                                    permanentDelegate={token?.permanentDelegateAuthority}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                />
+                                            </AlertDialog>
+                                        </>
+                                    )}
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="cursor-pointer rounded-lg" onClick={togglePause}>
-                                        {isPaused ? (
-                                            <>
-                                                <Coins className="h-4 w-4 mr-2" /> Unpause Token
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Ban className="h-4 w-4 mr-2" /> Pause Token
-                                            </>
-                                        )}
-                                    </DropdownMenuItem>
+                                    <AlertDialog onOpenChange={(open) => {
+                                        if (!open) {
+                                            setPauseError('');
+                                        }
+                                    }}>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem 
+                                                className="cursor-pointer rounded-lg" 
+                                                onSelect={(e) => e.preventDefault()}
+                                            >
+                                                {isPaused ? (
+                                                    <>
+                                                        <Coins className="h-4 w-4 mr-2" /> Unpause Token
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Ban className="h-4 w-4 mr-2" /> Pause Token
+                                                    </>
+                                                )}
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <PauseConfirmModalContent
+                                            onConfirm={handlePauseConfirm}
+                                            isPaused={isPaused}
+                                            tokenName={token?.name || 'Token'}
+                                            isLoading={actionInProgress}
+                                            error={pauseError}
+                                        />
+                                    </AlertDialog>
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem className="cursor-pointer rounded-lg text-red-600 hover:!bg-red-50 hover:!text-red-600" onClick={handleRemoveFromStorage}>
-                                        <Trash2 className="h-4 w-4 mr-2" />
-                                        Remove from Storage
-                                    </DropdownMenuItem>
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <DropdownMenuItem 
+                                                onSelect={(e) => e.preventDefault()}
+                                                className="cursor-pointer rounded-lg text-red-600 hover:!bg-red-50 hover:!text-red-600"
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-2" />
+                                                Remove from Storage
+                                            </DropdownMenuItem>
+                                        </AlertDialogTrigger>
+                                        <DeleteTokenModalContent
+                                            tokenName={token?.name}
+                                            onConfirm={handleRemoveFromStorage}
+                                        />
+                                    </AlertDialog>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
@@ -587,9 +631,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                 </div>
             </div>
 
-            {/* Modals */}
+            {/* Modals - ActionResultModal and AddressModal remain controlled (not user-triggered) */}
             <ActionResultModal
-                isOpen={!!error || !!transactionSignature || !!actionInProgress}
+                isOpen={!!error || !!transactionSignature || actionInProgress}
                 onClose={() => {
                     setError('');
                     setTransactionSignature('');
@@ -612,49 +656,6 @@ function ManageTokenConnected({ address }: { address: string }) {
                 title={`Add to ${listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}`}
                 placeholder="Enter Solana address..."
                 buttonText={`Add to ${listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}`}
-            />
-
-            {transactionSendingSigner && (
-                <MintModal
-                    isOpen={showMintModal}
-                    onClose={() => setShowMintModal(false)}
-                    mintAddress={address}
-                    mintAuthority={token?.mintAuthority}
-                    transactionSendingSigner={transactionSendingSigner}
-                />
-            )}
-
-            {transactionSendingSigner && (
-                <ForceTransferModal
-                    isOpen={showForceTransferModal}
-                    onClose={() => setShowForceTransferModal(false)}
-                    mintAddress={address}
-                    permanentDelegate={token?.permanentDelegateAuthority}
-                    transactionSendingSigner={transactionSendingSigner}
-                />
-            )}
-
-            {transactionSendingSigner && (
-                <ForceBurnModal
-                    isOpen={showForceBurnModal}
-                    onClose={() => setShowForceBurnModal(false)}
-                    mintAddress={address}
-                    permanentDelegate={token?.permanentDelegateAuthority}
-                    transactionSendingSigner={transactionSendingSigner}
-                />
-            )}
-
-            <PauseConfirmModal
-                isOpen={showPauseModal}
-                onClose={() => {
-                    setShowPauseModal(false);
-                    setPauseError('');
-                }}
-                onConfirm={handlePauseConfirm}
-                isPaused={isPaused}
-                tokenName={token?.name || 'Token'}
-                isLoading={actionInProgress}
-                error={pauseError}
             />
         </div>
     );

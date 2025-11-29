@@ -1,9 +1,17 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useConnector } from '@solana/connector/react';
-import { useEffect, useRef, useId } from 'react';
+import { CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
+import {
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
 interface ActionResultModalProps {
     isOpen: boolean;
@@ -128,186 +136,104 @@ export function ActionResultModal({
     cluster: clusterProp,
 }: ActionResultModalProps) {
     const { cluster: connectorCluster } = useConnector();
-    const modalRef = useRef<HTMLDivElement>(null);
-    const closeButtonRef = useRef<HTMLButtonElement>(null);
-    const previouslyFocusedElement = useRef<HTMLElement | null>(null);
-    const titleId = useId();
     
     // Use provided cluster prop, fall back to connector cluster, then to default
     const clusterName = clusterProp || getClusterName(connectorCluster);
-    
-    // Store the previously focused element when modal opens
-    useEffect(() => {
-        if (isOpen) {
-            previouslyFocusedElement.current = document.activeElement as HTMLElement;
-            // Focus the modal when it opens
-            setTimeout(() => {
-                closeButtonRef.current?.focus();
-            }, 0);
-        } else {
-            // Return focus to previously focused element when modal closes
-            if (previouslyFocusedElement.current) {
-                previouslyFocusedElement.current.focus();
-                previouslyFocusedElement.current = null;
-            }
-        }
-    }, [isOpen]);
-    
-    // Handle escape key
-    useEffect(() => {
-        if (!isOpen) return;
-        
-        function handleEscape(event: KeyboardEvent) {
-            if (event.key === 'Escape') {
-                onClose();
-            }
-        }
-        
-        document.addEventListener('keydown', handleEscape);
-        return () => {
-            document.removeEventListener('keydown', handleEscape);
-        };
-    }, [isOpen, onClose]);
-    
-    // Focus trap: keep focus within modal
-    useEffect(() => {
-        if (!isOpen || !modalRef.current) return;
-        
-        const modal = modalRef.current;
-        const focusableElements = modal.querySelectorAll<HTMLElement>(
-            'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
-        );
-        
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-        
-        function handleTabKey(event: KeyboardEvent) {
-            if (event.key !== 'Tab') return;
-            
-            if (event.shiftKey) {
-                // Shift + Tab
-                if (document.activeElement === firstElement) {
-                    event.preventDefault();
-                    lastElement?.focus();
-                }
-            } else {
-                // Tab
-                if (document.activeElement === lastElement) {
-                    event.preventDefault();
-                    firstElement?.focus();
-                }
-            }
-        }
-        
-        modal.addEventListener('keydown', handleTabKey);
-        return () => {
-            modal.removeEventListener('keydown', handleTabKey);
-        };
-    }, [isOpen]);
-    
-    // Handle backdrop click
-    function handleBackdropClick(event: React.MouseEvent<HTMLDivElement>) {
-        if (event.target === event.currentTarget) {
-            onClose();
-        }
-    }
-    
-    if (!isOpen) return null;
+
+    const title = actionInProgress ? 'Action in progress...' : error ? 'Error' : 'Success';
 
     return (
-        <div 
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-            onClick={handleBackdropClick}
-            role="presentation"
-        >
-            <div 
-                ref={modalRef}
-                role="dialog"
-                aria-modal="true"
-                aria-labelledby={titleId}
-                className="bg-background border rounded-lg w-full max-w-md mx-4 shadow-lg"
-                onClick={(e) => e.stopPropagation()}
-            >
-                {/* Header */}
-                <div className="px-6 py-4 border-b">
-                    <h3 id={titleId} className="text-lg font-semibold flex items-center gap-2">
-                        {actionInProgress ? (
-                            <span className="text-yellow-500">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="animate-spin">
-                                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeDasharray="31.416" strokeDashoffset="31.416" opacity="0.3" />
-                                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeDasharray="31.416" strokeDashoffset="23.562" transform="rotate(-90 12 12)" />
-                                </svg>
-                            </span>
-                        ) : error ? (
-                            <span className="text-red-500">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
-                                </svg>
-                            </span>
-                        ) : (
-                            <span className="text-green-500">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
-                                </svg>
-                            </span>
+        <AlertDialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+            <AlertDialogContent className={cn(
+                "sm:rounded-3xl p-0 gap-0 max-w-md overflow-hidden"
+            )}>
+                <div className="overflow-hidden">
+                    <AlertDialogHeader className="p-6 pb-4 border-b">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                {actionInProgress ? (
+                                    <Loader2 className="h-5 w-5 text-yellow-500 animate-spin" />
+                                ) : error ? (
+                                    <AlertCircle className="h-5 w-5 text-red-500" />
+                                ) : (
+                                    <CheckCircle className="h-5 w-5 text-green-500" />
+                                )}
+                                <AlertDialogTitle className="text-xl font-semibold">{title}</AlertDialogTitle>
+                            </div>
+                            {!actionInProgress && (
+                                <AlertDialogCancel
+                                    className="rounded-full p-1.5 hover:bg-muted transition-colors border-0 h-auto w-auto mt-0"
+                                    aria-label="Close"
+                                >
+                                    <X className="h-4 w-4" />
+                                </AlertDialogCancel>
+                            )}
+                        </div>
+                        <AlertDialogDescription>
+                            {actionInProgress 
+                                ? 'Please wait while the action completes'
+                                : error 
+                                    ? 'An error occurred'
+                                    : 'Operation completed successfully'
+                            }
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <div className="p-6 space-y-4">
+                        {/* Action in progress message */}
+                        {actionInProgress && (
+                            <div className="text-sm">
+                                <p className="text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 leading-relaxed">
+                                    Action in progress. Please sign and submit the transaction to complete the action.
+                                </p>
+                            </div>
                         )}
-                        {actionInProgress ? 'Action in progress...' : error ? 'Error' : 'Success'}
-                    </h3>
+
+                        {/* Error Message */}
+                        {error && (
+                            <div className="text-sm">
+                                <p className="text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4 leading-relaxed">
+                                    {error}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Success Message */}
+                        {!error && !actionInProgress && (
+                            <div className="text-sm">
+                                <p className="text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-4 leading-relaxed">
+                                    Operation completed successfully!
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Transaction Link */}
+                        {transactionSignature && (
+                            <div className="border-t pt-4">
+                                <Link
+                                    href={buildExplorerUrl(transactionSignature, clusterName, connectorCluster)}
+                                    target="_blank"
+                                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium text-sm"
+                                >
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z" />
+                                    </svg>
+                                    View transaction on Solana Explorer
+                                </Link>
+                            </div>
+                        )}
+
+                        {/* Close Button */}
+                        {!actionInProgress && (
+                            <div className="pt-2">
+                                <AlertDialogCancel className="w-full h-11 rounded-xl mt-0">
+                                    Close
+                                </AlertDialogCancel>
+                            </div>
+                        )}
+                    </div>
                 </div>
-
-                {/* Body */}
-                <div className="px-6 py-4 space-y-4">
-                    {/* Action in progress message */}
-                    {actionInProgress && (
-                        <div className="text-sm">
-                            <p className="text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-md p-3 leading-relaxed">
-                                Action in progress. Please sign and submit the transaction to complete the action.
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Error Message */}
-                    {error && (
-                        <div className="text-sm">
-                            <p className="text-red-700 bg-red-50 border border-red-200 rounded-md p-3 leading-relaxed">
-                                {error}
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Success Message */}
-                    {!error && !actionInProgress && (
-                        <div className="text-sm">
-                            <p className="text-green-700 bg-green-50 border border-green-200 rounded-md p-3 leading-relaxed">
-                                Operation completed successfully!
-                            </p>
-                        </div>
-                    )}
-
-                    {/* Transaction Link */}
-                    {transactionSignature && (
-                        <div className="border-t pt-4">
-                            <Link
-                                href={buildExplorerUrl(transactionSignature, clusterName, connectorCluster)}
-                                target="_blank"
-                                className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors font-medium text-sm"
-                            >
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z" />
-                                </svg>
-                                View transaction on Solana Explorer
-                            </Link>
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <div className="px-6 py-4 border-t bg-muted/20">
-                    <Button ref={closeButtonRef} onClick={onClose} className="w-full">
-                        Close
-                    </Button>
-                </div>
-            </div>
-        </div>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 }

@@ -61,9 +61,9 @@ export function WalletDropdownContent({
         return (
             <motion.div
                 key="wallet"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
                 className="w-[320px] p-4 space-y-4"
             >
@@ -128,9 +128,9 @@ export function WalletDropdownContent({
     return (
         <motion.div
             key="network"
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 20 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
             className="w-[320px] p-4 space-y-4"
         >

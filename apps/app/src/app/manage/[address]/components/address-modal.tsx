@@ -1,9 +1,18 @@
 'use client';
 
-import { useId, useRef, useEffect } from 'react';
+import { useId } from 'react';
 import { Button } from '@/components/ui/button';
-import { BaseModal } from '@/components/shared/modals/base-modal';
+import { X } from 'lucide-react';
+import {
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 import { isAddress } from 'gill';
+import { cn } from '@/lib/utils';
 
 interface AddressModalProps {
     isOpen: boolean;
@@ -26,61 +35,68 @@ export function AddressModal({
     placeholder,
     buttonText,
 }: AddressModalProps) {
-    const titleId = useId();
     const inputId = useId();
     const errorId = useId();
-    const inputRef = useRef<HTMLInputElement>(null);
     const isValidAddress = newAddress.trim() && isAddress(newAddress.trim());
 
-    // Focus the input when modal opens
-    useEffect(() => {
-        if (isOpen && inputRef.current) {
-            // Small delay to ensure modal is fully rendered
-            setTimeout(() => {
-                inputRef.current?.focus();
-            }, 100);
-        }
-    }, [isOpen]);
-
     return (
-        <BaseModal isOpen={isOpen} onClose={onClose} title={title} labelledBy={titleId}>
-            <h3 id={titleId} className="text-lg font-semibold mb-4">
-                {title}
-            </h3>
-            <div className="space-y-4">
-                <div>
-                    <label htmlFor={inputId} className="block text-sm font-medium mb-2">
-                        Solana Address
-                    </label>
-                    <input
-                        id={inputId}
-                        ref={inputRef}
-                        type="text"
-                        value={newAddress}
-                        onChange={e => onAddressChange(e.target.value)}
-                        placeholder={placeholder}
-                        className={`w-full p-2 border rounded-md ${
-                            newAddress.trim() && !isValidAddress ? 'border-red-500' : ''
-                        }`}
-                        aria-invalid={newAddress.trim() && !isValidAddress ? true : undefined}
-                        aria-describedby={newAddress.trim() && !isValidAddress ? errorId : undefined}
-                        autoComplete="off"
-                    />
-                    {newAddress.trim() && !isValidAddress && (
-                        <p id={errorId} className="text-red-500 text-sm mt-1" role="alert">
-                            Invalid Solana address
-                        </p>
-                    )}
+        <AlertDialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+            <AlertDialogContent className={cn(
+                "sm:rounded-3xl p-0 gap-0 max-w-md overflow-hidden"
+            )}>
+                <div className="overflow-hidden">
+                    <AlertDialogHeader className="p-6 pb-4 border-b">
+                        <div className="flex items-center justify-between">
+                            <AlertDialogTitle className="text-xl font-semibold">{title}</AlertDialogTitle>
+                            <AlertDialogCancel
+                                className="rounded-full p-1.5 hover:bg-muted transition-colors border-0 h-auto w-auto mt-0"
+                                aria-label="Close"
+                            >
+                                <X className="h-4 w-4" />
+                            </AlertDialogCancel>
+                        </div>
+                        <AlertDialogDescription>
+                            Enter a valid Solana wallet address
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+
+                    <div className="p-6 space-y-4">
+                        <div>
+                            <label htmlFor={inputId} className="block text-sm font-medium mb-2">
+                                Solana Address
+                            </label>
+                            <input
+                                id={inputId}
+                                type="text"
+                                value={newAddress}
+                                onChange={e => onAddressChange(e.target.value)}
+                                placeholder={placeholder}
+                                className={cn(
+                                    "w-full p-3 border rounded-xl bg-background",
+                                    newAddress.trim() && !isValidAddress ? 'border-red-500' : ''
+                                )}
+                                aria-invalid={newAddress.trim() && !isValidAddress ? true : undefined}
+                                aria-describedby={newAddress.trim() && !isValidAddress ? errorId : undefined}
+                                autoComplete="off"
+                                autoFocus
+                            />
+                            {newAddress.trim() && !isValidAddress && (
+                                <p id={errorId} className="text-red-500 text-sm mt-1" role="alert">
+                                    Invalid Solana address
+                                </p>
+                            )}
+                        </div>
+                        <div className="flex space-x-2 pt-2">
+                            <AlertDialogCancel className="flex-1 h-11 rounded-xl mt-0">
+                                Cancel
+                            </AlertDialogCancel>
+                            <Button onClick={onAdd} disabled={!isValidAddress} className="flex-1 h-11 rounded-xl">
+                                {buttonText}
+                            </Button>
+                        </div>
+                    </div>
                 </div>
-                <div className="flex space-x-2">
-                    <Button onClick={onAdd} disabled={!isValidAddress} className="flex-1">
-                        {buttonText}
-                    </Button>
-                    <Button variant="outline" onClick={onClose} className="flex-1">
-                        Cancel
-                    </Button>
-                </div>
-            </div>
-        </BaseModal>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 }

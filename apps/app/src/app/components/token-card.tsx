@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Trash2, ExternalLink, RefreshCw, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
@@ -12,14 +12,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import {
     AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { DeleteTokenModalContent } from './delete-token-modal';
 import { TokenDisplay } from '@/types/token';
 import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
@@ -34,16 +28,8 @@ interface TokenCardProps {
 
 export function TokenCard({ token, onDelete }: TokenCardProps) {
     const { cluster } = useConnector();
-    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-
-    // Cleanup effect to ensure overlay and body styles are removed
-    useEffect(() => {
-        if (!isDeleteOpen) {
-            // Reset body scroll lock
-            document.body.style.pointerEvents = '';
-            document.body.style.overflow = '';
-        }
-    }, [isDeleteOpen]);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const pendingDeleteRef = useRef(false);
 
     // Create RPC client from current cluster
     const rpc = useMemo(() => {
@@ -73,6 +59,17 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
         fetchSupply();
     }, [fetchSupply]);
 
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            // Force cleanup body styles on unmount
+            document.body.style.pointerEvents = '';
+            document.body.style.overflow = '';
+            document.body.style.removeProperty('pointer-events');
+            document.body.style.removeProperty('overflow');
+        };
+    }, []);
+
     const formatDate = (dateString?: string) => {
         if (!dateString) return 'Unknown';
         return new Date(dateString).toLocaleDateString('en-US', {
@@ -88,10 +85,35 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
         return num.toLocaleString(undefined, { maximumFractionDigits: 0 });
     };
 
-    const handleDelete = () => {
+    const handleDeleteClick = () => {
+        setIsDeleteDialogOpen(true);
+    };
+
+    const handleDeleteConfirm = () => {
         if (token.address) {
-            onDelete(token.address);
-            setIsDeleteOpen(false);
+            pendingDeleteRef.current = true;
+            setIsDeleteDialogOpen(false);
+        }
+    };
+
+    const handleDialogOpenChange = (open: boolean) => {
+        setIsDeleteDialogOpen(open);
+        
+        if (!open) {
+            // Dialog is closing
+            // Force cleanup body styles
+            setTimeout(() => {
+                document.body.style.pointerEvents = '';
+                document.body.style.overflow = '';
+                document.body.style.removeProperty('pointer-events');
+                document.body.style.removeProperty('overflow');
+                
+                // If we're pending delete, do it after cleanup
+                if (pendingDeleteRef.current && token.address) {
+                    pendingDeleteRef.current = false;
+                    onDelete(token.address);
+                }
+            }, 100);
         }
     };
 
@@ -134,7 +156,7 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
                                         </DropdownMenuItem>
                                     )}
                                     <DropdownMenuItem 
-                                        onClick={() => setIsDeleteOpen(true)} 
+                                        onClick={handleDeleteClick}
                                         className="text-red-600 focus:text-red-600 focus:bg-red-50 rounded-lg"
                                     >
                                         <Trash2 className="h-4 w-4 mr-2" />
@@ -201,49 +223,12 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
                 </CardFooter>
             </Card>
 
-            <AlertDialog open={isDeleteOpen} onOpenChange={(open) => {
-                setIsDeleteOpen(open);
-                if (!open) {
-                    // Force cleanup when closing
-                    setTimeout(() => {
-                        document.body.style.pointerEvents = '';
-                        document.body.style.overflow = '';
-                    }, 0);
-                }
-            }}>
-                <AlertDialogContent className="rounded-[24px] p-4.5">
-                    <AlertDialogHeader>
-                        <AlertDialogTitle className="text-2xl font-bold">Delete Token from Storage</AlertDialogTitle>
-                        <AlertDialogDescription className="text-md">
-                            Are you sure you want to remove this token from your local list?
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-
-                    {/* Warning box styled like card */}
-                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl p-4">
-                        <p className="text-sm text-red-900 dark:text-red-200">
-                            <span className="font-semibold">Warning:</span> This action only removes the token from your local browser storage. The token will still exist on the blockchain, but you will need to import it again to manage it.
-                        </p>
-                    </div>
-
-                    <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
-                        <AlertDialogAction
-                            onClick={(e) => {
-                                e.preventDefault();
-                                handleDelete();
-                            }}
-                            className="w-full bg-destructive text-white hover:bg-destructive/90 rounded-xl font-semibold h-11"
-                        >
-                            Delete Token
-                        </AlertDialogAction>
-                        <AlertDialogCancel 
-                            onClick={() => setIsDeleteOpen(false)}
-                            className="w-full rounded-xl font-semibold h-11 mt-0"
-                        >
-                            Cancel
-                        </AlertDialogCancel>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
+            {/* Delete confirmation dialog - rendered outside the card */}
+            <AlertDialog open={isDeleteDialogOpen} onOpenChange={handleDialogOpenChange}>
+                <DeleteTokenModalContent 
+                    tokenName={token.name} 
+                    onConfirm={handleDeleteConfirm} 
+                />
             </AlertDialog>
         </>
     );

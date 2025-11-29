@@ -20,11 +20,11 @@ const buttonVariants = cva(
             },
             size: {
                 // Button/Lg: 16px, weight 600, line-height 18px, tracking -0.16px
-                lg: 'h-10 rounded-md px-6 has-[>svg]:px-4 text-[16px] leading-[18px] tracking-[-0.16px]',
+                lg: 'h-10 rounded-md px-3 pr-4 text-[16px] leading-[18px] tracking-[-0.16px]',
                 // Button/Md: 14px, weight 600, line-height 1.03, tracking -0.14px
-                default: 'h-9 px-4 py-2 has-[>svg]:px-3 text-[14px] leading-[1.03] tracking-[-0.14px]',
+                default: 'h-9 px-4 px-3 pr-4 text-[14px] leading-[1.03] tracking-[-0.14px]',
                 // Button/Sm: 12px, weight 600, line-height 1.03, tracking -0.12px
-                sm: 'h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5 text-[12px] leading-[1.03] tracking-[-0.12px]',
+                sm: 'h-8 rounded-md gap-1.5 px-3 pr-4 text-[12px] leading-[1.03] tracking-[-0.12px]',
                 icon: 'size-9',
             },
         },
