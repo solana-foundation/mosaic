@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { AlertTriangle, Loader2, X } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import {
     AlertDialogContent,
     AlertDialogDescription,
@@ -149,7 +150,7 @@ export function PauseConfirmModalContent({
                                 >
                                     {isLoading || isConfirming ? (
                                         <>
-                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            <Spinner size={16} className="mr-2" />
                                             {actionContinuous}...
                                         </>
                                     ) : (

@@ -1,15 +1,15 @@
 'use client';
 
-import { Trash2 } from 'lucide-react';
+import { AlertTriangle, X } from 'lucide-react';
 import {
     AlertDialogContent,
     AlertDialogDescription,
-    AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogAction,
     AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
+import { cn } from '@/lib/utils';
 
 interface DeleteTokenModalContentProps {
     tokenName?: string;
@@ -18,35 +18,65 @@ interface DeleteTokenModalContentProps {
 
 export function DeleteTokenModalContent({ tokenName, onConfirm }: DeleteTokenModalContentProps) {
     return (
-        <AlertDialogContent className="rounded-[24px] p-4.5">
-            <AlertDialogHeader>
-                <div className="flex items-center gap-2">
-                    <Trash2 className="h-5 w-5 text-destructive" />
-                    <AlertDialogTitle className="text-2xl font-bold">Delete Token from Storage</AlertDialogTitle>
+        <AlertDialogContent className={cn(
+            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
+        )}>
+            <div className="overflow-hidden">
+                <AlertDialogHeader className="p-6 pb-4 border-b">
+                    <div className="flex items-center justify-between">
+                        <AlertDialogTitle className="text-xl font-semibold">Delete Token from Storage</AlertDialogTitle>
+                        <AlertDialogCancel
+                            className="rounded-full p-1.5 hover:bg-muted transition-colors border-0 h-auto w-auto mt-0"
+                            aria-label="Close"
+                        >
+                            <X className="h-4 w-4" />
+                        </AlertDialogCancel>
+                    </div>
+                    <AlertDialogDescription>
+                        Remove token from your local browser storage
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+
+                <div className="p-6 space-y-5">
+                    <p className="text-muted-foreground leading-relaxed">
+                        You are about to remove {tokenName ? <span className="font-medium text-foreground">{tokenName}</span> : 'this token'} from your local list.
+                    </p>
+
+                    <div className="bg-red-50 dark:bg-red-950/30 rounded-2xl p-5 space-y-3 border border-red-200 dark:border-red-800">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/50">
+                                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                            </div>
+                            <span className="font-semibold text-red-700 dark:text-red-300">Important</span>
+                        </div>
+                        <ul className="space-y-2 ml-1">
+                            {[
+                                'Token will be removed from your local browser storage',
+                                'The token will continue to exist on the blockchain',
+                                'You will need to import it again to manage it',
+                                'This action cannot be undone locally',
+                            ].map((item, index) => (
+                                <li key={index} className="flex items-start gap-2.5 text-red-700/80 dark:text-red-300/80 text-sm">
+                                    <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-red-500 dark:bg-red-400 flex-shrink-0" />
+                                    <span>{item}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-2">
+                        <AlertDialogCancel className="w-full h-12 rounded-xl mt-0">
+                            Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={onConfirm}
+                            className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all bg-red-500 hover:bg-red-600 text-white"
+                        >
+                            Delete Token
+                        </AlertDialogAction>
+                    </div>
                 </div>
-                <AlertDialogDescription className="text-md">
-                    Are you sure you want to remove {tokenName ? <span className="font-medium">{tokenName}</span> : 'this token'} from your local list?
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-
-            {/* Warning box styled like card */}
-            <div className="bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-xl p-4">
-                <p className="text-sm text-red-900 dark:text-red-200">
-                    <span className="font-semibold">Warning:</span> This action only removes the token from your local browser storage. The token will still exist on the blockchain, but you will need to import it again to manage it.
-                </p>
             </div>
-
-            <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
-                <AlertDialogAction
-                    onClick={onConfirm}
-                    className="w-full bg-destructive text-white hover:bg-destructive/90 rounded-xl font-semibold h-11"
-                >
-                    Delete Token
-                </AlertDialogAction>
-                <AlertDialogCancel className="w-full rounded-xl font-semibold h-11 mt-0">
-                    Cancel
-                </AlertDialogCancel>
-            </AlertDialogFooter>
         </AlertDialogContent>
     );
 }

@@ -25,7 +25,7 @@ const buttonVariants = cva(
                 default: 'h-9 px-4 px-3 pr-4 text-[14px] leading-[1.03] tracking-[-0.14px]',
                 // Button/Sm: 12px, weight 600, line-height 1.03, tracking -0.12px
                 sm: 'h-8 rounded-md gap-1.5 px-3 pr-4 text-[12px] leading-[1.03] tracking-[-0.12px]',
-                icon: 'size-9',
+                icon: 'size-8',
             },
         },
         defaultVariants: {

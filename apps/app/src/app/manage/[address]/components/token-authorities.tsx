@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Edit, Check, X, Loader2 } from 'lucide-react';
+import { Check, X } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { TokenDisplay } from '@/types/token';
 import { updateTokenAuthority } from '@/lib/management/authority';
 import { getTokenAuthorities } from '@/lib/solana/rpc';
@@ -17,6 +17,7 @@ interface TokenAuthoritiesProps {
 
 interface AuthorityInfo {
     label: string;
+    description: string;
     role: AuthorityType | 'Metadata';
     currentAuthority?: string;
     isEditing: boolean;
@@ -25,10 +26,11 @@ interface AuthorityInfo {
 }
 
 export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
-    // Create base authorities array
+    // Create base authorities array with descriptions
     const baseAuthorities: AuthorityInfo[] = [
         {
             label: 'Mint Authority',
+            description: 'This wallet can create new tokens.',
             role: AuthorityType.MintTokens,
             currentAuthority: token.mintAuthority,
             isEditing: false,
@@ -37,6 +39,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
         },
         {
             label: 'Freeze Authority',
+            description: 'This wallet can freeze and unfreeze token accounts.',
             role: AuthorityType.FreezeAccount,
             currentAuthority: token.freezeAuthority,
             isEditing: false,
@@ -45,6 +48,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
         },
         {
             label: 'Metadata Authority',
+            description: 'This wallet can update token metadata.',
             role: 'Metadata',
             currentAuthority: token.metadataAuthority,
             isEditing: false,
@@ -53,6 +57,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
         },
         {
             label: 'Pausable Authority',
+            description: 'This wallet can pause and unpause all token transfers.',
             role: AuthorityType.Pause,
             currentAuthority: token.pausableAuthority,
             isEditing: false,
@@ -61,6 +66,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
         },
         {
             label: 'Confidential Balances Authority',
+            description: 'This wallet can manage confidential transfer settings.',
             role: AuthorityType.ConfidentialTransferMint,
             currentAuthority: token.confidentialBalancesAuthority,
             isEditing: false,
@@ -69,6 +75,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
         },
         {
             label: 'Permanent Delegate Authority',
+            description: 'This wallet can transfer or burn tokens from any account.',
             role: AuthorityType.PermanentDelegate,
             currentAuthority: token.permanentDelegateAuthority,
             isEditing: false,
@@ -77,6 +84,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
         },
         {
             label: 'Scaled UI Amount Authority',
+            description: 'This wallet can update the token display multiplier.',
             role: AuthorityType.ScaledUiAmount,
             currentAuthority: token.scaledUiAmountAuthority,
             isEditing: false,
@@ -209,109 +217,126 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
         return isAddress(address);
     };
 
+    const truncateAddress = (address: string) => {
+        return `${address.slice(0, 8)}... ${address.slice(-7)}`;
+    };
+
+    const filteredAuthorities = authorities.filter(authority => authority.currentAuthority);
+
+    if (isLoadingAuthorities) {
+        return (
+            <div className="rounded-2xl border bg-card p-8 flex items-center justify-center">
+                <Spinner size={24} className="text-muted-foreground" />
+            </div>
+        );
+    }
+
+    if (filteredAuthorities.length === 0) {
+        return (
+            <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
+                No authorities configured for this token.
+            </div>
+        );
+    }
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center">
-                    <Settings className="h-5 w-5 mr-2" />
-                    Token Authorities
-                    {isLoadingAuthorities && <Loader2 className="h-4 w-4 ml-2 animate-spin" />}
-                </CardTitle>
-                <CardDescription>
-                    Manage the authorities for this token. Click edit to change an authority.
-                    <br />
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-4">
-                    {authorities
-                        .filter(authority => authority.currentAuthority)
-                        .map((authority) => {
-                            const originalIndex = authorities.findIndex(a => a.role === authority.role);
-                            return (
-                                <div key={authority.role} className="border rounded-lg p-4">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <label className="text-sm font-medium text-muted-foreground">
-                                            {authority.label}
-                                        </label>
-                                        {!authority.isEditing && (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => startEditing(originalIndex)}
-                                                disabled={!selectedAccount}
-                                            >
-                                                <Edit className="h-4 w-4" />
-                                            </Button>
-                                        )}
+        <div className="rounded-2xl border bg-card overflow-hidden">
+            <div className="divide-y divide-border">
+                {filteredAuthorities.map((authority) => {
+                    const originalIndex = authorities.findIndex(a => a.role === authority.role);
+                    
+                    return (
+                        <div key={authority.role} className="p-5">
+                            {authority.isEditing ? (
+                                // Edit mode
+                                <div className="space-y-4">
+                                    <div>
+                                        <h3 className="font-semibold text-foreground">{authority.label}</h3>
+                                        <p className="text-sm text-muted-foreground mt-0.5">{authority.description}</p>
                                     </div>
-
-                                    {authority.isEditing ? (
-                                        <div className="space-y-2">
-                                            <div className="flex items-center space-x-2">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Enter new authority address"
-                                                    value={authority.newAuthority}
-                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                                                        setAuthorities(prev =>
-                                                            prev.map((auth, i) =>
-                                                                i === originalIndex
-                                                                    ? { ...auth, newAuthority: e.target.value }
-                                                                    : auth,
-                                                            ),
-                                                        )
-                                                    }
-                                                    className="flex-1 h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                                />
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => updateAuthority(originalIndex)}
-                                                    disabled={
-                                                        authority.isLoading ||
-                                                        !validateSolanaAddress(authority.newAuthority)
-                                                    }
-                                                >
-                                                    {authority.isLoading ? (
-                                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                                    ) : (
-                                                        <Check className="h-4 w-4" />
-                                                    )}
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => cancelEditing(originalIndex)}
-                                                    disabled={authority.isLoading}
-                                                >
-                                                    <X className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                            {authority.newAuthority &&
-                                                !validateSolanaAddress(authority.newAuthority) && (
-                                                    <p className="text-sm text-red-500">
-                                                        Please enter a valid Solana address
-                                                    </p>
-                                                )}
-                                        </div>
-                                    ) : (
-                                        <code className="block text-sm bg-muted px-2 py-1 rounded font-mono">
-                                            {authority.currentAuthority?.slice(0, 8)}...
-                                            {authority.currentAuthority?.slice(-8)}
-                                        </code>
-                                    )}
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Enter new authority address"
+                                            value={authority.newAuthority}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                                setAuthorities(prev =>
+                                                    prev.map((auth, i) =>
+                                                        i === originalIndex
+                                                            ? { ...auth, newAuthority: e.target.value }
+                                                            : auth,
+                                                    ),
+                                                )
+                                            }
+                                            className="flex-1 h-10 rounded-xl border border-input bg-background px-3 py-2 text-sm font-mono ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        />
+                                        <Button
+                                            size="sm"
+                                            className="h-10 px-4 rounded-xl"
+                                            onClick={() => updateAuthority(originalIndex)}
+                                            disabled={
+                                                authority.isLoading ||
+                                                !validateSolanaAddress(authority.newAuthority)
+                                            }
+                                        >
+                                            {authority.isLoading ? (
+                                                <Spinner size={16} />
+                                            ) : (
+                                                <Check className="h-4 w-4" />
+                                            )}
+                                        </Button>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-10 px-4 rounded-xl"
+                                            onClick={() => cancelEditing(originalIndex)}
+                                            disabled={authority.isLoading}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+                                    {authority.newAuthority &&
+                                        !validateSolanaAddress(authority.newAuthority) && (
+                                            <p className="text-sm text-red-500">
+                                                Please enter a valid Solana address
+                                            </p>
+                                        )}
                                 </div>
-                            );
-                        })}
-                </div>
+                            ) : (
+                                // View mode
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-semibold text-foreground">{authority.label}</h3>
+                                        <p className="text-sm text-muted-foreground mt-0.5">{authority.description}</p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <div className="px-3 py-2 bg-muted rounded-xl font-mono text-sm">
+                                            {truncateAddress(authority.currentAuthority!)}
+                                        </div>
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
+                                            className="h-9 px-4 rounded-xl"
+                                            onClick={() => startEditing(originalIndex)}
+                                            disabled={!selectedAccount}
+                                        >
+                                            Edit
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
 
-                {!selectedAccount && (
-                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                        <p className="text-sm text-yellow-800">Connect your wallet to manage authorities</p>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+            {!selectedAccount && (
+                <div className="border-t p-4 bg-amber-50 dark:bg-amber-950/30">
+                    <p className="text-sm text-amber-700 dark:text-amber-300 text-center">
+                        Connect your wallet to manage authorities
+                    </p>
+                </div>
+            )}
+        </div>
     );
 }
-

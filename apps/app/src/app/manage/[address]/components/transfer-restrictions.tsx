@@ -1,10 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Settings, Plus, X, Shield, Ban } from 'lucide-react';
+import { ClipboardList, Plus, ShieldX, ShieldCheck } from 'lucide-react';
 
 interface TransferRestrictionsProps {
     accessList: string[];
     listType: 'allowlist' | 'blocklist';
+    tokenSymbol?: string;
     onAddToAccessList: () => void;
     onRemoveFromAccessList: (address: string) => void;
 }
@@ -12,86 +12,90 @@ interface TransferRestrictionsProps {
 export function TransferRestrictions({
     accessList,
     listType,
+    tokenSymbol = 'tokens',
     onAddToAccessList,
     onRemoveFromAccessList,
 }: TransferRestrictionsProps) {
     // Configuration for blocklist vs allowlist
     const listConfig = {
         blocklist: {
-            icon: Ban,
             title: 'Blocklist',
-            badgeText: 'Stablecoin',
-            badgeClasses: 'bg-red-100 text-red-800',
-            iconClasses: 'text-red-600',
-            description: 'Block specific addresses from transferring this stablecoin',
-            emptyMessage: 'No addresses in blocklist',
+            description: `Block specific addresses from transferring $${tokenSymbol}`,
+            emptyTitle: 'No blocked addresses',
+            emptyDescription: 'Add addresses to prevent them from transferring this token.',
+            EmptyIcon: ShieldX,
         },
         allowlist: {
-            icon: Shield,
             title: 'Allowlist',
-            badgeText: 'Arcade Token',
-            badgeClasses: 'bg-green-100 text-green-800',
-            iconClasses: 'text-green-600',
-            description: 'Allow only specific addresses to transfer this arcade token',
-            emptyMessage: 'No addresses in allowlist',
+            description: `Only these addresses can transfer $${tokenSymbol}`,
+            emptyTitle: 'No allowed addresses',
+            emptyDescription: 'Add addresses to allow them to transfer this token.',
+            EmptyIcon: ShieldCheck,
         },
     };
 
     const config = listConfig[listType];
-    const IconComponent = config.icon;
+    const EmptyIcon = config.EmptyIcon;
 
-    const renderAddressList = () => {
-        if (accessList.length === 0) {
-            return <p className="text-sm text-muted-foreground">{config.emptyMessage}</p>;
-        }
-
-        return (
-            <div className="space-y-2">
-                {accessList.map((addr) => (
-                    <div key={addr} className="flex items-center justify-between p-2 bg-muted rounded">
-                        <code className="text-xs font-mono flex-1">
-                            {addr.slice(0, 8)}...{addr.slice(-8)}
-                        </code>
-                        <Button variant="ghost" size="sm" onClick={() => onRemoveFromAccessList(addr)}>
-                            <X className="h-3 w-3" />
-                        </Button>
-                    </div>
-                ))}
-            </div>
-        );
+    const truncateAddress = (address: string) => {
+        return `${address.slice(0, 4)}...${address.slice(-4)}`;
     };
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center">
-                    <Settings className="h-5 w-5 mr-2" />
-                    Transfer Restrictions
-                </CardTitle>
-                <CardDescription>Control who can transfer tokens</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <div className="space-y-3">
-                    <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center">
-                                <IconComponent className={`h-4 w-4 mr-2 ${config.iconClasses}`} />
-                                <h5 className="font-medium">{config.title}</h5>
-                                <span className={`ml-2 text-xs px-2 py-1 rounded ${config.badgeClasses}`}>
-                                    {config.badgeText}
+        <div className="rounded-2xl border bg-card overflow-hidden">
+            {/* Header */}
+            <div className="p-5 flex items-start justify-between gap-4">
+                <div>
+                    <h3 className="font-semibold text-foreground text-lg">{config.title}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{config.description}</p>
+                </div>
+                <Button 
+                    variant="secondary" 
+                    size="sm"
+                    className="h-9 px-4 rounded-xl shrink-0"
+                    onClick={onAddToAccessList}
+                >
+                    <Plus className="h-4 w-4 mr-1.5" />
+                    Add address
+                </Button>
+            </div>
+
+            {/* Address List */}
+            {accessList.length > 0 ? (
+                <div className="divide-y divide-border border-t">
+                    {accessList.map((addr) => (
+                        <div key={addr} className="flex items-center justify-between px-5 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/30">
+                                    <ClipboardList className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                                </div>
+                                <span className="font-medium text-foreground">
+                                    {truncateAddress(addr)}
                                 </span>
                             </div>
-                            <Button variant="outline" size="sm" onClick={onAddToAccessList}>
-                                <Plus className="h-4 w-4 mr-1" />
-                                Add Address
+                            <Button 
+                                variant="secondary" 
+                                size="sm" 
+                                className="h-9 px-4 rounded-xl"
+                                onClick={() => onRemoveFromAccessList(addr)}
+                            >
+                                Remove
                             </Button>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-3">{config.description}</p>
-                        {renderAddressList()}
-                    </div>
+                    ))}
                 </div>
-            </CardContent>
-        </Card>
+            ) : (
+                /* Empty State */
+                <div className="border-t px-5 py-12 flex flex-col items-center justify-center text-center">
+                    <div className="p-3 rounded-2xl bg-muted mb-4">
+                        <EmptyIcon className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <h4 className="font-medium text-foreground mb-1">{config.emptyTitle}</h4>
+                    <p className="text-sm text-muted-foreground max-w-[280px]">
+                        {config.emptyDescription}
+                    </p>
+                </div>
+            )}
+        </div>
     );
 }
-

@@ -42,12 +42,12 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
     const transactionSendingSigner = useConnectorSigner();
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Token Extensions</CardTitle>
-                <CardDescription>Configure token-level settings</CardDescription>
+        <Card className="">
+            <CardHeader className="p-5">
+                <CardTitle className="font-semibold text-foreground text-lg">Token Extensions</CardTitle>
+                <CardDescription className="text-sm text-muted-foreground -mt-1">Configure token-level settings</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-6 p-2">
                  {/* Metadata Pointer */}
                 <div className="flex items-start justify-between space-x-4 p-4 bg-muted/50 rounded-lg">
                      <div className="space-y-1">

@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { mintTokens, type MintOptions } from '@/lib/management/mint';
 import { TransactionModifyingSigner } from '@solana/signers';
-import { Coins, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 
 import {
@@ -113,13 +114,12 @@ export function MintModalContent({
 
     return (
         <AlertDialogContent className={cn(
-            "sm:rounded-3xl p-0 gap-0 max-w-md overflow-hidden"
+            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
         )}>
-            <div className="max-h-[90vh] overflow-y-auto">
+            <div className="overflow-hidden">
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <Coins className="h-5 w-5" />
                             <AlertDialogTitle className="text-xl font-semibold">
                                 {success ? 'Mint Successful' : 'Mint Tokens'}
                             </AlertDialogTitle>
@@ -136,7 +136,7 @@ export function MintModalContent({
                     </AlertDialogDescription>
                 </AlertDialogHeader>
 
-                <div className="p-6">
+                <div className="p-6 space-y-5">
                     {success ? (
                         <TransactionSuccessView
                             title="Tokens minted successfully!"
@@ -148,69 +148,70 @@ export function MintModalContent({
                             continueLabel="Mint More"
                         />
                     ) : (
-                            <div className="space-y-4">
-                                <SolanaAddressInput
-                                    label="Recipient Address"
-                                    value={recipient}
-                                    onChange={setRecipient}
-                                    placeholder="Enter recipient Solana address..."
-                                    required
-                                    disabled={isLoading}
-                                />
+                        <>
+                            <SolanaAddressInput
+                                label="Recipient Address"
+                                value={recipient}
+                                onChange={setRecipient}
+                                placeholder="Enter recipient Solana address..."
+                                required
+                                disabled={isLoading}
+                            />
 
-                                <AmountInput
-                                    label="Amount"
-                                    value={amount}
-                                    onChange={setAmount}
-                                    placeholder="Enter amount to mint..."
-                                    helpText="Number of tokens to mint"
-                                    required
-                                    disabled={isLoading}
-                                />
+                            <AmountInput
+                                label="Amount"
+                                value={amount}
+                                onChange={setAmount}
+                                placeholder="Enter amount to mint..."
+                                helpText="Number of tokens to mint"
+                                required
+                                disabled={isLoading}
+                            />
 
-                                {mintAuthority && (
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2">Mint Authority</label>
-                                        <input
-                                            type="text"
-                                            value={mintAuthority}
-                                            readOnly
-                                            className="w-full p-2 border rounded-md bg-gray-50 dark:bg-gray-900"
-                                        />
+                            {mintAuthority && (
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Mint Authority</label>
+                                    <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
+                                        {mintAuthority}
                                     </div>
-                                )}
-
-                                {error && <div className="text-red-600 text-sm">{error}</div>}
-
-                                <div className="flex space-x-2 pt-2">
-                                    <AlertDialogCancel className="flex-1 h-11 rounded-xl mt-0" disabled={isLoading}>
-                                        Cancel
-                                    </AlertDialogCancel>
-                                    <Button
-                                        onClick={handleMint}
-                                        disabled={
-                                            isLoading ||
-                                            !recipient.trim() ||
-                                            !amount.trim() ||
-                                            !validateSolanaAddress(recipient) ||
-                                            !validateAmount(amount)
-                                        }
-                                        className="flex-1 h-11 rounded-xl"
-                                    >
-                                        {isLoading ? (
-                                            <>
-                                                <span className="animate-spin mr-2">⏳</span>
-                                                Minting...
-                                            </>
-                                        ) : (
-                                            'Mint Tokens'
-                                        )}
-                                    </Button>
                                 </div>
+                            )}
+
+                            {error && (
+                                <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-800">
+                                    {error}
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <AlertDialogCancel className="w-full h-12 rounded-xl mt-0" disabled={isLoading}>
+                                    Cancel
+                                </AlertDialogCancel>
+                                <Button
+                                    onClick={handleMint}
+                                    disabled={
+                                        isLoading ||
+                                        !recipient.trim() ||
+                                        !amount.trim() ||
+                                        !validateSolanaAddress(recipient) ||
+                                        !validateAmount(amount)
+                                    }
+                                    className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Spinner size={16} className="mr-2" />
+                                            Minting...
+                                        </>
+                                    ) : (
+                                        'Mint Tokens'
+                                    )}
+                                </Button>
                             </div>
-                        )}
-                    </div>
+                        </>
+                    )}
                 </div>
-            </AlertDialogContent>
+            </div>
+        </AlertDialogContent>
     );
 }

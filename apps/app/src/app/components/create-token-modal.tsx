@@ -104,7 +104,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                             <button
                                                 key={customToken.href}
                                                 onClick={() => handleTemplateSelect(customToken)}
-                                                className="w-full cursor-pointer active:scale-[0.98] flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-300 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
+                                                className="w-full cursor-pointer active:scale-[0.98] flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-200 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
                                             >
                                                 <div className={cn("p-3 rounded-xl shrink-0", customToken.colorClass)}>
                                                     <Icon className={cn("h-6 w-6", customToken.iconColorClass)} />
@@ -115,7 +115,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                                         {customToken.description}
                                                     </p>
                                                 </div>
-                                                <div className="shrink-0 text-gray-300 group-hover:text-gray-400 transition-colors">
+                                                <div className="shrink-0 text-gray-400 group-hover:text-gray-300 transition-colors">
                                                     <ChevronRight className="h-6 w-6" />
                                                 </div>
                                             </button>
@@ -136,7 +136,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                                 <button
                                                     key={template.href}
                                                     onClick={() => handleTemplateSelect(template)}
-                                                    className="w-full cursor-pointer active:scale-[0.98] flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-300 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
+                                                    className="w-full cursor-pointer active:scale-[0.98] flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-200 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
                                                     >
                                                     <div className={cn("p-3 rounded-xl shrink-0", template.colorClass)}>
                                                         <Icon className={cn("h-6 w-6", template.iconColorClass)} />
@@ -147,7 +147,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                                             {template.description}
                                                         </p>
                                                     </div>
-                                                    <div className="shrink-0 text-gray-300 group-hover:text-gray-400 transition-colors">
+                                                    <div className="shrink-0 text-gray-400 group-hover:text-gray-300 transition-colors">
                                                         <ChevronRight className="h-6 w-6" />
                                                     </div>
                                                 </button>

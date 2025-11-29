@@ -9,7 +9,7 @@ interface ArcadeTokenBasicParamsProps {
 
 export function ArcadeTokenBasicParams({ options, onInputChange }: ArcadeTokenBasicParamsProps) {
     return (
-        <Card>
+        <Card className="py-4">
             <CardHeader>
                 <CardTitle>Basic Parameters</CardTitle>
                 <CardDescription>Configure the fundamental properties of your arcade token</CardDescription>

@@ -8,7 +8,7 @@ interface CustomTokenBasicParamsProps {
 
 export function CustomTokenBasicParams({ options, onInputChange }: CustomTokenBasicParamsProps) {
     return (
-        <Card>
+        <Card className="py-4">
             <CardHeader>
                 <CardTitle>Basic Parameters</CardTitle>
                 <CardDescription>Configure the fundamental properties of your token</CardDescription>

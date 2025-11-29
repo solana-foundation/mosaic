@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { forceTransferTokens, type ForceTransferOptions } from '@/lib/management/force-transfer';
 import { TransactionModifyingSigner } from '@solana/signers';
-import { ArrowRightLeft, X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 
 import {
@@ -13,7 +14,6 @@ import {
     AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
-import { WarningBanner } from '@/components/shared/modals/warning-banner';
 import { SolanaAddressInput } from '@/components/shared/form/solana-address-input';
 import { AmountInput } from '@/components/shared/form/amount-input';
 import { useTransactionModal, useWalletConnection } from '@/hooks/use-transaction-modal';
@@ -133,13 +133,12 @@ export function ForceTransferModalContent({
 
     return (
         <AlertDialogContent className={cn(
-            "sm:rounded-3xl p-0 gap-0 max-w-md overflow-hidden"
+            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
         )}>
-            <div className="max-h-[90vh] overflow-y-auto">
+            <div className="overflow-hidden">
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <ArrowRightLeft className="h-5 w-5" />
                             <AlertDialogTitle className="text-xl font-semibold">
                                 {success ? 'Force Transfer Successful' : 'Force Transfer Tokens'}
                             </AlertDialogTitle>
@@ -156,7 +155,7 @@ export function ForceTransferModalContent({
                     </AlertDialogDescription>
                 </AlertDialogHeader>
 
-                <div className="p-6">
+                <div className="p-6 space-y-5">
                     {success ? (
                         <TransactionSuccessView
                             title="Tokens transferred successfully!"
@@ -168,89 +167,95 @@ export function ForceTransferModalContent({
                             continueLabel="Transfer More"
                         />
                     ) : (
-                            <div className="space-y-4">
-                                <WarningBanner
-                                    title="Warning: Administrator Action"
-                                    message="This will force transfer tokens from any account without the owner's permission. Use with caution."
-                                    variant="danger"
-                                />
+                        <>
 
-                                <SolanaAddressInput
-                                    label="Source Address"
-                                    value={fromAddress}
-                                    onChange={setFromAddress}
-                                    placeholder="Enter source wallet address..."
-                                    helpText="The account from which tokens will be transferred"
-                                    required
-                                    disabled={isLoading}
-                                />
+                            <SolanaAddressInput
+                                label="Source Address"
+                                value={fromAddress}
+                                onChange={setFromAddress}
+                                placeholder="Enter source wallet address..."
+                                helpText="The account from which tokens will be transferred"
+                                required
+                                disabled={isLoading}
+                            />
 
-                                <SolanaAddressInput
-                                    label="Destination Address"
-                                    value={toAddress}
-                                    onChange={setToAddress}
-                                    placeholder="Enter destination wallet address..."
-                                    helpText="The account to which tokens will be transferred"
-                                    required
-                                    disabled={isLoading}
-                                />
+                            <SolanaAddressInput
+                                label="Destination Address"
+                                value={toAddress}
+                                onChange={setToAddress}
+                                placeholder="Enter destination wallet address..."
+                                helpText="The account to which tokens will be transferred"
+                                required
+                                disabled={isLoading}
+                            />
 
-                                <AmountInput
-                                    label="Amount"
-                                    value={amount}
-                                    onChange={setAmount}
-                                    placeholder="Enter amount to transfer..."
-                                    helpText="Number of tokens to transfer"
-                                    required
-                                    disabled={isLoading}
-                                />
-
-                                {permanentDelegate && (
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2">Permanent Delegate Authority</label>
-                                        <input
-                                            type="text"
-                                            value={permanentDelegate}
-                                            readOnly
-                                            className="w-full p-2 border rounded-md bg-gray-50 dark:bg-gray-900 text-sm"
-                                        />
+                            <AmountInput
+                                label="Amount"
+                                value={amount}
+                                onChange={setAmount}
+                                placeholder="Enter amount to transfer..."
+                                helpText="Number of tokens to transfer"
+                                required
+                                disabled={isLoading}
+                            />
+                            <div className="bg-amber-50 dark:bg-amber-950/30 rounded-2xl p-5 space-y-3 border border-amber-200 dark:border-amber-800">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/50">
+                                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                                     </div>
-                                )}
-
-                                {error && <div className="text-red-600 text-sm">{error}</div>}
-
-                                <div className="flex space-x-2 pt-2">
-                                    <AlertDialogCancel className="flex-1 h-11 rounded-xl mt-0" disabled={isLoading}>
-                                        Cancel
-                                    </AlertDialogCancel>
-                                    <Button
-                                        onClick={handleForceTransfer}
-                                        disabled={
-                                            isLoading ||
-                                            !fromAddress.trim() ||
-                                            !toAddress.trim() ||
-                                            !amount.trim() ||
-                                            !validateSolanaAddress(fromAddress) ||
-                                            !validateSolanaAddress(toAddress) ||
-                                            !validateAmount(amount)
-                                        }
-                                        className="flex-1 h-11 rounded-xl"
-                                        variant="destructive"
-                                    >
-                                        {isLoading ? (
-                                            <>
-                                                <span className="animate-spin mr-2">⏳</span>
-                                                Processing...
-                                            </>
-                                        ) : (
-                                            'Force Transfer'
-                                        )}
-                                    </Button>
+                                    <span className="font-semibold text-amber-700 dark:text-amber-300">Administrator Action</span>
                                 </div>
+                                <p className="text-sm text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
+                                    This will force transfer tokens from any account without the owner&apos;s permission. Use with caution.
+                                </p>
                             </div>
-                        )}
-                    </div>
+
+                            {permanentDelegate && (
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Permanent Delegate Authority</label>
+                                    <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
+                                        {permanentDelegate}
+                                    </div>
+                                </div>
+                            )}
+
+                            {error && (
+                                <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-800">
+                                    {error}
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <AlertDialogCancel className="w-full h-12 rounded-xl mt-0" disabled={isLoading}>
+                                    Cancel
+                                </AlertDialogCancel>
+                                <Button
+                                    onClick={handleForceTransfer}
+                                    disabled={
+                                        isLoading ||
+                                        !fromAddress.trim() ||
+                                        !toAddress.trim() ||
+                                        !amount.trim() ||
+                                        !validateSolanaAddress(fromAddress) ||
+                                        !validateSolanaAddress(toAddress) ||
+                                        !validateAmount(amount)
+                                    }
+                                    className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all bg-amber-500 hover:bg-amber-600 text-white"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Spinner size={16} className="mr-2" />
+                                            Processing...
+                                        </>
+                                    ) : (
+                                        'Force Transfer'
+                                    )}
+                                </Button>
+                            </div>
+                        </>
+                    )}
                 </div>
-            </AlertDialogContent>
+            </div>
+        </AlertDialogContent>
     );
 }

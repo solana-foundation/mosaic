@@ -15,18 +15,24 @@ export function DashboardEmptyState({ onTokenCreated }: DashboardEmptyStateProps
         <div className="flex-1 flex items-center justify-center p-8">
             <div className="max-w-6xl w-full">
                 <button
+                    className="h-96 w-full flex flex-col justify-center items-center bg-transparent rounded-[24px] border-dashed border border-primary/10 shadow-sm hover:shadow-none shadow-none transition-all duration-200 cursor-pointer group"
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="w-full border border-dashed border-muted-foreground/25 rounded-2xl p-16 hover:border-muted-foreground/40 hover:bg-muted/5 transition-all duration-200 group cursor-pointer"
+                    style={{
+                        backgroundImage: `repeating-linear-gradient(
+                        45deg,
+                        transparent,
+                        transparent 10px,
+                        var(--diagonal-pattern-color) 10px,
+                        var(--diagonal-pattern-color) 11px
+                        )`
+                    }}                
                 >
-                    <div className="flex flex-col items-center justify-center gap-4">
-                        <div className="rounded-2xl bg-primary/5 p-6 group-hover:bg-primary/10 transition-colors">
-                            <Plus className="h-12 w-12 text-muted-foreground" />
+                    <div className="flex flex-col items-center justify-center gap-4 text-center">
+                        <div className="rounded-2xl bg-primary/5 backdrop-blur-sm p-3 group-hover:opacity-70 transition-all duration-200 ease-in-out">
+                            <Plus className="h-10 w-10 text-muted-foreground group-hover:rotate-90 group-active:scale-[0.90] transition-all duration-200 ease-in-out" />
                         </div>
                         <div>
-                            <h3 className="text-2xl font-semibold mb-2">Create Your First Token</h3>
-                            <p className="text-muted-foreground">
-                                Choose from our templates to get started quickly
-                            </p>
+                            <h3 className="text-xl text-muted-foreground group-hover:text-primary transition-all duration-200 ease-in-out font-semibold mb-1">Create Token</h3>
                         </div>
                     </div>
                 </button>

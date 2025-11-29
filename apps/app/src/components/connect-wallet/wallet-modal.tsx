@@ -8,7 +8,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordian';
-import { Wallet, ExternalLink, Loader2 } from 'lucide-react';
+import { Wallet, ExternalLink } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { IconQuestionmark, IconXmark } from 'symbols-react';
 import { useState, useEffect } from 'react';
 
@@ -119,7 +120,7 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
                 <div className="space-y-4">
                     {!isClient ? (
                         <div className="text-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+                            <Spinner size={24} className="mx-auto mb-2" />
                             <p className="text-sm text-muted-foreground">Detecting wallets...</p>
                         </div>
                     ) : (
@@ -159,7 +160,7 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-2">
-                                                        {isConnecting && <Loader2 className="h-4 w-4 animate-spin" />}
+                                                        {isConnecting && <Spinner size={16} />}
                                                         <Avatar className="h-10 w-10">
                                                             {walletInfo.wallet.icon && (
                                                                 <AvatarImage
@@ -224,7 +225,7 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
                                                                     </div>
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
-                                                                    {isConnecting && <Loader2 className="h-4 w-4 animate-spin" />}
+                                                                    {isConnecting && <Spinner size={16} />}
                                                                     <Avatar className="h-10 w-10">
                                                                         {walletInfo.wallet.icon && (
                                                                             <AvatarImage

@@ -466,9 +466,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                             
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button size="sm" variant="default" className="bg-primary hover:bg-primary/80 text-white">
+                                    <Button size="sm" variant="default" className="group bg-primary hover:bg-primary/80 text-white pr-2">
                                         Admin Actions 
-                                        <ChevronDown className="h-4 w-4 ml-2" />
+                                        <ChevronDown className="h-4 w-4 ml-2 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56 rounded-xl">
@@ -561,8 +561,8 @@ function ManageTokenConnected({ address }: { address: string }) {
                                         <AlertDialogTrigger asChild>
                                             <DropdownMenuItem 
                                                 onSelect={(e) => e.preventDefault()}
-                                                className="cursor-pointer rounded-lg text-red-600 hover:!bg-red-50 hover:!text-red-600"
-                                            >
+                                                className="cursor-pointer text-red-600 hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-600 dark:hover:!bg-red-800/40 rounded-lg"
+                                                >
                                                 <Trash2 className="h-4 w-4 mr-2" />
                                                 Remove from Storage
                                             </DropdownMenuItem>
@@ -592,19 +592,19 @@ function ManageTokenConnected({ address }: { address: string }) {
                             <TabsList className="translate-y-0.5 w-full justify-start rounded-none h-auto p-0 bg-transparent space-x-6 ring-0">
                                 <TabsTrigger 
                                     value="permissions" 
-                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                    className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
                                 >
                                     Permissions
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="blocklist" 
-                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                    className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
                                 >
                                     {listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}
                                 </TabsTrigger>
                                 <TabsTrigger 
                                     value="extensions" 
-                                    className="rounded-none border-b-2 border-transparent data-[state=active]:border-b-black dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                    className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
                                 >
                                     Token Extensions
                                 </TabsTrigger>
@@ -619,6 +619,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                                 <TransferRestrictions
                                     accessList={accessList}
                                     listType={listType}
+                                    tokenSymbol={token.symbol}
                                     onAddToAccessList={() => setShowAccessListModal(true)}
                                     onRemoveFromAccessList={removeFromAccessList}
                                 />

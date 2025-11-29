@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { forceBurnTokens, type ForceBurnOptions } from '@/lib/management/force-burn';
 import { TransactionModifyingSigner } from '@solana/signers';
-import { Flame, X } from 'lucide-react';
+import { X, AlertTriangle } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 
 import {
@@ -13,7 +14,6 @@ import {
     AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
-import { WarningBanner } from '@/components/shared/modals/warning-banner';
 import { SolanaAddressInput } from '@/components/shared/form/solana-address-input';
 import { AmountInput } from '@/components/shared/form/amount-input';
 import { useTransactionModal, useWalletConnection } from '@/hooks/use-transaction-modal';
@@ -117,13 +117,12 @@ export function ForceBurnModalContent({
 
     return (
         <AlertDialogContent className={cn(
-            "sm:rounded-3xl p-0 gap-0 max-w-md overflow-hidden"
+            "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
         )}>
-            <div className="max-h-[90vh] overflow-y-auto">
+            <div className="overflow-hidden">
                 <AlertDialogHeader className="p-6 pb-4 border-b">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <Flame className="h-5 w-5 text-red-500" />
                             <AlertDialogTitle className="text-xl font-semibold">
                                 {success ? 'Force Burn Successful' : 'Force Burn Tokens'}
                             </AlertDialogTitle>
@@ -140,7 +139,7 @@ export function ForceBurnModalContent({
                     </AlertDialogDescription>
                 </AlertDialogHeader>
 
-                <div className="p-6">
+                <div className="p-6 space-y-5">
                     {success ? (
                         <TransactionSuccessView
                             title="Tokens burned successfully!"
@@ -152,82 +151,88 @@ export function ForceBurnModalContent({
                             continueLabel="Burn More"
                         />
                     ) : (
-                            <div className="space-y-4">
-                                <WarningBanner
-                                    title="Warning: Irreversible Action"
-                                    message="Force burning will permanently destroy tokens from any account. This action cannot be undone. Only use this for compliance or emergency purposes."
-                                    variant="danger"
-                                />
+                        <>
+                            <SolanaAddressInput
+                                label="Burn From Address"
+                                value={fromAddress}
+                                onChange={setFromAddress}
+                                placeholder="Enter wallet or token account address..."
+                                helpText="The account from which tokens will be burned"
+                                required
+                                disabled={isLoading}
+                            />
 
-                                <SolanaAddressInput
-                                    label="Burn From Address"
-                                    value={fromAddress}
-                                    onChange={setFromAddress}
-                                    placeholder="Enter wallet or token account address..."
-                                    helpText="The account from which tokens will be burned"
-                                    required
-                                    disabled={isLoading}
-                                />
-
-                                <AmountInput
-                                    label="Amount to Burn"
-                                    value={amount}
-                                    onChange={setAmount}
-                                    placeholder="Enter amount to burn..."
-                                    helpText="Number of tokens to permanently destroy"
-                                    required
-                                    disabled={isLoading}
-                                />
-
-                                {permanentDelegate && (
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2">Permanent Delegate Authority</label>
-                                        <input
-                                            type="text"
-                                            value={permanentDelegate}
-                                            readOnly
-                                            className="w-full p-2 border rounded-md bg-gray-50 dark:bg-gray-900 text-sm"
-                                        />
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            Only the permanent delegate can execute force burns
-                                        </p>
+                            <AmountInput
+                                label="Amount to Burn"
+                                value={amount}
+                                onChange={setAmount}
+                                placeholder="Enter amount to burn..."
+                                helpText="Number of tokens to permanently destroy"
+                                required
+                                disabled={isLoading}
+                            />
+                            
+                            <div className="bg-red-50 dark:bg-red-950/30 rounded-2xl p-5 space-y-3 border border-red-200 dark:border-red-800">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/50">
+                                        <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
                                     </div>
-                                )}
-
-                                {error && <div className="text-red-600 text-sm">{error}</div>}
-
-                                <div className="flex space-x-2 pt-2">
-                                    <AlertDialogCancel className="flex-1 h-11 rounded-xl mt-0" disabled={isLoading}>
-                                        Cancel
-                                    </AlertDialogCancel>
-                                    <Button
-                                        onClick={handleForceBurn}
-                                        disabled={
-                                            isLoading ||
-                                            !fromAddress.trim() ||
-                                            !amount.trim() ||
-                                            !validateSolanaAddress(fromAddress) ||
-                                            !validateAmount(amount)
-                                        }
-                                        className="flex-1 h-11 rounded-xl bg-red-600 hover:bg-red-700"
-                                    >
-                                        {isLoading ? (
-                                            <>
-                                                <span className="animate-spin mr-2">⏳</span>
-                                                Burning...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Flame className="h-4 w-4 mr-2" />
-                                                Force Burn
-                                            </>
-                                        )}
-                                    </Button>
+                                    <span className="font-semibold text-red-700 dark:text-red-300">Irreversible Action</span>
                                 </div>
+                                <p className="text-sm text-red-700/80 dark:text-red-300/80 leading-relaxed">
+                                    Force burning will permanently destroy tokens from any account. This action cannot be undone. Only use this for compliance or emergency purposes.
+                                </p>
                             </div>
-                        )}
-                    </div>
+                            
+                            {permanentDelegate && (
+                                <div>
+                                    <label className="block text-sm font-medium mb-2">Permanent Delegate Authority</label>
+                                    <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
+                                        {permanentDelegate}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-1.5">
+                                        Only the permanent delegate can execute force burns
+                                    </p>
+                                </div>
+                            )}
+
+                            {error && (
+                                <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-800">
+                                    {error}
+                                </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-3 pt-2">
+                                <AlertDialogCancel className="w-full h-12 rounded-xl mt-0" disabled={isLoading}>
+                                    Cancel
+                                </AlertDialogCancel>
+                                <Button
+                                    onClick={handleForceBurn}
+                                    disabled={
+                                        isLoading ||
+                                        !fromAddress.trim() ||
+                                        !amount.trim() ||
+                                        !validateSolanaAddress(fromAddress) ||
+                                        !validateAmount(amount)
+                                    }
+                                    className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all bg-red-500 hover:bg-red-600 text-white"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Spinner size={16} className="mr-2" />
+                                            Burning...
+                                        </>
+                                    ) : (
+                                        <>
+                                            Force Burn
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        </>
+                    )}
                 </div>
-            </AlertDialogContent>
+            </div>
+        </AlertDialogContent>
     );
 }

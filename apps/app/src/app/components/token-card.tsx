@@ -157,7 +157,7 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
                                     )}
                                     <DropdownMenuItem 
                                         onClick={handleDeleteClick}
-                                        className="text-red-600 focus:text-red-600 focus:bg-red-50 rounded-lg"
+                                        className="text-red-600 hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-600 dark:hover:!bg-red-800/40 rounded-lg"
                                     >
                                         <Trash2 className="h-4 w-4 mr-2" />
                                         Delete from Storage

@@ -10,7 +10,7 @@ export function TokenizedSecurityBasicParams({
     onInputChange: (field: keyof TokenizedSecurityOptions, value: string | boolean) => void;
 }) {
     return (
-        <Card>
+        <Card className="py-4">
             <CardHeader>
                 <CardTitle>Basic Parameters</CardTitle>
                 <CardDescription>Configure the fundamental properties of your tokenized security</CardDescription>

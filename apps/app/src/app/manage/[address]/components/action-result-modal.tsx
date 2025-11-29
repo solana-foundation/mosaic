@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useConnector } from '@solana/connector/react';
-import { CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
+import { CheckCircle, AlertCircle, X } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import {
     AlertDialog,
     AlertDialogContent,
@@ -145,14 +146,14 @@ export function ActionResultModal({
     return (
         <AlertDialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
             <AlertDialogContent className={cn(
-                "sm:rounded-3xl p-0 gap-0 max-w-md overflow-hidden"
+                "sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden"
             )}>
                 <div className="overflow-hidden">
                     <AlertDialogHeader className="p-6 pb-4 border-b">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 {actionInProgress ? (
-                                    <Loader2 className="h-5 w-5 text-yellow-500 animate-spin" />
+                                    <Spinner size={20} className="text-amber-500" />
                                 ) : error ? (
                                     <AlertCircle className="h-5 w-5 text-red-500" />
                                 ) : (
@@ -179,11 +180,11 @@ export function ActionResultModal({
                         </AlertDialogDescription>
                     </AlertDialogHeader>
 
-                    <div className="p-6 space-y-4">
+                    <div className="p-6 space-y-5">
                         {/* Action in progress message */}
                         {actionInProgress && (
-                            <div className="text-sm">
-                                <p className="text-yellow-700 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 leading-relaxed">
+                            <div className="bg-amber-50 dark:bg-amber-950/30 rounded-2xl p-5 border border-amber-200 dark:border-amber-800">
+                                <p className="text-sm text-amber-700 dark:text-amber-300 leading-relaxed">
                                     Action in progress. Please sign and submit the transaction to complete the action.
                                 </p>
                             </div>
@@ -191,8 +192,8 @@ export function ActionResultModal({
 
                         {/* Error Message */}
                         {error && (
-                            <div className="text-sm">
-                                <p className="text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4 leading-relaxed">
+                            <div className="bg-red-50 dark:bg-red-950/30 rounded-2xl p-5 border border-red-200 dark:border-red-800">
+                                <p className="text-sm text-red-700 dark:text-red-300 leading-relaxed">
                                     {error}
                                 </p>
                             </div>
@@ -200,8 +201,8 @@ export function ActionResultModal({
 
                         {/* Success Message */}
                         {!error && !actionInProgress && (
-                            <div className="text-sm">
-                                <p className="text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-4 leading-relaxed">
+                            <div className="bg-green-50 dark:bg-green-950/30 rounded-2xl p-5 border border-green-200 dark:border-green-800">
+                                <p className="text-sm text-green-700 dark:text-green-300 leading-relaxed">
                                     Operation completed successfully!
                                 </p>
                             </div>
@@ -209,11 +210,11 @@ export function ActionResultModal({
 
                         {/* Transaction Link */}
                         {transactionSignature && (
-                            <div className="border-t pt-4">
+                            <div className="border-t pt-5">
                                 <Link
                                     href={buildExplorerUrl(transactionSignature, clusterName, connectorCluster)}
                                     target="_blank"
-                                    className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors font-medium text-sm"
+                                    className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors font-medium text-sm"
                                 >
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                                         <path d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z" />
@@ -226,7 +227,7 @@ export function ActionResultModal({
                         {/* Close Button */}
                         {!actionInProgress && (
                             <div className="pt-2">
-                                <AlertDialogCancel className="w-full h-11 rounded-xl mt-0">
+                                <AlertDialogCancel className="w-full h-12 rounded-xl mt-0">
                                     Close
                                 </AlertDialogCancel>
                             </div>
