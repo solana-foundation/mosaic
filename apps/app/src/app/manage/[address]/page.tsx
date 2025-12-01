@@ -22,33 +22,33 @@ import { TokenDisplay } from '@/types/token';
 import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 import { useTokenStore } from '@/stores/token-store';
-import { TokenOverview } from './components/token-overview';
-import { TokenAuthorities } from './components/token-authorities';
-import { TokenExtensions } from './components/token-extensions';
-import { TransferRestrictions } from './components/transfer-restrictions';
-import { AddressModal } from './components/address-modal';
-import { MintModalContent } from './components/mint-modal-refactored';
-import { ForceTransferModalContent } from './components/force-transfer-modal-refactored';
-import { ForceBurnModalContent } from './components/force-burn-modal-refactored';
-import { ActionResultModal } from './components/action-result-modal';
-import { PauseConfirmModalContent } from './components/pause-confirm-modal';
-import { FreezeThawModalContent } from './components/freeze-thaw-modal';
-import { TransferModalContent } from './components/transfer-modal';
-import { BurnModalContent } from './components/burn-modal';
-import { UpdateMetadataModalContent } from './components/update-metadata-modal';
-import { CloseAccountModalContent } from './components/close-account-modal';
-import { DeleteTokenModalContent } from '@/app/components/delete-token-modal';
-import { useConnectorSigner } from '@/hooks/use-connector-signer';
+import { TokenOverview } from '@/features/token-management/components/token-overview';
+import { TokenAuthorities } from '@/features/token-management/components/token-authorities';
+import { TokenExtensions } from '@/features/token-management/components/token-extensions';
+import { TransferRestrictions } from '@/features/token-management/components/transfer-restrictions';
+import { AddressModal } from '@/features/token-management/components/modals/address-modal';
+import { MintModalContent } from '@/features/token-management/components/modals/mint-modal-refactored';
+import { ForceTransferModalContent } from '@/features/token-management/components/modals/force-transfer-modal-refactored';
+import { ForceBurnModalContent } from '@/features/token-management/components/modals/force-burn-modal-refactored';
+import { ActionResultModal } from '@/features/token-management/components/modals/action-result-modal';
+import { PauseConfirmModalContent } from '@/features/token-management/components/modals/pause-confirm-modal';
+import { FreezeThawModalContent } from '@/features/token-management/components/modals/freeze-thaw-modal';
+import { TransferModalContent } from '@/features/token-management/components/modals/transfer-modal';
+import { BurnModalContent } from '@/features/token-management/components/modals/burn-modal';
+import { UpdateMetadataModalContent } from '@/features/token-management/components/modals/update-metadata-modal';
+import { CloseAccountModalContent } from '@/features/token-management/components/modals/close-account-modal';
+import { DeleteTokenModalContent } from '@/features/dashboard/components/delete-token-modal';
+import { useConnectorSigner } from '@/features/wallet/hooks/use-connector-signer';
 import {
     addAddressToBlocklist,
     addAddressToAllowlist,
     removeAddressFromBlocklist,
     removeAddressFromAllowlist,
-} from '@/lib/management/access-list';
+} from '@/features/token-management/lib/access-list';
 import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
 import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
 import { Mode } from '@token-acl/abl-sdk';
-import { pauseTokenWithWallet, unpauseTokenWithWallet, checkTokenPauseState } from '@/lib/management/pause';
+import { pauseTokenWithWallet, unpauseTokenWithWallet, checkTokenPauseState } from '@/features/token-management/lib/pause';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     DropdownMenu,
@@ -197,9 +197,8 @@ function ManageTokenConnected({ address }: { address: string }) {
                     const pauseState = await checkTokenPauseState(foundToken.address, cluster?.url || '');
                     setIsPaused(pauseState);
                 }
-            } catch (err) {
+            } catch {
                 // Token might not exist on this network - show the token with empty extensions
-                console.warn('Failed to fetch token extensions:', err instanceof Error ? err.message : err);
                 setToken(foundToken);
             }
         };

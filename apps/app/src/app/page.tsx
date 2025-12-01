@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useConnector } from '@solana/connector/react';
 import { Spinner } from '@/components/ui/spinner';
-import { DashboardConnected } from './components/dashboard-connected';
-import { DashboardDisconnected } from './components/dashboard-disconnected';
+import { DashboardConnected } from '@/features/dashboard/components/dashboard-connected';
+import { DashboardDisconnected } from '@/features/dashboard/components/dashboard-disconnected';
 
 export default function DashboardPage() {
     const { connected, selectedAccount, connecting } = useConnector();

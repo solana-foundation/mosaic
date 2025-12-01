@@ -2,7 +2,7 @@
 import { ModeToggle } from '@/components/mode-toggle';
 
 import Link from 'next/link';
-import { ConnectButton } from '@/components/connect-wallet/connect-button';
+import { ConnectButton } from '@/features/wallet/components/connect-button';
 import { Logo } from '@/components/logo';
 
 export function Header() {
