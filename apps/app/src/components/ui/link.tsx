@@ -33,14 +33,12 @@ async function prefetchImages(href: string) {
         });
 
         if (!response.ok) {
-            console.debug(`Prefetch failed for ${encodedPath}:`, response.status);
             return [];
         }
 
         const { images } = await response.json();
         return images as PrefetchImage[];
-    } catch (error) {
-        console.debug('Prefetch error:', error);
+    } catch {
         return [];
     }
 }
@@ -72,7 +70,7 @@ export const Link: typeof NextLink = (({ children, ...props }) => {
                         await sleep(0); // We want the doc prefetches to happen first.
                         void prefetchImages(String(props.href)).then(images => {
                             setImages(images);
-                        }, console.error);
+                        });
                         // Stop observing once images are prefetched
                         observer.unobserve(entry.target);
                     }, 300); // 300ms delay
