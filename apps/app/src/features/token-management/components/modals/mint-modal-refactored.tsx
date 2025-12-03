@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { mintTokens, type MintOptions } from '@/features/token-management/lib/mint';
 import { TransactionModifyingSigner } from '@solana/signers';
@@ -52,10 +52,8 @@ export function MintModalContent({
     const [amount, setAmount] = useState('');
 
     // Check if connected wallet is the mint authority
-    const hasAuthority = useMemo(() => {
-        if (!walletAddress || !mintAuthority) return false;
-        return walletAddress.toLowerCase() === mintAuthority.toLowerCase();
-    }, [walletAddress, mintAuthority]);
+    const hasAuthority =
+        walletAddress && mintAuthority && walletAddress.toLowerCase() === mintAuthority.toLowerCase();
 
     const handleMint = async () => {
         if (!walletAddress) {

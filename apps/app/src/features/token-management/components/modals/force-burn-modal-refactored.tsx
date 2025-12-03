@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { forceBurnTokens, type ForceBurnOptions } from '@/features/token-management/lib/force-burn';
 import { TransactionModifyingSigner } from '@solana/signers';
@@ -52,10 +52,8 @@ export function ForceBurnModalContent({
     const [amount, setAmount] = useState('');
 
     // Check if connected wallet is the permanent delegate
-    const hasAuthority = useMemo(() => {
-        if (!walletAddress || !permanentDelegate) return false;
-        return walletAddress.toLowerCase() === permanentDelegate.toLowerCase();
-    }, [walletAddress, permanentDelegate]);
+    const hasAuthority =
+        walletAddress && permanentDelegate && walletAddress.toLowerCase() === permanentDelegate.toLowerCase();
 
     const handleForceBurn = async () => {
         if (!walletAddress) {

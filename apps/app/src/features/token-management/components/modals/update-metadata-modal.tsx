@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { updateTokenMetadata, type UpdateMetadataOptions } from '@/features/token-management/lib/metadata';
 import { TransactionModifyingSigner } from '@solana/signers';
@@ -62,27 +62,11 @@ export function UpdateMetadataModalContent({
     const [field, setField] = useState<MetadataField>('name');
     const [value, setValue] = useState('');
 
-    // Get current value based on selected field
-    const getCurrentValue = useCallback(
-        (selectedField: MetadataField): string => {
-            switch (selectedField) {
-                case 'name':
-                    return currentName || '';
-                case 'symbol':
-                    return currentSymbol || '';
-                case 'uri':
-                    return currentUri || '';
-                default:
-                    return '';
-            }
-        },
-        [currentName, currentSymbol, currentUri],
-    );
-
     // Update value when field changes
     useEffect(() => {
-        setValue(getCurrentValue(field));
-    }, [field, getCurrentValue]);
+        const newValue = field === 'name' ? (currentName || '') : field === 'symbol' ? (currentSymbol || '') : (currentUri || '');
+        setValue(newValue);
+    }, [field, currentName, currentSymbol, currentUri]);
 
     const handleUpdate = async () => {
         if (!walletAddress) {
@@ -130,7 +114,7 @@ export function UpdateMetadataModalContent({
 
     const resetForm = () => {
         setField('name');
-        setValue(getCurrentValue('name'));
+        setValue(currentName || '');
         reset();
     };
 
