@@ -48,7 +48,10 @@ export function Providers({ children }: { children: ReactNode }) {
         () =>
             getDefaultMobileConfig({
                 appName: 'Mosaic - Tokenization Engine',
-                appUrl: process.env.NEXT_PUBLIC_MOBILE_APP_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+                appUrl:
+                    process.env.NEXT_PUBLIC_MOBILE_APP_URL ||
+                    process.env.NEXT_PUBLIC_APP_URL ||
+                    'http://localhost:3000',
             }),
         [],
     );

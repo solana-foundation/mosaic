@@ -37,8 +37,3 @@ function AlertDescription({ className, ...props }: React.HTMLAttributes<HTMLDivE
 }
 
 export { Alert, AlertTitle, AlertDescription };
-
-
-
-
-

@@ -26,6 +26,8 @@ describe('force-burn', () => {
                     tokenAccount: tokenAccount,
                     isInitialized: true,
                     isFrozen: false,
+                    balance: 1000000n,
+                    uiBalance: 1,
                 }),
                 decimalAmountToRaw: jest.fn().mockReturnValue(1000000n),
                 getMintDetails: jest.fn().mockResolvedValue({
@@ -37,6 +39,7 @@ describe('force-burn', () => {
                             state: { delegate: permDel.address },
                         },
                     ],
+                    programAddress: TOKEN_2022_PROGRAM_ADDRESS,
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
             }));
@@ -63,6 +66,8 @@ describe('force-burn', () => {
                     tokenAccount: tokenAccount,
                     isInitialized: true,
                     isFrozen: true,
+                    balance: 1000000n,
+                    uiBalance: 1,
                 }),
                 decimalAmountToRaw: jest.fn().mockReturnValue(1000000n),
                 getMintDetails: jest.fn().mockResolvedValue({
@@ -75,6 +80,7 @@ describe('force-burn', () => {
                             state: { delegate: permDel.address },
                         },
                     ],
+                    programAddress: TOKEN_2022_PROGRAM_ADDRESS,
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
             }));
@@ -94,6 +100,8 @@ describe('force-burn', () => {
                     tokenAccount: tokenAccount,
                     isInitialized: true,
                     isFrozen: true,
+                    balance: 1000000n,
+                    uiBalance: 1,
                 }),
                 decimalAmountToRaw: jest.fn().mockReturnValue(1000000n),
                 getMintDetails: jest.fn().mockResolvedValue({
@@ -105,6 +113,7 @@ describe('force-burn', () => {
                             state: { delegate: permDel.address },
                         },
                     ],
+                    programAddress: TOKEN_2022_PROGRAM_ADDRESS,
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
             }));
@@ -131,6 +140,8 @@ describe('force-burn', () => {
                         tokenAccount: tokenAccount,
                         isInitialized: true,
                         isFrozen: false,
+                        balance: expectedRaw,
+                        uiBalance: decimalAmount,
                     }),
                     decimalAmountToRaw: jest.fn().mockReturnValue(expectedRaw),
                     getMintDetails: jest.fn().mockResolvedValue({
@@ -164,6 +175,8 @@ describe('force-burn', () => {
                     tokenAccount: tokenAccount,
                     isInitialized: true,
                     isFrozen: false,
+                    balance: 1000000n,
+                    uiBalance: 1,
                 }),
                 decimalAmountToRaw: jest.fn().mockReturnValue(1000000n),
                 getMintDetails: jest.fn().mockResolvedValue({
@@ -199,6 +212,8 @@ describe('force-burn', () => {
                         tokenAccount: ta,
                         isInitialized: true,
                         isFrozen: false,
+                        balance: 1000000n,
+                        uiBalance: 1,
                     }),
                     decimalAmountToRaw: jest.fn().mockReturnValue(1000000n),
                     getMintDetails: jest.fn().mockResolvedValue({
@@ -229,6 +244,8 @@ describe('force-burn', () => {
                     tokenAccount: tokenAccount,
                     isInitialized: false,
                     isFrozen: false,
+                    balance: 0n,
+                    uiBalance: 0,
                 }),
                 decimalAmountToRaw: jest.fn().mockReturnValue(1000000n),
                 getMintDetails: jest.fn().mockResolvedValue({
@@ -257,6 +274,8 @@ describe('force-burn', () => {
                     tokenAccount: tokenAccount,
                     isInitialized: true,
                     isFrozen: false,
+                    balance: 1000000n,
+                    uiBalance: 1,
                 }),
                 decimalAmountToRaw: jest.fn().mockReturnValue(1000000n),
                 getMintDetails: jest.fn().mockResolvedValue({
@@ -387,6 +406,8 @@ describe('force-burn', () => {
                     tokenAccount: tokenAccount,
                     isInitialized: true,
                     isFrozen: true,
+                    balance: 5000000n,
+                    uiBalance: 5,
                 }),
                 decimalAmountToRaw: jest.fn().mockReturnValue(5000000n),
                 getMintDetails: jest.fn().mockResolvedValue({
@@ -437,6 +458,8 @@ describe('force-burn', () => {
                     tokenAccount: tokenAccount,
                     isInitialized: true,
                     isFrozen: false,
+                    balance: expectedRaw,
+                    uiBalance: largeAmount,
                 }),
                 decimalAmountToRaw: jest.fn().mockReturnValue(expectedRaw),
                 getMintDetails: jest.fn().mockResolvedValue({
@@ -469,6 +492,8 @@ describe('force-burn', () => {
                     tokenAccount: tokenAccount,
                     isInitialized: true,
                     isFrozen: false,
+                    balance: 1000000n,
+                    uiBalance: 1,
                 }),
                 decimalAmountToRaw: jest.fn().mockReturnValue(1000000n),
                 getMintDetails: jest.fn().mockResolvedValue({

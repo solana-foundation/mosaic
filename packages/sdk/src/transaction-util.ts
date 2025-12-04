@@ -102,6 +102,33 @@ export function decimalAmountToRaw(decimalAmount: number, decimals: number): big
 }
 
 /**
+ * Token account info parsed from RPC response
+ */
+interface TokenAccountParsedInfo {
+    mint: Address;
+    state: string;
+    tokenAmount?: {
+        amount: string;
+        decimals: number;
+        uiAmount: number | null;
+        uiAmountString: string;
+    };
+}
+
+/**
+ * Result of resolving a token account
+ */
+export interface ResolvedTokenAccount {
+    tokenAccount: Address;
+    isInitialized: boolean;
+    isFrozen: boolean;
+    /** Raw token balance as bigint (0 if not initialized) */
+    balance: bigint;
+    /** UI-friendly balance as number (0 if not initialized) */
+    uiBalance: number;
+}
+
+/**
  * Determines if an address is an Associated Token Account or wallet address
  * Returns the token account address to use for any operation
  * Note this function will not ensure that the account exists onchain
@@ -109,29 +136,27 @@ export function decimalAmountToRaw(decimalAmount: number, decimals: number): big
  * @param rpc - The Solana RPC client instance
  * @param account - The account address (could be wallet or ATA)
  * @param mint - The mint address
- * @returns Promise with the token account address and whether it was derived
+ * @returns Promise with the token account address, status, and balance
  */
 export async function resolveTokenAccount(
     rpc: Rpc<SolanaRpcApi>,
     account: Address,
     mint: Address,
-): Promise<{
-    tokenAccount: Address;
-    isInitialized: boolean;
-    isFrozen: boolean;
-}> {
+): Promise<ResolvedTokenAccount> {
     const accountInfo = await rpc.getAccountInfo(account, { encoding: 'jsonParsed' }).send();
 
     // Check if it's an existing token account for this mint
     if (accountInfo.value?.owner === TOKEN_2022_PROGRAM_ADDRESS) {
         const data = accountInfo.value?.data;
         if ('parsed' in data && data.parsed?.info) {
-            const ataInfo = data.parsed.info as { mint: Address; state: string };
+            const ataInfo = data.parsed.info as TokenAccountParsedInfo;
             if (ataInfo.mint === mint) {
                 return {
                     tokenAccount: account,
                     isInitialized: true,
                     isFrozen: ataInfo.state === 'frozen',
+                    balance: BigInt(ataInfo.tokenAmount?.amount ?? '0'),
+                    uiBalance: ataInfo.tokenAmount?.uiAmount ?? 0,
                 };
             }
             throw new Error(`Token account ${account} is not for mint ${mint} but for ${ataInfo.mint}`);
@@ -149,16 +174,18 @@ export async function resolveTokenAccount(
     // check if the ATA is frozen
     const ataInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed' }).send();
     if (ataInfo.value?.data && 'parsed' in ataInfo.value.data && ataInfo.value.data.parsed?.info) {
-        const tokenState = (ataInfo.value?.data.parsed?.info as { state: string }).state;
+        const parsedInfo = ataInfo.value.data.parsed.info as TokenAccountParsedInfo;
         return {
             tokenAccount: ata,
             isInitialized: true,
-            isFrozen: tokenState === 'frozen',
+            isFrozen: parsedInfo.state === 'frozen',
+            balance: BigInt(parsedInfo.tokenAmount?.amount ?? '0'),
+            uiBalance: parsedInfo.tokenAmount?.uiAmount ?? 0,
         };
     }
 
     // if the ATA doesn't exist yet, consider it frozen as it will be created through Token ACL
-    return { tokenAccount: ata, isInitialized: false, isFrozen: true };
+    return { tokenAccount: ata, isInitialized: false, isFrozen: true, balance: 0n, uiBalance: 0 };
 }
 
 /**
@@ -203,6 +230,8 @@ export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address) {
         mintAuthority: mintInfo.mintAuthority,
         extensions: mintInfo.extensions || [],
         usesTokenAcl,
+        /** The token program that owns this mint (Token-2022 or SPL Token) */
+        programAddress: accountInfo.value.owner,
     };
 }
 

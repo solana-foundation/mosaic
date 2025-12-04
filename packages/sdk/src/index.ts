@@ -1,4 +1,5 @@
 export { Token } from './issuance';
+export { createUpdateFieldInstruction, type UpdateFieldInstruction } from './issuance/create-update-field-instruction';
 export * from './templates';
 export * from './management';
 export * from './administration';

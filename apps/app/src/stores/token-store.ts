@@ -19,9 +19,9 @@ export const useTokenStore = create<TokenStore>()(
     persist(
         (set, get) => ({
             tokens: [],
-            addToken: (token) =>
-                set((state) => {
-                    const existingIndex = state.tokens.findIndex((t) => t.address === token.address);
+            addToken: token =>
+                set(state => {
+                    const existingIndex = state.tokens.findIndex(t => t.address === token.address);
                     if (existingIndex >= 0) {
                         // Update existing token
                         const updated = [...state.tokens];
@@ -44,25 +44,25 @@ export const useTokenStore = create<TokenStore>()(
                     };
                 }),
             updateToken: (address, updates) =>
-                set((state) => {
-                    const index = state.tokens.findIndex((t) => t.address === address);
+                set(state => {
+                    const index = state.tokens.findIndex(t => t.address === address);
                     if (index === -1) return state;
                     const updated = [...state.tokens];
                     updated[index] = { ...updated[index], ...updates };
                     return { tokens: updated };
                 }),
-            removeToken: (address) =>
-                set((state) => ({
-                    tokens: state.tokens.filter((t) => t.address !== address),
+            removeToken: address =>
+                set(state => ({
+                    tokens: state.tokens.filter(t => t.address !== address),
                 })),
-            findTokenByAddress: (address) => {
-                return get().tokens.find((t) => t.address === address);
+            findTokenByAddress: address => {
+                return get().tokens.find(t => t.address === address);
             },
-            getTokensByWallet: (walletAddress) => {
-                return get().tokens.filter((t) => t.creatorWallet === walletAddress);
+            getTokensByWallet: walletAddress => {
+                return get().tokens.filter(t => t.creatorWallet === walletAddress);
             },
-            getTokensByType: (type) => {
-                return get().tokens.filter((t) => t.detectedPatterns?.includes(type as TokenType));
+            getTokensByType: type => {
+                return get().tokens.filter(t => t.detectedPatterns?.includes(type as TokenType));
             },
             clearAllTokens: () => set({ tokens: [] }),
         }),
@@ -82,8 +82,8 @@ const EMPTY_ARRAY: TokenDisplay[] = [];
  */
 export function useWalletTokens(walletAddress: string | undefined): TokenDisplay[] {
     return useTokenStore(
-        useShallow((state) =>
-            walletAddress ? state.tokens.filter((t) => t.creatorWallet === walletAddress) : EMPTY_ARRAY,
+        useShallow(state =>
+            walletAddress ? state.tokens.filter(t => t.creatorWallet === walletAddress) : EMPTY_ARRAY,
         ),
     );
 }

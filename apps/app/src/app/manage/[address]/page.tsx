@@ -2,35 +2,54 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronDown, Coins, ArrowRightLeft, Flame, Ban, Trash2 } from 'lucide-react';
+import {
+    ChevronLeft,
+    ChevronDown,
+    Coins,
+    ArrowRightLeft,
+    Flame,
+    Ban,
+    Trash2,
+    Snowflake,
+    Sun,
+    Send,
+    FileText,
+    XCircle,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { TokenDisplay } from '@/types/token';
 import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 import { useTokenStore } from '@/stores/token-store';
-import { TokenOverview } from './components/token-overview';
-import { TokenAuthorities } from './components/token-authorities';
-import { TokenExtensions } from './components/token-extensions';
-import { TransferRestrictions } from './components/transfer-restrictions';
-import { AddressModal } from './components/address-modal';
-import { MintModalContent } from './components/mint-modal-refactored';
-import { ForceTransferModalContent } from './components/force-transfer-modal-refactored';
-import { ForceBurnModalContent } from './components/force-burn-modal-refactored';
-import { ActionResultModal } from './components/action-result-modal';
-import { PauseConfirmModalContent } from './components/pause-confirm-modal';
-import { DeleteTokenModalContent } from '@/app/components/delete-token-modal';
-import { useConnectorSigner } from '@/hooks/use-connector-signer';
+import { TokenOverview } from '@/features/token-management/components/token-overview';
+import { TokenAuthorities } from '@/features/token-management/components/token-authorities';
+import { TokenExtensions } from '@/features/token-management/components/token-extensions';
+import { TransferRestrictions } from '@/features/token-management/components/transfer-restrictions';
+import { AddressModal } from '@/features/token-management/components/modals/address-modal';
+import { MintModalContent } from '@/features/token-management/components/modals/mint-modal-refactored';
+import { ForceTransferModalContent } from '@/features/token-management/components/modals/force-transfer-modal-refactored';
+import { ForceBurnModalContent } from '@/features/token-management/components/modals/force-burn-modal-refactored';
+import { ActionResultModal } from '@/features/token-management/components/modals/action-result-modal';
+import { PauseConfirmModalContent } from '@/features/token-management/components/modals/pause-confirm-modal';
+import { FreezeThawModalContent } from '@/features/token-management/components/modals/freeze-thaw-modal';
+import { TransferModalContent } from '@/features/token-management/components/modals/transfer-modal';
+import { BurnModalContent } from '@/features/token-management/components/modals/burn-modal';
+import { UpdateMetadataModalContent } from '@/features/token-management/components/modals/update-metadata-modal';
+import { CloseAccountModalContent } from '@/features/token-management/components/modals/close-account-modal';
+import { DeleteTokenModalContent } from '@/features/dashboard/components/delete-token-modal';
+import { useConnectorSigner } from '@/features/wallet/hooks/use-connector-signer';
 import {
     addAddressToBlocklist,
     addAddressToAllowlist,
     removeAddressFromBlocklist,
     removeAddressFromAllowlist,
-} from '@/lib/management/access-list';
+} from '@/features/token-management/lib/access-list';
 import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
 import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
 import { Mode } from '@token-acl/abl-sdk';
-import { pauseTokenWithWallet, unpauseTokenWithWallet, checkTokenPauseState } from '@/lib/management/pause';
+import { getClusterName } from '@/lib/solana/explorer';
+import { pauseTokenWithWallet, unpauseTokenWithWallet, checkTokenPauseState } from '@/features/token-management/lib/pause';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     DropdownMenu,
@@ -40,10 +59,7 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-    AlertDialog,
-    AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { IconArrowUpRight, IconHexagonFill } from 'symbols-react';
 
 export default function ManageTokenPage() {
@@ -69,66 +85,32 @@ const getAccessList = async (
     rpc: Rpc<SolanaRpcApi>,
     authority: Address,
     mint: Address,
-): Promise<{ type: 'allowlist' | 'blocklist'; wallets: string[] }> => {
-    const listConfigPda = await getListConfigPda({
-        authority,
-        mint,
-    });
-    const list = await getList({ rpc, listConfig: listConfigPda });
-    return {
-    type: list.mode === Mode.Allow ? 'allowlist' : 'blocklist',
-    wallets: list.wallets,
-};
+): Promise<{ type: 'allowlist' | 'blocklist'; wallets: string[] } | null> => {
+    try {
+        const listConfigPda = await getListConfigPda({
+            authority,
+            mint,
+        });
+        const list = await getList({ rpc, listConfig: listConfigPda });
+        return {
+            type: list.mode === Mode.Allow ? 'allowlist' : 'blocklist',
+            wallets: list.wallets,
+        };
+    } catch {
+        // List config account doesn't exist yet - this is normal for tokens that
+        // have SRFC-37 enabled but haven't had their access list initialized
+        return null;
+    }
 };
 
-/**
- * Safely extracts cluster name from cluster object.
- * Handles different cluster object structures from @solana/connector.
- */
-function getClusterName(cluster: unknown): string | undefined {
-    if (!cluster || typeof cluster !== 'object') return undefined;
-    
-    // Try to access name property (may not be in type definition but exists at runtime)
-    const clusterObj = cluster as Record<string, unknown>;
-    if (typeof clusterObj.name === 'string') {
-        return clusterObj.name;
-    }
-    
-    // Fallback: try to infer from id (e.g., 'solana:mainnet' -> 'mainnet')
-    if (typeof clusterObj.id === 'string') {
-        const idParts = clusterObj.id.split(':');
-        if (idParts.length > 1) {
-            const network = idParts[1];
-            // Map 'mainnet' to 'mainnet-beta' for consistency
-            return network === 'mainnet' ? 'mainnet-beta' : network;
-        }
-    }
-    
-    // Fallback: try to infer from URL
-    if (typeof clusterObj.url === 'string') {
-        const url = clusterObj.url.toLowerCase();
-        if (url.includes('mainnet') || url.includes('api.mainnet')) {
-            return 'mainnet-beta';
-        }
-        if (url.includes('devnet') || url.includes('api.devnet')) {
-            return 'devnet';
-        }
-        if (url.includes('testnet') || url.includes('api.testnet')) {
-            return 'testnet';
-        }
-    }
-    
-    return undefined;
-}
 
 function ManageTokenConnected({ address }: { address: string }) {
     const router = useRouter();
     const { selectedAccount, cluster } = useConnector();
-    const findTokenByAddress = useTokenStore((state) => state.findTokenByAddress);
-    const removeToken = useTokenStore((state) => state.removeToken);
+    const findTokenByAddress = useTokenStore(state => state.findTokenByAddress);
+    const removeToken = useTokenStore(state => state.removeToken);
     const [token, setToken] = useState<TokenDisplay | null>(null);
     const [loading, setLoading] = useState(true);
-    const [copied, setCopied] = useState(false);
     const [accessList, setAccessList] = useState<string[]>([]);
     const [listType, setListType] = useState<'allowlist' | 'blocklist'>('blocklist');
     const [newAddress, setNewAddress] = useState('');
@@ -139,6 +121,12 @@ function ManageTokenConnected({ address }: { address: string }) {
     const [error, setError] = useState('');
     const [transactionSignature, setTransactionSignature] = useState('');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const [supplyRefreshTrigger, setSupplyRefreshTrigger] = useState(0);
+
+    // Function to trigger supply refresh after mint/burn actions
+    const refreshSupply = () => {
+        setSupplyRefreshTrigger(prev => prev + 1);
+    };
 
     const rpc = useMemo(() => {
         if (!cluster?.url) return null;
@@ -160,7 +148,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     useEffect(() => {
         const addTokenExtensionsToFoundToken = async (foundToken: TokenDisplay): Promise<void> => {
             if (!rpc) return;
-            
+
             try {
                 const extensions = await getTokenExtensions(rpc, foundToken.address as Address);
                 foundToken.extensions = extensions;
@@ -170,9 +158,8 @@ function ManageTokenConnected({ address }: { address: string }) {
                     const pauseState = await checkTokenPauseState(foundToken.address, cluster?.url || '');
                     setIsPaused(pauseState);
                 }
-            } catch (err) {
+            } catch {
                 // Token might not exist on this network - show the token with empty extensions
-                console.warn('Failed to fetch token extensions:', err instanceof Error ? err.message : err);
                 setToken(foundToken);
             }
         };
@@ -201,9 +188,14 @@ function ManageTokenConnected({ address }: { address: string }) {
                 return;
             }
 
-            const accessList = await getAccessList(rpc, selectedAccount as Address, token?.address as Address);
-            setAccessList(accessList.wallets);
-            setListType(accessList.type);
+            const result = await getAccessList(rpc, selectedAccount as Address, token?.address as Address);
+            if (result) {
+                setAccessList(result.wallets);
+                setListType(result.type);
+            } else {
+                // Access list not initialized yet - set empty list
+                setAccessList([]);
+            }
             loadedAccessListRef.current = currentKey;
         };
 
@@ -211,14 +203,6 @@ function ManageTokenConnected({ address }: { address: string }) {
             loadAccessList();
         }
     }, [rpc, selectedAccount, token?.address, token?.isSrfc37, cluster?.url, refreshTrigger]);
-
-    const copyToClipboard = async (text: string) => {
-        try {
-            await navigator.clipboard.writeText(text);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        } catch {}
-    };
 
     const openInExplorer = () => {
         const clusterName = getClusterName(cluster) || 'devnet';
@@ -351,7 +335,7 @@ function ManageTokenConnected({ address }: { address: string }) {
         // Convert both to strings for comparison (selectedAccount might be an Address object)
         const walletAddress = String(selectedAccount);
         const pauseAuthority = token.pausableAuthority ? String(token.pausableAuthority) : '';
-        
+
         if (pauseAuthority && pauseAuthority !== walletAddress) {
             setPauseError(
                 'Connected wallet does not have pause authority. Only the pause authority can pause/unpause this token.',
@@ -435,39 +419,42 @@ function ManageTokenConnected({ address }: { address: string }) {
         <div className="flex-1 p-8">
             <div className="max-w-6xl mx-auto space-y-8">
                 {/* Header */}
-                <div className="flex flex-col gap-4">                    
+                <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
-                        <Link className="p-0" href="/">
-                            <Button 
-                                variant="ghost" 
-                                size="icon"
-                                className="w-6 h-10 group transition-transform"
-                            >
-                                <ChevronLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200 ease-in-out" />
-                            </Button>
-                        </Link>
+                            <Link className="p-0" href="/">
+                                <Button variant="ghost" size="icon" className="w-6 h-10 group transition-transform">
+                                    <ChevronLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200 ease-in-out" />
+                                </Button>
+                            </Link>
                             <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10">
                                 <IconHexagonFill className="h-6 w-6 fill-primary/50" width={32} height={32} />
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold">{token.name}</h1>
-                                <p className="text-md text-muted-foreground -mt-1">
-                                    {token.symbol}
-                                </p>
+                                <p className="text-md text-muted-foreground -mt-1">{token.symbol}</p>
                             </div>
                         </div>
-                        
+
                         <div className="flex space-x-2">
-                            <Button size="sm" variant="secondary" className="bg-primary/5 hover:bg-primary/10" onClick={openInExplorer}>
+                            <Button
+                                size="sm"
+                                variant="secondary"
+                                className="bg-primary/5 hover:bg-primary/10"
+                                onClick={openInExplorer}
+                            >
                                 Explorer
                                 <IconArrowUpRight className="size-2.5 fill-primary/50" />
                             </Button>
-                            
+
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button size="sm" variant="default" className="group bg-primary hover:bg-primary/80 text-white pr-2">
-                                        Admin Actions 
+                                    <Button
+                                        size="sm"
+                                        variant="default"
+                                        className="group bg-primary hover:bg-primary/80 text-white pr-2"
+                                    >
+                                        Admin Actions
                                         <ChevronDown className="h-4 w-4 ml-2 transition-transform duration-200 group-data-[state=open]:rotate-180" />
                                     </Button>
                                 </DropdownMenuTrigger>
@@ -478,9 +465,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                                         <>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem 
-                                                        className="cursor-pointer rounded-lg" 
-                                                        onSelect={(e) => e.preventDefault()}
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer rounded-lg"
+                                                        onSelect={e => e.preventDefault()}
                                                     >
                                                         <Coins className="h-4 w-4 mr-2" />
                                                         Mint Tokens
@@ -490,13 +477,68 @@ function ManageTokenConnected({ address }: { address: string }) {
                                                     mintAddress={address}
                                                     mintAuthority={token?.mintAuthority}
                                                     transactionSendingSigner={transactionSendingSigner}
+                                                    onSuccess={refreshSupply}
                                                 />
                                             </AlertDialog>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem 
-                                                        className="cursor-pointer rounded-lg" 
-                                                        onSelect={(e) => e.preventDefault()}
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer rounded-lg"
+                                                        onSelect={e => e.preventDefault()}
+                                                    >
+                                                        <Send className="h-4 w-4 mr-2" />
+                                                        Transfer Tokens
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <TransferModalContent
+                                                    mintAddress={address}
+                                                    tokenSymbol={token?.symbol}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                />
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer rounded-lg"
+                                                        onSelect={e => e.preventDefault()}
+                                                    >
+                                                        <Flame className="h-4 w-4 mr-2" />
+                                                        Burn Tokens
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <BurnModalContent
+                                                    mintAddress={address}
+                                                    tokenSymbol={token?.symbol}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                    onSuccess={refreshSupply}
+                                                />
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer rounded-lg"
+                                                        onSelect={e => e.preventDefault()}
+                                                    >
+                                                        <FileText className="h-4 w-4 mr-2" />
+                                                        Update Metadata
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <UpdateMetadataModalContent
+                                                    mintAddress={address}
+                                                    currentName={token?.name}
+                                                    currentSymbol={token?.symbol}
+                                                    currentUri={token?.metadataUri}
+                                                    metadataAuthority={token?.metadataAuthority}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                />
+                                            </AlertDialog>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuLabel>Admin Actions</DropdownMenuLabel>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer rounded-lg"
+                                                        onSelect={e => e.preventDefault()}
                                                     >
                                                         <ArrowRightLeft className="h-4 w-4 mr-2" />
                                                         Force Transfer
@@ -510,9 +552,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                                             </AlertDialog>
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem 
-                                                        className="cursor-pointer rounded-lg" 
-                                                        onSelect={(e) => e.preventDefault()}
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer rounded-lg"
+                                                        onSelect={e => e.preventDefault()}
                                                     >
                                                         <Flame className="h-4 w-4 mr-2" />
                                                         Force Burn
@@ -522,20 +564,75 @@ function ManageTokenConnected({ address }: { address: string }) {
                                                     mintAddress={address}
                                                     permanentDelegate={token?.permanentDelegateAuthority}
                                                     transactionSendingSigner={transactionSendingSigner}
+                                                    onSuccess={refreshSupply}
+                                                />
+                                            </AlertDialog>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuLabel>Account Management</DropdownMenuLabel>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer rounded-lg"
+                                                        onSelect={e => e.preventDefault()}
+                                                    >
+                                                        <Snowflake className="h-4 w-4 mr-2" />
+                                                        Freeze Account
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <FreezeThawModalContent
+                                                    mintAddress={address}
+                                                    freezeAuthority={token?.freezeAuthority}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                    mode="freeze"
+                                                />
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer rounded-lg"
+                                                        onSelect={e => e.preventDefault()}
+                                                    >
+                                                        <Sun className="h-4 w-4 mr-2" />
+                                                        Thaw Account
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <FreezeThawModalContent
+                                                    mintAddress={address}
+                                                    freezeAuthority={token?.freezeAuthority}
+                                                    transactionSendingSigner={transactionSendingSigner}
+                                                    mode="thaw"
+                                                />
+                                            </AlertDialog>
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer rounded-lg"
+                                                        onSelect={e => e.preventDefault()}
+                                                    >
+                                                        <XCircle className="h-4 w-4 mr-2" />
+                                                        Close Token Account
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <CloseAccountModalContent
+                                                    mintAddress={address}
+                                                    tokenSymbol={token?.symbol}
+                                                    transactionSendingSigner={transactionSendingSigner}
                                                 />
                                             </AlertDialog>
                                         </>
                                     )}
                                     <DropdownMenuSeparator />
-                                    <AlertDialog onOpenChange={(open) => {
-                                        if (!open) {
-                                            setPauseError('');
-                                        }
-                                    }}>
+                                    <AlertDialog
+                                        onOpenChange={open => {
+                                            if (!open) {
+                                                setPauseError('');
+                                            }
+                                        }}
+                                    >
                                         <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem 
-                                                className="cursor-pointer rounded-lg" 
-                                                onSelect={(e) => e.preventDefault()}
+                                            <DropdownMenuItem
+                                                className="cursor-pointer rounded-lg"
+                                                onSelect={e => e.preventDefault()}
                                             >
                                                 {isPaused ? (
                                                     <>
@@ -559,10 +656,10 @@ function ManageTokenConnected({ address }: { address: string }) {
                                     <DropdownMenuSeparator />
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem 
-                                                onSelect={(e) => e.preventDefault()}
+                                            <DropdownMenuItem
+                                                onSelect={e => e.preventDefault()}
                                                 className="cursor-pointer text-red-600 hover:!text-red-600 hover:!bg-red-50 dark:hover:!text-red-600 dark:hover:!bg-red-800/40 rounded-lg"
-                                                >
+                                            >
                                                 <Trash2 className="h-4 w-4 mr-2" />
                                                 Remove from Storage
                                             </DropdownMenuItem>
@@ -581,36 +678,36 @@ function ManageTokenConnected({ address }: { address: string }) {
                 {/* Token Overview */}
                 <div className="space-y-4">
                     <h2 className="text-2xl font-semibold tracking-tight">Token Overview</h2>
-                    <TokenOverview token={token} copied={copied} onCopy={copyToClipboard} />
+                    <TokenOverview token={token} refreshTrigger={supplyRefreshTrigger} />
                 </div>
 
                 {/* Settings */}
                 <div className="space-y-4">
                     <h2 className="text-2xl font-semibold tracking-tight">Settings</h2>
                     <Tabs defaultValue="extensions" className="w-full">
-                         <div className="w-full border-b-2 border-border">
+                        <div className="w-full border-b-2 border-border">
                             <TabsList className="translate-y-0.5 w-full justify-start rounded-none h-auto p-0 bg-transparent space-x-6 ring-0">
-                                <TabsTrigger 
-                                    value="permissions" 
+                                <TabsTrigger
+                                    value="permissions"
                                     className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
                                 >
                                     Permissions
                                 </TabsTrigger>
-                                <TabsTrigger 
-                                    value="blocklist" 
+                                <TabsTrigger
+                                    value="blocklist"
                                     className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
                                 >
                                     {listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}
                                 </TabsTrigger>
-                                <TabsTrigger 
-                                    value="extensions" 
+                                <TabsTrigger
+                                    value="extensions"
                                     className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
                                 >
                                     Extensions
                                 </TabsTrigger>
                             </TabsList>
                         </div>
-                        
+
                         <div className="mt-6">
                             <TabsContent value="permissions">
                                 <TokenAuthorities setError={setError} token={token} />

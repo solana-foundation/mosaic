@@ -11,12 +11,16 @@ import {
     type TransactionWithBlockhashLifetime,
 } from 'gill';
 import { findMintConfigPda, getThawInstruction } from '@token-acl/sdk';
+import { getThawAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
+import { getMintDetails } from '../transaction-util';
 
 /**
  * Generates instructions for thawing a token account.
  *
- * This function creates instructions to thaw a token account.
+ * This function creates instructions to thaw a token account. It automatically
+ * detects whether the token uses Token ACL or standard SPL Token-2022 freeze authority
+ * and uses the appropriate instruction.
  *
  * @param input - Configuration parameters for thawing a token account
  * @param input.authority - The authority signer who can thaw the token account
@@ -54,16 +58,37 @@ export const getThawInstructions = async (input: {
         state: tokenInfo.state,
     };
 
-    const mintConfigPda = await findMintConfigPda({ mint: token.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
+    // Get mint details to determine if this token uses Token ACL
+    const { freezeAuthority, programAddress } = await getMintDetails(input.rpc, token.mint);
 
-    const thawInstruction = getThawInstruction(
+    // Check if freeze authority is the Token ACL program
+    if (freezeAuthority === TOKEN_ACL_PROGRAM_ID) {
+        // Use Token ACL instruction
+        const mintConfigPda = await findMintConfigPda({ mint: token.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
+
+        const thawInstruction = getThawInstruction(
+            {
+                authority: input.authority,
+                mintConfig: mintConfigPda[0],
+                mint: token.mint,
+                tokenAccount: input.tokenAccount,
+            },
+            { programAddress: TOKEN_ACL_PROGRAM_ID },
+        );
+
+        return [thawInstruction];
+    }
+
+    // Use standard SPL Token-2022 thaw instruction
+    const thawInstruction = getThawAccountInstruction(
         {
-            authority: input.authority,
-            mintConfig: mintConfigPda[0],
+            account: input.tokenAccount,
             mint: token.mint,
-            tokenAccount: input.tokenAccount,
+            owner: input.authority,
         },
-        { programAddress: TOKEN_ACL_PROGRAM_ID },
+        {
+            programAddress: programAddress as typeof TOKEN_2022_PROGRAM_ADDRESS,
+        },
     );
 
     return [thawInstruction];

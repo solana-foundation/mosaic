@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/header';
 // import { Footer } from '@/components/layout/footer';
 import { cn } from '@/lib/utils';
 import { Providers } from './providers';
+import { Toaster } from '@/components/ui/sonner';
 
 // Inter Variable font for body text with weights: 450, 550, 600
 const inter = localFont({
@@ -79,6 +80,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <main className="flex-1">{children}</main>
                         {/* <Footer /> */}
                     </div>
+                    <Toaster />
                 </Providers>
             </body>
         </html>
