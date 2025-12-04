@@ -16,6 +16,7 @@ import { TokenDisplay } from '@/types/token';
 import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
 import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
+import { buildAddressExplorerUrl } from '@/lib/solana/explorer';
 import { type Address, createSolanaRpc } from 'gill';
 import { IconHexagonFill } from 'symbols-react';
 
@@ -144,12 +145,12 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
                                     {token.address && (
                                         <DropdownMenuItem className="rounded-lg" asChild>
                                             <a
-                                                href={`https://solscan.io/token/${token.address}`}
+                                                href={buildAddressExplorerUrl(token.address, cluster)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                             >
                                                 <ExternalLink className="h-4 w-4 mr-2" />
-                                                View on Solscan
+                                                View on Explorer
                                             </a>
                                         </DropdownMenuItem>
                                     )}

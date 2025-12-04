@@ -25,6 +25,8 @@ interface ExtensionModalProps {
     successView?: React.ReactNode;
     /** Main form content */
     children: React.ReactNode;
+    /** Callback when modal is closed - use to reset form state */
+    onClose?: () => void;
 }
 
 export function ExtensionModal({
@@ -36,13 +38,14 @@ export function ExtensionModal({
     isSuccess,
     successView,
     children,
+    onClose,
 }: ExtensionModalProps) {
     const displayTitle = isSuccess && successTitle ? successTitle : title;
 
     return (
         <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
-            <div className="overflow-hidden">
-                <AlertDialogHeader className="p-6 pb-4 border-b">
+            <div className="overflow-hidden bg-primary/5">
+                <AlertDialogHeader className="p-6 pb-4 border-b border-primary/5 bg-primary/5">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             {Icon && <Icon className={cn('h-5 w-5', iconClassName)} />}
@@ -51,6 +54,7 @@ export function ExtensionModal({
                         <AlertDialogCancel
                             className="rounded-full p-1.5 hover:bg-muted transition-colors border-0 h-auto w-auto mt-0"
                             aria-label="Close"
+                            onClick={onClose}
                         >
                             <X className="h-4 w-4" />
                         </AlertDialogCancel>

@@ -88,7 +88,6 @@ interface FreezeThawModalContentProps {
     freezeAuthority?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
     mode: 'freeze' | 'thaw';
-    onModalClose?: () => void;
 }
 
 export function FreezeThawModalContent({
@@ -96,7 +95,6 @@ export function FreezeThawModalContent({
     freezeAuthority,
     transactionSendingSigner,
     mode,
-    onModalClose,
 }: FreezeThawModalContentProps) {
     const { cluster } = useConnector();
     const { validateSolanaAddress } = useInputValidation();
@@ -127,7 +125,6 @@ export function FreezeThawModalContent({
         actionLabel,
         loadingLabel,
         successMessage,
-        continueLabel,
         actionClassName,
         unauthorizedType,
         action,
@@ -180,10 +177,6 @@ export function FreezeThawModalContent({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleContinue = () => {
-        resetForm();
-    };
-
     // Compute disabled label to help user understand what's needed
     const getDisabledLabel = (): string | undefined => {
         if (!walletAddress) return MODAL_BUTTONS.CONNECT_WALLET;
@@ -219,15 +212,13 @@ export function FreezeThawModalContent({
             icon={Icon}
             iconClassName={iconClassName}
             isSuccess={success}
+            onClose={resetForm}
             successView={
                 <TransactionSuccessView
                     title={`${successTitle}!`}
                     message={successMessage(tokenAccount)}
                     transactionSignature={transactionSignature}
                     cluster={(cluster as { name?: string })?.name}
-                    onClose={onModalClose ?? handleContinue}
-                    onContinue={handleContinue}
-                    continueLabel={continueLabel}
                 />
             }
         >

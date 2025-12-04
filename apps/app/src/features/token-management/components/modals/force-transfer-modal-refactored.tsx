@@ -29,14 +29,12 @@ interface ForceTransferModalContentProps {
     mintAddress: string;
     permanentDelegate?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
-    onModalClose?: () => void;
 }
 
 export function ForceTransferModalContent({
     mintAddress,
     permanentDelegate,
     transactionSendingSigner,
-    onModalClose,
 }: ForceTransferModalContentProps) {
     const { cluster } = useConnector();
     const { validateSolanaAddress, validateAmount } = useInputValidation();
@@ -99,6 +97,7 @@ export function ForceTransferModalContent({
                 amount,
                 permanentDelegate: permanentDelegate || walletAddress,
                 feePayer: walletAddress,
+                rpcUrl: (cluster as { url?: string })?.url,
             };
 
             const result = await forceTransferTokens(forceTransferOptions, transactionSendingSigner);
@@ -132,10 +131,6 @@ export function ForceTransferModalContent({
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    const handleContinue = () => {
-        resetForm();
-    };
 
     // Compute disabled label to help user understand what's needed
     const getDisabledLabel = (): string | undefined => {
@@ -172,15 +167,13 @@ export function ForceTransferModalContent({
             successTitle={MODAL_TITLES.FORCE_TRANSFER_SUCCESSFUL}
             description={MODAL_DESCRIPTIONS.FORCE_TRANSFER}
             isSuccess={success}
+            onClose={resetForm}
             successView={
                 <TransactionSuccessView
                     title={MODAL_SUCCESS_MESSAGES.TOKENS_TRANSFERRED}
                     message={`${amount} tokens transferred from ${fromAddress.slice(0, 8)}...${fromAddress.slice(-6)} to ${toAddress.slice(0, 8)}...${toAddress.slice(-6)}`}
                     transactionSignature={transactionSignature}
                     cluster={(cluster as { name?: string })?.name}
-                    onClose={onModalClose ?? handleContinue}
-                    onContinue={handleContinue}
-                    continueLabel={MODAL_BUTTONS.TRANSFER_MORE}
                 />
             }
         >

@@ -29,14 +29,12 @@ interface CloseAccountModalContentProps {
     mintAddress: string;
     tokenSymbol?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
-    onModalClose?: () => void;
 }
 
 export function CloseAccountModalContent({
     mintAddress,
     tokenSymbol,
     transactionSendingSigner,
-    onModalClose,
 }: CloseAccountModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
@@ -109,10 +107,6 @@ export function CloseAccountModalContent({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleContinue = () => {
-        resetForm();
-    };
-
     return (
         <ExtensionModal
             title={MODAL_TITLES.CLOSE_TOKEN_ACCOUNT}
@@ -121,13 +115,13 @@ export function CloseAccountModalContent({
             icon={XCircle}
             iconClassName="text-red-500"
             isSuccess={success}
+            onClose={resetForm}
             successView={
                 <TransactionSuccessView
                     title="Account closed successfully!"
                     message={MODAL_SUCCESS_MESSAGES.ACCOUNT_CLOSED}
                     transactionSignature={transactionSignature}
                     cluster={(cluster as { name?: string })?.name}
-                    onClose={onModalClose ?? handleContinue}
                 />
             }
         >

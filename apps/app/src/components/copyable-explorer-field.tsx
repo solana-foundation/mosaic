@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { ExternalLink } from 'lucide-react';
 import { CopyButton } from '@/components/ui/copy-button';
+import { buildAddressExplorerUrl, buildExplorerUrl } from '@/lib/solana/explorer';
 
 interface CopyableExplorerFieldProps {
     label: string;
@@ -11,9 +12,7 @@ interface CopyableExplorerFieldProps {
     cluster?: 'devnet' | 'testnet' | 'mainnet-beta';
 }
 
-export function CopyableExplorerField({ label, value, kind, cluster = 'devnet' }: CopyableExplorerFieldProps) {
-    const explorerPath = kind === 'address' ? 'address' : 'tx';
-
+export function CopyableExplorerField({ label, value, kind, cluster }: CopyableExplorerFieldProps) {
     if (!value) {
         return (
             <div>
@@ -22,6 +21,9 @@ export function CopyableExplorerField({ label, value, kind, cluster = 'devnet' }
             </div>
         );
     }
+
+    const explorerUrl =
+        kind === 'tx' ? buildExplorerUrl(value, cluster) : buildAddressExplorerUrl(value, { name: cluster });
 
     return (
         <div>
@@ -43,10 +45,10 @@ export function CopyableExplorerField({ label, value, kind, cluster = 'devnet' }
                 />
                 <Button asChild variant="outline" size="sm" type="button">
                     <a
-                        href={`https://explorer.solana.com/${explorerPath}/${value}?cluster=${cluster}`}
+                        href={explorerUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        aria-label={`Open ${label.toLowerCase()} in Solana Explorer (${cluster})`}
+                        aria-label={`Open ${label.toLowerCase()} in Solana Explorer`}
                     >
                         <ExternalLink className="h-4 w-4" />
                     </a>

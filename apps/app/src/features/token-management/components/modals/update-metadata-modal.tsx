@@ -20,7 +20,6 @@ interface UpdateMetadataModalContentProps {
     currentUri?: string;
     metadataAuthority?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
-    onModalClose?: () => void;
 }
 
 interface StringInputConfig {
@@ -42,7 +41,6 @@ export function UpdateMetadataModalContent({
     currentUri,
     metadataAuthority,
     transactionSendingSigner,
-    onModalClose,
 }: UpdateMetadataModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
@@ -138,10 +136,6 @@ export function UpdateMetadataModalContent({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleContinue = () => {
-        resetForm();
-    };
-
     const getSuccessMessage = () => {
         // Filter updatedFields to only include keys that exist in FIELD_CONFIG, preserving order
         const validFields = updatedFields.filter(f => f in FIELD_CONFIG);
@@ -173,15 +167,13 @@ export function UpdateMetadataModalContent({
             icon={FileText}
             iconClassName="text-primary"
             isSuccess={success}
+            onClose={resetForm}
             successView={
                 <TransactionSuccessView
                     title="Metadata updated successfully!"
                     message={getSuccessMessage()}
                     transactionSignature={transactionSignature}
                     cluster={(cluster as { name?: string })?.name}
-                    onClose={onModalClose ?? handleContinue}
-                    onContinue={handleContinue}
-                    continueLabel="Update More"
                 />
             }
         >

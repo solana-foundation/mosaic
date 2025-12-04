@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { mintTokens, type MintOptions } from '@/features/token-management/lib/mint';
 import { TransactionModifyingSigner } from '@solana/signers';
-import { Coins } from 'lucide-react';
+import { Coins, User } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
+import { Button } from '@/components/ui/button';
 
 import { ExtensionModal } from '@/components/shared/modals/extension-modal';
 import { ModalError } from '@/components/shared/modals/modal-error';
 import { ModalFooter } from '@/components/shared/modals/modal-footer';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
 import { UnauthorizedView } from '@/components/shared/modals/unauthorized-view';
-import { SolanaAddressInput } from '@/components/shared/form/solana-address-input';
 import { AmountInput } from '@/components/shared/form/amount-input';
 import { useTransactionModal } from '@/features/token-management/hooks/use-transaction-modal';
 import { useAuthority } from '@/features/token-management/hooks/use-authority';
@@ -29,7 +29,6 @@ interface MintModalContentProps {
     mintAuthority?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
     onSuccess?: () => void;
-    onModalClose?: () => void;
 }
 
 export function MintModalContent({
@@ -37,7 +36,6 @@ export function MintModalContent({
     mintAuthority,
     transactionSendingSigner,
     onSuccess,
-    onModalClose,
 }: MintModalContentProps) {
     const { cluster } = useConnector();
     const { validateSolanaAddress, validateAmount } = useInputValidation();
@@ -83,6 +81,7 @@ export function MintModalContent({
                 amount,
                 mintAuthority: mintAuthority || walletAddress,
                 feePayer: walletAddress,
+                rpcUrl: (cluster as { url?: string })?.url,
             };
 
             const result = await mintTokens(mintOptions, transactionSendingSigner);
@@ -115,10 +114,6 @@ export function MintModalContent({
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    const handleContinue = () => {
-        resetForm();
-    };
 
     // Compute disabled label to help user understand what's needed
     const getDisabledLabel = (): string | undefined => {
@@ -153,26 +148,48 @@ export function MintModalContent({
             successTitle={MODAL_TITLES.MINT_SUCCESSFUL}
             description={MODAL_DESCRIPTIONS.MINT}
             isSuccess={success}
+            onClose={resetForm}
             successView={
                 <TransactionSuccessView
                     title={MODAL_SUCCESS_MESSAGES.TOKENS_MINTED}
                     message={`${amount} tokens minted to ${recipient}`}
                     transactionSignature={transactionSignature}
                     cluster={(cluster as { name?: string })?.name}
-                    onClose={onModalClose ?? handleContinue}
-                    onContinue={handleContinue}
-                    continueLabel={MODAL_BUTTONS.MINT_MORE}
                 />
             }
         >
-            <SolanaAddressInput
-                label={MODAL_LABELS.RECIPIENT_ADDRESS}
-                value={recipient}
-                onChange={setRecipient}
-                placeholder="Enter recipient Solana address..."
-                required
-                disabled={isLoading}
-            />
+            <div>
+                <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium">
+                        {MODAL_LABELS.RECIPIENT_ADDRESS}
+                        <span className="text-red-500 ml-1">*</span>
+                    </label>
+                    {walletAddress && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setRecipient(walletAddress)}
+                            disabled={isLoading}
+                            className="h-7 text-xs"
+                        >
+                            <User className="h-3 w-3 mr-1" />
+                            Use my wallet
+                        </Button>
+                    )}
+                </div>
+                <input
+                    type="text"
+                    value={recipient}
+                    onChange={e => setRecipient(e.target.value)}
+                    placeholder="Enter recipient Solana address..."
+                    className="w-full p-3 border rounded-xl bg-background"
+                    disabled={isLoading}
+                />
+                {recipient && !validateSolanaAddress(recipient) && (
+                    <p className="text-sm text-red-600 mt-1">Please enter a valid Solana address</p>
+                )}
+            </div>
 
             <AmountInput
                 label={MODAL_LABELS.AMOUNT}
