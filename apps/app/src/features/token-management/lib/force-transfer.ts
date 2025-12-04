@@ -62,7 +62,7 @@ export const forceTransferTokens = (
     executeTokenAction<ForceTransferOptions, ForceTransferResult>({
         options,
         signer,
-        validate: (opts) => {
+        validate: opts => {
             validateForceTransferOptions(opts);
 
             const signerAddress = signer.address;

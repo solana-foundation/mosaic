@@ -49,7 +49,11 @@ import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
 import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
 import { Mode } from '@token-acl/abl-sdk';
 import { buildAddressExplorerUrl } from '@/lib/solana/explorer';
-import { pauseTokenWithWallet, unpauseTokenWithWallet, checkTokenPauseState } from '@/features/token-management/lib/pause';
+import {
+    pauseTokenWithWallet,
+    unpauseTokenWithWallet,
+    checkTokenPauseState,
+} from '@/features/token-management/lib/pause';
 import { getTokenAuthorities } from '@/lib/solana/rpc';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -104,7 +108,6 @@ const getAccessList = async (
     }
 };
 
-
 function ManageTokenConnected({ address }: { address: string }) {
     const router = useRouter();
     const { selectedAccount, cluster } = useConnector();
@@ -153,24 +156,28 @@ function ManageTokenConnected({ address }: { address: string }) {
             try {
                 const extensions = await getTokenExtensions(rpc, foundToken.address as Address);
                 foundToken.extensions = extensions;
-                
+
                 // Fetch authority information from the blockchain
                 try {
-                    const rpcUrl = cluster?.url ?? process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
+                    const rpcUrl =
+                        cluster?.url ?? process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
                     const authorities = await getTokenAuthorities(foundToken.address as Address, rpcUrl);
                     // Merge fetched authorities into the token, preserving existing values if they exist
                     foundToken.mintAuthority = authorities.mintAuthority || foundToken.mintAuthority;
                     foundToken.freezeAuthority = authorities.freezeAuthority || foundToken.freezeAuthority;
                     foundToken.metadataAuthority = authorities.metadataAuthority || foundToken.metadataAuthority;
                     foundToken.pausableAuthority = authorities.pausableAuthority || foundToken.pausableAuthority;
-                    foundToken.confidentialBalancesAuthority = authorities.confidentialBalancesAuthority || foundToken.confidentialBalancesAuthority;
-                    foundToken.permanentDelegateAuthority = authorities.permanentDelegateAuthority || foundToken.permanentDelegateAuthority;
-                    foundToken.scaledUiAmountAuthority = authorities.scaledUiAmountAuthority || foundToken.scaledUiAmountAuthority;
+                    foundToken.confidentialBalancesAuthority =
+                        authorities.confidentialBalancesAuthority || foundToken.confidentialBalancesAuthority;
+                    foundToken.permanentDelegateAuthority =
+                        authorities.permanentDelegateAuthority || foundToken.permanentDelegateAuthority;
+                    foundToken.scaledUiAmountAuthority =
+                        authorities.scaledUiAmountAuthority || foundToken.scaledUiAmountAuthority;
                 } catch {
                     // If authority fetch fails, continue with existing token data
                     // Authorities may not be available if token doesn't exist on this network
                 }
-                
+
                 setToken(foundToken);
 
                 if (foundToken.address) {
@@ -553,7 +560,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                                             {token?.permanentDelegateAuthority && (
                                                 <>
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuLabel className="text-primary/30 text-xs">Authority</DropdownMenuLabel>
+                                                    <DropdownMenuLabel className="text-primary/30 text-xs">
+                                                        Authority
+                                                    </DropdownMenuLabel>
                                                     <DropdownMenuSeparator />
 
                                                     <AlertDialog>
@@ -663,11 +672,13 @@ function ManageTokenConnected({ address }: { address: string }) {
                                                     >
                                                         {isPaused ? (
                                                             <>
-                                                                <Coins className="h-4 w-4 mr-2 text-primary/30" /> Unpause Token
+                                                                <Coins className="h-4 w-4 mr-2 text-primary/30" />{' '}
+                                                                Unpause Token
                                                             </>
                                                         ) : (
                                                             <>
-                                                                <Ban className="h-4 w-4 mr-2 text-primary/30" /> Pause Token
+                                                                <Ban className="h-4 w-4 mr-2 text-primary/30" /> Pause
+                                                                Token
                                                             </>
                                                         )}
                                                     </DropdownMenuItem>

@@ -128,16 +128,8 @@ export function MintModalContent({
     // Show unauthorized view if wallet doesn't have mint authority
     if (!hasMintAuthority && mintAuthority) {
         return (
-            <ExtensionModal
-                title={MODAL_TITLES.MINT_TOKENS}
-                description={MODAL_DESCRIPTIONS.MINT}
-                isSuccess={false}
-            >
-                <UnauthorizedView
-                    type="mint"
-                    authorityAddress={mintAuthority}
-                    walletAddress={walletAddress}
-                />
+            <ExtensionModal title={MODAL_TITLES.MINT_TOKENS} description={MODAL_DESCRIPTIONS.MINT} isSuccess={false}>
+                <UnauthorizedView type="mint" authorityAddress={mintAuthority} walletAddress={walletAddress} />
             </ExtensionModal>
         );
     }

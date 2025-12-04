@@ -213,7 +213,9 @@ export function ForceTransferModalContent({
 
             {permanentDelegate && (
                 <div>
-                    <label className="block text-sm font-medium mb-2">{MODAL_LABELS.PERMANENT_DELEGATE_AUTHORITY}</label>
+                    <label className="block text-sm font-medium mb-2">
+                        {MODAL_LABELS.PERMANENT_DELEGATE_AUTHORITY}
+                    </label>
                     <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
                         {permanentDelegate}
                     </div>

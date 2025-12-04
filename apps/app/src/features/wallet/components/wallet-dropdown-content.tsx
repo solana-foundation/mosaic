@@ -264,12 +264,7 @@ export function WalletDropdownContent({
                         </SelectContent>
                     </Select>
                     <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={handleCancelAddRpc}
-                        >
+                        <Button variant="outline" size="sm" className="flex-1" onClick={handleCancelAddRpc}>
                             Cancel
                         </Button>
                         <Button

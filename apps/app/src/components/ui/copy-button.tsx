@@ -9,9 +9,7 @@ import type { VariantProps } from 'class-variance-authority';
 
 type ButtonVariantProps = VariantProps<typeof buttonVariants>;
 
-interface CopyButtonProps
-    extends Omit<ComponentProps<'button'>, 'onClick' | 'children'>,
-        ButtonVariantProps {
+interface CopyButtonProps extends Omit<ComponentProps<'button'>, 'onClick' | 'children'>, ButtonVariantProps {
     textToCopy: string;
     displayText?: string;
     iconOnly?: boolean;

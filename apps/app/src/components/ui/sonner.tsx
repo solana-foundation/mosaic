@@ -23,7 +23,8 @@ function Toaster({ ...props }: ToasterProps) {
                 classNames: {
                     toast: 'group toast group-[.toaster]:bg-zinc-900 group-[.toaster]:text-zinc-100 group-[.toaster]:border-zinc-800 group-[.toaster]:shadow-lg group-[.toaster]:rounded-xl font-berkeley-mono',
                     description: 'group-[.toast]:text-zinc-400',
-                    actionButton: 'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground group-[.toast]:rounded-lg',
+                    actionButton:
+                        'group-[.toast]:bg-primary group-[.toast]:text-primary-foreground group-[.toast]:rounded-lg',
                     cancelButton: 'group-[.toast]:bg-zinc-800 group-[.toast]:text-zinc-400 group-[.toast]:rounded-lg',
                     success: 'group-[.toaster]:border-green-500/20',
                     error: 'group-[.toaster]:border-red-500/20',

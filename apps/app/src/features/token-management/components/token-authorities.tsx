@@ -356,7 +356,11 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
-                                    <WarningText show={!!authority.newAuthority && !validateSolanaAddress(authority.newAuthority)}>
+                                    <WarningText
+                                        show={
+                                            !!authority.newAuthority && !validateSolanaAddress(authority.newAuthority)
+                                        }
+                                    >
                                         Please enter a valid Solana address
                                     </WarningText>
                                 </div>

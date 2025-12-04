@@ -10,10 +10,7 @@ interface CustomTokenCreationResultProps {
     cluster?: 'devnet' | 'testnet' | 'mainnet-beta';
 }
 
-export function CustomTokenCreationResultDisplay({
-    result,
-    cluster = 'devnet',
-}: CustomTokenCreationResultProps) {
+export function CustomTokenCreationResultDisplay({ result, cluster = 'devnet' }: CustomTokenCreationResultProps) {
     return (
         <Card className="mb-8">
             <CardHeader>

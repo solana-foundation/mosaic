@@ -43,7 +43,7 @@ interface ModeConfig {
     unauthorizedType: 'freeze' | 'thaw';
     action: (
         options: FreezeAccountOptions | ThawAccountOptions,
-        signer: TransactionModifyingSigner<string>
+        signer: TransactionModifyingSigner<string>,
     ) => Promise<{ success: boolean; transactionSignature?: string; error?: string }>;
 }
 

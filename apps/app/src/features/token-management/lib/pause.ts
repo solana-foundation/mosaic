@@ -6,7 +6,12 @@ import {
     type TransactionModifyingSigner,
     isAddress,
 } from 'gill';
-import { getTokenPauseState, type PauseTokenResult, createPauseTransaction, createResumeTransaction } from '@mosaic/sdk';
+import {
+    getTokenPauseState,
+    type PauseTokenResult,
+    createPauseTransaction,
+    createResumeTransaction,
+} from '@mosaic/sdk';
 import { getRpcUrl } from '@/lib/solana/rpc';
 import { executeTokenAction } from './token-action';
 

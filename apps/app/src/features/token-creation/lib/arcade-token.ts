@@ -41,7 +41,11 @@ function validateArcadeTokenOptions(options: ArcadeTokenOptions): number {
 function createTimeoutPromise(timeoutMs: number = 60000): Promise<never> {
     return new Promise((_, reject) => {
         setTimeout(() => {
-            reject(new Error(`Transaction confirmation timed out after ${timeoutMs / 1000}s. The transaction may still be processing.`));
+            reject(
+                new Error(
+                    `Transaction confirmation timed out after ${timeoutMs / 1000}s. The transaction may still be processing.`,
+                ),
+            );
         }, timeoutMs);
     });
 }
@@ -52,14 +56,8 @@ function createTimeoutPromise(timeoutMs: number = 60000): Promise<never> {
  * @param timeoutMs - Timeout duration in milliseconds (default: 60000)
  * @returns Promise that resolves when transaction is confirmed or rejects on timeout
  */
-async function sendAndConfirmWithTimeout<T>(
-    confirmationPromise: Promise<T>,
-    timeoutMs: number = 60000,
-): Promise<T> {
-    return Promise.race([
-        confirmationPromise,
-        createTimeoutPromise(timeoutMs),
-    ]);
+async function sendAndConfirmWithTimeout<T>(confirmationPromise: Promise<T>, timeoutMs: number = 60000): Promise<T> {
+    return Promise.race([confirmationPromise, createTimeoutPromise(timeoutMs)]);
 }
 
 /**
@@ -75,9 +73,10 @@ export const createArcadeToken = async (
     try {
         const decimals = validateArcadeTokenOptions(options);
         const enableSrfc37Value = options.enableSrfc37 as unknown;
-        const enableSrfc37 = typeof enableSrfc37Value === 'string'
-            ? enableSrfc37Value.toLowerCase() === 'true'
-            : Boolean(enableSrfc37Value);
+        const enableSrfc37 =
+            typeof enableSrfc37Value === 'string'
+                ? enableSrfc37Value.toLowerCase() === 'true'
+                : Boolean(enableSrfc37Value);
 
         // Get wallet public key
         const walletPublicKey = signer.address;
@@ -132,7 +131,7 @@ export const createArcadeToken = async (
         const confirmationPromise = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });
-        
+
         // Use configurable timeout (default 60s, can be adjusted via options if needed)
         const timeoutMs = options.confirmationTimeoutMs ?? 60000;
         await sendAndConfirmWithTimeout(confirmationPromise, timeoutMs);

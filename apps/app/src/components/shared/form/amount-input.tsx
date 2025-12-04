@@ -105,9 +105,9 @@ export function AmountInput({
         <div>
             <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm font-medium">
-                {label}
-                {required && <span className="text-red-500 ml-1">*</span>}
-            </label>
+                    {label}
+                    {required && <span className="text-red-500 ml-1">*</span>}
+                </label>
                 {showBalance && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         {balanceLoading ? (

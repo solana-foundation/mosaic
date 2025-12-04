@@ -55,7 +55,7 @@ export const mintTokens = (options: MintOptions, signer: TransactionModifyingSig
     executeTokenAction<MintOptions, MintResult>({
         options,
         signer,
-        validate: (opts) => {
+        validate: opts => {
             validateMintOptions(opts);
 
             // Additional authority validation

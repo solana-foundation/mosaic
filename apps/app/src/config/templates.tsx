@@ -70,12 +70,7 @@ export const templates: Template[] = [
         colorClass: 'bg-orange-100',
         iconColorClass: 'text-orange-600',
         coreCapabilityKeys: ['closedLoopAllowlistOnly', 'pausable', 'metadata', 'permanentDelegate'],
-        enabledExtensionKeys: [
-            'extMetadata',
-            'extPausable',
-            'extDefaultAccountStateAllow',
-            'extPermanentDelegate',
-        ],
+        enabledExtensionKeys: ['extMetadata', 'extPausable', 'extDefaultAccountStateAllow', 'extPermanentDelegate'],
         standardKeys: ['sRFC37', 'gatingProgram'],
     },
     {

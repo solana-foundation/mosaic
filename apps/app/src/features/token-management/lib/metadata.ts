@@ -240,7 +240,7 @@ export const updateTokenMetadataBatch = async (
                 updateAuthority: signerAddress,
                 field,
                 value,
-            })
+            }),
         );
         const updatedFields = options.updates.map(({ field }) => field);
 

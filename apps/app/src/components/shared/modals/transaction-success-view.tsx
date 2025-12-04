@@ -109,7 +109,6 @@ export function TransactionSuccessView({
                     </div>
                 </div>
             )}
-
         </div>
     );
 }

@@ -136,11 +136,7 @@ export function ForceBurnModalContent({
                 description={MODAL_DESCRIPTIONS.FORCE_BURN}
                 isSuccess={false}
             >
-                <UnauthorizedView
-                    type="forceBurn"
-                    authorityAddress={permanentDelegate}
-                    walletAddress={walletAddress}
-                />
+                <UnauthorizedView type="forceBurn" authorityAddress={permanentDelegate} walletAddress={walletAddress} />
             </ExtensionModal>
         );
     }
@@ -187,7 +183,9 @@ export function ForceBurnModalContent({
 
             {permanentDelegate && (
                 <div>
-                    <label className="block text-sm font-medium mb-2">{MODAL_LABELS.PERMANENT_DELEGATE_AUTHORITY}</label>
+                    <label className="block text-sm font-medium mb-2">
+                        {MODAL_LABELS.PERMANENT_DELEGATE_AUTHORITY}
+                    </label>
                     <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
                         {permanentDelegate}
                     </div>

@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { updateTokenMetadataBatch, type UpdateMetadataBatchOptions, type MetadataUpdate } from '@/features/token-management/lib/metadata';
+import {
+    updateTokenMetadataBatch,
+    type UpdateMetadataBatchOptions,
+    type MetadataUpdate,
+} from '@/features/token-management/lib/metadata';
 import { TransactionModifyingSigner } from '@solana/signers';
 import { FileText } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
@@ -139,13 +143,13 @@ export function UpdateMetadataModalContent({
     const getSuccessMessage = () => {
         // Filter updatedFields to only include keys that exist in FIELD_CONFIG, preserving order
         const validFields = updatedFields.filter(f => f in FIELD_CONFIG);
-        
+
         // Map to labels with fallback for unexpected keys (defensive programming)
         const fieldLabels = validFields.map(f => {
             const config = FIELD_CONFIG[f as keyof typeof FIELD_CONFIG];
             return config?.label ?? f;
         });
-        
+
         if (fieldLabels.length === 1) {
             return `${fieldLabels[0]} has been updated`;
         }
@@ -251,7 +255,11 @@ export function UpdateMetadataModalContent({
             <ModalFooter
                 isLoading={isLoading}
                 onAction={handleUpdate}
-                actionLabel={hasChanges ? `Update ${getChangeCount()} Field${getChangeCount() > 1 ? 's' : ''}` : 'Update Metadata'}
+                actionLabel={
+                    hasChanges
+                        ? `Update ${getChangeCount()} Field${getChangeCount() > 1 ? 's' : ''}`
+                        : 'Update Metadata'
+                }
                 loadingLabel="Updating..."
                 actionDisabled={!hasChanges || hasValidationErrors}
                 disabledLabel={!hasChanges ? 'No Changes' : undefined}

@@ -9,10 +9,7 @@ import { getEffectiveClusterName } from '@/lib/solana/explorer';
 
 export function TokenizedSecurityCreationResultDisplay({ result }: { result: TokenizedSecurityCreationResult }) {
     const { cluster: connectorCluster } = useConnector();
-    const cluster = getEffectiveClusterName(
-        undefined,
-        connectorCluster,
-    ) as 'devnet' | 'testnet' | 'mainnet-beta';
+    const cluster = getEffectiveClusterName(undefined, connectorCluster) as 'devnet' | 'testnet' | 'mainnet-beta';
     return (
         <Card className="mb-8">
             <CardHeader>

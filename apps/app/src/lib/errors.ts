@@ -6,7 +6,7 @@
 /**
  * Error messages that should be silently ignored (not shown to user).
  * These typically represent expected states rather than actual errors.
- * 
+ *
  * Patterns can be:
  * - Exact strings: matched with case-insensitive === comparison
  * - RegExp objects: tested against the full message with .test()
@@ -38,7 +38,7 @@ export function getErrorMessage(error: unknown, fallback = 'An unexpected error 
 /**
  * Checks if an error should be silently ignored based on known patterns.
  * Useful for expected error states that don't need user notification.
- * 
+ *
  * String patterns are matched exactly (case-insensitive).
  * RegExp patterns are tested against the full message.
  * @param error - The error to check

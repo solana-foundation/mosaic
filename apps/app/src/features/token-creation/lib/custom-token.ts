@@ -205,9 +205,7 @@ export const createCustomToken = async (
                 transferFeeBasisPoints: options.transferFeeBasisPoints
                     ? parseInt(options.transferFeeBasisPoints, 10)
                     : undefined,
-                transferFeeMaximum: options.transferFeeMaximum
-                    ? BigInt(options.transferFeeMaximum)
-                    : undefined,
+                transferFeeMaximum: options.transferFeeMaximum ? BigInt(options.transferFeeMaximum) : undefined,
                 // Interest Bearing configuration
                 interestBearingAuthority,
                 interestRate: options.interestRate ? parseInt(options.interestRate, 10) : undefined,

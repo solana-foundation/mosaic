@@ -93,9 +93,7 @@ export function UnauthorizedView({ type, authorityAddress, walletAddress }: Unau
                     </div>
                     {walletAddress && (
                         <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">
-                                Your Wallet
-                            </label>
+                            <label className="block text-xs font-medium text-muted-foreground mb-1">Your Wallet</label>
                             <div className="font-mono text-sm break-all text-muted-foreground">{walletAddress}</div>
                         </div>
                     )}
