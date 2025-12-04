@@ -1,24 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { updateTokenMetadata, type UpdateMetadataOptions } from '@/features/token-management/lib/metadata';
+import { updateTokenMetadataBatch, type UpdateMetadataBatchOptions, type MetadataUpdate } from '@/features/token-management/lib/metadata';
 import { TransactionModifyingSigner } from '@solana/signers';
-import { X, FileText } from 'lucide-react';
-import { Spinner } from '@/components/ui/spinner';
+import { FileText } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-import {
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
+import { ExtensionModal } from '@/components/shared/modals/extension-modal';
+import { ModalError } from '@/components/shared/modals/modal-error';
+import { ModalFooter } from '@/components/shared/modals/modal-footer';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
 import { useTransactionModal, useWalletConnection } from '@/features/token-management/hooks/use-transaction-modal';
-import { cn } from '@/lib/utils';
+import { MODAL_ERRORS } from '@/features/token-management/constants/modal-text';
 
 interface UpdateMetadataModalContentProps {
     mintAddress: string;
@@ -27,14 +20,19 @@ interface UpdateMetadataModalContentProps {
     currentUri?: string;
     metadataAuthority?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    onModalClose?: () => void;
 }
 
-type MetadataField = 'name' | 'symbol' | 'uri';
+interface StringInputConfig {
+    label: string;
+    placeholder: string;
+    maxLength: number;
+}
 
-const fieldLabels: Record<MetadataField, { label: string; placeholder: string; maxLength: number }> = {
-    name: { label: 'Token Name', placeholder: 'Enter new token name...', maxLength: 32 },
-    symbol: { label: 'Token Symbol', placeholder: 'Enter new symbol...', maxLength: 10 },
-    uri: { label: 'Metadata URI', placeholder: 'Enter new metadata URI...', maxLength: 200 },
+const FIELD_CONFIG: Record<'name' | 'symbol' | 'uri', StringInputConfig> = {
+    name: { label: 'Token Name', placeholder: 'Enter token name...', maxLength: 32 },
+    symbol: { label: 'Token Symbol', placeholder: 'Enter symbol...', maxLength: 10 },
+    uri: { label: 'Metadata URI', placeholder: 'Enter metadata URI...', maxLength: 200 },
 };
 
 export function UpdateMetadataModalContent({
@@ -44,6 +42,7 @@ export function UpdateMetadataModalContent({
     currentUri,
     metadataAuthority,
     transactionSendingSigner,
+    onModalClose,
 }: UpdateMetadataModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
@@ -59,28 +58,36 @@ export function UpdateMetadataModalContent({
         reset,
     } = useTransactionModal();
 
-    const [field, setField] = useState<MetadataField>('name');
-    const [value, setValue] = useState('');
+    const [name, setName] = useState(currentName || '');
+    const [symbol, setSymbol] = useState(currentSymbol || '');
+    const [uri, setUri] = useState(currentUri || '');
+    const [updatedFields, setUpdatedFields] = useState<string[]>([]);
 
-    // Update value when field changes
-    useEffect(() => {
-        const newValue = field === 'name' ? (currentName || '') : field === 'symbol' ? (currentSymbol || '') : (currentUri || '');
-        setValue(newValue);
-    }, [field, currentName, currentSymbol, currentUri]);
+    // Check which fields have been modified
+    const hasNameChanged = name.trim() !== (currentName || '');
+    const hasSymbolChanged = symbol.trim() !== (currentSymbol || '');
+    const hasUriChanged = uri.trim() !== (currentUri || '');
+    const hasChanges = hasNameChanged || hasSymbolChanged || hasUriChanged;
+
+    // Validation
+    const nameError = name.length > FIELD_CONFIG.name.maxLength;
+    const symbolError = symbol.length > FIELD_CONFIG.symbol.maxLength;
+    const uriError = uri.length > FIELD_CONFIG.uri.maxLength;
+    const hasValidationErrors = nameError || symbolError || uriError;
 
     const handleUpdate = async () => {
         if (!walletAddress) {
-            setError('Wallet not connected');
+            setError(MODAL_ERRORS.WALLET_NOT_CONNECTED);
             return;
         }
 
-        if (!value.trim()) {
-            setError('Please enter a value');
+        if (!hasChanges) {
+            setError('No changes to save');
             return;
         }
 
-        if (value.length > fieldLabels[field].maxLength) {
-            setError(`${fieldLabels[field].label} must be ${fieldLabels[field].maxLength} characters or less`);
+        if (hasValidationErrors) {
+            setError('Please fix validation errors before saving');
             return;
         }
 
@@ -90,38 +97,44 @@ export function UpdateMetadataModalContent({
         try {
             const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
-            const options: UpdateMetadataOptions = {
+            // Only include fields that have changed
+            const updates: MetadataUpdate[] = [];
+            if (hasNameChanged) updates.push({ field: 'name', value: name.trim() });
+            if (hasSymbolChanged) updates.push({ field: 'symbol', value: symbol.trim() });
+            if (hasUriChanged) updates.push({ field: 'uri', value: uri.trim() });
+
+            const options: UpdateMetadataBatchOptions = {
                 mintAddress,
-                field,
-                value: value.trim(),
+                updates,
                 rpcUrl,
             };
 
-            const result = await updateTokenMetadata(options, transactionSendingSigner);
+            const result = await updateTokenMetadataBatch(options, transactionSendingSigner);
 
             if (result.success && result.transactionSignature) {
                 setSuccess(true);
                 setTransactionSignature(result.transactionSignature);
+                setUpdatedFields(result.updatedFields || []);
             } else {
                 setError(result.error || 'Update failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
         } finally {
             setIsLoading(false);
         }
     };
 
     const resetForm = () => {
-        setField('name');
-        setValue(currentName || '');
+        setName(currentName || '');
+        setSymbol(currentSymbol || '');
+        setUri(currentUri || '');
+        setUpdatedFields([]);
         reset();
     };
 
     useEffect(() => {
-        return () => {
-            reset();
-        };
+        return () => resetForm();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -129,112 +142,120 @@ export function UpdateMetadataModalContent({
         resetForm();
     };
 
+    const getSuccessMessage = () => {
+        const fieldLabels = updatedFields.map(f => FIELD_CONFIG[f as keyof typeof FIELD_CONFIG].label);
+        if (fieldLabels.length === 1) {
+            return `${fieldLabels[0]} has been updated`;
+        }
+        if (fieldLabels.length === 2) {
+            return `${fieldLabels[0]} and ${fieldLabels[1]} have been updated`;
+        }
+        return `${fieldLabels.slice(0, -1).join(', ')}, and ${fieldLabels[fieldLabels.length - 1]} have been updated`;
+    };
+
+    const getChangeCount = () => {
+        return [hasNameChanged, hasSymbolChanged, hasUriChanged].filter(Boolean).length;
+    };
+
     return (
-        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
-            <div className="overflow-hidden">
-                <AlertDialogHeader className="p-6 pb-4 border-b">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-primary" />
-                            <AlertDialogTitle className="text-xl font-semibold">
-                                {success ? 'Update Successful' : 'Update Metadata'}
-                            </AlertDialogTitle>
-                        </div>
-                        <AlertDialogCancel
-                            className="rounded-full p-1.5 hover:bg-muted transition-colors border-0 h-auto w-auto mt-0"
-                            aria-label="Close"
-                        >
-                            <X className="h-4 w-4" />
-                        </AlertDialogCancel>
-                    </div>
-                    <AlertDialogDescription>
-                        Update your token&apos;s name, symbol, or metadata URI
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-
-                <div className="p-6 space-y-5">
-                    {success ? (
-                        <TransactionSuccessView
-                            title="Metadata updated successfully!"
-                            message={`${fieldLabels[field].label} has been updated to "${value}"`}
-                            transactionSignature={transactionSignature}
-                            cluster={(cluster as { name?: string })?.name}
-                            onClose={handleContinue}
-                            onContinue={handleContinue}
-                            continueLabel="Update More"
-                        />
-                    ) : (
-                        <>
-                            <div className="space-y-2">
-                                <Label>Field to Update</Label>
-                                <Select value={field} onValueChange={v => setField(v as MetadataField)}>
-                                    <SelectTrigger className="rounded-xl h-12">
-                                        <SelectValue placeholder="Select field" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="name">Token Name</SelectItem>
-                                        <SelectItem value="symbol">Token Symbol</SelectItem>
-                                        <SelectItem value="uri">Metadata URI</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label>{fieldLabels[field].label}</Label>
-                                <Input
-                                    value={value}
-                                    onChange={e => setValue(e.target.value)}
-                                    placeholder={fieldLabels[field].placeholder}
-                                    className="rounded-xl h-12"
-                                    disabled={isLoading}
-                                    maxLength={fieldLabels[field].maxLength}
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    {value.length}/{fieldLabels[field].maxLength} characters
-                                </p>
-                            </div>
-
-                            {metadataAuthority && (
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Metadata Authority</label>
-                                    <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
-                                        {metadataAuthority}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1.5">
-                                        Only the metadata authority can update token metadata
-                                    </p>
-                                </div>
-                            )}
-
-                            {error && (
-                                <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-800">
-                                    {error}
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <AlertDialogCancel className="w-full h-12 rounded-xl mt-0" disabled={isLoading}>
-                                    Cancel
-                                </AlertDialogCancel>
-                                <Button
-                                    onClick={handleUpdate}
-                                    disabled={isLoading || !value.trim() || value.length > fieldLabels[field].maxLength}
-                                    className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all"
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Spinner size={16} className="mr-2" />
-                                            Updating...
-                                        </>
-                                    ) : (
-                                        'Update Metadata'
-                                    )}
-                                </Button>
-                            </div>
-                        </>
-                    )}
-                </div>
+        <ExtensionModal
+            title="Update Metadata"
+            successTitle="Update Successful"
+            description="Update your token's name, symbol, and metadata URI"
+            icon={FileText}
+            iconClassName="text-primary"
+            isSuccess={success}
+            successView={
+                <TransactionSuccessView
+                    title="Metadata updated successfully!"
+                    message={getSuccessMessage()}
+                    transactionSignature={transactionSignature}
+                    cluster={(cluster as { name?: string })?.name}
+                    onClose={onModalClose ?? handleContinue}
+                    onContinue={handleContinue}
+                    continueLabel="Update More"
+                />
+            }
+        >
+            <div className="space-y-2">
+                <Label htmlFor="token-name">
+                    {FIELD_CONFIG.name.label}
+                    {hasNameChanged && <span className="text-primary ml-1">•</span>}
+                </Label>
+                <Input
+                    id="token-name"
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    placeholder={FIELD_CONFIG.name.placeholder}
+                    className={`rounded-xl h-12 ${nameError ? 'border-destructive' : ''}`}
+                    disabled={isLoading}
+                    maxLength={FIELD_CONFIG.name.maxLength + 10}
+                />
+                <p className={`text-xs ${nameError ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    {name.length}/{FIELD_CONFIG.name.maxLength} characters
+                </p>
             </div>
-        </AlertDialogContent>
+
+            <div className="space-y-2">
+                <Label htmlFor="token-symbol">
+                    {FIELD_CONFIG.symbol.label}
+                    {hasSymbolChanged && <span className="text-primary ml-1">•</span>}
+                </Label>
+                <Input
+                    id="token-symbol"
+                    value={symbol}
+                    onChange={e => setSymbol(e.target.value)}
+                    placeholder={FIELD_CONFIG.symbol.placeholder}
+                    className={`rounded-xl h-12 ${symbolError ? 'border-destructive' : ''}`}
+                    disabled={isLoading}
+                    maxLength={FIELD_CONFIG.symbol.maxLength + 10}
+                />
+                <p className={`text-xs ${symbolError ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    {symbol.length}/{FIELD_CONFIG.symbol.maxLength} characters
+                </p>
+            </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="token-uri">
+                    {FIELD_CONFIG.uri.label}
+                    {hasUriChanged && <span className="text-primary ml-1">•</span>}
+                </Label>
+                <Input
+                    id="token-uri"
+                    value={uri}
+                    onChange={e => setUri(e.target.value)}
+                    placeholder={FIELD_CONFIG.uri.placeholder}
+                    className={`rounded-xl h-12 ${uriError ? 'border-destructive' : ''}`}
+                    disabled={isLoading}
+                    maxLength={FIELD_CONFIG.uri.maxLength + 10}
+                />
+                <p className={`text-xs ${uriError ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    {uri.length}/{FIELD_CONFIG.uri.maxLength} characters
+                </p>
+            </div>
+
+            {metadataAuthority && (
+                <div>
+                    <label className="block text-sm font-medium mb-2">Metadata Authority</label>
+                    <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
+                        {metadataAuthority}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                        Only the metadata authority can update token metadata
+                    </p>
+                </div>
+            )}
+
+            <ModalError error={error} />
+
+            <ModalFooter
+                isLoading={isLoading}
+                onAction={handleUpdate}
+                actionLabel={hasChanges ? `Update ${getChangeCount()} Field${getChangeCount() > 1 ? 's' : ''}` : 'Update Metadata'}
+                loadingLabel="Updating..."
+                actionDisabled={!hasChanges || hasValidationErrors}
+                disabledLabel={!hasChanges ? 'No Changes' : undefined}
+            />
+        </ExtensionModal>
     );
 }

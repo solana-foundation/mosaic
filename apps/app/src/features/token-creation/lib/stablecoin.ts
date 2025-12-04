@@ -12,7 +12,7 @@ import {
 } from 'gill';
 import { StablecoinCreationResult, StablecoinOptions } from '@/types/token';
 import { createStablecoinInitTransaction } from '@mosaic/sdk';
-import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
+import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 
 /**
  * Validates stablecoin options and returns parsed decimals
@@ -103,7 +103,7 @@ export const createStablecoin = async (
 
         // Send and confirm the signed transaction
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
+            commitment: getCommitment(),
         });
 
         return {

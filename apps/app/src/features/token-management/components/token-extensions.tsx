@@ -22,7 +22,7 @@ interface ExtensionConfig {
     helpText: string;
     type: 'address' | 'toggle' | 'number' | 'readonly';
     editable?: boolean;
-    getValue?: (token: TokenDisplay) => string | number | boolean | undefined;
+    getDisplayValue?: (token: TokenDisplay) => string | number | boolean | undefined;
 }
 
 // Extension configuration map - maps SDK extension names to display config
@@ -40,7 +40,7 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         helpText:
             'Points to where metadata is stored. Can point to the mint itself or an external account. Used to establish canonical metadata location.',
         type: 'address',
-        getValue: token => token.metadataUri,
+        getDisplayValue: token => token.metadataUri,
     },
     PausableConfig: {
         displayName: 'Pausable',
@@ -48,7 +48,7 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         helpText:
             'When paused, all token transfers are halted. Only the pause authority can pause/unpause. Use Admin Actions to toggle pause state.',
         type: 'toggle',
-        getValue: () => true, // Always true if extension exists
+        getDisplayValue: () => true, // Always true if extension exists
     },
     DefaultAccountState: {
         displayName: 'Default Account State',
@@ -56,7 +56,7 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         helpText:
             'New token accounts are created in this state (Frozen or Initialized). Cannot be changed after mint creation. Frozen by default enables allowlist mode.',
         type: 'toggle',
-        getValue: () => true, // Always true if extension exists
+        getDisplayValue: () => true, // Always true if extension exists
     },
     ConfidentialTransferMint: {
         displayName: 'Confidential Balances',
@@ -64,7 +64,7 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         helpText:
             'Enables encrypted token balances and transfers for privacy. Balances are hidden from public view. Requires special handling in wallets and dApps.',
         type: 'toggle',
-        getValue: () => true, // Always true if extension exists
+        getDisplayValue: () => true, // Always true if extension exists
     },
     ScaledUiAmountConfig: {
         displayName: 'Scaled UI Amount',
@@ -73,7 +73,7 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
             'Multiplier that changes how balances display in UIs. Does not affect actual token amounts. Useful for displaying fractional shares or adjusting decimal precision.',
         type: 'number',
         editable: true,
-        getValue: () => undefined, // Will be fetched separately or shown as placeholder
+        getDisplayValue: () => undefined, // Will be fetched separately or shown as placeholder
     },
     TransferFeeConfig: {
         displayName: 'Transfer Fee',
@@ -95,7 +95,7 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         helpText:
             'Tokens are permanently bound to the account they are minted to. Cannot be transferred, but can be burned or the account can be closed. Used for achievements, credentials, or identity tokens.',
         type: 'toggle',
-        getValue: () => true,
+        getDisplayValue: () => true,
     },
     TransferHook: {
         displayName: 'Transfer Hook',
@@ -203,7 +203,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                 <div className="bg-muted border border-border rounded-2xl">
                     <div className="divide-y divide-border">
                         {presentExtensions.map(({ sdkName, config }) => {
-                            const value = config.getValue?.(token);
+                            const value = config.getDisplayValue?.(token);
 
                             return (
                                 <div key={sdkName} className="p-5">
@@ -338,6 +338,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
 function mapDisplayNameToSdkName(displayName: string): string {
     const mapping: Record<string, string> = {
         Metadata: 'TokenMetadata',
+        'Metadata Pointer': 'MetadataPointer',
         Pausable: 'PausableConfig',
         'Scaled UI Amount': 'ScaledUiAmountConfig',
         'Default Account State': 'DefaultAccountState',
@@ -347,6 +348,10 @@ function mapDisplayNameToSdkName(displayName: string): string {
         'Default Account State (Blocklist)': 'DefaultAccountState',
         'Confidential Balances': 'ConfidentialTransferMint',
         'Permanent Delegate': 'PermanentDelegate',
+        'Transfer Fee': 'TransferFeeConfig',
+        'Interest Bearing': 'InterestBearingConfig',
+        'Non-Transferable': 'NonTransferable',
+        'Transfer Hook': 'TransferHook',
     };
 
     // Check if it's already an SDK name

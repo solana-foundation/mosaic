@@ -22,11 +22,14 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
                 tokenAccount: 'Ata55555555555555555555555555555555555555',
                 isInitialized: true,
                 isFrozen: false,
+                balance: 0n,
+                uiBalance: 0,
             }),
             getMintDetails: jest.fn().mockResolvedValue({
                 decimals: 6,
                 freezeAuthority: 'NotTokenACL111111111111111111111111111111',
                 extensions: [],
+                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
         }));
@@ -42,11 +45,14 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
                 tokenAccount: 'Ata66666666666666666666666666666666666666',
                 isInitialized: true,
                 isFrozen: true,
+                balance: 0n,
+                uiBalance: 0,
             }),
             getMintDetails: jest.fn().mockResolvedValue({
                 decimals: 6,
                 freezeAuthority: 'NotTokenACL111111111111111111111111111111',
                 extensions: [],
+                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
         }));
@@ -74,12 +80,15 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
                 tokenAccount: 'Ata55555555555555555555555555555555555555',
                 isInitialized: true,
                 isFrozen: false,
+                balance: 0n,
+                uiBalance: 0,
             }),
             getMintDetails: jest.fn().mockResolvedValue({
                 decimals: 6,
                 freezeAuthority: TOKEN_ACL_PROGRAM_ID,
                 extensions: [{ __kind: 'DefaultAccountState', state: 'frozen' }],
                 usesTokenAcl: true,
+                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
         }));
@@ -104,12 +113,15 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
                 tokenAccount: 'Ata66666666666666666666666666666666666666',
                 isInitialized: true,
                 isFrozen: true,
+                balance: 0n,
+                uiBalance: 0,
             }),
             getMintDetails: jest.fn().mockResolvedValue({
                 decimals: 6,
                 freezeAuthority: TOKEN_ACL_PROGRAM_ID,
                 extensions: [{ __kind: 'DefaultAccountState', state: 'frozen' }],
                 usesTokenAcl: true,
+                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
         }));

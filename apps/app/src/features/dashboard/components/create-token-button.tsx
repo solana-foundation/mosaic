@@ -8,20 +8,13 @@ import { IconPlus } from 'symbols-react';
 import { Upload } from 'lucide-react';
 
 interface CreateTokenButtonProps {
-    onTokenCreated?: () => void;
+    onTokenCreated: () => void;
+    onTokenImported: () => void;
 }
 
-export function CreateTokenButton({ onTokenCreated }: CreateTokenButtonProps) {
+export function CreateTokenButton({ onTokenCreated, onTokenImported }: CreateTokenButtonProps) {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isImportOpen, setIsImportOpen] = useState(false);
-
-    const handleTokenCreated = () => {
-        onTokenCreated?.();
-    };
-
-    const handleTokenImported = () => {
-        onTokenCreated?.();
-    };
 
     return (
         <>
@@ -38,12 +31,12 @@ export function CreateTokenButton({ onTokenCreated }: CreateTokenButtonProps) {
             <CreateTokenModal
                 isOpen={isCreateOpen}
                 onOpenChange={setIsCreateOpen}
-                onTokenCreated={handleTokenCreated}
+                onTokenCreated={onTokenCreated}
             />
             <ImportTokenModal
                 isOpen={isImportOpen}
                 onOpenChange={setIsImportOpen}
-                onTokenImported={handleTokenImported}
+                onTokenImported={onTokenImported}
             />
         </>
     );

@@ -15,6 +15,7 @@ import {
     createAddToAllowlistTransaction,
     createRemoveFromAllowlistTransaction,
 } from '@mosaic/sdk';
+import { getCommitment } from '@/lib/solana/rpc';
 
 export interface BlocklistOptions {
     mintAddress: string;
@@ -81,7 +82,7 @@ export const addAddressToBlocklist = async (
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
+            commitment: getCommitment(),
         });
         return {
             success: true,
@@ -119,7 +120,7 @@ export const removeAddressFromBlocklist = async (
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
+            commitment: getCommitment(),
         });
         return {
             success: true,
@@ -157,7 +158,7 @@ export const addAddressToAllowlist = async (
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
+            commitment: getCommitment(),
         });
         return {
             success: true,
@@ -195,7 +196,7 @@ export const removeAddressFromAllowlist = async (
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
+            commitment: getCommitment(),
         });
         return {
             success: true,

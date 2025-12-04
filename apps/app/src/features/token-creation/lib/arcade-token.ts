@@ -12,7 +12,7 @@ import {
 } from 'gill';
 import { ArcadeTokenCreationResult, ArcadeTokenOptions } from '@/types/token';
 import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
-import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
+import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 
 /**
  * Validates arcade token options and returns parsed decimals
@@ -98,7 +98,7 @@ export const createArcadeToken = async (
 
         // Send and confirm the signed transaction
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
+            commitment: getCommitment(),
         });
 
         // Build extensions list for result

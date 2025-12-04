@@ -1,0 +1,76 @@
+/**
+ * Centralized error handling utilities for the application.
+ * Provides consistent error message extraction and categorization.
+ */
+
+/**
+ * Error messages that should be silently ignored (not shown to user).
+ * These typically represent expected states rather than actual errors.
+ */
+export const SILENT_ERROR_PATTERNS = [
+    'Mint account not found',
+    'Not a Token-2022 mint',
+] as const;
+
+/**
+ * Extracts a human-readable message from an unknown error.
+ * @param error - The error to extract the message from
+ * @param fallback - Fallback message if extraction fails
+ * @returns A string error message
+ */
+export function getErrorMessage(error: unknown, fallback = 'An unexpected error occurred'): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+    if (typeof error === 'string') {
+        return error;
+    }
+    return fallback;
+}
+
+/**
+ * Checks if an error should be silently ignored based on known patterns.
+ * Useful for expected error states that don't need user notification.
+ * @param error - The error to check
+ * @returns true if the error should be ignored
+ */
+export function isSilentError(error: unknown): boolean {
+    const message = getErrorMessage(error, '');
+    return SILENT_ERROR_PATTERNS.some(pattern => message.includes(pattern));
+}
+
+/**
+ * Handles an error by extracting the message and optionally calling a setter.
+ * Silently ignores errors that match known patterns.
+ * @param error - The error to handle
+ * @param setError - Optional callback to set the error message
+ * @param fallback - Fallback message if extraction fails
+ * @returns The error message (empty string if silently ignored)
+ */
+export function handleError(
+    error: unknown,
+    setError?: (message: string) => void,
+    fallback = 'An unexpected error occurred',
+): string {
+    if (isSilentError(error)) {
+        return '';
+    }
+
+    const message = getErrorMessage(error, fallback);
+    if (setError) {
+        setError(message);
+    }
+    return message;
+}
+
+/**
+ * Creates an error handler function with a preset fallback message.
+ * Useful for creating context-specific error handlers.
+ * @param fallback - The fallback message for this context
+ * @returns A function that handles errors with the preset fallback
+ */
+export function createErrorHandler(fallback: string) {
+    return (error: unknown, setError?: (message: string) => void): string => {
+        return handleError(error, setError, fallback);
+    };
+}

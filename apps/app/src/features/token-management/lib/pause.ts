@@ -1,22 +1,14 @@
 import {
     createSolanaRpc,
-    createSolanaRpcSubscriptions,
     type Address,
     type Rpc,
     type SolanaRpcApi,
-    TransactionModifyingSigner,
+    type TransactionModifyingSigner,
     isAddress,
-    signTransactionMessageWithSigners,
-    sendAndConfirmTransactionFactory,
-    getSignatureFromTransaction,
 } from 'gill';
-import {
-    getTokenPauseState,
-    type PauseTokenResult,
-    createPauseTransaction,
-    createResumeTransaction,
-} from '@mosaic/sdk';
-import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
+import { getTokenPauseState, type PauseTokenResult, createPauseTransaction, createResumeTransaction } from '@mosaic/sdk';
+import { getRpcUrl } from '@/lib/solana/rpc';
+import { executeTokenAction } from './token-action';
 
 export interface PauseOptions {
     mintAddress: string;
@@ -42,73 +34,50 @@ function validatePauseOptions(options: PauseOptions): void {
 }
 
 /**
+ * Creates a validation function for pause/unpause operations that includes authority checks
+ */
+function createPauseValidator(signer: TransactionModifyingSigner, action: 'pause' | 'unpause') {
+    return (options: PauseOptions): void => {
+        validatePauseOptions(options);
+
+        const signerAddress = signer.address;
+        const pauseAuthorityAddress = options.pauseAuthority || signerAddress;
+        const feePayerAddress = options.feePayer || signerAddress;
+
+        if (pauseAuthorityAddress !== feePayerAddress) {
+            throw new Error(
+                `Only the pause authority can ${action} tokens. Please ensure the connected wallet is the pause authority.`,
+            );
+        }
+    };
+}
+
+/**
  * Pauses a token using the wallet standard transaction signer
  * @param options - Configuration options for pausing
  * @param signer - Transaction sending signer instance
  * @returns Promise that resolves to pause result with signature
  */
-export const pauseTokenWithWallet = async (
+export const pauseTokenWithWallet = (
     options: PauseOptions,
     signer: TransactionModifyingSigner,
-): Promise<PauseTokenResult> => {
-    try {
-        // Validate options
-        validatePauseOptions(options);
-
-        // Get wallet public key
-        const walletPublicKey = signer.address;
-        if (!walletPublicKey) {
-            throw new Error('Wallet not connected');
-        }
-
-        const signerAddress = walletPublicKey.toString();
-
-        // Set authorities (default to signer if not provided)
-        const pauseAuthorityAddress = options.pauseAuthority || signerAddress;
-        const feePayerAddress = options.feePayer || signerAddress;
-
-        // Only allow pausing if the wallet is the pause authority
-        if (pauseAuthorityAddress !== feePayerAddress) {
-            throw new Error(
-                'Only the pause authority can pause tokens. Please ensure the connected wallet is the pause authority.',
-            );
-        }
-
-        // Use the wallet signer for both pause authority and fee payer
-        const pauseAuthority = signer;
-        const feePayer = signer;
-
-        // Create RPC client using standardized URL handling
-        const rpcUrl = getRpcUrl(options.rpcUrl);
-        const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
-
-        const { transactionMessage } = await createPauseTransaction(rpc, {
-            mint: options.mintAddress as Address,
-            pauseAuthority,
-            feePayer,
-        });
-
-        // Sign the transaction
-        const signedTransaction = await signTransactionMessageWithSigners(transactionMessage);
-
-        // Send and confirm the signed transaction
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
-        });
-
-        return {
-            success: true,
-            transactionSignature: getSignatureFromTransaction(signedTransaction),
+): Promise<PauseTokenResult> =>
+    executeTokenAction<PauseOptions, PauseTokenResult>({
+        options,
+        signer,
+        validate: createPauseValidator(signer, 'pause'),
+        buildTransaction: async ({ rpc, signer, options }) => {
+            const { transactionMessage } = await createPauseTransaction(rpc, {
+                mint: options.mintAddress as Address,
+                pauseAuthority: signer,
+                feePayer: signer,
+            });
+            return transactionMessage;
+        },
+        buildSuccessResult: () => ({
             paused: true,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-        };
-    }
-};
+        }),
+    });
 
 /**
  * Unpauses a token using the wallet standard transaction signer
@@ -116,69 +85,26 @@ export const pauseTokenWithWallet = async (
  * @param signer - Transaction sending signer instance
  * @returns Promise that resolves to unpause result with signature
  */
-export const unpauseTokenWithWallet = async (
+export const unpauseTokenWithWallet = (
     options: PauseOptions,
     signer: TransactionModifyingSigner,
-): Promise<PauseTokenResult> => {
-    try {
-        // Validate options
-        validatePauseOptions(options);
-
-        // Get wallet public key
-        const walletPublicKey = signer.address;
-        if (!walletPublicKey) {
-            throw new Error('Wallet not connected');
-        }
-
-        const signerAddress = walletPublicKey.toString();
-
-        // Set authorities (default to signer if not provided)
-        const pauseAuthorityAddress = options.pauseAuthority || signerAddress;
-        const feePayerAddress = options.feePayer || signerAddress;
-
-        // Only allow unpausing if the wallet is the pause authority
-        if (pauseAuthorityAddress !== feePayerAddress) {
-            throw new Error(
-                'Only the pause authority can unpause tokens. Please ensure the connected wallet is the pause authority.',
-            );
-        }
-
-        // Use the wallet signer for both pause authority and fee payer
-        const pauseAuthority = signer;
-        const feePayer = signer;
-
-        // Create RPC client using standardized URL handling
-        const rpcUrl = getRpcUrl(options.rpcUrl);
-        const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
-
-        // Unpause the token using SDK
-        const { transactionMessage } = await createResumeTransaction(rpc, {
-            mint: options.mintAddress as Address,
-            pauseAuthority,
-            feePayer,
-        });
-
-        // Sign the transaction
-        const signedTransaction = await signTransactionMessageWithSigners(transactionMessage);
-
-        // Send and confirm the signed transaction
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
-        });
-
-        return {
-            success: true,
-            transactionSignature: getSignatureFromTransaction(signedTransaction),
+): Promise<PauseTokenResult> =>
+    executeTokenAction<PauseOptions, PauseTokenResult>({
+        options,
+        signer,
+        validate: createPauseValidator(signer, 'unpause'),
+        buildTransaction: async ({ rpc, signer, options }) => {
+            const { transactionMessage } = await createResumeTransaction(rpc, {
+                mint: options.mintAddress as Address,
+                pauseAuthority: signer,
+                feePayer: signer,
+            });
+            return transactionMessage;
+        },
+        buildSuccessResult: () => ({
             paused: false,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-        };
-    }
-};
+        }),
+    });
 
 /**
  * Gets the current pause state of a token

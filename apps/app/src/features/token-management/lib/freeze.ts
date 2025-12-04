@@ -1,17 +1,6 @@
-import {
-    createSolanaRpc,
-    type Address,
-    type Rpc,
-    type SolanaRpcApi,
-    signTransactionMessageWithSigners,
-    sendAndConfirmTransactionFactory,
-    getSignatureFromTransaction,
-    createSolanaRpcSubscriptions,
-    TransactionModifyingSigner,
-    isAddress,
-} from 'gill';
+import { type Address, type TransactionModifyingSigner, isAddress } from 'gill';
 import { getFreezeTransaction } from '@mosaic/sdk';
-import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
+import { executeTokenAction } from './token-action';
 
 export interface FreezeAccountOptions {
     tokenAccount: string;
@@ -46,43 +35,22 @@ function validateFreezeAccountOptions(options: FreezeAccountOptions): void {
  * @param signer - Transaction sending signer instance (must be freeze authority)
  * @returns Promise that resolves to freeze result with signature and details
  */
-export const freezeTokenAccount = async (
+export const freezeTokenAccount = (
     options: FreezeAccountOptions,
     signer: TransactionModifyingSigner,
-): Promise<FreezeAccountResult> => {
-    try {
-        validateFreezeAccountOptions(options);
-
-        const walletPublicKey = signer.address;
-        if (!walletPublicKey) {
-            throw new Error('Wallet not connected');
-        }
-
-        const rpcUrl = getRpcUrl(options.rpcUrl);
-        const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
-
-        const transaction = await getFreezeTransaction({
-            rpc,
-            payer: signer,
-            authority: signer,
-            tokenAccount: options.tokenAccount as Address,
-        });
-
-        const signedTransaction = await signTransactionMessageWithSigners(transaction);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
-        });
-
-        return {
-            success: true,
-            transactionSignature: getSignatureFromTransaction(signedTransaction),
+): Promise<FreezeAccountResult> =>
+    executeTokenAction<FreezeAccountOptions, FreezeAccountResult>({
+        options,
+        signer,
+        validate: validateFreezeAccountOptions,
+        buildTransaction: async ({ rpc, signer, options }) =>
+            getFreezeTransaction({
+                rpc,
+                payer: signer,
+                authority: signer,
+                tokenAccount: options.tokenAccount as Address,
+            }),
+        buildSuccessResult: (_, options) => ({
             tokenAccount: options.tokenAccount,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-        };
-    }
-};
+        }),
+    });

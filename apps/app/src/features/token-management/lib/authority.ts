@@ -1,17 +1,7 @@
-import {
-    createSolanaRpc,
-    type Address,
-    type Rpc,
-    type SolanaRpcApi,
-    signTransactionMessageWithSigners,
-    sendAndConfirmTransactionFactory,
-    getSignatureFromTransaction,
-    createSolanaRpcSubscriptions,
-    TransactionModifyingSigner,
-} from 'gill';
+import { type Address, type TransactionModifyingSigner, isAddress } from 'gill';
 import { AuthorityType } from 'gill/programs/token';
 import { getUpdateAuthorityTransaction, getRemoveAuthorityTransaction } from '@mosaic/sdk';
-import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
+import { executeTokenAction } from './token-action';
 
 export type AuthorityRole = AuthorityType | 'Metadata';
 
@@ -49,9 +39,13 @@ function validateUpdateAuthorityOptions(options: UpdateAuthorityOptions): void {
         throw new Error('Authority role is required');
     }
 
-    // Basic address format validation
-    if (options.mint.length < 32 || options.newAuthority.length < 32) {
-        throw new Error('Invalid address format');
+    // Validate Solana address format
+    if (!isAddress(options.mint)) {
+        throw new Error('Invalid mint address format');
+    }
+
+    if (!isAddress(options.newAuthority)) {
+        throw new Error('Invalid new authority address format');
     }
 }
 
@@ -61,56 +55,29 @@ function validateUpdateAuthorityOptions(options: UpdateAuthorityOptions): void {
  * @param signer - Transaction sending signer instance
  * @returns Promise that resolves to update result with signature and authority details
  */
-export const updateTokenAuthority = async (
+export const updateTokenAuthority = (
     options: UpdateAuthorityOptions,
     signer: TransactionModifyingSigner,
-): Promise<UpdateAuthorityResult> => {
-    try {
-        validateUpdateAuthorityOptions(options);
-
-        // Get wallet public key
-        const walletPublicKey = signer.address;
-        if (!walletPublicKey) {
-            throw new Error('Wallet not connected');
-        }
-
-        const signerAddress = walletPublicKey.toString();
-
-        // Create RPC client
-        const rpcUrl = getRpcUrl(options.rpcUrl);
-        const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
-
-        // Create authority update transaction using SDK
-        const transaction = await getUpdateAuthorityTransaction({
-            rpc,
-            payer: signer,
-            mint: options.mint as Address,
-            role: options.role,
-            currentAuthority: signer,
-            newAuthority: options.newAuthority as Address,
-        });
-
-        // Sign and send the transaction
-        const signedTransaction = await signTransactionMessageWithSigners(transaction);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
-        });
-
-        return {
-            success: true,
-            transactionSignature: getSignatureFromTransaction(signedTransaction),
+): Promise<UpdateAuthorityResult> =>
+    executeTokenAction<UpdateAuthorityOptions, UpdateAuthorityResult>({
+        options,
+        signer,
+        validate: validateUpdateAuthorityOptions,
+        buildTransaction: async ({ rpc, signer, options }) =>
+            getUpdateAuthorityTransaction({
+                rpc,
+                payer: signer,
+                mint: options.mint as Address,
+                role: options.role,
+                currentAuthority: signer,
+                newAuthority: options.newAuthority as Address,
+            }),
+        buildSuccessResult: (_, options, signerAddress) => ({
             authorityRole: options.role.toString(),
             prevAuthority: signerAddress,
             newAuthority: options.newAuthority,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-        };
-    }
-};
+        }),
+    });
 
 export interface RemoveAuthorityOptions {
     mint: string;
@@ -140,7 +107,8 @@ function validateRemoveAuthorityOptions(options: RemoveAuthorityOptions): void {
         throw new Error('Authority role is required');
     }
 
-    if (options.mint.length < 32) {
+    // Validate Solana address format
+    if (!isAddress(options.mint)) {
         throw new Error('Invalid mint address format');
     }
 }
@@ -152,49 +120,24 @@ function validateRemoveAuthorityOptions(options: RemoveAuthorityOptions): void {
  * @param signer - Transaction sending signer instance (must be current authority)
  * @returns Promise that resolves to removal result with signature and details
  */
-export const removeTokenAuthority = async (
+export const removeTokenAuthority = (
     options: RemoveAuthorityOptions,
     signer: TransactionModifyingSigner,
-): Promise<RemoveAuthorityResult> => {
-    try {
-        validateRemoveAuthorityOptions(options);
-
-        const walletPublicKey = signer.address;
-        if (!walletPublicKey) {
-            throw new Error('Wallet not connected');
-        }
-
-        const signerAddress = walletPublicKey.toString();
-
-        const rpcUrl = getRpcUrl(options.rpcUrl);
-        const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
-
-        // Create authority removal transaction using SDK
-        const transaction = await getRemoveAuthorityTransaction({
-            rpc,
-            payer: signer,
-            mint: options.mint as Address,
-            role: options.role,
-            currentAuthority: signer,
-        });
-
-        // Sign and send the transaction
-        const signedTransaction = await signTransactionMessageWithSigners(transaction);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
-        });
-
-        return {
-            success: true,
-            transactionSignature: getSignatureFromTransaction(signedTransaction),
+): Promise<RemoveAuthorityResult> =>
+    executeTokenAction<RemoveAuthorityOptions, RemoveAuthorityResult>({
+        options,
+        signer,
+        validate: validateRemoveAuthorityOptions,
+        buildTransaction: async ({ rpc, signer, options }) =>
+            getRemoveAuthorityTransaction({
+                rpc,
+                payer: signer,
+                mint: options.mint as Address,
+                role: options.role,
+                currentAuthority: signer,
+            }),
+        buildSuccessResult: (_, options, signerAddress) => ({
             authorityRole: options.role.toString(),
             removedAuthority: signerAddress,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-        };
-    }
-};
+        }),
+    });

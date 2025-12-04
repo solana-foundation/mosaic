@@ -1,36 +1,42 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
 import { closeTokenAccount, type CloseAccountOptions } from '@/features/token-management/lib/close-account';
 import { TransactionModifyingSigner } from '@solana/signers';
-import { X, XCircle, AlertTriangle } from 'lucide-react';
-import { Spinner } from '@/components/ui/spinner';
+import { XCircle } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
-import {
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
+import { ExtensionModal } from '@/components/shared/modals/extension-modal';
+import { ModalWarning } from '@/components/shared/modals/modal-warning';
+import { ModalError } from '@/components/shared/modals/modal-error';
+import { ModalFooter } from '@/components/shared/modals/modal-footer';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
 import { SolanaAddressInput } from '@/components/shared/form/solana-address-input';
 import { useTransactionModal, useWalletConnection } from '@/features/token-management/hooks/use-transaction-modal';
 import { useInputValidation } from '@/hooks/use-input-validation';
-import { cn } from '@/lib/utils';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
+import {
+    MODAL_ERRORS,
+    MODAL_BUTTONS,
+    MODAL_WARNINGS,
+    MODAL_LABELS,
+    MODAL_HELP_TEXT,
+    MODAL_TITLES,
+    MODAL_DESCRIPTIONS,
+    MODAL_SUCCESS_MESSAGES,
+} from '@/features/token-management/constants/modal-text';
 
 interface CloseAccountModalContentProps {
     mintAddress: string;
     tokenSymbol?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    onModalClose?: () => void;
 }
 
 export function CloseAccountModalContent({
     mintAddress,
     tokenSymbol,
     transactionSendingSigner,
+    onModalClose,
 }: CloseAccountModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
@@ -52,12 +58,12 @@ export function CloseAccountModalContent({
 
     const handleCloseAccount = async () => {
         if (!walletAddress) {
-            setError('Wallet not connected');
+            setError(MODAL_ERRORS.WALLET_NOT_CONNECTED);
             return;
         }
 
         if (useCustomDestination && !validateSolanaAddress(destination)) {
-            setError('Please enter a valid destination address');
+            setError(MODAL_ERRORS.INVALID_DESTINATION_ADDRESS);
             return;
         }
 
@@ -82,7 +88,7 @@ export function CloseAccountModalContent({
                 setError(result.error || 'Close account failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
         } finally {
             setIsLoading(false);
         }
@@ -108,130 +114,79 @@ export function CloseAccountModalContent({
     };
 
     return (
-        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
-            <div className="overflow-hidden">
-                <AlertDialogHeader className="p-6 pb-4 border-b">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <XCircle className="h-5 w-5 text-red-500" />
-                            <AlertDialogTitle className="text-xl font-semibold">
-                                {success ? 'Account Closed' : 'Close Token Account'}
-                            </AlertDialogTitle>
-                        </div>
-                        <AlertDialogCancel
-                            className="rounded-full p-1.5 hover:bg-muted transition-colors border-0 h-auto w-auto mt-0"
-                            aria-label="Close"
-                        >
-                            <X className="h-4 w-4" />
-                        </AlertDialogCancel>
-                    </div>
-                    <AlertDialogDescription>
-                        Close your {tokenSymbol || 'token'} account and reclaim the rent
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
+        <ExtensionModal
+            title={MODAL_TITLES.CLOSE_TOKEN_ACCOUNT}
+            successTitle={MODAL_TITLES.ACCOUNT_CLOSED}
+            description={MODAL_DESCRIPTIONS.CLOSE_ACCOUNT(tokenSymbol)}
+            icon={XCircle}
+            iconClassName="text-red-500"
+            isSuccess={success}
+            successView={
+                <TransactionSuccessView
+                    title="Account closed successfully!"
+                    message={MODAL_SUCCESS_MESSAGES.ACCOUNT_CLOSED}
+                    transactionSignature={transactionSignature}
+                    cluster={(cluster as { name?: string })?.name}
+                    onClose={onModalClose ?? handleContinue}
+                />
+            }
+        >
+            <ModalWarning variant="amber" title={MODAL_WARNINGS.REQUIREMENTS_TITLE}>
+                <ul className="list-disc pl-5 space-y-1">
+                    <li>
+                        Your token account must have a <strong>zero balance</strong>
+                    </li>
+                    <li>{MODAL_WARNINGS.CLOSE_ACCOUNT_RENT}</li>
+                    <li>{MODAL_WARNINGS.CLOSE_ACCOUNT_IRREVERSIBLE}</li>
+                </ul>
+            </ModalWarning>
 
-                <div className="p-6 space-y-5">
-                    {success ? (
-                        <TransactionSuccessView
-                            title="Account closed successfully!"
-                            message="Your token account has been closed and the rent has been reclaimed"
-                            transactionSignature={transactionSignature}
-                            cluster={(cluster as { name?: string })?.name}
-                            onClose={handleContinue}
-                        />
-                    ) : (
-                        <>
-                            <div className="bg-amber-50 dark:bg-amber-950/30 rounded-2xl p-5 space-y-3 border border-amber-200 dark:border-amber-800">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/50">
-                                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                                    </div>
-                                    <span className="font-semibold text-amber-700 dark:text-amber-300">
-                                        Requirements
-                                    </span>
-                                </div>
-                                <ul className="text-sm text-amber-700/80 dark:text-amber-300/80 leading-relaxed list-disc pl-5 space-y-1">
-                                    <li>
-                                        Your token account must have a <strong>zero balance</strong>
-                                    </li>
-                                    <li>Closing the account will reclaim ~0.002 SOL in rent</li>
-                                    <li>This action cannot be undone</li>
-                                </ul>
-                            </div>
-
-                            <div className="flex items-center justify-between p-4 bg-muted rounded-xl">
-                                <div className="space-y-0.5">
-                                    <Label htmlFor="custom-dest">Custom Destination</Label>
-                                    <p className="text-xs text-muted-foreground">
-                                        Send reclaimed rent to a different address
-                                    </p>
-                                </div>
-                                <Switch
-                                    id="custom-dest"
-                                    checked={useCustomDestination}
-                                    onCheckedChange={setUseCustomDestination}
-                                    disabled={isLoading}
-                                />
-                            </div>
-
-                            {useCustomDestination && (
-                                <SolanaAddressInput
-                                    label="Destination Address"
-                                    value={destination}
-                                    onChange={setDestination}
-                                    placeholder="Enter destination address for rent..."
-                                    helpText="The address that will receive the reclaimed SOL"
-                                    required
-                                    disabled={isLoading}
-                                />
-                            )}
-
-                            {!useCustomDestination && walletAddress && (
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Rent Destination</label>
-                                    <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
-                                        {walletAddress}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1.5">
-                                        Reclaimed SOL will be sent to your connected wallet
-                                    </p>
-                                </div>
-                            )}
-
-                            {error && (
-                                <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-800">
-                                    {error}
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <AlertDialogCancel className="w-full h-12 rounded-xl mt-0" disabled={isLoading}>
-                                    Cancel
-                                </AlertDialogCancel>
-                                <Button
-                                    onClick={handleCloseAccount}
-                                    disabled={
-                                        isLoading || (useCustomDestination && !validateSolanaAddress(destination))
-                                    }
-                                    className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all bg-red-500 hover:bg-red-600 text-white"
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Spinner size={16} className="mr-2" />
-                                            Closing...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <XCircle className="h-4 w-4 mr-2" />
-                                            Close Account
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
-                        </>
-                    )}
+            <div className="flex items-center justify-between p-4 bg-muted rounded-xl">
+                <div className="space-y-0.5">
+                    <Label htmlFor="custom-dest">{MODAL_LABELS.CUSTOM_DESTINATION}</Label>
+                    <p className="text-xs text-muted-foreground">{MODAL_HELP_TEXT.CUSTOM_RENT_HELP}</p>
                 </div>
+                <Switch
+                    id="custom-dest"
+                    checked={useCustomDestination}
+                    onCheckedChange={setUseCustomDestination}
+                    disabled={isLoading}
+                />
             </div>
-        </AlertDialogContent>
+
+            {useCustomDestination && (
+                <SolanaAddressInput
+                    label={MODAL_LABELS.DESTINATION_ADDRESS}
+                    value={destination}
+                    onChange={setDestination}
+                    placeholder="Enter destination address for rent..."
+                    helpText={MODAL_HELP_TEXT.RENT_DESTINATION_HELP}
+                    required
+                    disabled={isLoading}
+                />
+            )}
+
+            {!useCustomDestination && walletAddress && (
+                <div>
+                    <label className="block text-sm font-medium mb-2">{MODAL_LABELS.RENT_DESTINATION}</label>
+                    <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
+                        {walletAddress}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">{MODAL_HELP_TEXT.RENT_TO_WALLET}</p>
+                </div>
+            )}
+
+            <ModalError error={error} />
+
+            <ModalFooter
+                isLoading={isLoading}
+                onAction={handleCloseAccount}
+                actionLabel={MODAL_BUTTONS.CLOSE_ACCOUNT}
+                loadingLabel={MODAL_BUTTONS.CLOSING}
+                actionIcon={XCircle}
+                actionDisabled={useCustomDestination && !validateSolanaAddress(destination)}
+                actionClassName="bg-red-500 hover:bg-red-600 text-white"
+            />
+        </ExtensionModal>
     );
 }

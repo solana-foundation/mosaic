@@ -42,10 +42,6 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
         }
     }, [selectedWallet]);
 
-    useEffect(() => {
-        // Wallet modal opened
-    }, [wallets, isClient, open]);
-
     const handleSelectWallet = async (walletName: string) => {
         setConnectingWallet(walletName);
         try {
@@ -92,7 +88,7 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
                         className="rounded-full size-8 shrink-0 p-2 cursor-pointer"
                         onClick={() => window.open('https://docs.solana.com/wallet-guide', '_blank')}
                     >
-                        <IconQuestionmark className="size-3" />
+                        <IconQuestionmark className="size-3 fill-primary" />
                     </Button>
                     <DialogTitle>Connect your wallet</DialogTitle>
                     <DialogPrimitive.Close asChild>
@@ -101,7 +97,7 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
                             className="rounded-full size-8 p-2 shrink-0 cursor-pointer"
                             onClick={() => onOpenChange(false)}
                         >
-                            <IconXmark className="size-3" />
+                            <IconXmark className="size-3 fill-primary" />
                         </Button>
                     </DialogPrimitive.Close>
                 </DialogHeader>

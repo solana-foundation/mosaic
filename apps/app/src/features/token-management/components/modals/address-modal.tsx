@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { isAddress } from 'gill';
 import { cn } from '@/lib/utils';
+import { MODAL_BUTTONS } from '@/features/token-management/constants/modal-text';
 
 interface AddressModalProps {
     isOpen: boolean;
@@ -88,7 +89,9 @@ export function AddressModal({
                             )}
                         </div>
                         <div className="flex space-x-2 pt-2">
-                            <AlertDialogCancel className="flex-1 h-11 rounded-xl mt-0">Cancel</AlertDialogCancel>
+                            <AlertDialogCancel className="flex-1 h-11 rounded-xl mt-0">
+                                {MODAL_BUTTONS.CANCEL}
+                            </AlertDialogCancel>
                             <Button onClick={onAdd} disabled={!isValidAddress} className="flex-1 h-11 rounded-xl">
                                 {buttonText}
                             </Button>

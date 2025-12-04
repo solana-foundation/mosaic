@@ -1,17 +1,6 @@
-import {
-    createSolanaRpc,
-    type Address,
-    type Rpc,
-    type SolanaRpcApi,
-    signTransactionMessageWithSigners,
-    sendAndConfirmTransactionFactory,
-    getSignatureFromTransaction,
-    createSolanaRpcSubscriptions,
-    TransactionModifyingSigner,
-    isAddress,
-} from 'gill';
+import { type Address, type TransactionModifyingSigner, isAddress } from 'gill';
 import { createMintToTransaction } from '@mosaic/sdk';
-import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
+import { executeTokenAction } from './token-action';
 
 export interface MintOptions {
     mintAddress: string;
@@ -62,64 +51,35 @@ function validateMintOptions(options: MintOptions): void {
  * @param signer - Transaction sending signer instance
  * @returns Promise that resolves to mint result with signature and details
  */
-export const mintTokens = async (options: MintOptions, signer: TransactionModifyingSigner): Promise<MintResult> => {
-    try {
-        validateMintOptions(options);
+export const mintTokens = (options: MintOptions, signer: TransactionModifyingSigner): Promise<MintResult> =>
+    executeTokenAction<MintOptions, MintResult>({
+        options,
+        signer,
+        validate: (opts) => {
+            validateMintOptions(opts);
 
-        const walletPublicKey = signer.address;
-        if (!walletPublicKey) {
-            throw new Error('Wallet not connected');
-        }
+            // Additional authority validation
+            const signerAddress = signer.address;
+            const mintAuthorityAddress = opts.mintAuthority || signerAddress;
+            const feePayerAddress = opts.feePayer || signerAddress;
 
-        const signerAddress = walletPublicKey.toString();
-
-        // Set authorities (default to signer if not provided)
-        const mintAuthorityAddress = options.mintAuthority || signerAddress;
-        const feePayerAddress = options.feePayer || signerAddress;
-
-        // Only allow minting if the wallet is the mint authority
-        if (mintAuthorityAddress !== feePayerAddress) {
-            throw new Error(
-                'Only the mint authority can mint tokens. Please ensure the connected wallet is the mint authority.',
-            );
-        }
-
-        // Use the wallet signer for both mint authority and fee payer
-        const mintAuthority = signer;
-        const feePayer = signer;
-
-        // Create RPC client using standardized URL handling
-        const rpcUrl = getRpcUrl(options.rpcUrl);
-        const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
-
-        // Create mint transaction using SDK
-        // The SDK internally fetches mint decimals and converts the amount
-        const transaction = await createMintToTransaction(
-            rpc,
-            options.mintAddress as Address,
-            options.recipient as Address,
-            parseFloat(options.amount),
-            mintAuthority,
-            feePayer,
-        );
-
-        // Sign and send the transaction
-        const signedTransaction = await signTransactionMessageWithSigners(transaction);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
-        });
-
-        return {
-            success: true,
-            transactionSignature: getSignatureFromTransaction(signedTransaction),
+            if (mintAuthorityAddress !== feePayerAddress) {
+                throw new Error(
+                    'Only the mint authority can mint tokens. Please ensure the connected wallet is the mint authority.',
+                );
+            }
+        },
+        buildTransaction: async ({ rpc, signer, options }) =>
+            createMintToTransaction(
+                rpc,
+                options.mintAddress as Address,
+                options.recipient as Address,
+                parseFloat(options.amount),
+                signer, // mintAuthority
+                signer, // feePayer
+            ),
+        buildSuccessResult: (_, options) => ({
             mintedAmount: options.amount,
             recipient: options.recipient,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-        };
-    }
-};
+        }),
+    });

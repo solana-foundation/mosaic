@@ -48,6 +48,7 @@ import {
 import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
 import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
 import { Mode } from '@token-acl/abl-sdk';
+import { getClusterName } from '@/lib/solana/explorer';
 import { pauseTokenWithWallet, unpauseTokenWithWallet, checkTokenPauseState } from '@/features/token-management/lib/pause';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -102,45 +103,6 @@ const getAccessList = async (
     }
 };
 
-/**
- * Safely extracts cluster name from cluster object.
- * Handles different cluster object structures from @solana/connector.
- */
-function getClusterName(cluster: unknown): string | undefined {
-    if (!cluster || typeof cluster !== 'object') return undefined;
-
-    // Try to access name property (may not be in type definition but exists at runtime)
-    const clusterObj = cluster as Record<string, unknown>;
-    if (typeof clusterObj.name === 'string') {
-        return clusterObj.name;
-    }
-
-    // Fallback: try to infer from id (e.g., 'solana:mainnet' -> 'mainnet')
-    if (typeof clusterObj.id === 'string') {
-        const idParts = clusterObj.id.split(':');
-        if (idParts.length > 1) {
-            const network = idParts[1];
-            // Map 'mainnet' to 'mainnet-beta' for consistency
-            return network === 'mainnet' ? 'mainnet-beta' : network;
-        }
-    }
-
-    // Fallback: try to infer from URL
-    if (typeof clusterObj.url === 'string') {
-        const url = clusterObj.url.toLowerCase();
-        if (url.includes('mainnet') || url.includes('api.mainnet')) {
-            return 'mainnet-beta';
-        }
-        if (url.includes('devnet') || url.includes('api.devnet')) {
-            return 'devnet';
-        }
-        if (url.includes('testnet') || url.includes('api.testnet')) {
-            return 'testnet';
-        }
-    }
-
-    return undefined;
-}
 
 function ManageTokenConnected({ address }: { address: string }) {
     const router = useRouter();
@@ -149,7 +111,6 @@ function ManageTokenConnected({ address }: { address: string }) {
     const removeToken = useTokenStore(state => state.removeToken);
     const [token, setToken] = useState<TokenDisplay | null>(null);
     const [loading, setLoading] = useState(true);
-    const [copied, setCopied] = useState(false);
     const [accessList, setAccessList] = useState<string[]>([]);
     const [listType, setListType] = useState<'allowlist' | 'blocklist'>('blocklist');
     const [newAddress, setNewAddress] = useState('');
@@ -242,14 +203,6 @@ function ManageTokenConnected({ address }: { address: string }) {
             loadAccessList();
         }
     }, [rpc, selectedAccount, token?.address, token?.isSrfc37, cluster?.url, refreshTrigger]);
-
-    const copyToClipboard = async (text: string) => {
-        try {
-            await navigator.clipboard.writeText(text);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-        } catch {}
-    };
 
     const openInExplorer = () => {
         const clusterName = getClusterName(cluster) || 'devnet';
@@ -725,12 +678,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                 {/* Token Overview */}
                 <div className="space-y-4">
                     <h2 className="text-2xl font-semibold tracking-tight">Token Overview</h2>
-                    <TokenOverview
-                        token={token}
-                        copied={copied}
-                        onCopy={copyToClipboard}
-                        refreshTrigger={supplyRefreshTrigger}
-                    />
+                    <TokenOverview token={token} refreshTrigger={supplyRefreshTrigger} />
                 </div>
 
                 {/* Settings */}

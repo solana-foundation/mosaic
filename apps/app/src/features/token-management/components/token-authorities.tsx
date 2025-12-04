@@ -2,13 +2,15 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Check, X, Trash2, AlertTriangle } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
+import { WarningText } from '@/components/ui/warning-text';
 import { TokenDisplay } from '@/types/token';
 import { updateTokenAuthority, removeTokenAuthority } from '@/features/token-management/lib/authority';
-import { getTokenAuthorities } from '@/lib/solana/rpc';
+import { getTokenAuthorities, type TokenAuthorities as BlockchainAuthorities } from '@/lib/solana/rpc';
 import { AuthorityType } from 'gill/programs/token';
 import { isAddress } from 'gill';
 import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/features/wallet/hooks/use-connector-signer';
+import { handleError } from '@/lib/errors';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -21,6 +23,33 @@ import {
     AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
+/**
+ * Supported authority roles in this component.
+ * This is a subset of AuthorityType plus 'Metadata' for token metadata updates.
+ */
+type SupportedAuthorityRole =
+    | typeof AuthorityType.MintTokens
+    | typeof AuthorityType.FreezeAccount
+    | typeof AuthorityType.Pause
+    | typeof AuthorityType.ConfidentialTransferMint
+    | typeof AuthorityType.PermanentDelegate
+    | typeof AuthorityType.ScaledUiAmount
+    | 'Metadata';
+
+/**
+ * Maps authority roles to their corresponding property keys in BlockchainAuthorities.
+ * Used to look up the correct authority value from the blockchain response.
+ */
+const AUTHORITY_ROLE_TO_KEY: Record<SupportedAuthorityRole, keyof BlockchainAuthorities> = {
+    [AuthorityType.MintTokens]: 'mintAuthority',
+    [AuthorityType.FreezeAccount]: 'freezeAuthority',
+    Metadata: 'metadataAuthority',
+    [AuthorityType.Pause]: 'pausableAuthority',
+    [AuthorityType.ConfidentialTransferMint]: 'confidentialBalancesAuthority',
+    [AuthorityType.PermanentDelegate]: 'permanentDelegateAuthority',
+    [AuthorityType.ScaledUiAmount]: 'scaledUiAmountAuthority',
+};
+
 interface TokenAuthoritiesProps {
     token: TokenDisplay;
     setError: (error: string) => void;
@@ -29,7 +58,7 @@ interface TokenAuthoritiesProps {
 interface AuthorityInfo {
     label: string;
     description: string;
-    role: AuthorityType | 'Metadata';
+    role: SupportedAuthorityRole;
     currentAuthority?: string;
     isEditing: boolean;
     newAuthority: string;
@@ -127,34 +156,13 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                     prev.map(auth => ({
                         ...auth,
                         currentAuthority:
-                            auth.role === AuthorityType.MintTokens
-                                ? blockchainAuthorities.mintAuthority
-                                : auth.role === AuthorityType.FreezeAccount
-                                  ? blockchainAuthorities.freezeAuthority
-                                  : auth.role === 'Metadata'
-                                    ? blockchainAuthorities.metadataAuthority
-                                    : auth.role === AuthorityType.Pause
-                                      ? blockchainAuthorities.pausableAuthority
-                                      : auth.role === AuthorityType.ConfidentialTransferMint
-                                        ? blockchainAuthorities.confidentialBalancesAuthority
-                                        : auth.role === AuthorityType.PermanentDelegate
-                                          ? blockchainAuthorities.permanentDelegateAuthority
-                                          : auth.role === AuthorityType.ScaledUiAmount
-                                            ? blockchainAuthorities.scaledUiAmountAuthority
-                                            : auth.currentAuthority,
+                            blockchainAuthorities[AUTHORITY_ROLE_TO_KEY[auth.role]] ?? auth.currentAuthority,
                     })),
                 );
             } catch (error) {
-                // Silently handle "Mint account not found" - the token may not exist on this network
-                // Just use the local data we already have from the token prop
-                const errorMessage = error instanceof Error ? error.message : '';
-                if (
-                    !errorMessage.includes('Mint account not found') &&
-                    !errorMessage.includes('Not a Token-2022 mint')
-                ) {
-                    setError(errorMessage || 'Failed to fetch authorities');
-                }
-                // Otherwise, continue with local data
+                // Silently handles expected errors like "Mint account not found" or "Not a Token-2022 mint"
+                // These indicate the token may not exist on this network - continue with local data
+                handleError(error, setError, 'Failed to fetch authorities');
             } finally {
                 setIsLoadingAuthorities(false);
             }
@@ -220,7 +228,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                 setError(`Failed to update authority: ${result.error}`);
             }
         } catch (error) {
-            setError(error instanceof Error ? error.message : 'Failed to update authority');
+            handleError(error, setError, 'Failed to update authority');
         } finally {
             setAuthorities(prev => prev.map((auth, i) => (i === index ? { ...auth, isLoading: false } : auth)));
         }
@@ -261,7 +269,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                 setError(`Failed to revoke authority: ${result.error}`);
             }
         } catch (error) {
-            setError(error instanceof Error ? error.message : 'Failed to revoke authority');
+            handleError(error, setError, 'Failed to revoke authority');
         } finally {
             setAuthorities(prev => prev.map((auth, i) => (i === index ? { ...auth, isLoading: false } : auth)));
         }
@@ -348,9 +356,9 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                             <X className="h-4 w-4" />
                                         </Button>
                                     </div>
-                                    {authority.newAuthority && !validateSolanaAddress(authority.newAuthority) && (
-                                        <p className="text-sm text-red-500">Please enter a valid Solana address</p>
-                                    )}
+                                    <WarningText show={!!authority.newAuthority && !validateSolanaAddress(authority.newAuthority)}>
+                                        Please enter a valid Solana address
+                                    </WarningText>
                                 </div>
                             ) : (
                                 // View mode

@@ -966,4 +966,237 @@ describeSkipIf()('Management Integration Tests', () => {
             DEFAULT_TIMEOUT,
         );
     });
+
+    describe('Standard SPL Token-2022 Freeze/Thaw Operations', () => {
+        it(
+            'should freeze wallet with standard freeze authority',
+            async () => {
+                const wallet = await generateKeyPairSigner();
+
+                // Given: A token with a standard wallet as freeze authority (not Token ACL)
+                const tokenBuilder = new Token().withMetadata({
+                    mintAddress: mint.address,
+                    authority: mintAuthority.address,
+                    metadata: {
+                        name: 'Standard Freeze Token',
+                        symbol: 'SFRZ',
+                        uri: 'https://example.com/sfrz.json',
+                    },
+                    additionalMetadata: new Map(),
+                });
+
+                const createTx = await tokenBuilder.buildTransaction({
+                    rpc: client.rpc,
+                    decimals: 6,
+                    mintAuthority,
+                    freezeAuthority: freezeAuthority.address, // Standard wallet address, not TOKEN_ACL_PROGRAM_ID
+                    mint,
+                    feePayer: payer,
+                });
+
+                await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Mint tokens to wallet
+                const mintTx = await createMintToTransaction(
+                    client.rpc,
+                    mint.address,
+                    wallet.address,
+                    1_000_000,
+                    mintAuthority,
+                    payer,
+                );
+                await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
+
+                // Verify not frozen initially
+                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+                expect(frozen).toBe(false);
+
+                // Get token account address
+                const tokenAccount = await getAssociatedTokenAccountAddress(
+                    mint.address,
+                    wallet.address,
+                    TOKEN_2022_PROGRAM_ADDRESS,
+                );
+
+                // When: Freeze the account using standard freeze authority
+                const freezeTx = await getFreezeTransaction({
+                    rpc: client.rpc,
+                    payer,
+                    authority: freezeAuthority,
+                    tokenAccount,
+                });
+
+                const signature = await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
+                assertTxSuccess(signature);
+
+                // Then: Account is frozen
+                frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+                expect(frozen).toBe(true);
+            },
+            DEFAULT_TIMEOUT,
+        );
+
+        it(
+            'should thaw wallet with standard freeze authority',
+            async () => {
+                const wallet = await generateKeyPairSigner();
+
+                // Given: A token with a standard wallet as freeze authority (not Token ACL)
+                const tokenBuilder = new Token().withMetadata({
+                    mintAddress: mint.address,
+                    authority: mintAuthority.address,
+                    metadata: {
+                        name: 'Standard Thaw Token',
+                        symbol: 'STHW',
+                        uri: 'https://example.com/sthw.json',
+                    },
+                    additionalMetadata: new Map(),
+                });
+
+                const createTx = await tokenBuilder.buildTransaction({
+                    rpc: client.rpc,
+                    decimals: 6,
+                    mintAuthority,
+                    freezeAuthority: freezeAuthority.address, // Standard wallet address, not TOKEN_ACL_PROGRAM_ID
+                    mint,
+                    feePayer: payer,
+                });
+
+                await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Mint tokens to wallet
+                const mintTx = await createMintToTransaction(
+                    client.rpc,
+                    mint.address,
+                    wallet.address,
+                    1_000_000,
+                    mintAuthority,
+                    payer,
+                );
+                await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
+
+                // Get token account address
+                const tokenAccount = await getAssociatedTokenAccountAddress(
+                    mint.address,
+                    wallet.address,
+                    TOKEN_2022_PROGRAM_ADDRESS,
+                );
+
+                // Freeze first
+                const freezeTx = await getFreezeTransaction({
+                    rpc: client.rpc,
+                    payer,
+                    authority: freezeAuthority,
+                    tokenAccount,
+                });
+                await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
+
+                // Verify frozen
+                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+                expect(frozen).toBe(true);
+
+                // When: Thaw the account using standard freeze authority
+                const thawTx = await getThawTransaction({
+                    rpc: client.rpc,
+                    payer,
+                    authority: freezeAuthority,
+                    tokenAccount,
+                });
+
+                const signature = await sendAndConfirmTransaction(client, thawTx, DEFAULT_COMMITMENT);
+                assertTxSuccess(signature);
+
+                // Then: Account is not frozen
+                frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+                expect(frozen).toBe(false);
+            },
+            DEFAULT_TIMEOUT,
+        );
+
+        it(
+            'should handle freeze then thaw workflow with standard freeze authority',
+            async () => {
+                const wallet = await generateKeyPairSigner();
+
+                // Given: A token with a standard wallet as freeze authority (not Token ACL)
+                const tokenBuilder = new Token().withMetadata({
+                    mintAddress: mint.address,
+                    authority: mintAuthority.address,
+                    metadata: {
+                        name: 'Standard Workflow Token',
+                        symbol: 'SWRK',
+                        uri: 'https://example.com/swrk.json',
+                    },
+                    additionalMetadata: new Map(),
+                });
+
+                const createTx = await tokenBuilder.buildTransaction({
+                    rpc: client.rpc,
+                    decimals: 6,
+                    mintAuthority,
+                    freezeAuthority: freezeAuthority.address, // Standard wallet address, not TOKEN_ACL_PROGRAM_ID
+                    mint,
+                    feePayer: payer,
+                });
+
+                await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Mint tokens to wallet
+                const mintTx = await createMintToTransaction(
+                    client.rpc,
+                    mint.address,
+                    wallet.address,
+                    1_000_000,
+                    mintAuthority,
+                    payer,
+                );
+                await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
+
+                // Get token account address
+                const tokenAccount = await getAssociatedTokenAccountAddress(
+                    mint.address,
+                    wallet.address,
+                    TOKEN_2022_PROGRAM_ADDRESS,
+                );
+
+                // Initial state: not frozen
+                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+                expect(frozen).toBe(false);
+
+                // When: Freeze the account
+                const freezeTx = await getFreezeTransaction({
+                    rpc: client.rpc,
+                    payer,
+                    authority: freezeAuthority,
+                    tokenAccount,
+                });
+                await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
+
+                frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+                expect(frozen).toBe(true);
+
+                // When: Thaw the account
+                const thawTx = await getThawTransaction({
+                    rpc: client.rpc,
+                    payer,
+                    authority: freezeAuthority,
+                    tokenAccount,
+                });
+                await sendAndConfirmTransaction(client, thawTx, DEFAULT_COMMITMENT);
+
+                frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+                expect(frozen).toBe(false);
+
+                // Then: Balance unchanged throughout workflow
+                await assertBalance(
+                    client.rpc,
+                    wallet.address,
+                    mint.address,
+                    decimalAmountToRaw(1_000_000, 6),
+                    DEFAULT_COMMITMENT,
+                );
+            },
+            DEFAULT_TIMEOUT,
+        );
+    });
 });

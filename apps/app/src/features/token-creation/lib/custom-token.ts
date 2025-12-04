@@ -12,7 +12,7 @@ import {
 } from 'gill';
 import { CustomTokenCreationResult, CustomTokenOptions } from '@/types/token';
 import { createCustomTokenInitTransaction } from '@mosaic/sdk';
-import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
+import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 
 /**
  * Validates custom token options and returns parsed decimals
@@ -87,7 +87,6 @@ export const createCustomToken = async (
             : undefined;
         const freezeAuthority = options.freezeAuthority ? (options.freezeAuthority as Address) : undefined;
 
-        // Create RPC client using standardized URL handling
         const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
         const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
@@ -132,7 +131,7 @@ export const createCustomToken = async (
 
         // Send and confirm the signed transaction
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
+            commitment: getCommitment(),
         });
 
         // Build extensions list for result

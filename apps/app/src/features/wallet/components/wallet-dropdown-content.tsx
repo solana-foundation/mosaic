@@ -2,11 +2,12 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Wallet, Copy, Globe, ChevronLeft, Plus, Check } from 'lucide-react';
+import { Wallet, Globe, ChevronLeft, Plus, Check } from 'lucide-react';
 import { useWalletBalance } from '@/features/wallet/hooks/use-wallet-balance';
 import { useState } from 'react';
 import { useCluster } from '@solana/connector/react';
 import { motion } from 'motion/react';
+import { CopyButton } from '@/components/ui/copy-button';
 
 interface WalletDropdownContentProps {
     selectedAccount: string;
@@ -36,7 +37,6 @@ export function WalletDropdownContent({
     onDisconnect,
 }: WalletDropdownContentProps) {
     const { balance, isLoading } = useWalletBalance();
-    const [copied, setCopied] = useState(false);
     const [view, setView] = useState<DropdownView>('wallet');
     const { cluster, setCluster } = useCluster();
 
@@ -44,12 +44,6 @@ export function WalletDropdownContent({
 
     // Get current cluster name
     const currentClusterName = (cluster as { name?: string })?.name || 'mainnet-beta';
-
-    function handleCopy() {
-        navigator.clipboard.writeText(selectedAccount);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    }
 
     async function handleNetworkSwitch(network: NetworkOption) {
         await setCluster(network.id);
@@ -78,14 +72,14 @@ export function WalletDropdownContent({
                         <div className="font-semibold text-lg">{shortAddress}</div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={handleCopy}
-                            className="rounded-full bg-muted p-2 hover:bg-accent transition-colors"
-                            title={copied ? 'Copied!' : 'Copy address'}
-                        >
-                            <Copy className="h-4 w-4" />
-                        </button>
+                        <CopyButton
+                            textToCopy={selectedAccount}
+                            iconOnly
+                            variant="ghost"
+                            className="rounded-full bg-muted hover:bg-accent"
+                            iconClassName="h-4 w-4"
+                            iconClassNameCheck="h-4 w-4"
+                        />
                         <button
                             type="button"
                             onClick={() => setView('network')}

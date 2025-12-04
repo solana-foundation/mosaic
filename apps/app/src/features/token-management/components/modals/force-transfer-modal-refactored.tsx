@@ -1,39 +1,46 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
 import { forceTransferTokens, type ForceTransferOptions } from '@/features/token-management/lib/force-transfer';
 import { TransactionModifyingSigner } from '@solana/signers';
-import { X, AlertTriangle } from 'lucide-react';
-import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 
-import {
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
+import { ExtensionModal } from '@/components/shared/modals/extension-modal';
+import { ModalWarning } from '@/components/shared/modals/modal-warning';
+import { ModalError } from '@/components/shared/modals/modal-error';
+import { ModalFooter } from '@/components/shared/modals/modal-footer';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
+import { UnauthorizedView } from '@/components/shared/modals/unauthorized-view';
 import { SolanaAddressInput } from '@/components/shared/form/solana-address-input';
 import { AmountInput } from '@/components/shared/form/amount-input';
-import { useTransactionModal, useWalletConnection } from '@/features/token-management/hooks/use-transaction-modal';
+import { useTransactionModal } from '@/features/token-management/hooks/use-transaction-modal';
+import { useAuthority } from '@/features/token-management/hooks/use-authority';
 import { useInputValidation } from '@/hooks/use-input-validation';
-import { cn } from '@/lib/utils';
+import {
+    MODAL_ERRORS,
+    MODAL_BUTTONS,
+    MODAL_WARNINGS,
+    MODAL_LABELS,
+    MODAL_HELP_TEXT,
+    MODAL_TITLES,
+    MODAL_DESCRIPTIONS,
+    MODAL_SUCCESS_MESSAGES,
+} from '@/features/token-management/constants/modal-text';
 
 interface ForceTransferModalContentProps {
     mintAddress: string;
     permanentDelegate?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    onModalClose?: () => void;
 }
 
 export function ForceTransferModalContent({
     mintAddress,
     permanentDelegate,
     transactionSendingSigner,
+    onModalClose,
 }: ForceTransferModalContentProps) {
-    const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
     const { validateSolanaAddress, validateAmount } = useInputValidation();
+    const { hasPermanentDelegate, walletAddress } = useAuthority({ permanentDelegate });
     const {
         isLoading,
         error,
@@ -52,32 +59,32 @@ export function ForceTransferModalContent({
 
     const handleForceTransfer = async () => {
         if (!walletAddress) {
-            setError('Wallet not connected');
+            setError(MODAL_ERRORS.WALLET_NOT_CONNECTED);
             return;
         }
 
         if (!validateSolanaAddress(fromAddress)) {
-            setError('Please enter a valid source Solana address');
+            setError(MODAL_ERRORS.INVALID_SOURCE_ADDRESS);
             return;
         }
 
         if (!validateSolanaAddress(toAddress)) {
-            setError('Please enter a valid destination Solana address');
+            setError(MODAL_ERRORS.INVALID_DESTINATION_ADDRESS);
             return;
         }
 
         if (fromAddress === toAddress) {
-            setError('Source and destination addresses must be different');
+            setError(MODAL_ERRORS.SAME_ADDRESS);
             return;
         }
 
         if (!validateAmount(amount)) {
-            setError('Please enter a valid amount');
+            setError(MODAL_ERRORS.INVALID_AMOUNT);
             return;
         }
 
         if (parseFloat(amount) <= 0) {
-            setError('Please enter an amount greater than zero');
+            setError(MODAL_ERRORS.AMOUNT_GREATER_THAN_ZERO);
             return;
         }
 
@@ -103,7 +110,7 @@ export function ForceTransferModalContent({
                 setError(result.error || 'Force transfer failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
+            setError(err instanceof Error ? err.message : MODAL_ERRORS.AN_ERROR_OCCURRED);
         } finally {
             setIsLoading(false);
         }
@@ -116,7 +123,6 @@ export function ForceTransferModalContent({
         reset();
     };
 
-    // Reset form when component unmounts (dialog closes)
     useEffect(() => {
         return () => {
             setFromAddress('');
@@ -131,133 +137,115 @@ export function ForceTransferModalContent({
         resetForm();
     };
 
+    // Compute disabled label to help user understand what's needed
+    const getDisabledLabel = (): string | undefined => {
+        if (!walletAddress) return MODAL_BUTTONS.CONNECT_WALLET;
+        if (!fromAddress.trim()) return MODAL_BUTTONS.ENTER_SOURCE;
+        if (fromAddress.trim() && !validateSolanaAddress(fromAddress)) return MODAL_BUTTONS.INVALID_ADDRESS;
+        if (!toAddress.trim()) return MODAL_BUTTONS.ENTER_DESTINATION;
+        if (toAddress.trim() && !validateSolanaAddress(toAddress)) return MODAL_BUTTONS.INVALID_ADDRESS;
+        if (!amount.trim()) return MODAL_BUTTONS.ENTER_AMOUNT;
+        if (amount.trim() && !validateAmount(amount)) return MODAL_BUTTONS.INVALID_AMOUNT;
+        return undefined;
+    };
+
+    // Show unauthorized view if wallet doesn't have permanent delegate authority
+    if (!hasPermanentDelegate && permanentDelegate) {
+        return (
+            <ExtensionModal
+                title={MODAL_TITLES.FORCE_TRANSFER_TOKENS}
+                description={MODAL_DESCRIPTIONS.FORCE_TRANSFER}
+                isSuccess={false}
+            >
+                <UnauthorizedView
+                    type="forceTransfer"
+                    authorityAddress={permanentDelegate}
+                    walletAddress={walletAddress}
+                />
+            </ExtensionModal>
+        );
+    }
+
     return (
-        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
-            <div className="overflow-hidden">
-                <AlertDialogHeader className="p-6 pb-4 border-b">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <AlertDialogTitle className="text-xl font-semibold">
-                                {success ? 'Force Transfer Successful' : 'Force Transfer Tokens'}
-                            </AlertDialogTitle>
-                        </div>
-                        <AlertDialogCancel
-                            className="rounded-full p-1.5 hover:bg-muted transition-colors border-0 h-auto w-auto mt-0"
-                            aria-label="Close"
-                        >
-                            <X className="h-4 w-4" />
-                        </AlertDialogCancel>
+        <ExtensionModal
+            title={MODAL_TITLES.FORCE_TRANSFER_TOKENS}
+            successTitle={MODAL_TITLES.FORCE_TRANSFER_SUCCESSFUL}
+            description={MODAL_DESCRIPTIONS.FORCE_TRANSFER}
+            isSuccess={success}
+            successView={
+                <TransactionSuccessView
+                    title={MODAL_SUCCESS_MESSAGES.TOKENS_TRANSFERRED}
+                    message={`${amount} tokens transferred from ${fromAddress.slice(0, 8)}...${fromAddress.slice(-6)} to ${toAddress.slice(0, 8)}...${toAddress.slice(-6)}`}
+                    transactionSignature={transactionSignature}
+                    cluster={(cluster as { name?: string })?.name}
+                    onClose={onModalClose ?? handleContinue}
+                    onContinue={handleContinue}
+                    continueLabel={MODAL_BUTTONS.TRANSFER_MORE}
+                />
+            }
+        >
+            <SolanaAddressInput
+                label={MODAL_LABELS.SOURCE_ADDRESS}
+                value={fromAddress}
+                onChange={setFromAddress}
+                placeholder="Enter source wallet address..."
+                helpText={MODAL_HELP_TEXT.SOURCE_HELP}
+                required
+                disabled={isLoading}
+            />
+
+            <SolanaAddressInput
+                label={MODAL_LABELS.DESTINATION_ADDRESS}
+                value={toAddress}
+                onChange={setToAddress}
+                placeholder="Enter destination wallet address..."
+                helpText={MODAL_HELP_TEXT.DESTINATION_HELP}
+                required
+                disabled={isLoading}
+            />
+
+            <AmountInput
+                label={MODAL_LABELS.AMOUNT}
+                value={amount}
+                onChange={setAmount}
+                placeholder="Enter amount to transfer..."
+                helpText={MODAL_HELP_TEXT.MINT_AMOUNT}
+                required
+                disabled={isLoading}
+            />
+
+            <ModalWarning variant="amber" title={MODAL_WARNINGS.ADMINISTRATOR_ACTION_TITLE}>
+                {MODAL_WARNINGS.FORCE_TRANSFER_WARNING}
+            </ModalWarning>
+
+            {permanentDelegate && (
+                <div>
+                    <label className="block text-sm font-medium mb-2">{MODAL_LABELS.PERMANENT_DELEGATE_AUTHORITY}</label>
+                    <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
+                        {permanentDelegate}
                     </div>
-                    <AlertDialogDescription>
-                        Transfer tokens from any account without owner permission
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-
-                <div className="p-6 space-y-5">
-                    {success ? (
-                        <TransactionSuccessView
-                            title="Tokens transferred successfully!"
-                            message={`${amount} tokens transferred from ${fromAddress.slice(0, 8)}...${fromAddress.slice(-6)} to ${toAddress.slice(0, 8)}...${toAddress.slice(-6)}`}
-                            transactionSignature={transactionSignature}
-                            cluster={(cluster as { name?: string })?.name}
-                            onClose={handleContinue}
-                            onContinue={handleContinue}
-                            continueLabel="Transfer More"
-                        />
-                    ) : (
-                        <>
-                            <SolanaAddressInput
-                                label="Source Address"
-                                value={fromAddress}
-                                onChange={setFromAddress}
-                                placeholder="Enter source wallet address..."
-                                helpText="The account from which tokens will be transferred"
-                                required
-                                disabled={isLoading}
-                            />
-
-                            <SolanaAddressInput
-                                label="Destination Address"
-                                value={toAddress}
-                                onChange={setToAddress}
-                                placeholder="Enter destination wallet address..."
-                                helpText="The account to which tokens will be transferred"
-                                required
-                                disabled={isLoading}
-                            />
-
-                            <AmountInput
-                                label="Amount"
-                                value={amount}
-                                onChange={setAmount}
-                                placeholder="Enter amount to transfer..."
-                                helpText="Number of tokens to transfer"
-                                required
-                                disabled={isLoading}
-                            />
-                            <div className="bg-amber-50 dark:bg-amber-950/30 rounded-2xl p-5 space-y-3 border border-amber-200 dark:border-amber-800">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/50">
-                                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                                    </div>
-                                    <span className="font-semibold text-amber-700 dark:text-amber-300">
-                                        Administrator Action
-                                    </span>
-                                </div>
-                                <p className="text-sm text-amber-700/80 dark:text-amber-300/80 leading-relaxed">
-                                    This will force transfer tokens from any account without the owner&apos;s
-                                    permission. Use with caution.
-                                </p>
-                            </div>
-
-                            {permanentDelegate && (
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">
-                                        Permanent Delegate Authority
-                                    </label>
-                                    <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
-                                        {permanentDelegate}
-                                    </div>
-                                </div>
-                            )}
-
-                            {error && (
-                                <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-800">
-                                    {error}
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <AlertDialogCancel className="w-full h-12 rounded-xl mt-0" disabled={isLoading}>
-                                    Cancel
-                                </AlertDialogCancel>
-                                <Button
-                                    onClick={handleForceTransfer}
-                                    disabled={
-                                        isLoading ||
-                                        !fromAddress.trim() ||
-                                        !toAddress.trim() ||
-                                        !amount.trim() ||
-                                        !validateSolanaAddress(fromAddress) ||
-                                        !validateSolanaAddress(toAddress) ||
-                                        !validateAmount(amount)
-                                    }
-                                    className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all bg-amber-500 hover:bg-amber-600 text-white"
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Spinner size={16} className="mr-2" />
-                                            Processing...
-                                        </>
-                                    ) : (
-                                        'Force Transfer'
-                                    )}
-                                </Button>
-                            </div>
-                        </>
-                    )}
                 </div>
-            </div>
-        </AlertDialogContent>
+            )}
+
+            <ModalError error={error} />
+
+            <ModalFooter
+                isLoading={isLoading}
+                onAction={handleForceTransfer}
+                actionLabel={MODAL_BUTTONS.FORCE_TRANSFER}
+                loadingLabel={MODAL_BUTTONS.PROCESSING}
+                actionDisabled={
+                    !walletAddress ||
+                    !fromAddress.trim() ||
+                    !toAddress.trim() ||
+                    !amount.trim() ||
+                    !validateSolanaAddress(fromAddress) ||
+                    !validateSolanaAddress(toAddress) ||
+                    !validateAmount(amount)
+                }
+                disabledLabel={getDisabledLabel()}
+                actionClassName="bg-amber-500 hover:bg-amber-600 text-white"
+            />
+        </ExtensionModal>
     );
 }

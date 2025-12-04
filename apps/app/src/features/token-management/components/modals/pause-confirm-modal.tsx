@@ -11,7 +11,15 @@ import {
     AlertDialogCancel,
     AlertDialogAction,
 } from '@/components/ui/alert-dialog';
+import { ModalWarning } from '@/components/shared/modals/modal-warning';
+import { ModalError } from '@/components/shared/modals/modal-error';
 import { cn } from '@/lib/utils';
+import {
+    MODAL_BUTTONS,
+    MODAL_WARNINGS,
+    MODAL_DESCRIPTIONS,
+    PAUSE_EFFECTS,
+} from '@/features/token-management/constants/modal-text';
 
 interface PauseConfirmModalContentProps {
     onConfirm: () => Promise<void>;
@@ -59,24 +67,15 @@ export function PauseConfirmModalContent({
                         </AlertDialogCancel>
                     </div>
                     <AlertDialogDescription>
-                        {isPaused ? 'Resume all token transfers' : 'Temporarily halt all token transfers'}
+                        {isPaused ? MODAL_DESCRIPTIONS.UNPAUSE : MODAL_DESCRIPTIONS.PAUSE}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
 
                 <div className="p-6 space-y-5">
                     {isAuthorityError ? (
-                        // Authority error state - prominent display
-                        <div className="bg-amber-50 dark:bg-amber-950/30 rounded-2xl p-5 space-y-3 border border-amber-200 dark:border-amber-800">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/50">
-                                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                                </div>
-                                <span className="font-semibold text-amber-700 dark:text-amber-300">
-                                    Authority Required
-                                </span>
-                            </div>
-                            <p className="text-sm text-amber-700/80 dark:text-amber-300/80 leading-relaxed">{error}</p>
-                        </div>
+                        <ModalWarning variant="amber" title={MODAL_WARNINGS.AUTHORITY_REQUIRED_TITLE} icon={AlertTriangle}>
+                            {error}
+                        </ModalWarning>
                     ) : (
                         <>
                             <p className="text-muted-foreground leading-relaxed">
@@ -96,47 +95,28 @@ export function PauseConfirmModalContent({
                             </p>
 
                             {!isPaused && (
-                                <div className="bg-red-50 dark:bg-red-950/30 rounded-2xl p-5 space-y-3 border border-red-200 dark:border-red-800">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/50">
-                                            <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                                        </div>
-                                        <span className="font-semibold text-red-700 dark:text-red-300">
-                                            Important: When paused
-                                        </span>
-                                    </div>
+                                <ModalWarning variant="red" title={MODAL_WARNINGS.IMPORTANT_WHEN_PAUSED_TITLE} icon={AlertTriangle}>
                                     <ul className="space-y-2 ml-1">
-                                        {[
-                                            'No token transfers allowed',
-                                            "Token holders can't send or receive tokens",
-                                            "Mint authority can't mint new tokens",
-                                            "Freeze authority can't freeze or thaw tokens",
-                                            'DeFi protocols may malfunction',
-                                            'Only the pause authority can unpause',
-                                        ].map((item, index) => (
+                                        {PAUSE_EFFECTS.map((item, index) => (
                                             <li
                                                 key={index}
-                                                className="flex items-start gap-2.5 text-red-700/80 dark:text-red-300/80 text-sm"
+                                                className="flex items-start gap-2.5 text-sm"
                                             >
                                                 <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-red-500 dark:bg-red-400 flex-shrink-0" />
                                                 <span>{item}</span>
                                             </li>
                                         ))}
                                     </ul>
-                                </div>
+                                </ModalWarning>
                             )}
 
-                            {error && !isAuthorityError && (
-                                <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-800">
-                                    {error}
-                                </div>
-                            )}
+                            {error && !isAuthorityError && <ModalError error={error} />}
                         </>
                     )}
 
                     <div className="grid grid-cols-2 gap-3 pt-2">
                         <AlertDialogCancel disabled={isLoading || isConfirming} className="w-full h-12 rounded-xl mt-0">
-                            Cancel
+                            {MODAL_BUTTONS.CANCEL}
                         </AlertDialogCancel>
                         {!isAuthorityError && (
                             <AlertDialogAction
@@ -159,7 +139,7 @@ export function PauseConfirmModalContent({
                         )}
                         {isAuthorityError && (
                             <AlertDialogCancel className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all bg-secondary text-secondary-foreground hover:bg-secondary/80 mt-0">
-                                Understood
+                                {MODAL_BUTTONS.UNDERSTOOD}
                             </AlertDialogCancel>
                         )}
                     </div>

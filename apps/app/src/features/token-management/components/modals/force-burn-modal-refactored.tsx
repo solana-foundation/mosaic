@@ -1,30 +1,37 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
 import { forceBurnTokens, type ForceBurnOptions } from '@/features/token-management/lib/force-burn';
 import { TransactionModifyingSigner } from '@solana/signers';
-import { X, AlertTriangle, Flame } from 'lucide-react';
-import { Spinner } from '@/components/ui/spinner';
+import { Flame } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
 
-import {
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogCancel,
-} from '@/components/ui/alert-dialog';
+import { ExtensionModal } from '@/components/shared/modals/extension-modal';
+import { ModalWarning } from '@/components/shared/modals/modal-warning';
+import { ModalError } from '@/components/shared/modals/modal-error';
+import { ModalFooter } from '@/components/shared/modals/modal-footer';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
+import { UnauthorizedView } from '@/components/shared/modals/unauthorized-view';
 import { SolanaAddressInput } from '@/components/shared/form/solana-address-input';
 import { AmountInput } from '@/components/shared/form/amount-input';
-import { useTransactionModal, useWalletConnection } from '@/features/token-management/hooks/use-transaction-modal';
+import { useTransactionModal } from '@/features/token-management/hooks/use-transaction-modal';
+import { useAuthority } from '@/features/token-management/hooks/use-authority';
 import { useInputValidation } from '@/hooks/use-input-validation';
-import { cn } from '@/lib/utils';
+import {
+    MODAL_ERRORS,
+    MODAL_BUTTONS,
+    MODAL_WARNINGS,
+    MODAL_LABELS,
+    MODAL_HELP_TEXT,
+    MODAL_TITLES,
+    MODAL_DESCRIPTIONS,
+    MODAL_SUCCESS_MESSAGES,
+} from '@/features/token-management/constants/modal-text';
 
 interface ForceBurnModalContentProps {
     mintAddress: string;
     permanentDelegate?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
     onSuccess?: () => void;
+    onModalClose?: () => void;
 }
 
 export function ForceBurnModalContent({
@@ -32,10 +39,11 @@ export function ForceBurnModalContent({
     permanentDelegate,
     transactionSendingSigner,
     onSuccess,
+    onModalClose,
 }: ForceBurnModalContentProps) {
-    const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
     const { validateSolanaAddress, validateAmount } = useInputValidation();
+    const { hasPermanentDelegate, walletAddress } = useAuthority({ permanentDelegate });
     const {
         isLoading,
         error,
@@ -51,23 +59,19 @@ export function ForceBurnModalContent({
     const [fromAddress, setFromAddress] = useState('');
     const [amount, setAmount] = useState('');
 
-    // Check if connected wallet is the permanent delegate
-    const hasAuthority =
-        walletAddress && permanentDelegate && walletAddress.toLowerCase() === permanentDelegate.toLowerCase();
-
     const handleForceBurn = async () => {
         if (!walletAddress) {
-            setError('Wallet not connected');
+            setError(MODAL_ERRORS.WALLET_NOT_CONNECTED);
             return;
         }
 
         if (!validateSolanaAddress(fromAddress)) {
-            setError('Please enter a valid source address');
+            setError(MODAL_ERRORS.INVALID_SOURCE_ADDRESS);
             return;
         }
 
         if (!validateAmount(amount)) {
-            setError('Please enter a valid amount');
+            setError(MODAL_ERRORS.INVALID_AMOUNT);
             return;
         }
 
@@ -75,7 +79,6 @@ export function ForceBurnModalContent({
         setError('');
 
         try {
-            // Get RPC URL from cluster, environment variable, or default to devnet
             const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
             const options: ForceBurnOptions = {
@@ -96,7 +99,7 @@ export function ForceBurnModalContent({
                 setError(result.error || 'Force burn failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
         } finally {
             setIsLoading(false);
         }
@@ -108,7 +111,6 @@ export function ForceBurnModalContent({
         reset();
     };
 
-    // Reset form when component unmounts (dialog closes)
     useEffect(() => {
         return () => {
             setFromAddress('');
@@ -122,144 +124,103 @@ export function ForceBurnModalContent({
         resetForm();
     };
 
+    // Compute disabled label to help user understand what's needed
+    const getDisabledLabel = (): string | undefined => {
+        if (!walletAddress) return MODAL_BUTTONS.CONNECT_WALLET;
+        if (!fromAddress.trim()) return MODAL_BUTTONS.ENTER_ADDRESS;
+        if (fromAddress.trim() && !validateSolanaAddress(fromAddress)) return MODAL_BUTTONS.INVALID_ADDRESS;
+        if (!amount.trim()) return MODAL_BUTTONS.ENTER_AMOUNT;
+        if (amount.trim() && !validateAmount(amount)) return MODAL_BUTTONS.INVALID_AMOUNT;
+        return undefined;
+    };
+
+    // Show unauthorized view if wallet doesn't have permanent delegate authority
+    if (!hasPermanentDelegate && permanentDelegate) {
+        return (
+            <ExtensionModal
+                title={MODAL_TITLES.FORCE_BURN_TOKENS}
+                description={MODAL_DESCRIPTIONS.FORCE_BURN}
+                isSuccess={false}
+            >
+                <UnauthorizedView
+                    type="forceBurn"
+                    authorityAddress={permanentDelegate}
+                    walletAddress={walletAddress}
+                />
+            </ExtensionModal>
+        );
+    }
+
     return (
-        <AlertDialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
-            <div className="overflow-hidden">
-                <AlertDialogHeader className="p-6 pb-4 border-b">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <AlertDialogTitle className="text-xl font-semibold">
-                                {success ? 'Force Burn Successful' : 'Force Burn Tokens'}
-                            </AlertDialogTitle>
-                        </div>
-                        <AlertDialogCancel
-                            className="rounded-full p-1.5 hover:bg-muted transition-colors border-0 h-auto w-auto mt-0"
-                            aria-label="Close"
-                        >
-                            <X className="h-4 w-4" />
-                        </AlertDialogCancel>
+        <ExtensionModal
+            title={MODAL_TITLES.FORCE_BURN_TOKENS}
+            successTitle={MODAL_TITLES.FORCE_BURN_SUCCESSFUL}
+            description={MODAL_DESCRIPTIONS.FORCE_BURN}
+            isSuccess={success}
+            successView={
+                <TransactionSuccessView
+                    title={MODAL_SUCCESS_MESSAGES.TOKENS_BURNED}
+                    message={`${amount} tokens have been permanently burned from ${fromAddress.slice(0, 8)}...${fromAddress.slice(-6)}`}
+                    transactionSignature={transactionSignature}
+                    cluster={(cluster as { name?: string })?.name}
+                    onClose={onModalClose ?? handleContinue}
+                    onContinue={handleContinue}
+                    continueLabel={MODAL_BUTTONS.BURN_MORE}
+                />
+            }
+        >
+            <SolanaAddressInput
+                label={MODAL_LABELS.BURN_FROM_ADDRESS}
+                value={fromAddress}
+                onChange={setFromAddress}
+                placeholder="Enter wallet or token account address..."
+                helpText={MODAL_HELP_TEXT.BURN_FROM_HELP}
+                required
+                disabled={isLoading}
+            />
+
+            <AmountInput
+                label={MODAL_LABELS.AMOUNT_TO_BURN}
+                value={amount}
+                onChange={setAmount}
+                placeholder="Enter amount to burn..."
+                helpText={MODAL_HELP_TEXT.FORCE_BURN_AMOUNT}
+                required
+                disabled={isLoading}
+            />
+
+            <ModalWarning variant="red" title={MODAL_WARNINGS.IRREVERSIBLE_TITLE}>
+                {MODAL_WARNINGS.FORCE_BURN_WARNING}
+            </ModalWarning>
+
+            {permanentDelegate && (
+                <div>
+                    <label className="block text-sm font-medium mb-2">{MODAL_LABELS.PERMANENT_DELEGATE_AUTHORITY}</label>
+                    <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
+                        {permanentDelegate}
                     </div>
-                    <AlertDialogDescription>Permanently destroy tokens from any account</AlertDialogDescription>
-                </AlertDialogHeader>
-
-                <div className="p-6 space-y-5">
-                    {success ? (
-                        <TransactionSuccessView
-                            title="Tokens burned successfully!"
-                            message={`${amount} tokens have been permanently burned from ${fromAddress.slice(0, 8)}...${fromAddress.slice(-6)}`}
-                            transactionSignature={transactionSignature}
-                            cluster={(cluster as { name?: string })?.name}
-                            onClose={handleContinue}
-                            onContinue={handleContinue}
-                            continueLabel="Burn More"
-                        />
-                    ) : (
-                        <>
-                            <SolanaAddressInput
-                                label="Burn From Address"
-                                value={fromAddress}
-                                onChange={setFromAddress}
-                                placeholder="Enter wallet or token account address..."
-                                helpText="The account from which tokens will be burned"
-                                required
-                                disabled={isLoading}
-                            />
-
-                            <AmountInput
-                                label="Amount to Burn"
-                                value={amount}
-                                onChange={setAmount}
-                                placeholder="Enter amount to burn..."
-                                helpText="Number of tokens to permanently destroy"
-                                required
-                                disabled={isLoading}
-                            />
-
-                            <div className="bg-red-50 dark:bg-red-950/30 rounded-2xl p-5 space-y-3 border border-red-200 dark:border-red-800">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-2 rounded-xl bg-red-100 dark:bg-red-900/50">
-                                        <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
-                                    </div>
-                                    <span className="font-semibold text-red-700 dark:text-red-300">
-                                        Irreversible Action
-                                    </span>
-                                </div>
-                                <p className="text-sm text-red-700/80 dark:text-red-300/80 leading-relaxed">
-                                    Force burning will permanently destroy tokens from any account. This action cannot
-                                    be undone. Only use this for compliance or emergency purposes.
-                                </p>
-                            </div>
-
-                            {permanentDelegate && (
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">
-                                        Permanent Delegate Authority
-                                    </label>
-                                    <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
-                                        {permanentDelegate}
-                                    </div>
-                                    <p className="text-xs text-muted-foreground mt-1.5">
-                                        Only the permanent delegate can execute force burns
-                                    </p>
-                                </div>
-                            )}
-
-                            {!hasAuthority && walletAddress && permanentDelegate && (
-                                <div className="bg-amber-50 dark:bg-amber-950/30 rounded-xl p-4 border border-amber-200 dark:border-amber-800">
-                                    <div className="flex items-start gap-3">
-                                        <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                                                Not Authorized
-                                            </p>
-                                            <p className="text-xs text-amber-600/80 dark:text-amber-400/80">
-                                                Your connected wallet is not the permanent delegate. Only the permanent
-                                                delegate can force burn tokens.
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {error && (
-                                <div className="bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 p-4 rounded-xl text-sm border border-red-200 dark:border-red-800">
-                                    {error}
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-2 gap-3 pt-2">
-                                <AlertDialogCancel className="w-full h-12 rounded-xl mt-0" disabled={isLoading}>
-                                    Cancel
-                                </AlertDialogCancel>
-                                <Button
-                                    onClick={handleForceBurn}
-                                    disabled={
-                                        isLoading ||
-                                        !fromAddress.trim() ||
-                                        !amount.trim() ||
-                                        !validateSolanaAddress(fromAddress) ||
-                                        !validateAmount(amount) ||
-                                        !hasAuthority
-                                    }
-                                    className="w-full h-12 rounded-xl cursor-pointer active:scale-[0.98] transition-all bg-red-500 hover:bg-red-600 text-white"
-                                >
-                                    {isLoading ? (
-                                        <>
-                                            <Spinner size={16} className="mr-2" />
-                                            Burning...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Flame className="h-4 w-4 mr-2" />
-                                            Force Burn
-                                        </>
-                                    )}
-                                </Button>
-                            </div>
-                        </>
-                    )}
+                    <p className="text-xs text-muted-foreground mt-1.5">{MODAL_HELP_TEXT.PERMANENT_DELEGATE_HELP}</p>
                 </div>
-            </div>
-        </AlertDialogContent>
+            )}
+
+            <ModalError error={error} />
+
+            <ModalFooter
+                isLoading={isLoading}
+                onAction={handleForceBurn}
+                actionLabel={MODAL_BUTTONS.FORCE_BURN}
+                loadingLabel={MODAL_BUTTONS.BURNING}
+                actionIcon={Flame}
+                actionDisabled={
+                    !walletAddress ||
+                    !fromAddress.trim() ||
+                    !amount.trim() ||
+                    !validateSolanaAddress(fromAddress) ||
+                    !validateAmount(amount)
+                }
+                disabledLabel={getDisabledLabel()}
+                actionClassName="bg-red-500 hover:bg-red-600 text-white"
+            />
+        </ExtensionModal>
     );
 }

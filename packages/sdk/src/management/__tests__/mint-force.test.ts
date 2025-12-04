@@ -1,4 +1,5 @@
 import type { Address, Rpc, SolanaRpcApi } from 'gill';
+import { TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
 import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
 import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
 
@@ -21,12 +22,15 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
                 tokenAccount: 'Ata77777777777777777777777777777777777777',
                 isInitialized: true,
                 isFrozen: true,
+                balance: 0n,
+                uiBalance: 0,
             }),
             decimalAmountToRaw: jest.fn().mockReturnValue(1n),
             getMintDetails: jest.fn().mockResolvedValue({
                 decimals: 6,
                 freezeAuthority: 'NotTokenACL111111111111111111111111111111',
                 extensions: [],
+                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
         }));
@@ -44,17 +48,22 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
                     tokenAccount: 'FromATA',
                     isInitialized: true,
                     isFrozen: false,
+                    balance: 0n,
+                    uiBalance: 0,
                 })
                 .mockResolvedValueOnce({
                     tokenAccount: 'ToATA',
                     isInitialized: false,
                     isFrozen: false,
+                    balance: 0n,
+                    uiBalance: 0,
                 }),
             decimalAmountToRaw: jest.fn().mockReturnValue(1n),
             getMintDetails: jest.fn().mockResolvedValue({
                 decimals: 6,
                 freezeAuthority: 'NotTokenACL111111111111111111111111111111',
                 extensions: [],
+                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
         }));
@@ -70,6 +79,8 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
                 tokenAccount: 'Ata77777777777777777777777777777777777777',
                 isInitialized: false,
                 isFrozen: true,
+                balance: 0n,
+                uiBalance: 0,
             }),
             decimalAmountToRaw: jest.fn().mockReturnValue(1n),
             getMintDetails: jest.fn().mockResolvedValue({
@@ -77,6 +88,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
                 freezeAuthority: TOKEN_ACL_PROGRAM_ID,
                 extensions: [{ __kind: 'DefaultAccountState', state: 'frozen' }],
                 usesTokenAcl: true,
+                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
         }));
@@ -94,17 +106,22 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
                     tokenAccount: 'FromATA',
                     isInitialized: true,
                     isFrozen: false,
+                    balance: 0n,
+                    uiBalance: 0,
                 })
                 .mockResolvedValueOnce({
                     tokenAccount: 'ToATA',
                     isInitialized: false,
                     isFrozen: true,
+                    balance: 0n,
+                    uiBalance: 0,
                 }),
             decimalAmountToRaw: jest.fn().mockReturnValue(1n),
             getMintDetails: jest.fn().mockResolvedValue({
                 decimals: 6,
                 freezeAuthority: TOKEN_ACL_PROGRAM_ID,
                 extensions: [{ __kind: 'DefaultAccountState', state: 'frozen' }],
+                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
         }));

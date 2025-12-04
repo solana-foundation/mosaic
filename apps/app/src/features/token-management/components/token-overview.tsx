@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Copy, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
 import { useEffect, useState, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { useConnector } from '@solana/connector/react';
@@ -9,11 +9,10 @@ import { type Address, createSolanaRpc } from 'gill';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
+import { CopyButton } from '@/components/ui/copy-button';
 
 interface TokenOverviewProps {
     token: TokenDisplay;
-    copied: boolean;
-    onCopy: (text: string) => void;
     refreshTrigger?: number;
 }
 
@@ -22,7 +21,7 @@ export interface TokenOverviewRef {
 }
 
 export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(function TokenOverview(
-    { token, onCopy, refreshTrigger },
+    { token, refreshTrigger },
     ref,
 ) {
     const { cluster } = useConnector();
@@ -91,34 +90,34 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
                 <div className="space-y-4">
                     <div className="flex justify-between items-center py-2 border-b last:border-0">
                         <span className="text-sm text-muted-foreground">Token Address</span>
-                        <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm">{formatAddress(token.address)}</span>
-                            <Button
+                        {token.address ? (
+                            <CopyButton
+                                textToCopy={token.address}
+                                displayText={formatAddress(token.address)}
                                 variant="ghost"
-                                size="icon"
-                                className="h-4 w-4"
-                                onClick={() => onCopy(token.address || '')}
-                            >
-                                <Copy className="h-3 w-3" />
-                            </Button>
-                        </div>
+                                size="sm"
+                                iconClassName="h-3 w-3"
+                                iconClassNameCheck="h-3 w-3"
+                            />
+                        ) : (
+                            <span className="font-mono text-sm">Unknown</span>
+                        )}
                     </div>
 
                     <div className="flex justify-between items-center py-2 border-b last:border-0">
                         <span className="text-sm text-muted-foreground">Creation Address</span>
-                        <div className="flex items-center gap-2">
-                            <span className="font-mono text-sm">
-                                {formatAddress(token.mintAuthority || token.transactionSignature)}
-                            </span>
-                            <Button
-                                variant="secondary"
-                                size="icon"
-                                className="h-4 w-4"
-                                onClick={() => onCopy(token.mintAuthority || token.transactionSignature || '')}
-                            >
-                                <Copy className="h-3 w-3" />
-                            </Button>
-                        </div>
+                        {token.mintAuthority || token.transactionSignature ? (
+                            <CopyButton
+                                textToCopy={token.mintAuthority || token.transactionSignature || ''}
+                                displayText={formatAddress(token.mintAuthority || token.transactionSignature)}
+                                variant="ghost"
+                                size="sm"
+                                iconClassName="h-3 w-3"
+                                iconClassNameCheck="h-3 w-3"
+                            />
+                        ) : (
+                            <span className="font-mono text-sm">Unknown</span>
+                        )}
                     </div>
 
                     <div className="flex justify-between items-center py-2 border-b last:border-0">

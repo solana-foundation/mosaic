@@ -12,7 +12,7 @@ import {
 } from 'gill';
 import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/types/token';
 import { createTokenizedSecurityInitTransaction } from '@mosaic/sdk';
-import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
+import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 
 function validateOptions(options: TokenizedSecurityOptions): number {
     if (!options.name || !options.symbol) {
@@ -104,7 +104,7 @@ export const createTokenizedSecurity = async (
 
         // Send and confirm the signed transaction
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
+            commitment: getCommitment(),
         });
 
         return {

@@ -1,17 +1,6 @@
-import {
-    createSolanaRpc,
-    type Address,
-    type Rpc,
-    type SolanaRpcApi,
-    signTransactionMessageWithSigners,
-    sendAndConfirmTransactionFactory,
-    getSignatureFromTransaction,
-    createSolanaRpcSubscriptions,
-    TransactionModifyingSigner,
-    isAddress,
-} from 'gill';
+import { type Address, type TransactionModifyingSigner, isAddress } from 'gill';
 import { getThawTransaction } from '@mosaic/sdk';
-import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
+import { executeTokenAction } from './token-action';
 
 export interface ThawAccountOptions {
     tokenAccount: string;
@@ -46,43 +35,22 @@ function validateThawAccountOptions(options: ThawAccountOptions): void {
  * @param signer - Transaction sending signer instance (must be freeze authority)
  * @returns Promise that resolves to thaw result with signature and details
  */
-export const thawTokenAccount = async (
+export const thawTokenAccount = (
     options: ThawAccountOptions,
     signer: TransactionModifyingSigner,
-): Promise<ThawAccountResult> => {
-    try {
-        validateThawAccountOptions(options);
-
-        const walletPublicKey = signer.address;
-        if (!walletPublicKey) {
-            throw new Error('Wallet not connected');
-        }
-
-        const rpcUrl = getRpcUrl(options.rpcUrl);
-        const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
-
-        const transaction = await getThawTransaction({
-            rpc,
-            payer: signer,
-            authority: signer,
-            tokenAccount: options.tokenAccount as Address,
-        });
-
-        const signedTransaction = await signTransactionMessageWithSigners(transaction);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
-        });
-
-        return {
-            success: true,
-            transactionSignature: getSignatureFromTransaction(signedTransaction),
+): Promise<ThawAccountResult> =>
+    executeTokenAction<ThawAccountOptions, ThawAccountResult>({
+        options,
+        signer,
+        validate: validateThawAccountOptions,
+        buildTransaction: async ({ rpc, signer, options }) =>
+            getThawTransaction({
+                rpc,
+                payer: signer,
+                authority: signer,
+                tokenAccount: options.tokenAccount as Address,
+            }),
+        buildSuccessResult: (_, options) => ({
             tokenAccount: options.tokenAccount,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-        };
-    }
-};
+        }),
+    });

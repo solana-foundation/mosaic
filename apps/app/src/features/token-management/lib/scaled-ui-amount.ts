@@ -10,8 +10,9 @@ import {
     TransactionModifyingSigner,
     createTransaction,
 } from 'gill';
-import { getUpdateMultiplierScaledUiMintInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
-import { getRpcUrl, getWsUrl } from '@/lib/solana/rpc';
+import { getUpdateMultiplierScaledUiMintInstruction } from 'gill/programs/token';
+import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
+import { getMintDetails } from '@mosaic/sdk';
 
 export interface UpdateScaledUiMultiplierOptions {
     mint: string;
@@ -40,6 +41,9 @@ export const updateScaledUiMultiplier = async (
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
         const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
 
+        // Get mint details for program address
+        const { programAddress } = await getMintDetails(rpc, options.mint as Address);
+
         const ix = getUpdateMultiplierScaledUiMintInstruction(
             {
                 mint: options.mint as Address,
@@ -47,7 +51,7 @@ export const updateScaledUiMultiplier = async (
                 effectiveTimestamp: 0,
                 multiplier: options.multiplier,
             },
-            { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
+            { programAddress },
         );
 
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
@@ -60,7 +64,7 @@ export const updateScaledUiMultiplier = async (
 
         const signedTransaction = await signTransactionMessageWithSigners(tx);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: 'confirmed',
+            commitment: getCommitment(),
         });
         return {
             success: true,
