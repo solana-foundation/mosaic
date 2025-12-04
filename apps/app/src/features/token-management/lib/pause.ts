@@ -42,9 +42,8 @@ function createPauseValidator(signer: TransactionModifyingSigner, action: 'pause
 
         const signerAddress = signer.address;
         const pauseAuthorityAddress = options.pauseAuthority || signerAddress;
-        const feePayerAddress = options.feePayer || signerAddress;
 
-        if (pauseAuthorityAddress !== feePayerAddress) {
+        if (signerAddress !== pauseAuthorityAddress) {
             throw new Error(
                 `Only the pause authority can ${action} tokens. Please ensure the connected wallet is the pause authority.`,
             );
@@ -111,6 +110,7 @@ export const unpauseTokenWithWallet = (
  * @param mintAddress - Token mint address
  * @param rpcUrl - Optional RPC URL
  * @returns Promise that resolves to the pause state
+ * @throws Error if checking the pause state fails, with context including mintAddress
  */
 export const checkTokenPauseState = async (mintAddress: string, rpcUrl?: string): Promise<boolean> => {
     try {
@@ -122,8 +122,8 @@ export const checkTokenPauseState = async (mintAddress: string, rpcUrl?: string)
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(url);
 
         return await getTokenPauseState(rpc, mintAddress as Address);
-    } catch {
-        // Error checking pause state
-        return false;
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        throw new Error(`Failed to check pause state for mint ${mintAddress}: ${errorMessage}`);
     }
 };

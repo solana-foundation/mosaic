@@ -29,10 +29,10 @@ export interface BlocklistResult {
 }
 
 /**
- * Validates mint options and returns parsed amount
- * @param options - Mint configuration options
- * @returns Parsed amount as bigint
- * @throws Error if validation fails
+ * Validates blocklist options by checking required addresses and their format
+ * @param options - Blocklist configuration options containing mintAddress and walletAddress
+ * @throws Error if mintAddress or walletAddress is missing
+ * @throws Error if mintAddress or walletAddress has invalid Solana address format
  */
 function validateBlocklistOptions(options: BlocklistOptions): void {
     if (!options.mintAddress || !options.walletAddress) {

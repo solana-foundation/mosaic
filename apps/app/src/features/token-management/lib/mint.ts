@@ -61,9 +61,8 @@ export const mintTokens = (options: MintOptions, signer: TransactionModifyingSig
             // Additional authority validation
             const signerAddress = signer.address;
             const mintAuthorityAddress = opts.mintAuthority || signerAddress;
-            const feePayerAddress = opts.feePayer || signerAddress;
 
-            if (mintAuthorityAddress !== feePayerAddress) {
+            if (signerAddress.toLowerCase() !== (mintAuthorityAddress || signerAddress).toLowerCase()) {
                 throw new Error(
                     'Only the mint authority can mint tokens. Please ensure the connected wallet is the mint authority.',
                 );

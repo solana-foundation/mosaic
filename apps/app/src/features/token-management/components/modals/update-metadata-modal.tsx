@@ -143,7 +143,15 @@ export function UpdateMetadataModalContent({
     };
 
     const getSuccessMessage = () => {
-        const fieldLabels = updatedFields.map(f => FIELD_CONFIG[f as keyof typeof FIELD_CONFIG].label);
+        // Filter updatedFields to only include keys that exist in FIELD_CONFIG, preserving order
+        const validFields = updatedFields.filter(f => f in FIELD_CONFIG);
+        
+        // Map to labels with fallback for unexpected keys (defensive programming)
+        const fieldLabels = validFields.map(f => {
+            const config = FIELD_CONFIG[f as keyof typeof FIELD_CONFIG];
+            return config?.label ?? f;
+        });
+        
         if (fieldLabels.length === 1) {
             return `${fieldLabels[0]} has been updated`;
         }

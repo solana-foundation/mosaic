@@ -26,7 +26,6 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
 ) {
     const { cluster } = useConnector();
 
-    // Create RPC client from current cluster
     const rpc = useMemo(() => {
         if (!cluster?.url) return null;
         return createSolanaRpc(cluster.url);
@@ -49,19 +48,20 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
         }
     }, [rpc, token.address, token.supply]);
 
-    // Fetch supply on component mount
     useEffect(() => {
         fetchSupply();
     }, [fetchSupply]);
 
-    // Refresh supply when trigger changes (after mint/burn actions)
     useEffect(() => {
         if (refreshTrigger !== undefined && refreshTrigger > 0) {
             fetchSupply();
         }
     }, [refreshTrigger, fetchSupply]);
 
-    // Expose refreshSupply to parent components
+    useEffect(() => {
+        setCurrentSupply(token?.supply || '0');
+    }, [token?.supply]);
+
     useImperativeHandle(
         ref,
         () => ({
@@ -156,7 +156,7 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
 
                     <div className="flex justify-between items-center py-2 border-b last:border-0">
                         <span className="text-sm text-muted-foreground">Decimals</span>
-                        <span className="font-semibold">{token.decimals || '6'}</span>
+                        <span className="font-semibold">{token.decimals ?? 9}</span>
                     </div>
                 </div>
             </CardContent>

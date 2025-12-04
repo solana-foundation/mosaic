@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,6 +44,17 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
         type: string;
     } | null>(null);
 
+    const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Cleanup timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (closeTimerRef.current) {
+                clearTimeout(closeTimerRef.current);
+            }
+        };
+    }, []);
+
     const handleImport = async () => {
         setError(null);
         setIsLoading(true);
@@ -54,8 +65,8 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
                 throw new Error('No RPC connection available. Please connect your wallet.');
             }
 
-            // Validate address format
-            if (!tokenAddress || tokenAddress.length < 32) {
+            // Validate address presence
+            if (!tokenAddress) {
                 throw new Error('Please enter a valid Solana token address');
             }
 
@@ -129,7 +140,10 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
             onTokenImported?.();
 
             // Close the modal after a short delay
-            setTimeout(() => {
+            if (closeTimerRef.current) {
+                clearTimeout(closeTimerRef.current);
+            }
+            closeTimerRef.current = setTimeout(() => {
                 handleClose();
             }, 2000);
         } catch (err) {
@@ -157,6 +171,10 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
     };
 
     const handleClose = () => {
+        if (closeTimerRef.current) {
+            clearTimeout(closeTimerRef.current);
+            closeTimerRef.current = null;
+        }
         setTokenAddress('');
         setTokenType('none');
         setError(null);

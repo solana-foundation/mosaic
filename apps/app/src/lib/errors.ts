@@ -6,11 +6,18 @@
 /**
  * Error messages that should be silently ignored (not shown to user).
  * These typically represent expected states rather than actual errors.
+ * 
+ * Patterns can be:
+ * - Exact strings: matched with case-insensitive === comparison
+ * - RegExp objects: tested against the full message with .test()
  */
-export const SILENT_ERROR_PATTERNS = [
+export const SILENT_ERROR_PATTERNS: (string | RegExp)[] = [
+    // Exact string matches (case-insensitive)
     'Mint account not found',
     'Not a Token-2022 mint',
-] as const;
+    // RegExp patterns with word boundaries for precise matching
+    // Example: /\bMint account not found\b/i for case-insensitive word-boundary matching
+];
 
 /**
  * Extracts a human-readable message from an unknown error.
@@ -31,12 +38,23 @@ export function getErrorMessage(error: unknown, fallback = 'An unexpected error 
 /**
  * Checks if an error should be silently ignored based on known patterns.
  * Useful for expected error states that don't need user notification.
+ * 
+ * String patterns are matched exactly (case-insensitive).
+ * RegExp patterns are tested against the full message.
  * @param error - The error to check
  * @returns true if the error should be ignored
  */
 export function isSilentError(error: unknown): boolean {
     const message = getErrorMessage(error, '');
-    return SILENT_ERROR_PATTERNS.some(pattern => message.includes(pattern));
+    return SILENT_ERROR_PATTERNS.some(pattern => {
+        if (typeof pattern === 'string') {
+            // Exact string match (case-insensitive)
+            return message.toLowerCase() === pattern.toLowerCase();
+        } else {
+            // RegExp pattern test
+            return pattern.test(message);
+        }
+    });
 }
 
 /**

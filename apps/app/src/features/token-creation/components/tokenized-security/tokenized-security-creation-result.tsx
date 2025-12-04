@@ -4,8 +4,15 @@ import { CheckCircle, Settings, CandlestickChart } from 'lucide-react';
 import { CopyableExplorerField } from '@/components/copyable-explorer-field';
 import { TokenizedSecurityCreationResult } from '@/types/token';
 import Link from 'next/link';
+import { useConnector } from '@solana/connector/react';
+import { getEffectiveClusterName } from '@/lib/solana/explorer';
 
 export function TokenizedSecurityCreationResultDisplay({ result }: { result: TokenizedSecurityCreationResult }) {
+    const { cluster: connectorCluster } = useConnector();
+    const cluster = getEffectiveClusterName(
+        undefined,
+        connectorCluster,
+    ) as 'devnet' | 'testnet' | 'mainnet-beta';
     return (
         <Card className="mb-8">
             <CardHeader>
@@ -36,13 +43,13 @@ export function TokenizedSecurityCreationResultDisplay({ result }: { result: Tok
                             label="Mint Address"
                             value={result.mintAddress}
                             kind="address"
-                            cluster="devnet"
+                            cluster={cluster}
                         />
                         <CopyableExplorerField
                             label="Transaction"
                             value={result.transactionSignature}
                             kind="tx"
-                            cluster="devnet"
+                            cluster={cluster}
                         />
                         <div className="text-sm text-muted-foreground">
                             Your tokenized security has been created with the following parameters:

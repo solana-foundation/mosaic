@@ -24,7 +24,7 @@ export function ConnectButton({ className }: ConnectButtonProps) {
     if (connecting) {
         return (
             <Button size="sm" disabled className={className}>
-                <div className=" h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
             </Button>
         );
     }

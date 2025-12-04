@@ -35,10 +35,14 @@ export const createCloseAccountTransaction = async (
     const ownerAddress = typeof owner === 'string' ? owner : owner.address;
 
     // Resolve owner's token account
-    const { tokenAccount, isInitialized } = await resolveTokenAccount(rpc, ownerAddress, mint);
+    const { tokenAccount, isInitialized, balance } = await resolveTokenAccount(rpc, ownerAddress, mint);
 
     if (!isInitialized) {
         throw new Error('Token account does not exist for this mint');
+    }
+
+    if (balance > 0n) {
+        throw new Error('Token account must have a zero balance before closing');
     }
 
     // Create close account instruction

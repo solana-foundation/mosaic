@@ -69,6 +69,7 @@ export interface ArcadeTokenOptions {
     mintKeypair?: string;
     rpcUrl?: string;
     keypair?: string;
+    confirmationTimeoutMs?: number; // Transaction confirmation timeout in milliseconds (default: 60000)
 }
 
 export interface ArcadeTokenCreationResult {

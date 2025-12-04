@@ -7,9 +7,13 @@ import { CopyableExplorerField } from '@/components/copyable-explorer-field';
 
 interface CustomTokenCreationResultProps {
     result: CustomTokenCreationResult;
+    cluster?: 'devnet' | 'testnet' | 'mainnet-beta';
 }
 
-export function CustomTokenCreationResultDisplay({ result }: CustomTokenCreationResultProps) {
+export function CustomTokenCreationResultDisplay({
+    result,
+    cluster = 'devnet',
+}: CustomTokenCreationResultProps) {
     return (
         <Card className="mb-8">
             <CardHeader>
@@ -40,13 +44,13 @@ export function CustomTokenCreationResultDisplay({ result }: CustomTokenCreation
                             label="Mint Address"
                             value={result.mintAddress}
                             kind="address"
-                            cluster="devnet"
+                            cluster={cluster}
                         />
                         <CopyableExplorerField
                             label="Transaction"
                             value={result.transactionSignature}
                             kind="tx"
-                            cluster="devnet"
+                            cluster={cluster}
                         />
                         <div className="text-sm text-muted-foreground">
                             Your custom token has been successfully created with the following parameters:
@@ -80,12 +84,14 @@ export function CustomTokenCreationResultDisplay({ result }: CustomTokenCreation
                             <>
                                 <div className="pt-2 text-sm text-muted-foreground">Authorities</div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                                    <div>
-                                        <strong>Mint Authority:</strong>{' '}
-                                        <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
-                                            {result.details?.mintAuthority}
-                                        </code>
-                                    </div>
+                                    {result.details?.mintAuthority && (
+                                        <div>
+                                            <strong>Mint Authority:</strong>{' '}
+                                            <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                                {result.details.mintAuthority}
+                                            </code>
+                                        </div>
+                                    )}
                                     {result.details?.metadataAuthority && (
                                         <div>
                                             <strong>Metadata Authority:</strong>{' '}

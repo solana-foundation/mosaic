@@ -34,6 +34,35 @@ function validateArcadeTokenOptions(options: ArcadeTokenOptions): number {
 }
 
 /**
+ * Creates a timeout promise that rejects after the specified duration
+ * @param timeoutMs - Timeout duration in milliseconds (default: 60000)
+ * @returns Promise that rejects with a timeout error
+ */
+function createTimeoutPromise(timeoutMs: number = 60000): Promise<never> {
+    return new Promise((_, reject) => {
+        setTimeout(() => {
+            reject(new Error(`Transaction confirmation timed out after ${timeoutMs / 1000}s. The transaction may still be processing.`));
+        }, timeoutMs);
+    });
+}
+
+/**
+ * Sends and confirms a transaction with timeout handling
+ * @param confirmationPromise - The promise returned by sendAndConfirmTransactionFactory
+ * @param timeoutMs - Timeout duration in milliseconds (default: 60000)
+ * @returns Promise that resolves when transaction is confirmed or rejects on timeout
+ */
+async function sendAndConfirmWithTimeout<T>(
+    confirmationPromise: Promise<T>,
+    timeoutMs: number = 60000,
+): Promise<T> {
+    return Promise.race([
+        confirmationPromise,
+        createTimeoutPromise(timeoutMs),
+    ]);
+}
+
+/**
  * Creates an arcade token using the wallet standard transaction signer
  * @param options - Configuration options for the arcade token
  * @param signer - Transaction sending signer instance
@@ -45,7 +74,10 @@ export const createArcadeToken = async (
 ): Promise<ArcadeTokenCreationResult> => {
     try {
         const decimals = validateArcadeTokenOptions(options);
-        const enableSrfc37 = (options.enableSrfc37 as unknown) === true || (options.enableSrfc37 as unknown) === 'true';
+        const enableSrfc37Value = options.enableSrfc37 as unknown;
+        const enableSrfc37 = typeof enableSrfc37Value === 'string'
+            ? enableSrfc37Value.toLowerCase() === 'true'
+            : Boolean(enableSrfc37Value);
 
         // Get wallet public key
         const walletPublicKey = signer.address;
@@ -96,10 +128,14 @@ export const createArcadeToken = async (
         // Sign the transaction with the modifying signer
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
 
-        // Send and confirm the signed transaction
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
+        // Send and confirm the signed transaction with timeout handling
+        const confirmationPromise = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });
+        
+        // Use configurable timeout (default 60s, can be adjusted via options if needed)
+        const timeoutMs = options.confirmationTimeoutMs ?? 60000;
+        await sendAndConfirmWithTimeout(confirmationPromise, timeoutMs);
 
         // Build extensions list for result
         const extensions: string[] = [

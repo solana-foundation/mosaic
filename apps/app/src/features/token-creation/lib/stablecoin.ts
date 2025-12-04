@@ -115,7 +115,7 @@ export const createStablecoin = async (
                 symbol: options.symbol,
                 decimals,
                 aclMode: options.aclMode || 'blocklist',
-                mintAuthority: typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address,
+                mintAuthority: mintAuthority === signer ? signer.address : (mintAuthority as Address),
                 metadataAuthority: metadataAuthority?.toString(),
                 pausableAuthority: pausableAuthority?.toString(),
                 confidentialBalancesAuthority: confidentialBalancesAuthority?.toString(),

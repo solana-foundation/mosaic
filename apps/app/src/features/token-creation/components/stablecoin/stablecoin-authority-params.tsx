@@ -1,3 +1,5 @@
+'use client';
+
 import { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ChevronRight } from 'lucide-react';
@@ -34,7 +36,7 @@ export function StablecoinAuthorityParams({ options, onInputChange }: Stablecoin
                 </button>
             </CardHeader>
             {showOptionalParams && (
-                <CardContent className="space-y-4">
+                <CardContent id="stablecoin-authority-params" className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium mb-2">Mint Authority</label>
                         <input

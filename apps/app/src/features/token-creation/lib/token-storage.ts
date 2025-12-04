@@ -29,6 +29,19 @@ export const createTokenDisplayFromResult = (
     },
     creatorWallet?: string,
 ): TokenDisplay => {
+    // Guard: ensure mintAddress exists before creating TokenDisplay
+    if (!result?.mintAddress) {
+        const errorMessage = `Cannot create TokenDisplay: mintAddress is missing for token type "${type}" (name: "${options.name}", symbol: "${options.symbol}")`;
+        // eslint-disable-next-line no-console
+        console.error('[createTokenDisplayFromResult]', errorMessage, {
+            result,
+            type,
+            options,
+            creatorWallet,
+        });
+        throw new Error(errorMessage);
+    }
+
     // Map custom-token to unknown for SDK compatibility
     const sdkType = type === 'custom-token' ? 'unknown' : type;
     return {

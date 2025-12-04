@@ -15,6 +15,8 @@ export function DashboardEmptyState({ onTokenCreated }: DashboardEmptyStateProps
         <div className="flex-1 flex items-center justify-center p-8">
             <div className="max-w-6xl w-full">
                 <button
+                    type="button"
+                    aria-label="Create Token"
                     className="h-96 w-full flex flex-col justify-center items-center bg-transparent rounded-[24px] border-dashed border border-primary/10 shadow-sm hover:shadow-none shadow-none transition-all duration-200 cursor-pointer group"
                     onClick={() => setIsCreateModalOpen(true)}
                     style={{

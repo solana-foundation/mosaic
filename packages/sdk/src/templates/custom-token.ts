@@ -161,22 +161,56 @@ export const createCustomTokenInitTransaction = async (
 
     // Add Transfer Fee extension
     if (options?.enableTransferFee) {
+        // Validate transferFeeBasisPoints
+        const feeBasisPoints = options.transferFeeBasisPoints ?? 0;
+        if (typeof feeBasisPoints !== 'number' || !Number.isFinite(feeBasisPoints)) {
+            throw new Error(
+                `Invalid transferFeeBasisPoints: expected a number, got ${typeof feeBasisPoints === 'number' ? 'non-finite number' : typeof feeBasisPoints}`,
+            );
+        }
+        if (feeBasisPoints < 0 || feeBasisPoints > 10000) {
+            throw new Error(
+                `Invalid transferFeeBasisPoints: ${feeBasisPoints}. Must be between 0 and 10000 inclusive (0% to 100%)`,
+            );
+        }
+        if (!Number.isInteger(feeBasisPoints)) {
+            throw new Error(`Invalid transferFeeBasisPoints: ${feeBasisPoints}. Must be an integer`);
+        }
+
+        // Validate and coerce transferFeeMaximum to bigint
+        let maximumFee: bigint;
+        const rawMaximumFee = options.transferFeeMaximum ?? 0n;
+        try {
+            maximumFee = typeof rawMaximumFee === 'bigint' ? rawMaximumFee : BigInt(rawMaximumFee);
+        } catch {
+            throw new Error(
+                `Invalid transferFeeMaximum: cannot convert ${String(rawMaximumFee)} to bigint`,
+            );
+        }
+        if (maximumFee < 0n) {
+            throw new Error(`Invalid transferFeeMaximum: ${maximumFee}. Must be non-negative`);
+        }
+
         const transferFeeAuthority = options.transferFeeAuthority || mintAuthorityAddress;
         const withdrawWithheldAuthority = options.withdrawWithheldAuthority || mintAuthorityAddress;
         tokenBuilder = tokenBuilder.withTransferFee({
             authority: transferFeeAuthority,
             withdrawAuthority: withdrawWithheldAuthority,
-            feeBasisPoints: options.transferFeeBasisPoints ?? 0,
-            maximumFee: options.transferFeeMaximum ?? 0n,
+            feeBasisPoints,
+            maximumFee,
         });
     }
 
     // Add Interest Bearing extension
     if (options?.enableInterestBearing) {
+        const rate = options.interestRate ?? 0;
+        if (rate < 0) {
+            throw new Error('Interest rate cannot be negative');
+        }
         const interestBearingAuthority = options.interestBearingAuthority || mintAuthorityAddress;
         tokenBuilder = tokenBuilder.withInterestBearing({
             authority: interestBearingAuthority,
-            rate: options.interestRate ?? 0,
+            rate,
         });
     }
 
@@ -186,7 +220,12 @@ export const createCustomTokenInitTransaction = async (
     }
 
     // Add Transfer Hook extension
-    if (options?.enableTransferHook && options.transferHookProgramId) {
+    if (options?.enableTransferHook) {
+        if (!options.transferHookProgramId) {
+            throw new Error(
+                'transferHookProgramId is required when enableTransferHook is enabled',
+            );
+        }
         const transferHookAuthority = options.transferHookAuthority || mintAuthorityAddress;
         tokenBuilder = tokenBuilder.withTransferHook({
             authority: transferHookAuthority,

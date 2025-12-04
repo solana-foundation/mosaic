@@ -12,6 +12,7 @@ import { Wallet, ExternalLink } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { IconQuestionmark, IconXmark } from 'symbols-react';
 import { useState, useEffect } from 'react';
+import { toast } from '@/components/ui/sonner';
 
 interface WalletModalProps {
     open: boolean;
@@ -49,8 +50,12 @@ export function WalletModal({ open, onOpenChange }: WalletModalProps) {
             localStorage.setItem('recentlyConnectedWallet', walletName);
             setRecentlyConnected(walletName);
             onOpenChange(false);
-        } catch {
-            // Failed to connect wallet
+        } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error(`Failed to connect wallet "${walletName}":`, err);
+            toast.error('Failed to connect wallet', {
+                description: 'Please try again or select a different wallet.',
+            });
         } finally {
             setConnectingWallet(null);
         }

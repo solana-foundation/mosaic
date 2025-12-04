@@ -1,15 +1,28 @@
+'use client';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Gamepad2, CheckCircle, Settings } from 'lucide-react';
 import { CopyableExplorerField } from '@/components/copyable-explorer-field';
 import { ArcadeTokenCreationResult } from '@/types/token';
 import Link from 'next/link';
+import { useCluster } from '@solana/connector/react';
+import { getEffectiveClusterName } from '@/lib/solana/explorer';
 
 interface ArcadeTokenCreationResultProps {
     result: ArcadeTokenCreationResult;
+    cluster?: 'devnet' | 'testnet' | 'mainnet-beta';
 }
 
-export function ArcadeTokenCreationResultDisplay({ result }: ArcadeTokenCreationResultProps) {
+export function ArcadeTokenCreationResultDisplay({
+    result,
+    cluster: clusterProp,
+}: ArcadeTokenCreationResultProps) {
+    const { cluster: connectorCluster } = useCluster();
+    const cluster = getEffectiveClusterName(
+        clusterProp,
+        connectorCluster,
+    ) as 'devnet' | 'testnet' | 'mainnet-beta';
     return (
         <Card className="mb-8">
             <CardHeader>
@@ -40,13 +53,13 @@ export function ArcadeTokenCreationResultDisplay({ result }: ArcadeTokenCreation
                             label="Mint Address"
                             value={result.mintAddress}
                             kind="address"
-                            cluster="devnet"
+                            cluster={cluster}
                         />
                         <CopyableExplorerField
                             label="Transaction"
                             value={result.transactionSignature}
                             kind="tx"
-                            cluster="devnet"
+                            cluster={cluster}
                         />
                         <div className="text-sm text-muted-foreground">
                             Your arcade token has been successfully created with the following parameters:
