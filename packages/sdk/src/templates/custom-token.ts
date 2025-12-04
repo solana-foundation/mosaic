@@ -52,6 +52,10 @@ export const createCustomTokenInitTransaction = async (
         enableConfidentialBalances?: boolean;
         enableScaledUiAmount?: boolean;
         enableSrfc37?: boolean;
+        enableTransferFee?: boolean;
+        enableInterestBearing?: boolean;
+        enableNonTransferable?: boolean;
+        enableTransferHook?: boolean;
 
         // ACL mode (only relevant if SRFC-37 is enabled)
         aclMode?: 'allowlist' | 'blocklist';
@@ -73,6 +77,20 @@ export const createCustomTokenInitTransaction = async (
 
         // Freeze authority
         freezeAuthority?: Address;
+
+        // Transfer Fee configuration
+        transferFeeAuthority?: Address;
+        withdrawWithheldAuthority?: Address;
+        transferFeeBasisPoints?: number;
+        transferFeeMaximum?: bigint;
+
+        // Interest Bearing configuration
+        interestBearingAuthority?: Address;
+        interestRate?: number;
+
+        // Transfer Hook configuration
+        transferHookAuthority?: Address;
+        transferHookProgramId?: Address;
     },
 ): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
@@ -139,6 +157,41 @@ export const createCustomTokenInitTransaction = async (
             options.scaledUiAmountNewMultiplierEffectiveTimestamp ?? 0n,
             options.scaledUiAmountNewMultiplier ?? 1,
         );
+    }
+
+    // Add Transfer Fee extension
+    if (options?.enableTransferFee) {
+        const transferFeeAuthority = options.transferFeeAuthority || mintAuthorityAddress;
+        const withdrawWithheldAuthority = options.withdrawWithheldAuthority || mintAuthorityAddress;
+        tokenBuilder = tokenBuilder.withTransferFee({
+            authority: transferFeeAuthority,
+            withdrawAuthority: withdrawWithheldAuthority,
+            feeBasisPoints: options.transferFeeBasisPoints ?? 0,
+            maximumFee: options.transferFeeMaximum ?? 0n,
+        });
+    }
+
+    // Add Interest Bearing extension
+    if (options?.enableInterestBearing) {
+        const interestBearingAuthority = options.interestBearingAuthority || mintAuthorityAddress;
+        tokenBuilder = tokenBuilder.withInterestBearing({
+            authority: interestBearingAuthority,
+            rate: options.interestRate ?? 0,
+        });
+    }
+
+    // Add Non-Transferable extension (soul-bound tokens)
+    if (options?.enableNonTransferable) {
+        tokenBuilder = tokenBuilder.withNonTransferable();
+    }
+
+    // Add Transfer Hook extension
+    if (options?.enableTransferHook && options.transferHookProgramId) {
+        const transferHookAuthority = options.transferHookAuthority || mintAuthorityAddress;
+        tokenBuilder = tokenBuilder.withTransferHook({
+            authority: transferHookAuthority,
+            programId: options.transferHookProgramId,
+        });
     }
 
     // Build instructions

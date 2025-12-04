@@ -9,6 +9,7 @@ import {
     sendAndConfirmTransactionFactory,
     getSignatureFromTransaction,
     TransactionModifyingSigner,
+    isAddress,
 } from 'gill';
 import { CustomTokenCreationResult, CustomTokenOptions } from '@/types/token';
 import { createCustomTokenInitTransaction } from '@mosaic/sdk';
@@ -21,21 +22,77 @@ import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
  * @throws Error if validation fails
  */
 function validateCustomTokenOptions(options: CustomTokenOptions): number {
-    if (!options.name || !options.symbol) {
-        throw new Error('Name and symbol are required');
+    if (!options.name) {
+        throw new Error('Name is required');
+    }
+    if (!options.symbol) {
+        throw new Error('Symbol is required');
     }
 
     const decimals = parseInt(options.decimals, 10);
-    if (isNaN(decimals) || decimals < 0 || decimals > 9) {
-        throw new Error('Decimals must be a number between 0 and 9');
+    if (isNaN(decimals)) {
+        throw new Error('Decimals must be a valid number');
+    }
+    if (decimals < 0 || decimals > 9) {
+        throw new Error('Decimals must be between 0 and 9');
     }
 
     // Validate scaled UI amount multiplier if enabled
     if (options.enableScaledUiAmount) {
         const multiplier = options.scaledUiAmountMultiplier ? parseFloat(options.scaledUiAmountMultiplier) : 1;
-        if (isNaN(multiplier) || multiplier <= 0) {
-            throw new Error('Scaled UI Amount multiplier must be a positive number');
+        if (isNaN(multiplier)) {
+            throw new Error('Scaled UI Amount multiplier must be a valid number');
         }
+        if (multiplier <= 0) {
+            throw new Error('Scaled UI Amount multiplier must be greater than zero');
+        }
+    }
+
+    // Validate Transfer Fee configuration if enabled
+    if (options.enableTransferFee) {
+        if (options.transferFeeBasisPoints) {
+            const basisPoints = parseInt(options.transferFeeBasisPoints, 10);
+            if (isNaN(basisPoints)) {
+                throw new Error('Transfer fee basis points must be a valid number');
+            }
+            if (basisPoints < 0 || basisPoints > 10000) {
+                throw new Error('Transfer fee basis points must be between 0 and 10000');
+            }
+        }
+        if (options.transferFeeMaximum) {
+            const maxFee = BigInt(options.transferFeeMaximum);
+            if (maxFee < 0n) {
+                throw new Error('Maximum transfer fee must be greater than or equal to zero');
+            }
+        }
+    }
+
+    // Validate Interest Bearing configuration if enabled
+    if (options.enableInterestBearing) {
+        if (options.interestRate) {
+            const rate = parseInt(options.interestRate, 10);
+            if (isNaN(rate)) {
+                throw new Error('Interest rate must be a valid number');
+            }
+            if (rate < 0) {
+                throw new Error('Interest rate must be greater than or equal to zero');
+            }
+        }
+    }
+
+    // Validate Transfer Hook configuration if enabled
+    if (options.enableTransferHook) {
+        if (!options.transferHookProgramId) {
+            throw new Error('Transfer hook program ID is required');
+        }
+        if (!isAddress(options.transferHookProgramId)) {
+            throw new Error('Transfer hook program ID must be a valid Solana address');
+        }
+    }
+
+    // Check for conflicting extensions
+    if (options.enableNonTransferable && options.enableTransferFee) {
+        throw new Error('Non-transferable tokens cannot have transfer fees');
     }
 
     return decimals;
@@ -86,6 +143,21 @@ export const createCustomToken = async (
             ? (options.scaledUiAmountAuthority as Address)
             : undefined;
         const freezeAuthority = options.freezeAuthority ? (options.freezeAuthority as Address) : undefined;
+        const transferFeeAuthority = options.transferFeeAuthority
+            ? (options.transferFeeAuthority as Address)
+            : undefined;
+        const withdrawWithheldAuthority = options.withdrawWithheldAuthority
+            ? (options.withdrawWithheldAuthority as Address)
+            : undefined;
+        const interestBearingAuthority = options.interestBearingAuthority
+            ? (options.interestBearingAuthority as Address)
+            : undefined;
+        const transferHookAuthority = options.transferHookAuthority
+            ? (options.transferHookAuthority as Address)
+            : undefined;
+        const transferHookProgramId = options.transferHookProgramId
+            ? (options.transferHookProgramId as Address)
+            : undefined;
 
         const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
@@ -109,6 +181,10 @@ export const createCustomToken = async (
                 enableConfidentialBalances: options.enableConfidentialBalances ?? false,
                 enableScaledUiAmount: options.enableScaledUiAmount ?? false,
                 enableSrfc37,
+                enableTransferFee: options.enableTransferFee ?? false,
+                enableInterestBearing: options.enableInterestBearing ?? false,
+                enableNonTransferable: options.enableNonTransferable ?? false,
+                enableTransferHook: options.enableTransferHook ?? false,
                 aclMode: options.aclMode || 'blocklist',
                 metadataAuthority,
                 pausableAuthority,
@@ -123,6 +199,21 @@ export const createCustomToken = async (
                     : undefined,
                 defaultAccountStateInitialized: options.defaultAccountStateInitialized ?? true,
                 freezeAuthority,
+                // Transfer Fee configuration
+                transferFeeAuthority,
+                withdrawWithheldAuthority,
+                transferFeeBasisPoints: options.transferFeeBasisPoints
+                    ? parseInt(options.transferFeeBasisPoints, 10)
+                    : undefined,
+                transferFeeMaximum: options.transferFeeMaximum
+                    ? BigInt(options.transferFeeMaximum)
+                    : undefined,
+                // Interest Bearing configuration
+                interestBearingAuthority,
+                interestRate: options.interestRate ? parseInt(options.interestRate, 10) : undefined,
+                // Transfer Hook configuration
+                transferHookAuthority,
+                transferHookProgramId,
             },
         );
 
@@ -146,6 +237,10 @@ export const createCustomToken = async (
         }
         if (options.enableConfidentialBalances) extensions.push('Confidential Balances');
         if (options.enableScaledUiAmount) extensions.push('Scaled UI Amount');
+        if (options.enableTransferFee) extensions.push('Transfer Fee');
+        if (options.enableInterestBearing) extensions.push('Interest Bearing');
+        if (options.enableNonTransferable) extensions.push('Non-Transferable');
+        if (options.enableTransferHook) extensions.push('Transfer Hook');
         if (enableSrfc37) {
             extensions.push(`SRFC-37 (${options.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'})`);
         }
@@ -169,6 +264,19 @@ export const createCustomToken = async (
                     ? parseFloat(options.scaledUiAmountMultiplier)
                     : undefined,
                 defaultAccountStateInitialized: options.defaultAccountStateInitialized ?? true,
+                // Transfer Fee details
+                transferFeeBasisPoints: options.transferFeeBasisPoints
+                    ? parseInt(options.transferFeeBasisPoints, 10)
+                    : undefined,
+                transferFeeMaximum: options.transferFeeMaximum,
+                transferFeeAuthority: transferFeeAuthority?.toString(),
+                withdrawWithheldAuthority: withdrawWithheldAuthority?.toString(),
+                // Interest Bearing details
+                interestRate: options.interestRate ? parseInt(options.interestRate, 10) : undefined,
+                interestBearingAuthority: interestBearingAuthority?.toString(),
+                // Transfer Hook details
+                transferHookProgramId: transferHookProgramId?.toString(),
+                transferHookAuthority: transferHookAuthority?.toString(),
                 extensions,
             },
         };

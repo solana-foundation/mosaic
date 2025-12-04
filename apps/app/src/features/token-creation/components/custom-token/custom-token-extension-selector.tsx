@@ -1,8 +1,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { CustomTokenOptions } from '@/types/token';
-import { FileText, Pause, Shield, Lock, EyeOff, Calculator, Users } from 'lucide-react';
+import { FileText, Pause, Shield, Lock, EyeOff, Calculator, Users, Percent, TrendingUp, Ban, Webhook, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface CustomTokenExtensionSelectorProps {
     options: CustomTokenOptions;
@@ -54,6 +56,30 @@ const extensions: ExtensionInfo[] = [
         label: 'Scaled UI Amount',
         description: 'Display token amounts with a custom multiplier',
         icon: Calculator,
+    },
+    {
+        key: 'enableTransferFee',
+        label: 'Transfer Fee',
+        description: 'Automatically deduct a fee from every token transfer',
+        icon: Percent,
+    },
+    {
+        key: 'enableInterestBearing',
+        label: 'Interest Bearing',
+        description: 'Tokens accrue interest over time (cosmetic display only)',
+        icon: TrendingUp,
+    },
+    {
+        key: 'enableNonTransferable',
+        label: 'Non-Transferable',
+        description: 'Tokens are soul-bound and cannot be transferred',
+        icon: Ban,
+    },
+    {
+        key: 'enableTransferHook',
+        label: 'Transfer Hook',
+        description: 'Execute custom program logic on every transfer',
+        icon: Webhook,
     },
     {
         key: 'enableSrfc37',
@@ -133,6 +159,108 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
                             </label>
                         </div>
                     </div>
+                )}
+
+                {/* Transfer Fee Configuration */}
+                {options.enableTransferFee && (
+                    <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-4">
+                        <Label className="block text-sm font-medium">Transfer Fee Configuration</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label htmlFor="transferFeeBasisPoints" className="text-xs text-muted-foreground">
+                                    Fee (basis points, 100 = 1%)
+                                </Label>
+                                <Input
+                                    id="transferFeeBasisPoints"
+                                    type="number"
+                                    min="0"
+                                    max="10000"
+                                    placeholder="100"
+                                    value={options.transferFeeBasisPoints || ''}
+                                    onChange={e => onInputChange('transferFeeBasisPoints', e.target.value)}
+                                />
+                            </div>
+                            <div>
+                                <Label htmlFor="transferFeeMaximum" className="text-xs text-muted-foreground">
+                                    Maximum Fee (in smallest units)
+                                </Label>
+                                <Input
+                                    id="transferFeeMaximum"
+                                    type="text"
+                                    placeholder="1000000"
+                                    value={options.transferFeeMaximum || ''}
+                                    onChange={e => onInputChange('transferFeeMaximum', e.target.value)}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Interest Bearing Configuration */}
+                {options.enableInterestBearing && (
+                    <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-4">
+                        <Label className="block text-sm font-medium">Interest Bearing Configuration</Label>
+                        <div>
+                            <Label htmlFor="interestRate" className="text-xs text-muted-foreground">
+                                Interest Rate (basis points, 500 = 5% annual)
+                            </Label>
+                            <Input
+                                id="interestRate"
+                                type="number"
+                                min="0"
+                                placeholder="500"
+                                value={options.interestRate || ''}
+                                onChange={e => onInputChange('interestRate', e.target.value)}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {/* Non-Transferable Warning */}
+                {options.enableNonTransferable && (
+                    <Alert className="mt-4">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                            Non-transferable tokens are permanently bound to the account they are minted to. 
+                            They cannot be transferred to other accounts (soul-bound).
+                        </AlertDescription>
+                    </Alert>
+                )}
+
+                {/* Transfer Hook Configuration */}
+                {options.enableTransferHook && (
+                    <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-4">
+                        <Label className="block text-sm font-medium">Transfer Hook Configuration</Label>
+                        <div>
+                            <Label htmlFor="transferHookProgramId" className="text-xs text-muted-foreground">
+                                Hook Program ID (required)
+                            </Label>
+                            <Input
+                                id="transferHookProgramId"
+                                type="text"
+                                placeholder="Program address..."
+                                value={options.transferHookProgramId || ''}
+                                onChange={e => onInputChange('transferHookProgramId', e.target.value)}
+                            />
+                        </div>
+                        <Alert>
+                            <AlertTriangle className="h-4 w-4" />
+                            <AlertDescription>
+                                Transfer hooks require a deployed program that implements the transfer hook interface.
+                            </AlertDescription>
+                        </Alert>
+                    </div>
+                )}
+
+                {/* Conflict Warning: NonTransferable + TransferFee */}
+                {options.enableNonTransferable && options.enableTransferFee && (
+                    <Alert variant="destructive" className="mt-4">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                            Non-transferable tokens cannot have transfer fees since no transfers occur. 
+                            Please disable one of these extensions.
+                        </AlertDescription>
+                    </Alert>
                 )}
             </CardContent>
         </Card>

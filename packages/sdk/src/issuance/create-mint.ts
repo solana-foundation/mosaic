@@ -110,6 +110,98 @@ export class Token {
         return this;
     }
 
+    /**
+     * Adds the TransferFee extension to the token.
+     * Automatically deducts a fee from every transfer. Fees accumulate in recipient accounts
+     * and can be withdrawn by the withdraw authority.
+     *
+     * @param config - Transfer fee configuration
+     * @param config.authority - Authority that can update the fee configuration
+     * @param config.withdrawAuthority - Authority that can withdraw withheld fees
+     * @param config.feeBasisPoints - Fee in basis points (0-10000, where 10000 = 100%)
+     * @param config.maximumFee - Maximum fee amount (in smallest token units)
+     */
+    withTransferFee(config: {
+        authority: Address;
+        withdrawAuthority: Address;
+        feeBasisPoints: number;
+        maximumFee: bigint;
+    }): Token {
+        const transferFees = {
+            epoch: 0n,
+            maximumFee: config.maximumFee,
+            transferFeeBasisPoints: config.feeBasisPoints,
+        };
+        // Manually create extension object as gill's extension() doesn't support TransferFeeConfig
+        const transferFeeExtension = {
+            __kind: 'TransferFeeConfig' as const,
+            transferFeeConfigAuthority: config.authority,
+            withdrawWithheldAuthority: config.withdrawAuthority,
+            withheldAmount: 0n,
+            newerTransferFee: transferFees,
+            olderTransferFee: transferFees,
+        };
+        this.extensions.push(transferFeeExtension as Extension);
+        return this;
+    }
+
+    /**
+     * Adds the InterestBearing extension to the token.
+     * Tokens continuously accrue interest based on a configured rate.
+     * Interest is calculated on-chain but displayed cosmetically - no new tokens are minted.
+     *
+     * @param config - Interest bearing configuration
+     * @param config.authority - Authority that can update the interest rate
+     * @param config.rate - Interest rate in basis points (e.g., 500 = 5% annual rate)
+     */
+    withInterestBearing(config: { authority: Address; rate: number }): Token {
+        // Manually create extension object as gill's extension() doesn't support InterestBearingConfig
+        const interestBearingExtension = {
+            __kind: 'InterestBearingConfig' as const,
+            rateAuthority: config.authority,
+            initializationTimestamp: BigInt(Math.floor(Date.now() / 1000)),
+            preUpdateAverageRate: config.rate,
+            lastUpdateTimestamp: BigInt(Math.floor(Date.now() / 1000)),
+            currentRate: config.rate,
+        };
+        this.extensions.push(interestBearingExtension as Extension);
+        return this;
+    }
+
+    /**
+     * Adds the NonTransferable extension to the token.
+     * Tokens are permanently bound to the account they are minted to (soul-bound).
+     * Cannot be transferred, but can be burned or the account can be closed.
+     */
+    withNonTransferable(): Token {
+        // Manually create extension object as gill's extension() doesn't support NonTransferable
+        const nonTransferableExtension = {
+            __kind: 'NonTransferable' as const,
+        };
+        this.extensions.push(nonTransferableExtension as Extension);
+        return this;
+    }
+
+    /**
+     * Adds the TransferHook extension to the token.
+     * Executes custom program logic on every transfer.
+     * Requires a deployed program implementing the transfer hook interface.
+     *
+     * @param config - Transfer hook configuration
+     * @param config.authority - Authority that can update the hook program
+     * @param config.programId - Address of the transfer hook program
+     */
+    withTransferHook(config: { authority: Address; programId: Address }): Token {
+        // Manually create extension object as gill's extension() doesn't support TransferHook
+        const transferHookExtension = {
+            __kind: 'TransferHook' as const,
+            authority: config.authority,
+            programId: config.programId,
+        };
+        this.extensions.push(transferHookExtension as Extension);
+        return this;
+    }
+
     async buildInstructions({
         rpc,
         decimals,

@@ -75,6 +75,14 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         editable: true,
         getDisplayValue: () => undefined, // Will be fetched separately or shown as placeholder
     },
+    PermanentDelegate: {
+        displayName: 'Permanent Delegate',
+        description: 'A permanent authority with full control over all token accounts.',
+        helpText:
+            'Grants an address permanent delegate authority over all token accounts. Can transfer or burn tokens from any account. Commonly used for compliance and recovery features.',
+        type: 'address',
+        getDisplayValue: token => token.permanentDelegateAuthority,
+    },
     TransferFeeConfig: {
         displayName: 'Transfer Fee',
         description: 'Assesses a fee on every token transfer.',

@@ -139,6 +139,10 @@ export interface CustomTokenOptions {
     enableConfidentialBalances?: boolean;
     enableScaledUiAmount?: boolean;
     enableSrfc37?: boolean;
+    enableTransferFee?: boolean;
+    enableInterestBearing?: boolean;
+    enableNonTransferable?: boolean;
+    enableTransferHook?: boolean;
     // ACL mode (only relevant if SRFC-37 is enabled)
     aclMode?: 'allowlist' | 'blocklist';
     // Authority addresses
@@ -154,6 +158,17 @@ export interface CustomTokenOptions {
     // Default Account State configuration
     defaultAccountStateInitialized?: boolean;
     freezeAuthority?: string;
+    // Transfer Fee configuration
+    transferFeeBasisPoints?: string;
+    transferFeeMaximum?: string;
+    transferFeeAuthority?: string;
+    withdrawWithheldAuthority?: string;
+    // Interest Bearing configuration
+    interestRate?: string;
+    interestBearingAuthority?: string;
+    // Transfer Hook configuration
+    transferHookProgramId?: string;
+    transferHookAuthority?: string;
     rpcUrl?: string;
 }
 
@@ -175,6 +190,17 @@ export interface CustomTokenCreationResult {
         scaledUiAmountAuthority?: string;
         scaledUiAmountMultiplier?: number;
         defaultAccountStateInitialized?: boolean;
+        // Transfer Fee details
+        transferFeeBasisPoints?: number;
+        transferFeeMaximum?: string;
+        transferFeeAuthority?: string;
+        withdrawWithheldAuthority?: string;
+        // Interest Bearing details
+        interestRate?: number;
+        interestBearingAuthority?: string;
+        // Transfer Hook details
+        transferHookProgramId?: string;
+        transferHookAuthority?: string;
         extensions: string[];
     };
 }

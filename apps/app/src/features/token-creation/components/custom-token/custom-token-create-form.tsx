@@ -122,7 +122,8 @@ export function CustomTokenCreateForm({
                     mintAddress: result.mintAddress,
                     transactionSignature: result.transactionSignature,
                     details: {
-                        ...customTokenOptions,
+                        name: customTokenOptions.name,
+                        symbol: customTokenOptions.symbol,
                         decimals: parseInt(customTokenOptions.decimals),
                         aclMode: customTokenOptions.aclMode,
                         mintAuthority: derivedMintAuthority,
@@ -135,6 +136,21 @@ export function CustomTokenCreateForm({
                             ? parseFloat(customTokenOptions.scaledUiAmountMultiplier)
                             : undefined,
                         defaultAccountStateInitialized: customTokenOptions.defaultAccountStateInitialized,
+                        // Transfer Fee details
+                        transferFeeBasisPoints: customTokenOptions.transferFeeBasisPoints
+                            ? parseInt(customTokenOptions.transferFeeBasisPoints, 10)
+                            : undefined,
+                        transferFeeMaximum: customTokenOptions.transferFeeMaximum,
+                        transferFeeAuthority: customTokenOptions.transferFeeAuthority,
+                        withdrawWithheldAuthority: customTokenOptions.withdrawWithheldAuthority,
+                        // Interest Bearing details
+                        interestRate: customTokenOptions.interestRate
+                            ? parseInt(customTokenOptions.interestRate, 10)
+                            : undefined,
+                        interestBearingAuthority: customTokenOptions.interestBearingAuthority,
+                        // Transfer Hook details
+                        transferHookProgramId: customTokenOptions.transferHookProgramId,
+                        transferHookAuthority: customTokenOptions.transferHookAuthority,
                         extensions,
                     },
                 });
