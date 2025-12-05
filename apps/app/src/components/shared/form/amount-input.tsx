@@ -1,8 +1,10 @@
 'use client';
 
 import { useInputValidation } from '@/hooks/use-input-validation';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface AmountInputProps {
     label: string;
@@ -16,6 +18,14 @@ interface AmountInputProps {
     min?: string;
     max?: string;
     step?: string;
+    /** Available balance to show (formatted string) */
+    balance?: string;
+    /** Whether balance is currently loading */
+    balanceLoading?: boolean;
+    /** Callback when max button is clicked */
+    onMaxClick?: () => void;
+    /** Symbol to show next to balance (e.g., "USDC") */
+    balanceSymbol?: string;
 }
 
 export function AmountInput({
@@ -30,6 +40,10 @@ export function AmountInput({
     min = '0',
     max,
     step = '0.000000001',
+    balance,
+    balanceLoading,
+    onMaxClick,
+    balanceSymbol,
 }: AmountInputProps) {
     const { validateAmount } = useInputValidation();
     const isValid = !value || validateAmount(value);
@@ -86,25 +100,52 @@ export function AmountInput({
         }
     };
 
+    const showBalance = balance !== undefined || balanceLoading;
+
     return (
         <div>
-            <label className="block text-sm font-medium mb-2">
-                {label}
-                {required && <span className="text-red-500 ml-1">*</span>}
-            </label>
+            <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium">
+                    {label}
+                    {required && <span className="text-red-500 ml-1">*</span>}
+                </label>
+                {showBalance && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        {balanceLoading ? (
+                            <span className="flex items-center gap-1">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                Loading...
+                            </span>
+                        ) : (
+                            <>
+                                <span>
+                                    Balance: {balance} {balanceSymbol}
+                                </span>
+                                {onMaxClick && parseFloat(balance || '0') > 0 && (
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={onMaxClick}
+                                        disabled={disabled}
+                                        className="h-5 px-1.5 text-xs text-primary hover:text-primary font-medium"
+                                    >
+                                        Max
+                                    </Button>
+                                )}
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
             <div className="relative">
-                <input
+                <Input
                     type="text"
                     inputMode="decimal"
                     value={value}
                     onChange={handleInputChange}
                     placeholder={placeholder}
-                    className={cn(
-                        'w-full h-11 px-3 pr-10 border rounded-xl bg-background text-sm',
-                        'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-                        'disabled:cursor-not-allowed disabled:opacity-50',
-                        !isValid && value && 'border-red-500 focus:ring-red-500',
-                    )}
+                    className={cn(!isValid && value && 'border-red-500 focus:ring-red-500')}
                     disabled={disabled}
                 />
 

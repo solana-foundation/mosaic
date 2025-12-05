@@ -1,20 +1,26 @@
-import { useState, useEffect } from 'react';
-import { useConnector, useGillSolanaClient } from '@solana/connector/react';
-import type { Address } from 'gill';
+import { useState, useEffect, useMemo } from 'react';
+import { useConnector, useCluster } from '@solana/connector/react';
+import { type Address, createSolanaRpc } from 'gill';
 
 export function useWalletBalance() {
     const { selectedAccount } = useConnector();
-    const { client } = useGillSolanaClient();
+    const { cluster } = useCluster();
     const [balance, setBalance] = useState<number | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    // Create RPC client from current cluster URL
+    const rpc = useMemo(() => {
+        if (!cluster?.url) return null;
+        return createSolanaRpc(cluster.url);
+    }, [cluster?.url]);
 
     useEffect(() => {
         let canceled = false;
         let requestId = 0;
 
         async function fetchBalance() {
-            if (!selectedAccount || !client) {
+            if (!selectedAccount || !rpc) {
                 if (!canceled) {
                     setBalance(null);
                     setError(null);
@@ -30,10 +36,10 @@ export function useWalletBalance() {
             }
 
             try {
-                const result = await client.rpc.getBalance(selectedAccount as Address).send();
+                const result = await rpc.getBalance(selectedAccount as Address).send();
                 // Convert lamports to SOL (1 SOL = 1,000,000,000 lamports)
                 if (!canceled && currentRequestId === requestId) {
-                    setBalance(Number(result) / 1_000_000_000);
+                    setBalance(Number(result.value) / 1_000_000_000);
                     setError(null);
                 }
             } catch (err) {
@@ -56,7 +62,7 @@ export function useWalletBalance() {
             canceled = true;
             requestId++;
         };
-    }, [selectedAccount, client]);
+    }, [selectedAccount, rpc]);
 
     return { balance, isLoading, error };
 }

@@ -25,13 +25,13 @@ import {
     MODAL_DESCRIPTIONS,
     MODAL_SUCCESS_MESSAGES,
 } from '@/features/token-management/constants/modal-text';
+import { humanizeError } from '@/lib/errors';
 
 interface ForceBurnModalContentProps {
     mintAddress: string;
     permanentDelegate?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
     onSuccess?: () => void;
-    onModalClose?: () => void;
 }
 
 export function ForceBurnModalContent({
@@ -39,7 +39,6 @@ export function ForceBurnModalContent({
     permanentDelegate,
     transactionSendingSigner,
     onSuccess,
-    onModalClose,
 }: ForceBurnModalContentProps) {
     const { cluster } = useConnector();
     const { validateSolanaAddress, validateAmount } = useInputValidation();
@@ -99,7 +98,7 @@ export function ForceBurnModalContent({
                 setError(result.error || 'Force burn failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
+            setError(humanizeError(err));
         } finally {
             setIsLoading(false);
         }
@@ -120,10 +119,6 @@ export function ForceBurnModalContent({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleContinue = () => {
-        resetForm();
-    };
-
     // Compute disabled label to help user understand what's needed
     const getDisabledLabel = (): string | undefined => {
         if (!walletAddress) return MODAL_BUTTONS.CONNECT_WALLET;
@@ -142,11 +137,7 @@ export function ForceBurnModalContent({
                 description={MODAL_DESCRIPTIONS.FORCE_BURN}
                 isSuccess={false}
             >
-                <UnauthorizedView
-                    type="forceBurn"
-                    authorityAddress={permanentDelegate}
-                    walletAddress={walletAddress}
-                />
+                <UnauthorizedView type="forceBurn" authorityAddress={permanentDelegate} walletAddress={walletAddress} />
             </ExtensionModal>
         );
     }
@@ -157,15 +148,13 @@ export function ForceBurnModalContent({
             successTitle={MODAL_TITLES.FORCE_BURN_SUCCESSFUL}
             description={MODAL_DESCRIPTIONS.FORCE_BURN}
             isSuccess={success}
+            onClose={resetForm}
             successView={
                 <TransactionSuccessView
                     title={MODAL_SUCCESS_MESSAGES.TOKENS_BURNED}
                     message={`${amount} tokens have been permanently burned from ${fromAddress.slice(0, 8)}...${fromAddress.slice(-6)}`}
                     transactionSignature={transactionSignature}
                     cluster={(cluster as { name?: string })?.name}
-                    onClose={onModalClose ?? handleContinue}
-                    onContinue={handleContinue}
-                    continueLabel={MODAL_BUTTONS.BURN_MORE}
                 />
             }
         >
@@ -195,7 +184,9 @@ export function ForceBurnModalContent({
 
             {permanentDelegate && (
                 <div>
-                    <label className="block text-sm font-medium mb-2">{MODAL_LABELS.PERMANENT_DELEGATE_AUTHORITY}</label>
+                    <label className="block text-sm font-medium mb-2">
+                        {MODAL_LABELS.PERMANENT_DELEGATE_AUTHORITY}
+                    </label>
                     <div className="w-full p-3 border rounded-xl bg-muted/50 text-sm font-mono truncate">
                         {permanentDelegate}
                     </div>

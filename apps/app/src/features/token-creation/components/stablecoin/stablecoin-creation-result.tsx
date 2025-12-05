@@ -15,10 +15,7 @@ interface StablecoinCreationResultProps {
 
 export function StablecoinCreationResultDisplay({ result }: StablecoinCreationResultProps) {
     const { cluster: connectorCluster } = useCluster();
-    const cluster = getEffectiveClusterName(
-        undefined,
-        connectorCluster,
-    ) as 'devnet' | 'testnet' | 'mainnet-beta';
+    const cluster = getEffectiveClusterName(undefined, connectorCluster) as 'devnet' | 'testnet' | 'mainnet-beta';
     return (
         <Card className="mb-8">
             <CardHeader>

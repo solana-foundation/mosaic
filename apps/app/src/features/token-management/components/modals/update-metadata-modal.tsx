@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { updateTokenMetadataBatch, type UpdateMetadataBatchOptions, type MetadataUpdate } from '@/features/token-management/lib/metadata';
+import {
+    updateTokenMetadataBatch,
+    type UpdateMetadataBatchOptions,
+    type MetadataUpdate,
+} from '@/features/token-management/lib/metadata';
 import { TransactionModifyingSigner } from '@solana/signers';
 import { FileText } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
@@ -12,6 +16,7 @@ import { ModalFooter } from '@/components/shared/modals/modal-footer';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
 import { useTransactionModal, useWalletConnection } from '@/features/token-management/hooks/use-transaction-modal';
 import { MODAL_ERRORS } from '@/features/token-management/constants/modal-text';
+import { humanizeError } from '@/lib/errors';
 
 interface UpdateMetadataModalContentProps {
     mintAddress: string;
@@ -20,7 +25,7 @@ interface UpdateMetadataModalContentProps {
     currentUri?: string;
     metadataAuthority?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
-    onModalClose?: () => void;
+    onSuccess?: (updates: { name?: string; symbol?: string; uri?: string }) => void;
 }
 
 interface StringInputConfig {
@@ -42,7 +47,7 @@ export function UpdateMetadataModalContent({
     currentUri,
     metadataAuthority,
     transactionSendingSigner,
-    onModalClose,
+    onSuccess,
 }: UpdateMetadataModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
@@ -115,11 +120,18 @@ export function UpdateMetadataModalContent({
                 setSuccess(true);
                 setTransactionSignature(result.transactionSignature);
                 setUpdatedFields(result.updatedFields || []);
+
+                // Update local cache with the new metadata values
+                onSuccess?.({
+                    ...(hasNameChanged && { name: name.trim() }),
+                    ...(hasSymbolChanged && { symbol: symbol.trim() }),
+                    ...(hasUriChanged && { uri: uri.trim() }),
+                });
             } else {
                 setError(result.error || 'Update failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
+            setError(humanizeError(err));
         } finally {
             setIsLoading(false);
         }
@@ -138,20 +150,16 @@ export function UpdateMetadataModalContent({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleContinue = () => {
-        resetForm();
-    };
-
     const getSuccessMessage = () => {
         // Filter updatedFields to only include keys that exist in FIELD_CONFIG, preserving order
         const validFields = updatedFields.filter(f => f in FIELD_CONFIG);
-        
+
         // Map to labels with fallback for unexpected keys (defensive programming)
         const fieldLabels = validFields.map(f => {
             const config = FIELD_CONFIG[f as keyof typeof FIELD_CONFIG];
             return config?.label ?? f;
         });
-        
+
         if (fieldLabels.length === 1) {
             return `${fieldLabels[0]} has been updated`;
         }
@@ -173,15 +181,13 @@ export function UpdateMetadataModalContent({
             icon={FileText}
             iconClassName="text-primary"
             isSuccess={success}
+            onClose={resetForm}
             successView={
                 <TransactionSuccessView
                     title="Metadata updated successfully!"
                     message={getSuccessMessage()}
                     transactionSignature={transactionSignature}
                     cluster={(cluster as { name?: string })?.name}
-                    onClose={onModalClose ?? handleContinue}
-                    onContinue={handleContinue}
-                    continueLabel="Update More"
                 />
             }
         >
@@ -259,7 +265,11 @@ export function UpdateMetadataModalContent({
             <ModalFooter
                 isLoading={isLoading}
                 onAction={handleUpdate}
-                actionLabel={hasChanges ? `Update ${getChangeCount()} Field${getChangeCount() > 1 ? 's' : ''}` : 'Update Metadata'}
+                actionLabel={
+                    hasChanges
+                        ? `Update ${getChangeCount()} Field${getChangeCount() > 1 ? 's' : ''}`
+                        : 'Update Metadata'
+                }
                 loadingLabel="Updating..."
                 actionDisabled={!hasChanges || hasValidationErrors}
                 disabledLabel={!hasChanges ? 'No Changes' : undefined}

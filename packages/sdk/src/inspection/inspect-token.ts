@@ -311,6 +311,7 @@ export function inspectionResultToDashboardData(inspection: TokenInspectionResul
         decimals: supplyInfo.decimals,
         supply: supplyInfo.supply.toString(),
         uri: metadata?.uri,
+        image: metadata?.additionalMetadata?.get('image'),
         detectedPatterns,
 
         // ACL configuration

@@ -1,5 +1,7 @@
 import { EnableSrfc37Toggle } from '@/features/token-creation/components/enable-srfc37-toggle';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { TokenizedSecurityOptions } from '@/types/token';
 
 export function TokenizedSecurityBasicParams({
@@ -17,22 +19,22 @@ export function TokenizedSecurityBasicParams({
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Token Name *</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="security-name">Token Name *</Label>
+                        <Input
+                            id="security-name"
                             type="text"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="e.g., ABC Security"
                             value={options.name}
                             onChange={e => onInputChange('name', e.target.value)}
                             required
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Symbol *</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="security-symbol">Symbol *</Label>
+                        <Input
+                            id="security-symbol"
                             type="text"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="e.g., ABCS"
                             value={options.symbol}
                             onChange={e => onInputChange('symbol', e.target.value)}
@@ -41,11 +43,11 @@ export function TokenizedSecurityBasicParams({
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Decimals *</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="security-decimals">Decimals *</Label>
+                        <Input
+                            id="security-decimals"
                             type="number"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="6"
                             value={options.decimals}
                             onChange={e => onInputChange('decimals', e.target.value)}
@@ -54,11 +56,11 @@ export function TokenizedSecurityBasicParams({
                             required
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Metadata URI</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="security-uri">Metadata URI</Label>
+                        <Input
+                            id="security-uri"
                             type="url"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="https://example.com/metadata.json"
                             value={options.uri || ''}
                             onChange={e => onInputChange('uri', e.target.value)}

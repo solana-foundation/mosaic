@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TokenizedSecurityCreationResultDisplay } from './tokenized-security-creation-result';
 import { ChevronRight } from 'lucide-react';
 import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/types/token';
@@ -68,7 +71,12 @@ export function TokenizedSecurityCreateForm({
                           ? String((addrValue as { toString: () => string }).toString())
                           : '';
 
-                const tokenDisplay = createTokenDisplayFromResult(result, 'tokenized-security', options, creatorWallet);
+                const tokenDisplay = await createTokenDisplayFromResult(
+                    result,
+                    'tokenized-security',
+                    options,
+                    creatorWallet,
+                );
                 // Save to store (automatically persists to localStorage)
                 addToken(tokenDisplay);
 
@@ -144,33 +152,31 @@ export function TokenizedSecurityCreateForm({
                 {showOptional && (
                     <div id="optional-settings" className="p-6 space-y-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium" htmlFor="multiplier">
-                                    Scaled UI Amount Multiplier
-                                </label>
-                                <input
+                            <div className="space-y-2">
+                                <Label htmlFor="multiplier">Scaled UI Amount Multiplier</Label>
+                                <Input
                                     id="multiplier"
                                     type="number"
                                     min={0}
                                     step="any"
-                                    className="w-full p-3 border rounded-lg"
                                     value={options.multiplier || '1'}
                                     onChange={e => handleInputChange('multiplier', e.target.value)}
                                 />
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium" htmlFor="access-control-mode">
-                                    Access Control Mode
-                                </label>
-                                <select
-                                    id="access-control-mode"
-                                    className="w-full p-3 border rounded-lg"
+                            <div className="space-y-2">
+                                <Label htmlFor="access-control-mode">Access Control Mode</Label>
+                                <Select
                                     value={options.aclMode || 'blocklist'}
-                                    onChange={e => handleInputChange('aclMode', e.target.value)}
+                                    onValueChange={value => handleInputChange('aclMode', value)}
                                 >
-                                    <option value="blocklist">Blocklist (for sanctions, etc)</option>
-                                    <option value="allowlist">Allowlist (Closed-loop)</option>
-                                </select>
+                                    <SelectTrigger id="access-control-mode" className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="blocklist">Blocklist (for sanctions, etc)</SelectItem>
+                                        <SelectItem value="allowlist">Allowlist (Closed-loop)</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
 

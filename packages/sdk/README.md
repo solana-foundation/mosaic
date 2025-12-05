@@ -288,7 +288,11 @@ import {
     transactionToB58,
 } from '@mosaic/sdk';
 
-const { tokenAccount, isInitialized, isFrozen, balance, uiBalance } = await resolveTokenAccount(rpc, 'WalletOrAta...', 'Mint...');
+const { tokenAccount, isInitialized, isFrozen, balance, uiBalance } = await resolveTokenAccount(
+    rpc,
+    'WalletOrAta...',
+    'Mint...',
+);
 const decimals = await getMintDecimals(rpc, 'Mint...');
 const raw = decimalAmountToRaw(1.23, decimals);
 // Encode a built transaction for transport/signing

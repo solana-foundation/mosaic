@@ -22,6 +22,7 @@ import { TokenDisplay } from '@/types/token';
 import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 import { useTokenStore } from '@/stores/token-store';
+import { useTokenExtensionStore, usePauseState } from '@/stores/token-extension-store';
 import { TokenOverview } from '@/features/token-management/components/token-overview';
 import { TokenAuthorities } from '@/features/token-management/components/token-authorities';
 import { TokenExtensions } from '@/features/token-management/components/token-extensions';
@@ -48,8 +49,8 @@ import {
 import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
 import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
 import { Mode } from '@token-acl/abl-sdk';
-import { getClusterName } from '@/lib/solana/explorer';
-import { pauseTokenWithWallet, unpauseTokenWithWallet, checkTokenPauseState } from '@/features/token-management/lib/pause';
+import { buildAddressExplorerUrl } from '@/lib/solana/explorer';
+import { getTokenAuthorities } from '@/lib/solana/rpc';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     DropdownMenu,
@@ -103,25 +104,27 @@ const getAccessList = async (
     }
 };
 
-
 function ManageTokenConnected({ address }: { address: string }) {
     const router = useRouter();
     const { selectedAccount, cluster } = useConnector();
     const findTokenByAddress = useTokenStore(state => state.findTokenByAddress);
     const removeToken = useTokenStore(state => state.removeToken);
+    const updateToken = useTokenStore(state => state.updateToken);
     const [token, setToken] = useState<TokenDisplay | null>(null);
     const [loading, setLoading] = useState(true);
     const [accessList, setAccessList] = useState<string[]>([]);
     const [listType, setListType] = useState<'allowlist' | 'blocklist'>('blocklist');
     const [newAddress, setNewAddress] = useState('');
     const [showAccessListModal, setShowAccessListModal] = useState(false);
-    const [isPaused, setIsPaused] = useState(false);
-    const [pauseError, setPauseError] = useState('');
     const [actionInProgress, setActionInProgress] = useState(false);
     const [error, setError] = useState('');
     const [transactionSignature, setTransactionSignature] = useState('');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [supplyRefreshTrigger, setSupplyRefreshTrigger] = useState(0);
+
+    // Use centralized extension store for pause state
+    const { isPaused, isUpdating: isPauseUpdating, error: pauseError } = usePauseState(address);
+    const { fetchPauseState, togglePause, updateExtensionField } = useTokenExtensionStore();
 
     // Function to trigger supply refresh after mint/burn actions
     const refreshSupply = () => {
@@ -152,11 +155,33 @@ function ManageTokenConnected({ address }: { address: string }) {
             try {
                 const extensions = await getTokenExtensions(rpc, foundToken.address as Address);
                 foundToken.extensions = extensions;
+
+                // Fetch authority information from the blockchain
+                try {
+                    const rpcUrl =
+                        cluster?.url ?? process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
+                    const authorities = await getTokenAuthorities(foundToken.address as Address, rpcUrl);
+                    // Merge fetched authorities into the token, preserving existing values if they exist
+                    foundToken.mintAuthority = authorities.mintAuthority || foundToken.mintAuthority;
+                    foundToken.freezeAuthority = authorities.freezeAuthority || foundToken.freezeAuthority;
+                    foundToken.metadataAuthority = authorities.metadataAuthority || foundToken.metadataAuthority;
+                    foundToken.pausableAuthority = authorities.pausableAuthority || foundToken.pausableAuthority;
+                    foundToken.confidentialBalancesAuthority =
+                        authorities.confidentialBalancesAuthority || foundToken.confidentialBalancesAuthority;
+                    foundToken.permanentDelegateAuthority =
+                        authorities.permanentDelegateAuthority || foundToken.permanentDelegateAuthority;
+                    foundToken.scaledUiAmountAuthority =
+                        authorities.scaledUiAmountAuthority || foundToken.scaledUiAmountAuthority;
+                } catch {
+                    // If authority fetch fails, continue with existing token data
+                    // Authorities may not be available if token doesn't exist on this network
+                }
+
                 setToken(foundToken);
 
+                // Fetch pause state using centralized store
                 if (foundToken.address) {
-                    const pauseState = await checkTokenPauseState(foundToken.address, cluster?.url || '');
-                    setIsPaused(pauseState);
+                    fetchPauseState(foundToken.address, cluster?.url || '');
                 }
             } catch {
                 // Token might not exist on this network - show the token with empty extensions
@@ -176,7 +201,7 @@ function ManageTokenConnected({ address }: { address: string }) {
         };
 
         loadTokenData();
-    }, [address, rpc, cluster?.url, findTokenByAddress]);
+    }, [address, rpc, cluster?.url, findTokenByAddress, fetchPauseState]);
 
     useEffect(() => {
         const loadAccessList = async () => {
@@ -205,12 +230,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     }, [rpc, selectedAccount, token?.address, token?.isSrfc37, cluster?.url, refreshTrigger]);
 
     const openInExplorer = () => {
-        const clusterName = getClusterName(cluster) || 'devnet';
-        const isMainnet = clusterName === 'mainnet' || clusterName === 'mainnet-beta';
-        const explorerUrl = isMainnet
-            ? `https://explorer.solana.com/address/${address}`
-            : `https://explorer.solana.com/address/${address}?cluster=${clusterName}`;
-        window.open(explorerUrl, '_blank');
+        window.open(buildAddressExplorerUrl(address, cluster), '_blank');
     };
 
     const addToAccessList = async () => {
@@ -327,58 +347,31 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     const handlePauseConfirm = async () => {
         if (!selectedAccount || !token?.address || !transactionSendingSigner) {
-            setPauseError('Required parameters not available');
+            updateExtensionField(address, 'pause', { error: 'Required parameters not available' });
             return;
         }
 
         // Check if the connected wallet has pause authority
-        // Convert both to strings for comparison (selectedAccount might be an Address object)
         const walletAddress = String(selectedAccount);
         const pauseAuthority = token.pausableAuthority ? String(token.pausableAuthority) : '';
 
         if (pauseAuthority && pauseAuthority !== walletAddress) {
-            setPauseError(
-                'Connected wallet does not have pause authority. Only the pause authority can pause/unpause this token.',
-            );
+            updateExtensionField(address, 'pause', {
+                error: 'Connected wallet does not have pause authority. Only the pause authority can pause/unpause this token.',
+            });
             return;
         }
 
-        // Clear any previous errors and start the action
-        setPauseError('');
-        setActionInProgress(true);
-
-        try {
-            const result = isPaused
-                ? await unpauseTokenWithWallet(
-                      {
-                          mintAddress: token.address,
-                          pauseAuthority: token.pausableAuthority,
-                          feePayer: selectedAccount,
-                          rpcUrl: cluster?.url || '',
-                      },
-                      transactionSendingSigner,
-                  )
-                : await pauseTokenWithWallet(
-                      {
-                          mintAddress: token.address,
-                          pauseAuthority: token.pausableAuthority,
-                          feePayer: selectedAccount,
-                          rpcUrl: cluster?.url || '',
-                      },
-                      transactionSendingSigner,
-                  );
-
-            if (result.success) {
-                setTransactionSignature(result.transactionSignature || '');
-                setIsPaused(result.paused ?? !isPaused);
-            } else {
-                setError(result.error || 'Operation failed');
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
-        } finally {
-            setActionInProgress(false);
-        }
+        // Use centralized store to toggle pause
+        await togglePause(
+            token.address,
+            {
+                pauseAuthority: token.pausableAuthority,
+                feePayer: selectedAccount,
+                rpcUrl: cluster?.url || '',
+            },
+            transactionSendingSigner,
+        );
     };
 
     if (loading) {
@@ -427,8 +420,16 @@ function ManageTokenConnected({ address }: { address: string }) {
                                     <ChevronLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200 ease-in-out" />
                                 </Button>
                             </Link>
-                            <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10">
-                                <IconHexagonFill className="h-6 w-6 fill-primary/50" width={32} height={32} />
+                            <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10 overflow-hidden">
+                                {token.image ? (
+                                    <img
+                                        src={token.image}
+                                        alt={token.name || 'Token'}
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <IconHexagonFill className="h-6 w-6 fill-primary/50" width={32} height={32} />
+                                )}
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold">{token.name}</h1>
@@ -459,34 +460,38 @@ function ManageTokenConnected({ address }: { address: string }) {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56 rounded-xl">
-                                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                    <DropdownMenuLabel className="text-primary/30 text-xs">
+                                        Token Actions
+                                    </DropdownMenuLabel>
                                     <DropdownMenuSeparator />
                                     {transactionSendingSigner && (
                                         <>
+                                            {token?.mintAuthority && (
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <DropdownMenuItem
+                                                            className="cursor-pointer rounded-lg"
+                                                            onSelect={e => e.preventDefault()}
+                                                        >
+                                                            <Coins className="h-4 w-4 mr-2 text-primary/30" />
+                                                            Mint Tokens
+                                                        </DropdownMenuItem>
+                                                    </AlertDialogTrigger>
+                                                    <MintModalContent
+                                                        mintAddress={address}
+                                                        mintAuthority={token?.mintAuthority}
+                                                        transactionSendingSigner={transactionSendingSigner}
+                                                        onSuccess={refreshSupply}
+                                                    />
+                                                </AlertDialog>
+                                            )}
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <DropdownMenuItem
                                                         className="cursor-pointer rounded-lg"
                                                         onSelect={e => e.preventDefault()}
                                                     >
-                                                        <Coins className="h-4 w-4 mr-2" />
-                                                        Mint Tokens
-                                                    </DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <MintModalContent
-                                                    mintAddress={address}
-                                                    mintAuthority={token?.mintAuthority}
-                                                    transactionSendingSigner={transactionSendingSigner}
-                                                    onSuccess={refreshSupply}
-                                                />
-                                            </AlertDialog>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem
-                                                        className="cursor-pointer rounded-lg"
-                                                        onSelect={e => e.preventDefault()}
-                                                    >
-                                                        <Send className="h-4 w-4 mr-2" />
+                                                        <Send className="h-4 w-4 mr-2 text-primary/30" />
                                                         Transfer Tokens
                                                     </DropdownMenuItem>
                                                 </AlertDialogTrigger>
@@ -502,7 +507,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                                                         className="cursor-pointer rounded-lg"
                                                         onSelect={e => e.preventDefault()}
                                                     >
-                                                        <Flame className="h-4 w-4 mr-2" />
+                                                        <Flame className="h-4 w-4 mr-2 text-primary/30" />
                                                         Burn Tokens
                                                     </DropdownMenuItem>
                                                 </AlertDialogTrigger>
@@ -513,103 +518,137 @@ function ManageTokenConnected({ address }: { address: string }) {
                                                     onSuccess={refreshSupply}
                                                 />
                                             </AlertDialog>
+                                            {token?.metadataAuthority && (
+                                                <AlertDialog>
+                                                    <AlertDialogTrigger asChild>
+                                                        <DropdownMenuItem
+                                                            className="cursor-pointer rounded-lg"
+                                                            onSelect={e => e.preventDefault()}
+                                                        >
+                                                            <FileText className="h-4 w-4 mr-2 text-primary/30" />
+                                                            Update Metadata
+                                                        </DropdownMenuItem>
+                                                    </AlertDialogTrigger>
+                                                    <UpdateMetadataModalContent
+                                                        mintAddress={address}
+                                                        currentName={token?.name}
+                                                        currentSymbol={token?.symbol}
+                                                        currentUri={token?.metadataUri}
+                                                        metadataAuthority={token?.metadataAuthority}
+                                                        transactionSendingSigner={transactionSendingSigner}
+                                                        onSuccess={updates => {
+                                                            updateToken(address, {
+                                                                ...(updates.name && { name: updates.name }),
+                                                                ...(updates.symbol && { symbol: updates.symbol }),
+                                                                ...(updates.uri && { metadataUri: updates.uri }),
+                                                            });
+                                                            // Also update local state for immediate UI feedback
+                                                            setToken(prev =>
+                                                                prev
+                                                                    ? {
+                                                                          ...prev,
+                                                                          ...(updates.name && { name: updates.name }),
+                                                                          ...(updates.symbol && {
+                                                                              symbol: updates.symbol,
+                                                                          }),
+                                                                          ...(updates.uri && {
+                                                                              metadataUri: updates.uri,
+                                                                          }),
+                                                                      }
+                                                                    : prev,
+                                                            );
+                                                        }}
+                                                    />
+                                                </AlertDialog>
+                                            )}
+                                            {token?.permanentDelegateAuthority && (
+                                                <>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuLabel className="text-primary/30 text-xs">
+                                                        Administrative Actions
+                                                    </DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer rounded-lg"
+                                                                onSelect={e => e.preventDefault()}
+                                                            >
+                                                                <ArrowRightLeft className="h-4 w-4 mr-2 text-primary/30" />
+                                                                Force Transfer
+                                                            </DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                        <ForceTransferModalContent
+                                                            mintAddress={address}
+                                                            permanentDelegate={token?.permanentDelegateAuthority}
+                                                            transactionSendingSigner={transactionSendingSigner}
+                                                        />
+                                                    </AlertDialog>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer rounded-lg"
+                                                                onSelect={e => e.preventDefault()}
+                                                            >
+                                                                <Flame className="h-4 w-4 mr-2 text-primary/30" />
+                                                                Force Burn
+                                                            </DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                        <ForceBurnModalContent
+                                                            mintAddress={address}
+                                                            permanentDelegate={token?.permanentDelegateAuthority}
+                                                            transactionSendingSigner={transactionSendingSigner}
+                                                            onSuccess={refreshSupply}
+                                                        />
+                                                    </AlertDialog>
+                                                </>
+                                            )}
+                                            {token?.freezeAuthority && (
+                                                <>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer rounded-lg"
+                                                                onSelect={e => e.preventDefault()}
+                                                            >
+                                                                <Snowflake className="h-4 w-4 mr-2 text-primary/30" />
+                                                                Freeze Account
+                                                            </DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                        <FreezeThawModalContent
+                                                            mintAddress={address}
+                                                            freezeAuthority={token?.freezeAuthority}
+                                                            transactionSendingSigner={transactionSendingSigner}
+                                                            mode="freeze"
+                                                        />
+                                                    </AlertDialog>
+                                                    <AlertDialog>
+                                                        <AlertDialogTrigger asChild>
+                                                            <DropdownMenuItem
+                                                                className="cursor-pointer rounded-lg"
+                                                                onSelect={e => e.preventDefault()}
+                                                            >
+                                                                <Sun className="h-4 w-4 mr-2 text-primary/30" />
+                                                                Thaw Account
+                                                            </DropdownMenuItem>
+                                                        </AlertDialogTrigger>
+                                                        <FreezeThawModalContent
+                                                            mintAddress={address}
+                                                            freezeAuthority={token?.freezeAuthority}
+                                                            transactionSendingSigner={transactionSendingSigner}
+                                                            mode="thaw"
+                                                        />
+                                                    </AlertDialog>
+                                                </>
+                                            )}
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <DropdownMenuItem
                                                         className="cursor-pointer rounded-lg"
                                                         onSelect={e => e.preventDefault()}
                                                     >
-                                                        <FileText className="h-4 w-4 mr-2" />
-                                                        Update Metadata
-                                                    </DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <UpdateMetadataModalContent
-                                                    mintAddress={address}
-                                                    currentName={token?.name}
-                                                    currentSymbol={token?.symbol}
-                                                    currentUri={token?.metadataUri}
-                                                    metadataAuthority={token?.metadataAuthority}
-                                                    transactionSendingSigner={transactionSendingSigner}
-                                                />
-                                            </AlertDialog>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuLabel>Admin Actions</DropdownMenuLabel>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem
-                                                        className="cursor-pointer rounded-lg"
-                                                        onSelect={e => e.preventDefault()}
-                                                    >
-                                                        <ArrowRightLeft className="h-4 w-4 mr-2" />
-                                                        Force Transfer
-                                                    </DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <ForceTransferModalContent
-                                                    mintAddress={address}
-                                                    permanentDelegate={token?.permanentDelegateAuthority}
-                                                    transactionSendingSigner={transactionSendingSigner}
-                                                />
-                                            </AlertDialog>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem
-                                                        className="cursor-pointer rounded-lg"
-                                                        onSelect={e => e.preventDefault()}
-                                                    >
-                                                        <Flame className="h-4 w-4 mr-2" />
-                                                        Force Burn
-                                                    </DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <ForceBurnModalContent
-                                                    mintAddress={address}
-                                                    permanentDelegate={token?.permanentDelegateAuthority}
-                                                    transactionSendingSigner={transactionSendingSigner}
-                                                    onSuccess={refreshSupply}
-                                                />
-                                            </AlertDialog>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuLabel>Account Management</DropdownMenuLabel>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem
-                                                        className="cursor-pointer rounded-lg"
-                                                        onSelect={e => e.preventDefault()}
-                                                    >
-                                                        <Snowflake className="h-4 w-4 mr-2" />
-                                                        Freeze Account
-                                                    </DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <FreezeThawModalContent
-                                                    mintAddress={address}
-                                                    freezeAuthority={token?.freezeAuthority}
-                                                    transactionSendingSigner={transactionSendingSigner}
-                                                    mode="freeze"
-                                                />
-                                            </AlertDialog>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem
-                                                        className="cursor-pointer rounded-lg"
-                                                        onSelect={e => e.preventDefault()}
-                                                    >
-                                                        <Sun className="h-4 w-4 mr-2" />
-                                                        Thaw Account
-                                                    </DropdownMenuItem>
-                                                </AlertDialogTrigger>
-                                                <FreezeThawModalContent
-                                                    mintAddress={address}
-                                                    freezeAuthority={token?.freezeAuthority}
-                                                    transactionSendingSigner={transactionSendingSigner}
-                                                    mode="thaw"
-                                                />
-                                            </AlertDialog>
-                                            <AlertDialog>
-                                                <AlertDialogTrigger asChild>
-                                                    <DropdownMenuItem
-                                                        className="cursor-pointer rounded-lg"
-                                                        onSelect={e => e.preventDefault()}
-                                                    >
-                                                        <XCircle className="h-4 w-4 mr-2" />
+                                                        <XCircle className="h-4 w-4 mr-2 text-primary/30" />
                                                         Close Token Account
                                                     </DropdownMenuItem>
                                                 </AlertDialogTrigger>
@@ -621,38 +660,43 @@ function ManageTokenConnected({ address }: { address: string }) {
                                             </AlertDialog>
                                         </>
                                     )}
-                                    <DropdownMenuSeparator />
-                                    <AlertDialog
-                                        onOpenChange={open => {
-                                            if (!open) {
-                                                setPauseError('');
-                                            }
-                                        }}
-                                    >
-                                        <AlertDialogTrigger asChild>
-                                            <DropdownMenuItem
-                                                className="cursor-pointer rounded-lg"
-                                                onSelect={e => e.preventDefault()}
+                                    {token?.pausableAuthority && (
+                                        <>
+                                            <AlertDialog
+                                                onOpenChange={open => {
+                                                    if (!open) {
+                                                        updateExtensionField(address, 'pause', { error: null });
+                                                    }
+                                                }}
                                             >
-                                                {isPaused ? (
-                                                    <>
-                                                        <Coins className="h-4 w-4 mr-2" /> Unpause Token
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <Ban className="h-4 w-4 mr-2" /> Pause Token
-                                                    </>
-                                                )}
-                                            </DropdownMenuItem>
-                                        </AlertDialogTrigger>
-                                        <PauseConfirmModalContent
-                                            onConfirm={handlePauseConfirm}
-                                            isPaused={isPaused}
-                                            tokenName={token?.name || 'Token'}
-                                            isLoading={actionInProgress}
-                                            error={pauseError}
-                                        />
-                                    </AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <DropdownMenuItem
+                                                        className="cursor-pointer rounded-lg"
+                                                        onSelect={e => e.preventDefault()}
+                                                    >
+                                                        {isPaused ? (
+                                                            <>
+                                                                <Coins className="h-4 w-4 mr-2 text-primary/30" />{' '}
+                                                                Unpause Token
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Ban className="h-4 w-4 mr-2 text-primary/30" /> Pause
+                                                                Token
+                                                            </>
+                                                        )}
+                                                    </DropdownMenuItem>
+                                                </AlertDialogTrigger>
+                                                <PauseConfirmModalContent
+                                                    onConfirm={handlePauseConfirm}
+                                                    isPaused={isPaused}
+                                                    tokenName={token?.name || 'Token'}
+                                                    isLoading={isPauseUpdating}
+                                                    error={pauseError ?? undefined}
+                                                />
+                                            </AlertDialog>
+                                        </>
+                                    )}
                                     <DropdownMenuSeparator />
                                     <AlertDialog>
                                         <AlertDialogTrigger asChild>
@@ -693,12 +737,14 @@ function ManageTokenConnected({ address }: { address: string }) {
                                 >
                                     Permissions
                                 </TabsTrigger>
-                                <TabsTrigger
-                                    value="blocklist"
-                                    className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
-                                >
-                                    {listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}
-                                </TabsTrigger>
+                                {token.isSrfc37 && (
+                                    <TabsTrigger
+                                        value="blocklist"
+                                        className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                    >
+                                        {listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+                                    </TabsTrigger>
+                                )}
                                 <TabsTrigger
                                     value="extensions"
                                     className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
@@ -712,15 +758,17 @@ function ManageTokenConnected({ address }: { address: string }) {
                             <TabsContent value="permissions">
                                 <TokenAuthorities setError={setError} token={token} />
                             </TabsContent>
-                            <TabsContent value="blocklist">
-                                <TransferRestrictions
-                                    accessList={accessList}
-                                    listType={listType}
-                                    tokenSymbol={token.symbol}
-                                    onAddToAccessList={() => setShowAccessListModal(true)}
-                                    onRemoveFromAccessList={removeFromAccessList}
-                                />
-                            </TabsContent>
+                            {token.isSrfc37 && (
+                                <TabsContent value="blocklist">
+                                    <TransferRestrictions
+                                        accessList={accessList}
+                                        listType={listType}
+                                        tokenSymbol={token.symbol}
+                                        onAddToAccessList={() => setShowAccessListModal(true)}
+                                        onRemoveFromAccessList={removeFromAccessList}
+                                    />
+                                </TabsContent>
+                            )}
                             <TabsContent value="extensions">
                                 <TokenExtensions token={token} />
                             </TabsContent>

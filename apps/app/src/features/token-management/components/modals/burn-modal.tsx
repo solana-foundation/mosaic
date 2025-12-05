@@ -12,6 +12,7 @@ import { TransactionSuccessView } from '@/components/shared/modals/transaction-s
 import { AmountInput } from '@/components/shared/form/amount-input';
 import { useTransactionModal, useWalletConnection } from '@/features/token-management/hooks/use-transaction-modal';
 import { useInputValidation } from '@/hooks/use-input-validation';
+import { useTokenBalance } from '@/hooks/use-token-balance';
 import {
     MODAL_ERRORS,
     MODAL_BUTTONS,
@@ -22,13 +23,13 @@ import {
     MODAL_DESCRIPTIONS,
     MODAL_SUCCESS_MESSAGES,
 } from '@/features/token-management/constants/modal-text';
+import { humanizeError } from '@/lib/errors';
 
 interface BurnModalContentProps {
     mintAddress: string;
     tokenSymbol?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
     onSuccess?: () => void;
-    onModalClose?: () => void;
 }
 
 export function BurnModalContent({
@@ -36,11 +37,11 @@ export function BurnModalContent({
     tokenSymbol,
     transactionSendingSigner,
     onSuccess,
-    onModalClose,
 }: BurnModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
     const { validateAmount } = useInputValidation();
+    const { balance, isLoading: balanceLoading, refetch: refetchBalance } = useTokenBalance(mintAddress);
     const {
         isLoading,
         error,
@@ -54,6 +55,12 @@ export function BurnModalContent({
     } = useTransactionModal();
 
     const [amount, setAmount] = useState('');
+
+    const handleMaxClick = () => {
+        if (balance?.formattedBalance) {
+            setAmount(balance.formattedBalance);
+        }
+    };
 
     const handleBurn = async () => {
         if (!walletAddress) {
@@ -84,11 +91,12 @@ export function BurnModalContent({
                 setSuccess(true);
                 setTransactionSignature(result.transactionSignature);
                 onSuccess?.();
+                refetchBalance(); // Refresh balance after successful burn
             } else {
                 setError(result.error || 'Burn failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
+            setError(humanizeError(err));
         } finally {
             setIsLoading(false);
         }
@@ -107,10 +115,6 @@ export function BurnModalContent({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleContinue = () => {
-        resetForm();
-    };
-
     // Compute disabled label to help user understand what's needed
     const getDisabledLabel = (): string | undefined => {
         if (!walletAddress) return MODAL_BUTTONS.CONNECT_WALLET;
@@ -127,15 +131,13 @@ export function BurnModalContent({
             icon={Flame}
             iconClassName="text-orange-500"
             isSuccess={success}
+            onClose={resetForm}
             successView={
                 <TransactionSuccessView
                     title={MODAL_SUCCESS_MESSAGES.TOKENS_BURNED}
                     message={`${amount} ${tokenSymbol || 'tokens'} have been permanently destroyed`}
                     transactionSignature={transactionSignature}
                     cluster={(cluster as { name?: string })?.name}
-                    onClose={onModalClose ?? handleContinue}
-                    onContinue={handleContinue}
-                    continueLabel={MODAL_BUTTONS.BURN_MORE}
                 />
             }
         >
@@ -147,6 +149,10 @@ export function BurnModalContent({
                 helpText={MODAL_HELP_TEXT.BURN_AMOUNT(tokenSymbol)}
                 required
                 disabled={isLoading}
+                balance={balance?.formattedBalance}
+                balanceLoading={balanceLoading}
+                balanceSymbol={tokenSymbol}
+                onMaxClick={handleMaxClick}
             />
 
             <ModalWarning variant="orange" title={MODAL_WARNINGS.IRREVERSIBLE_TITLE}>

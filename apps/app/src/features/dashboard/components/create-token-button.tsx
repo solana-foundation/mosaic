@@ -28,16 +28,8 @@ export function CreateTokenButton({ onTokenCreated, onTokenImported }: CreateTok
                 </Button>
             </div>
 
-            <CreateTokenModal
-                isOpen={isCreateOpen}
-                onOpenChange={setIsCreateOpen}
-                onTokenCreated={onTokenCreated}
-            />
-            <ImportTokenModal
-                isOpen={isImportOpen}
-                onOpenChange={setIsImportOpen}
-                onTokenImported={onTokenImported}
-            />
+            <CreateTokenModal isOpen={isCreateOpen} onOpenChange={setIsCreateOpen} onTokenCreated={onTokenCreated} />
+            <ImportTokenModal isOpen={isImportOpen} onOpenChange={setIsImportOpen} onTokenImported={onTokenImported} />
         </>
     );
 }

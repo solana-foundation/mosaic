@@ -57,7 +57,7 @@ export const forceBurnTokens = (
     executeTokenAction<ForceBurnOptions, ForceBurnResult>({
         options,
         signer,
-        validate: (opts) => {
+        validate: opts => {
             validateForceBurnOptions(opts);
 
             const signerAddress = signer.address;

@@ -95,3 +95,47 @@ export function createUpdateFieldInstruction(args: UpdateFieldInstruction): Inst
         data,
     };
 }
+
+// Token-2022 extension type enum values for reallocation
+const ExtensionType = {
+    TokenMetadata: 19,
+} as const;
+
+export interface ReallocateInstruction {
+    programAddress: Address;
+    mint: Address;
+    payer: Address;
+    owner: Address;
+    systemProgram: Address;
+}
+
+/**
+ * Creates a Reallocate instruction for Token-2022 to extend account space for metadata updates.
+ * This must be called before updating metadata fields to longer values.
+ */
+export function createReallocateInstruction(args: ReallocateInstruction): Instruction {
+    const { programAddress, mint, payer, owner, systemProgram } = args;
+
+    const accounts: AccountMeta[] = [
+        { address: mint, role: AccountRole.WRITABLE },
+        { address: payer, role: AccountRole.WRITABLE_SIGNER },
+        { address: systemProgram, role: AccountRole.READONLY },
+        { address: owner, role: AccountRole.READONLY_SIGNER },
+    ];
+
+    // Reallocate instruction: discriminator (29) + extension types array
+    // We always include TokenMetadata extension type (19)
+    const data = Buffer.from([
+        29, // Reallocate instruction discriminator
+        1,
+        0, // Array length (1 extension) as u16 little-endian
+        ExtensionType.TokenMetadata,
+        0, // TokenMetadata extension type as u16 little-endian
+    ]);
+
+    return {
+        programAddress,
+        accounts,
+        data,
+    };
+}

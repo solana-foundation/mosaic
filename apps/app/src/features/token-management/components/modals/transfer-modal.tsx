@@ -22,19 +22,18 @@ import {
     MODAL_DESCRIPTIONS,
     MODAL_SUCCESS_MESSAGES,
 } from '@/features/token-management/constants/modal-text';
+import { humanizeError } from '@/lib/errors';
 
 interface TransferModalContentProps {
     mintAddress: string;
     tokenSymbol?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
-    onModalClose?: () => void;
 }
 
 export function TransferModalContent({
     mintAddress,
     tokenSymbol,
     transactionSendingSigner,
-    onModalClose,
 }: TransferModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
@@ -94,7 +93,7 @@ export function TransferModalContent({
                 setError(result.error || 'Transfer failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
+            setError(humanizeError(err));
         } finally {
             setIsLoading(false);
         }
@@ -117,10 +116,6 @@ export function TransferModalContent({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleContinue = () => {
-        resetForm();
-    };
-
     // Compute disabled label to help user understand what's needed
     const getDisabledLabel = (): string | undefined => {
         if (!walletAddress) return MODAL_BUTTONS.CONNECT_WALLET;
@@ -139,15 +134,13 @@ export function TransferModalContent({
             icon={Send}
             iconClassName="text-primary"
             isSuccess={success}
+            onClose={resetForm}
             successView={
                 <TransactionSuccessView
                     title={MODAL_SUCCESS_MESSAGES.TRANSFER_SUCCESSFUL}
                     message={`${amount} ${tokenSymbol || 'tokens'} sent to ${recipient.slice(0, 8)}...${recipient.slice(-6)}`}
                     transactionSignature={transactionSignature}
                     cluster={(cluster as { name?: string })?.name}
-                    onClose={onModalClose ?? handleContinue}
-                    onContinue={handleContinue}
-                    continueLabel={MODAL_BUTTONS.TRANSFER_MORE}
                 />
             }
         >

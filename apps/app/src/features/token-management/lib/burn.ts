@@ -43,22 +43,13 @@ function validateBurnOptions(options: BurnOptions): void {
  * @param signer - Transaction sending signer instance (token owner)
  * @returns Promise that resolves to burn result with signature and details
  */
-export const burnTokens = (
-    options: BurnOptions,
-    signer: TransactionModifyingSigner,
-): Promise<BurnResult> =>
+export const burnTokens = (options: BurnOptions, signer: TransactionModifyingSigner): Promise<BurnResult> =>
     executeTokenAction<BurnOptions, BurnResult>({
         options,
         signer,
         validate: validateBurnOptions,
         buildTransaction: async ({ rpc, signer, options }) =>
-            createBurnTransaction(
-                rpc,
-                options.mintAddress as Address,
-                signer,
-                parseFloat(options.amount),
-                signer,
-            ),
+            createBurnTransaction(rpc, options.mintAddress as Address, signer, parseFloat(options.amount), signer),
         buildSuccessResult: (_, options) => ({
             burnedAmount: options.amount,
         }),

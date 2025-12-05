@@ -24,19 +24,20 @@ import {
     MODAL_DESCRIPTIONS,
     MODAL_SUCCESS_MESSAGES,
 } from '@/features/token-management/constants/modal-text';
+import { humanizeError } from '@/lib/errors';
 
 interface CloseAccountModalContentProps {
     mintAddress: string;
     tokenSymbol?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
-    onModalClose?: () => void;
+    onSuccess?: () => void;
 }
 
 export function CloseAccountModalContent({
     mintAddress,
     tokenSymbol,
     transactionSendingSigner,
-    onModalClose,
+    onSuccess,
 }: CloseAccountModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
@@ -84,17 +85,22 @@ export function CloseAccountModalContent({
             if (result.success && result.transactionSignature) {
                 setSuccess(true);
                 setTransactionSignature(result.transactionSignature);
+                // Note: onSuccess is called in handleClose, not here, to avoid state changes while modal is open
             } else {
                 setError(result.error || 'Close account failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
+            setError(humanizeError(err));
         } finally {
             setIsLoading(false);
         }
     };
 
-    const resetForm = () => {
+    const handleClose = () => {
+        // Call onSuccess when closing after a successful operation
+        if (success) {
+            onSuccess?.();
+        }
         setUseCustomDestination(false);
         setDestination('');
         reset();
@@ -109,10 +115,6 @@ export function CloseAccountModalContent({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    const handleContinue = () => {
-        resetForm();
-    };
-
     return (
         <ExtensionModal
             title={MODAL_TITLES.CLOSE_TOKEN_ACCOUNT}
@@ -121,13 +123,13 @@ export function CloseAccountModalContent({
             icon={XCircle}
             iconClassName="text-red-500"
             isSuccess={success}
+            onClose={handleClose}
             successView={
                 <TransactionSuccessView
                     title="Account closed successfully!"
                     message={MODAL_SUCCESS_MESSAGES.ACCOUNT_CLOSED}
                     transactionSignature={transactionSignature}
                     cluster={(cluster as { name?: string })?.name}
-                    onClose={onModalClose ?? handleContinue}
                 />
             }
         >

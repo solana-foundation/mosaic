@@ -104,7 +104,7 @@ export function CustomTokenCreateForm({
                 }
 
                 // Create token display object with creator wallet
-                const tokenDisplay = createTokenDisplayFromResult(
+                const tokenDisplay = await createTokenDisplayFromResult(
                     result,
                     'custom-token',
                     customTokenOptions,

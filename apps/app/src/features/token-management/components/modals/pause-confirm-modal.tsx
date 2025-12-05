@@ -73,7 +73,11 @@ export function PauseConfirmModalContent({
 
                 <div className="p-6 space-y-5">
                     {isAuthorityError ? (
-                        <ModalWarning variant="amber" title={MODAL_WARNINGS.AUTHORITY_REQUIRED_TITLE} icon={AlertTriangle}>
+                        <ModalWarning
+                            variant="amber"
+                            title={MODAL_WARNINGS.AUTHORITY_REQUIRED_TITLE}
+                            icon={AlertTriangle}
+                        >
                             {error}
                         </ModalWarning>
                     ) : (
@@ -95,13 +99,14 @@ export function PauseConfirmModalContent({
                             </p>
 
                             {!isPaused && (
-                                <ModalWarning variant="red" title={MODAL_WARNINGS.IMPORTANT_WHEN_PAUSED_TITLE} icon={AlertTriangle}>
+                                <ModalWarning
+                                    variant="red"
+                                    title={MODAL_WARNINGS.IMPORTANT_WHEN_PAUSED_TITLE}
+                                    icon={AlertTriangle}
+                                >
                                     <ul className="space-y-2 ml-1">
                                         {PAUSE_EFFECTS.map((item, index) => (
-                                            <li
-                                                key={index}
-                                                className="flex items-start gap-2.5 text-sm"
-                                            >
+                                            <li key={index} className="flex items-start gap-2.5 text-sm">
                                                 <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-red-500 dark:bg-red-400 flex-shrink-0" />
                                                 <span>{item}</span>
                                             </li>

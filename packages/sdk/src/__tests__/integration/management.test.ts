@@ -835,27 +835,14 @@ describeSkipIf()('Management Integration Tests', () => {
                 const wallet = await generateKeyPairSigner();
 
                 // Given: A token with Token ACL as freeze authority
-                const { tokenAccount } = await setupTokenWithMint(
-                    TOKEN_ACL_PROGRAM_ID,
-                    'Freeze Token',
-                    'FRZ',
-                    wallet,
-                );
+                const { tokenAccount } = await setupTokenWithMint(TOKEN_ACL_PROGRAM_ID, 'Freeze Token', 'FRZ', wallet);
 
                 // Verify not frozen initially
                 let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
                 expect(frozen).toBe(false);
 
                 // When: Freeze the account
-                await freezeAndAssert(
-                    client.rpc,
-                    client,
-                    payer,
-                    freezeAuthority,
-                    wallet,
-                    mint,
-                    tokenAccount,
-                );
+                await freezeAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
             },
             DEFAULT_TIMEOUT,
         );
@@ -866,34 +853,13 @@ describeSkipIf()('Management Integration Tests', () => {
                 const wallet = await generateKeyPairSigner();
 
                 // Given: A token with Token ACL as freeze authority
-                const { tokenAccount } = await setupTokenWithMint(
-                    TOKEN_ACL_PROGRAM_ID,
-                    'Thaw Token',
-                    'THW',
-                    wallet,
-                );
+                const { tokenAccount } = await setupTokenWithMint(TOKEN_ACL_PROGRAM_ID, 'Thaw Token', 'THW', wallet);
 
                 // Freeze first
-                await freezeAndAssert(
-                    client.rpc,
-                    client,
-                    payer,
-                    freezeAuthority,
-                    wallet,
-                    mint,
-                    tokenAccount,
-                );
+                await freezeAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
 
                 // When: Thaw the account
-                await thawAndAssert(
-                    client.rpc,
-                    client,
-                    payer,
-                    freezeAuthority,
-                    wallet,
-                    mint,
-                    tokenAccount,
-                );
+                await thawAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
             },
             DEFAULT_TIMEOUT,
         );
@@ -916,26 +882,10 @@ describeSkipIf()('Management Integration Tests', () => {
                 expect(frozen).toBe(false);
 
                 // When: Freeze the account
-                await freezeAndAssert(
-                    client.rpc,
-                    client,
-                    payer,
-                    freezeAuthority,
-                    wallet,
-                    mint,
-                    tokenAccount,
-                );
+                await freezeAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
 
                 // When: Thaw the account
-                await thawAndAssert(
-                    client.rpc,
-                    client,
-                    payer,
-                    freezeAuthority,
-                    wallet,
-                    mint,
-                    tokenAccount,
-                );
+                await thawAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
 
                 // Then: Balance unchanged throughout workflow
                 await assertBalance(
@@ -969,15 +919,7 @@ describeSkipIf()('Management Integration Tests', () => {
                 expect(frozen).toBe(false);
 
                 // When: Freeze the account using standard freeze authority
-                await freezeAndAssert(
-                    client.rpc,
-                    client,
-                    payer,
-                    freezeAuthority,
-                    wallet,
-                    mint,
-                    tokenAccount,
-                );
+                await freezeAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
             },
             DEFAULT_TIMEOUT,
         );
@@ -996,26 +938,10 @@ describeSkipIf()('Management Integration Tests', () => {
                 );
 
                 // Freeze first
-                await freezeAndAssert(
-                    client.rpc,
-                    client,
-                    payer,
-                    freezeAuthority,
-                    wallet,
-                    mint,
-                    tokenAccount,
-                );
+                await freezeAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
 
                 // When: Thaw the account using standard freeze authority
-                await thawAndAssert(
-                    client.rpc,
-                    client,
-                    payer,
-                    freezeAuthority,
-                    wallet,
-                    mint,
-                    tokenAccount,
-                );
+                await thawAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
             },
             DEFAULT_TIMEOUT,
         );
@@ -1038,26 +964,10 @@ describeSkipIf()('Management Integration Tests', () => {
                 expect(frozen).toBe(false);
 
                 // When: Freeze the account
-                await freezeAndAssert(
-                    client.rpc,
-                    client,
-                    payer,
-                    freezeAuthority,
-                    wallet,
-                    mint,
-                    tokenAccount,
-                );
+                await freezeAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
 
                 // When: Thaw the account
-                await thawAndAssert(
-                    client.rpc,
-                    client,
-                    payer,
-                    freezeAuthority,
-                    wallet,
-                    mint,
-                    tokenAccount,
-                );
+                await thawAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
 
                 // Then: Balance unchanged throughout workflow
                 await assertBalance(

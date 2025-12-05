@@ -106,3 +106,19 @@ export function buildExplorerUrl(signature: string, clusterName?: string, connec
 
     return baseUrl;
 }
+
+/**
+ * Builds a Solana Explorer URL for an address (token mint, wallet, etc.).
+ * Omits the cluster query param for mainnet.
+ */
+export function buildAddressExplorerUrl(address: string, connectorCluster?: unknown): string {
+    const baseUrl = `https://explorer.solana.com/address/${encodeURIComponent(address)}`;
+    const effectiveClusterName = getEffectiveClusterName(undefined, connectorCluster);
+    const clusterParam = getExplorerClusterParam(effectiveClusterName);
+
+    if (clusterParam) {
+        return `${baseUrl}?cluster=${encodeURIComponent(clusterParam)}`;
+    }
+
+    return baseUrl;
+}

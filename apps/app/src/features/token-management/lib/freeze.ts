@@ -1,9 +1,13 @@
 import { type Address, type TransactionModifyingSigner, isAddress } from 'gill';
+import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
 import { getFreezeTransaction } from '@mosaic/sdk';
 import { executeTokenAction } from './token-action';
 
 export interface FreezeAccountOptions {
-    tokenAccount: string;
+    /** Wallet address whose token account should be frozen */
+    walletAddress: string;
+    /** The mint address of the token */
+    mintAddress: string;
     rpcUrl?: string;
 }
 
@@ -12,6 +16,7 @@ export interface FreezeAccountResult {
     error?: string;
     transactionSignature?: string;
     tokenAccount?: string;
+    walletAddress?: string;
 }
 
 /**
@@ -20,18 +25,26 @@ export interface FreezeAccountResult {
  * @throws Error if validation fails
  */
 function validateFreezeAccountOptions(options: FreezeAccountOptions): void {
-    if (!options.tokenAccount) {
-        throw new Error('Token account address is required');
+    if (!options.walletAddress) {
+        throw new Error('Wallet address is required');
     }
 
-    if (!isAddress(options.tokenAccount)) {
-        throw new Error('Invalid token account address format');
+    if (!isAddress(options.walletAddress)) {
+        throw new Error('Invalid wallet address format');
+    }
+
+    if (!options.mintAddress) {
+        throw new Error('Mint address is required');
+    }
+
+    if (!isAddress(options.mintAddress)) {
+        throw new Error('Invalid mint address format');
     }
 }
 
 /**
  * Freezes a token account using the freeze authority
- * @param options - Configuration options for freezing
+ * @param options - Configuration options for freezing (wallet address + mint)
  * @param signer - Transaction sending signer instance (must be freeze authority)
  * @returns Promise that resolves to freeze result with signature and details
  */
@@ -43,14 +56,22 @@ export const freezeTokenAccount = (
         options,
         signer,
         validate: validateFreezeAccountOptions,
-        buildTransaction: async ({ rpc, signer, options }) =>
-            getFreezeTransaction({
+        buildTransaction: async ({ rpc, signer, options }) => {
+            // Derive the Associated Token Account from wallet + mint
+            const tokenAccount = await getAssociatedTokenAccountAddress(
+                options.mintAddress as Address,
+                options.walletAddress as Address,
+                TOKEN_2022_PROGRAM_ADDRESS,
+            );
+
+            return getFreezeTransaction({
                 rpc,
                 payer: signer,
                 authority: signer,
-                tokenAccount: options.tokenAccount as Address,
-            }),
+                tokenAccount,
+            });
+        },
         buildSuccessResult: (_, options) => ({
-            tokenAccount: options.tokenAccount,
+            walletAddress: options.walletAddress,
         }),
     });

@@ -3,7 +3,20 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { CustomTokenOptions } from '@/types/token';
-import { FileText, Pause, Shield, Lock, EyeOff, Calculator, Users, Percent, TrendingUp, Ban, Webhook, AlertTriangle } from 'lucide-react';
+import {
+    FileText,
+    Pause,
+    Shield,
+    Lock,
+    EyeOff,
+    Calculator,
+    Users,
+    Percent,
+    TrendingUp,
+    Ban,
+    Webhook,
+    AlertTriangle,
+} from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface CustomTokenExtensionSelectorProps {
@@ -221,8 +234,8 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
                     <Alert className="mt-4">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertDescription>
-                            Non-transferable tokens are permanently bound to the account they are minted to. 
-                            They cannot be transferred to other accounts (soul-bound).
+                            Non-transferable tokens are permanently bound to the account they are minted to. They cannot
+                            be transferred to other accounts (soul-bound).
                         </AlertDescription>
                     </Alert>
                 )}
@@ -257,8 +270,8 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
                     <Alert variant="destructive" className="mt-4">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertDescription>
-                            Non-transferable tokens cannot have transfer fees since no transfers occur. 
-                            Please disable one of these extensions.
+                            Non-transferable tokens cannot have transfer fees since no transfers occur. Please disable
+                            one of these extensions.
                         </AlertDescription>
                     </Alert>
                 )}

@@ -75,7 +75,8 @@ export const MODAL_WARNINGS = {
         'Freezing an account will prevent the owner from transferring tokens. This is different from pausing, which affects all accounts.',
     THAW_INFO:
         'Thawing an account will restore the ability for the owner to transfer tokens. Only the freeze authority can perform this action.',
-    MINT_NOT_AUTHORIZED: 'Your connected wallet is not the mint authority. Only the mint authority can create new tokens.',
+    MINT_NOT_AUTHORIZED:
+        'Your connected wallet is not the mint authority. Only the mint authority can create new tokens.',
     PERMANENT_DELEGATE_NOT_AUTHORIZED:
         'Your connected wallet is not the permanent delegate. Only the permanent delegate can force burn tokens.',
     // Close account requirements
@@ -165,10 +166,8 @@ export const MODAL_SUCCESS_MESSAGES = {
     TOKENS_MINTED: 'Tokens minted successfully!',
     TOKENS_TRANSFERRED: 'Tokens transferred successfully!',
     TRANSFER_SUCCESSFUL: 'Transfer successful!',
-    ACCOUNT_FROZEN: (address: string) =>
-        `Token account ${address.slice(0, 8)}...${address.slice(-6)} has been frozen`,
-    ACCOUNT_THAWED: (address: string) =>
-        `Token account ${address.slice(0, 8)}...${address.slice(-6)} has been thawed`,
+    ACCOUNT_FROZEN: (address: string) => `Token account ${address.slice(0, 8)}...${address.slice(-6)} has been frozen`,
+    ACCOUNT_THAWED: (address: string) => `Token account ${address.slice(0, 8)}...${address.slice(-6)} has been thawed`,
     ACCOUNT_CLOSED: 'Your token account has been closed and the rent has been reclaimed',
 } as const;
 

@@ -48,8 +48,14 @@ export interface TokenActionConfig<TOptions extends BaseOptions, TResult extends
     options: TOptions;
     signer: TransactionModifyingSigner;
     validate: (options: TOptions) => void;
-    buildTransaction: (params: BuildTransactionParams<TOptions>) => Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>>;
-    buildSuccessResult: (signature: string, options: TOptions, signerAddress: Address) => Omit<TResult, 'success' | 'transactionSignature'>;
+    buildTransaction: (
+        params: BuildTransactionParams<TOptions>,
+    ) => Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>>;
+    buildSuccessResult: (
+        signature: string,
+        options: TOptions,
+        signerAddress: Address,
+    ) => Omit<TResult, 'success' | 'transactionSignature'>;
 }
 
 /**

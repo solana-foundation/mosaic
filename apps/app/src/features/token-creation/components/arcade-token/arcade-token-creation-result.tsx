@@ -14,15 +14,9 @@ interface ArcadeTokenCreationResultProps {
     cluster?: 'devnet' | 'testnet' | 'mainnet-beta';
 }
 
-export function ArcadeTokenCreationResultDisplay({
-    result,
-    cluster: clusterProp,
-}: ArcadeTokenCreationResultProps) {
+export function ArcadeTokenCreationResultDisplay({ result, cluster: clusterProp }: ArcadeTokenCreationResultProps) {
     const { cluster: connectorCluster } = useCluster();
-    const cluster = getEffectiveClusterName(
-        clusterProp,
-        connectorCluster,
-    ) as 'devnet' | 'testnet' | 'mainnet-beta';
+    const cluster = getEffectiveClusterName(clusterProp, connectorCluster) as 'devnet' | 'testnet' | 'mainnet-beta';
     return (
         <Card className="mb-8">
             <CardHeader>

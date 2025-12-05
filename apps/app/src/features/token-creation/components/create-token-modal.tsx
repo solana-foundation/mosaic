@@ -104,10 +104,10 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                         selectedTemplate ? 'max-h-[90vh]' : 'max-h-[700px]',
                     )}
                 >
-                    <div className="overflow-y-auto max-h-[90vh]">
+                    <div className="overflow-y-auto max-h-[90vh] bg-primary/5">
                         {!selectedTemplate ? (
                             <>
-                                <div className="flex items-center justify-between p-6 pb-4 border-b">
+                                <div className="flex items-center justify-between p-6 pb-4 border-b border-primary/5 bg-primary/5">
                                     <DialogTitle className="text-xl font-semibold">Create New Token</DialogTitle>
                                     {/* The Close button is automatically rendered by DialogContent, but we can hide it via CSS or rely on it. 
                                         Shadcn's DialogContent includes a Close button absolute positioned. 
@@ -185,7 +185,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                             </>
                         ) : (
                             <>
-                                <DialogHeader className="p-6 pb-4 border-b">
+                                <DialogHeader className="p-6 pb-4 border-b border-primary/5 bg-primary/5">
                                     <div className="flex items-center gap-2">
                                         <Button
                                             variant="ghost"

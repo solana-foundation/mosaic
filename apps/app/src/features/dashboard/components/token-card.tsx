@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
-import { Trash2, ExternalLink, RefreshCw, MoreHorizontal } from 'lucide-react';
+import { Trash2, ExternalLink, MoreHorizontal } from 'lucide-react';
 import Link from 'next/link';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,8 +16,10 @@ import { TokenDisplay } from '@/types/token';
 import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
 import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
+import { buildAddressExplorerUrl } from '@/lib/solana/explorer';
 import { type Address, createSolanaRpc } from 'gill';
 import { IconHexagonFill } from 'symbols-react';
+import { usePauseState, useTokenExtensionStore } from '@/stores/token-extension-store';
 
 interface TokenCardProps {
     token: TokenDisplay;
@@ -28,6 +30,10 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
     const { cluster } = useConnector();
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const pendingDeleteRef = useRef(false);
+
+    // Pause state for tokens with pausable extension
+    const { isPaused } = usePauseState(token.address);
+    const fetchPauseState = useTokenExtensionStore(state => state.fetchPauseState);
 
     // Create RPC client from current cluster
     const rpc = useMemo(() => {
@@ -56,6 +62,13 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
     useEffect(() => {
         fetchSupply();
     }, [fetchSupply]);
+
+    // Fetch pause state for tokens with pausable extension
+    useEffect(() => {
+        if (token.address && token.pausableAuthority && cluster?.url) {
+            fetchPauseState(token.address, cluster.url);
+        }
+    }, [token.address, token.pausableAuthority, cluster?.url, fetchPauseState]);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -121,17 +134,28 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
                 <CardContent className="p-6 flex-1">
                     {/* Header: Logo and Status */}
                     <div className="flex items-start justify-between mb-6">
-                        <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10">
-                            {/* Placeholder for logo - using hexagon icon */}
-                            <IconHexagonFill className="h-6 w-6 fill-primary/50" width={24} height={24} />
+                        <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10 overflow-hidden">
+                            {token.image ? (
+                                <img
+                                    src={token.image}
+                                    alt={token.name || 'Token'}
+                                    className="h-full w-full object-cover"
+                                />
+                            ) : (
+                                <IconHexagonFill className="h-6 w-6 fill-primary/50" width={24} height={24} />
+                            )}
                         </div>
                         <div className="flex-1"></div>
                         <div className="flex items-center gap-2">
                             <Badge
                                 variant="secondary"
-                                className="bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-3 py-1 rounded-full font-normal text-xs"
+                                className={
+                                    isPaused
+                                        ? 'bg-amber-100 text-amber-700 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1 rounded-full font-normal text-xs'
+                                        : 'bg-green-100 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-3 py-1 rounded-full font-normal text-xs'
+                                }
                             >
-                                Active
+                                {isPaused ? 'Paused' : 'Active'}
                             </Badge>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -144,12 +168,12 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
                                     {token.address && (
                                         <DropdownMenuItem className="rounded-lg" asChild>
                                             <a
-                                                href={`https://solscan.io/token/${token.address}`}
+                                                href={buildAddressExplorerUrl(token.address, cluster)}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                             >
                                                 <ExternalLink className="h-4 w-4 mr-2" />
-                                                View on Solscan
+                                                View on Explorer
                                             </a>
                                         </DropdownMenuItem>
                                     )}
@@ -189,21 +213,9 @@ export function TokenCard({ token, onDelete }: TokenCardProps) {
 
                         <div className="flex items-center justify-between bg-primary/5 p-4">
                             <span className="text-muted-foreground text-sm font-medium">Supply</span>
-                            <div className="flex items-center gap-2">
-                                <span className="font-semibold text-foreground text-sm">
-                                    {isLoadingSupply ? 'Loading...' : formatSupply(currentSupply)}
-                                </span>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={fetchSupply}
-                                    disabled={isLoadingSupply}
-                                    className="h-5 w-5 text-muted-foreground hover:text-foreground rounded-full p-0"
-                                >
-                                    <RefreshCw className={`h-3 w-3 ${isLoadingSupply ? 'animate-spin' : ''}`} />
-                                    <span className="sr-only">Refresh supply</span>
-                                </Button>
-                            </div>
+                            <span className="font-semibold text-foreground text-sm">
+                                {isLoadingSupply ? 'Loading...' : formatSupply(currentSupply)}
+                            </span>
                         </div>
 
                         <div className="flex items-center justify-between bg-primary/5 rounded-b-lg p-4">

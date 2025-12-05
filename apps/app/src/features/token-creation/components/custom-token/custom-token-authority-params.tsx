@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ChevronRight } from 'lucide-react';
 import { CustomTokenOptions } from '@/types/token';
 
@@ -47,11 +49,11 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
             </CardHeader>
             {showOptionalParams && (
                 <CardContent className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Mint Authority</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="custom-mint-authority">Mint Authority</Label>
+                        <Input
+                            id="custom-mint-authority"
                             type="text"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="Public key or leave empty for connected wallet"
                             value={options.mintAuthority || ''}
                             onChange={e => onInputChange('mintAuthority', e.target.value)}
@@ -59,11 +61,11 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                     </div>
 
                     {options.enableMetadata && (
-                        <div>
-                            <label className="block text-sm font-medium mb-2">Metadata Authority</label>
-                            <input
+                        <div className="space-y-2">
+                            <Label htmlFor="custom-metadata-authority">Metadata Authority</Label>
+                            <Input
+                                id="custom-metadata-authority"
                                 type="text"
-                                className="w-full p-3 border rounded-lg"
                                 placeholder="Public key or leave empty for mint authority"
                                 value={options.metadataAuthority || ''}
                                 onChange={e => onInputChange('metadataAuthority', e.target.value)}
@@ -72,11 +74,11 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                     )}
 
                     {options.enablePausable && (
-                        <div>
-                            <label className="block text-sm font-medium mb-2">Pausable Authority</label>
-                            <input
+                        <div className="space-y-2">
+                            <Label htmlFor="custom-pausable-authority">Pausable Authority</Label>
+                            <Input
+                                id="custom-pausable-authority"
                                 type="text"
-                                className="w-full p-3 border rounded-lg"
                                 placeholder="Public key or leave empty for mint authority"
                                 value={options.pausableAuthority || ''}
                                 onChange={e => onInputChange('pausableAuthority', e.target.value)}
@@ -85,11 +87,11 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                     )}
 
                     {options.enablePermanentDelegate && (
-                        <div>
-                            <label className="block text-sm font-medium mb-2">Permanent Delegate Authority</label>
-                            <input
+                        <div className="space-y-2">
+                            <Label htmlFor="custom-delegate-authority">Permanent Delegate Authority</Label>
+                            <Input
+                                id="custom-delegate-authority"
                                 type="text"
-                                className="w-full p-3 border rounded-lg"
                                 placeholder="Public key or leave empty for mint authority"
                                 value={options.permanentDelegateAuthority || ''}
                                 onChange={e => onInputChange('permanentDelegateAuthority', e.target.value)}
@@ -98,11 +100,11 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                     )}
 
                     {options.enableConfidentialBalances && (
-                        <div>
-                            <label className="block text-sm font-medium mb-2">Confidential Balances Authority</label>
-                            <input
+                        <div className="space-y-2">
+                            <Label htmlFor="custom-confidential-authority">Confidential Balances Authority</Label>
+                            <Input
+                                id="custom-confidential-authority"
                                 type="text"
-                                className="w-full p-3 border rounded-lg"
                                 placeholder="Public key or leave empty for mint authority"
                                 value={options.confidentialBalancesAuthority || ''}
                                 onChange={e => onInputChange('confidentialBalancesAuthority', e.target.value)}
@@ -112,39 +114,39 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
 
                     {options.enableScaledUiAmount && (
                         <>
-                            <div>
-                                <label className="block text-sm font-medium mb-2">Scaled UI Amount Authority</label>
-                                <input
+                            <div className="space-y-2">
+                                <Label htmlFor="custom-scaled-authority">Scaled UI Amount Authority</Label>
+                                <Input
+                                    id="custom-scaled-authority"
                                     type="text"
-                                    className="w-full p-3 border rounded-lg"
                                     placeholder="Public key or leave empty for mint authority"
                                     value={options.scaledUiAmountAuthority || ''}
                                     onChange={e => onInputChange('scaledUiAmountAuthority', e.target.value)}
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">Multiplier</label>
-                                    <input
+                                <div className="space-y-2">
+                                    <Label htmlFor="custom-multiplier">Multiplier</Label>
+                                    <Input
+                                        id="custom-multiplier"
                                         type="number"
-                                        className="w-full p-3 border rounded-lg"
                                         placeholder="1"
                                         value={options.scaledUiAmountMultiplier || ''}
                                         onChange={e => onInputChange('scaledUiAmountMultiplier', e.target.value)}
-                                        min="1"
-                                        step="0.000001"
+                                        min={1}
+                                        step={0.000001}
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium mb-2">New Multiplier</label>
-                                    <input
+                                <div className="space-y-2">
+                                    <Label htmlFor="custom-new-multiplier">New Multiplier</Label>
+                                    <Input
+                                        id="custom-new-multiplier"
                                         type="number"
-                                        className="w-full p-3 border rounded-lg"
                                         placeholder="1"
                                         value={options.scaledUiAmountNewMultiplier || ''}
                                         onChange={e => onInputChange('scaledUiAmountNewMultiplier', e.target.value)}
-                                        min="1"
-                                        step="0.000001"
+                                        min={1}
+                                        step={0.000001}
                                     />
                                 </div>
                             </div>
@@ -152,8 +154,8 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                     )}
 
                     {options.enableDefaultAccountState && (
-                        <div>
-                            <label className="block text-sm font-medium mb-2">Default Account State</label>
+                        <div className="space-y-2">
+                            <Label>Default Account State</Label>
                             <div className="flex gap-4">
                                 <label className="flex items-center gap-2">
                                     <input
@@ -181,11 +183,11 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
                         </div>
                     )}
 
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Freeze Authority (Optional)</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="custom-freeze-authority">Freeze Authority (Optional)</Label>
+                        <Input
+                            id="custom-freeze-authority"
                             type="text"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="Public key or leave empty for none"
                             value={options.freezeAuthority || ''}
                             onChange={e => onInputChange('freezeAuthority', e.target.value)}

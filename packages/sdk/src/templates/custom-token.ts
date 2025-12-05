@@ -183,9 +183,7 @@ export const createCustomTokenInitTransaction = async (
         try {
             maximumFee = typeof rawMaximumFee === 'bigint' ? rawMaximumFee : BigInt(rawMaximumFee);
         } catch {
-            throw new Error(
-                `Invalid transferFeeMaximum: cannot convert ${String(rawMaximumFee)} to bigint`,
-            );
+            throw new Error(`Invalid transferFeeMaximum: cannot convert ${String(rawMaximumFee)} to bigint`);
         }
         if (maximumFee < 0n) {
             throw new Error(`Invalid transferFeeMaximum: ${maximumFee}. Must be non-negative`);
@@ -222,9 +220,7 @@ export const createCustomTokenInitTransaction = async (
     // Add Transfer Hook extension
     if (options?.enableTransferHook) {
         if (!options.transferHookProgramId) {
-            throw new Error(
-                'transferHookProgramId is required when enableTransferHook is enabled',
-            );
+            throw new Error('transferHookProgramId is required when enableTransferHook is enabled');
         }
         const transferHookAuthority = options.transferHookAuthority || mintAuthorityAddress;
         tokenBuilder = tokenBuilder.withTransferHook({
