@@ -50,7 +50,7 @@ describe('force-burn', () => {
             // Should only include burn instruction
             expect(tx.instructions).toHaveLength(1);
             expect(tx.instructions[0].programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
-            expect(tx.version).toBe('legacy');
+            expect(tx.version).toBe(0);
         });
 
         test('burn with thaw when SRFC-37 enabled and account frozen', async () => {

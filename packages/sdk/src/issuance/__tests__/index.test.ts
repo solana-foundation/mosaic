@@ -189,8 +189,8 @@ describe('Token', () => {
             });
 
             expect(transaction).toBeDefined();
-            expect(transaction.version).toBe('legacy');
-            expect(transaction.feePayer.address).toBe(mockFeePayer);
+            expect(transaction.version).toBe(0);
+            expect(transaction.feePayer.address).toBe(mockFeePayer.address);
             expect(transaction.instructions.length).toBeGreaterThan(0);
         });
     });
