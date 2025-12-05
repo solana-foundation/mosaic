@@ -35,7 +35,8 @@ export function TransactionSuccessView({
         if (!transactionSignature) return;
         // Helius orb uses different cluster format
         const clusterParam = getExplorerClusterParam(clusterName);
-        const heliusCluster = clusterParam === 'devnet' ? '?cluster=devnet' : '';
+        const heliusCluster =
+            clusterParam === 'devnet' ? '?cluster=devnet' : clusterParam === 'testnet' ? '?cluster=testnet' : '';
         const heliusUrl = `https://orb.helius.dev/tx/${transactionSignature}${heliusCluster}`;
         window.open(heliusUrl, '_blank');
     };

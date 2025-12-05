@@ -124,7 +124,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     // Use centralized extension store for pause state
     const { isPaused, isUpdating: isPauseUpdating, error: pauseError } = usePauseState(address);
-    const { fetchPauseState, togglePause, setPauseError } = useTokenExtensionStore();
+    const { fetchPauseState, togglePause, updateExtensionField } = useTokenExtensionStore();
 
     // Function to trigger supply refresh after mint/burn actions
     const refreshSupply = () => {
@@ -347,7 +347,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     const handlePauseConfirm = async () => {
         if (!selectedAccount || !token?.address || !transactionSendingSigner) {
-            setPauseError(address, 'Required parameters not available');
+            updateExtensionField(address, 'pause', { error: 'Required parameters not available' });
             return;
         }
 
@@ -356,10 +356,9 @@ function ManageTokenConnected({ address }: { address: string }) {
         const pauseAuthority = token.pausableAuthority ? String(token.pausableAuthority) : '';
 
         if (pauseAuthority && pauseAuthority !== walletAddress) {
-            setPauseError(
-                address,
-                'Connected wallet does not have pause authority. Only the pause authority can pause/unpause this token.',
-            );
+            updateExtensionField(address, 'pause', {
+                error: 'Connected wallet does not have pause authority. Only the pause authority can pause/unpause this token.',
+            });
             return;
         }
 
@@ -649,7 +648,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                                                         className="cursor-pointer rounded-lg"
                                                         onSelect={e => e.preventDefault()}
                                                     >
-                                                        <XCircle className="h-4 w-4 mr-2 text-primary/30 text-primary/30" />
+                                                        <XCircle className="h-4 w-4 mr-2 text-primary/30" />
                                                         Close Token Account
                                                     </DropdownMenuItem>
                                                 </AlertDialogTrigger>
@@ -666,7 +665,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                                             <AlertDialog
                                                 onOpenChange={open => {
                                                     if (!open) {
-                                                        setPauseError(address, null);
+                                                        updateExtensionField(address, 'pause', { error: null });
                                                     }
                                                 }}
                                             >

@@ -228,7 +228,9 @@ export function FreezeThawModalContent({
                 label="Wallet Address"
                 value={targetWallet}
                 onChange={setTargetWallet}
-                placeholder="Enter wallet address to freeze..."
+                placeholder={
+                    mode === 'freeze' ? 'Enter wallet address to freeze...' : 'Enter wallet address to thaw...'
+                }
                 helpText="The wallet address whose token account will be frozen or thawed"
                 required
                 disabled={isLoading}

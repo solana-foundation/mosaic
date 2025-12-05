@@ -96,6 +96,11 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
         return `${address.slice(0, 6)}...${address.slice(-4)}`;
     };
 
+    const formatSignature = (signature?: string) => {
+        if (!signature) return 'Unknown';
+        return `${signature.slice(0, 8)}...${signature.slice(-8)}`;
+    };
+
     return (
         <Card>
             <CardContent className="p-0 rounded-[20px]">
@@ -115,21 +120,35 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
                     )}
                 </InfoRow>
 
-                <InfoRow label="Creation Address">
-                    {token.mintAuthority || token.transactionSignature ? (
+                {token.mintAuthority ? (
+                    <InfoRow label="Creation Address">
                         <CopyButton
-                            textToCopy={token.mintAuthority || token.transactionSignature || ''}
-                            displayText={formatAddress(token.mintAuthority || token.transactionSignature)}
+                            textToCopy={token.mintAuthority}
+                            displayText={formatAddress(token.mintAuthority)}
                             variant="ghost"
                             size="sm"
                             iconClassName="h-3 w-3"
                             iconClassNameCheck="h-3 w-3"
                             className="font-berkeley-mono"
                         />
-                    ) : (
+                    </InfoRow>
+                ) : token.transactionSignature ? (
+                    <InfoRow label="Creation Tx">
+                        <CopyButton
+                            textToCopy={token.transactionSignature}
+                            displayText={formatSignature(token.transactionSignature)}
+                            variant="ghost"
+                            size="sm"
+                            iconClassName="h-3 w-3"
+                            iconClassNameCheck="h-3 w-3"
+                            className="font-berkeley-mono"
+                        />
+                    </InfoRow>
+                ) : (
+                    <InfoRow label="Creation Address">
                         <span className="font-mono text-sm">Unknown</span>
-                    )}
-                </InfoRow>
+                    </InfoRow>
+                )}
 
                 <InfoRow label="Supply">
                     {isLoadingSupply ? (

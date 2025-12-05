@@ -149,7 +149,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
 
     // Get scaled UI state from centralized store
     const { isUpdating: isScaledUiUpdating, error: scaledUiError } = useScaledUiAmountState(token.address);
-    const { updateScaledUiMultiplier, setScaledUiError } = useTokenExtensionStore();
+    const { updateScaledUiMultiplier, updateExtensionField } = useTokenExtensionStore();
 
     // Fetch pause state on mount if token has pausable extension
     useEffect(() => {
@@ -176,19 +176,21 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
     // Handle scaled UI multiplier update using store
     const handleSaveMultiplier = async () => {
         if (!token.address || !transactionSendingSigner) {
-            setScaledUiError(token.address || '', 'Wallet not connected');
+            updateExtensionField(token.address || '', 'scaledUiAmount', { error: 'Wallet not connected' });
             return;
         }
 
         const trimmedValue = newMultiplier.trim();
         if (!trimmedValue) {
-            setScaledUiError(token.address, 'Please enter a multiplier value');
+            updateExtensionField(token.address, 'scaledUiAmount', { error: 'Please enter a multiplier value' });
             return;
         }
 
         const multiplier = parseFloat(trimmedValue);
         if (!Number.isFinite(multiplier) || multiplier <= 0) {
-            setScaledUiError(token.address, 'Please enter a valid multiplier greater than 0');
+            updateExtensionField(token.address, 'scaledUiAmount', {
+                error: 'Please enter a valid multiplier greater than 0',
+            });
             return;
         }
 
@@ -294,7 +296,9 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                             setShowScaledUiEditor(false);
                                                             setNewMultiplier('');
                                                             if (token.address) {
-                                                                setScaledUiError(token.address, null);
+                                                                updateExtensionField(token.address, 'scaledUiAmount', {
+                                                                    error: null,
+                                                                });
                                                             }
                                                         }}
                                                         disabled={isScaledUiUpdating}

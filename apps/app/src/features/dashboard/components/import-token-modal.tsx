@@ -101,12 +101,15 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
             }
 
             // Merge user-selected type with existing detected patterns
+            const existingPatterns = tokenDisplay.detectedPatterns || [];
+            let newPatterns = existingPatterns;
+
             if (tokenType !== 'none') {
                 const selectedType = tokenType as TokenType;
-                const existingPatterns = tokenDisplay.detectedPatterns || [];
                 if (!existingPatterns.includes(selectedType)) {
+                    newPatterns = [...existingPatterns, selectedType];
                     updateToken(tokenAddress, {
-                        detectedPatterns: [...existingPatterns, selectedType],
+                        detectedPatterns: newPatterns,
                     });
                 }
             }
@@ -115,7 +118,7 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
             setImportedTokenInfo({
                 name: tokenDisplay.name || '',
                 symbol: tokenDisplay.symbol || '',
-                type: getTokenPatternsLabel(tokenDisplay.detectedPatterns),
+                type: getTokenPatternsLabel(newPatterns),
             });
 
             setSuccess(true);
