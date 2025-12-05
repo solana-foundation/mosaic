@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { useShallow } from 'zustand/shallow';
 import { TokenDisplay } from '@/types/token';
 import { getTokenDashboardData, type TokenType } from '@mosaic/sdk';
-import { address as toAddress, type Address, type Rpc, type SolanaRpcApi } from 'gill';
+import { address as toAddress, type Address, type Rpc, type SolanaRpcApi } from '@solana/kit';
 
 interface MetadataFetchState {
     isLoading: boolean;

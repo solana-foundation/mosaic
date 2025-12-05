@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { mintTokens, type MintOptions } from '@/features/token-management/lib/mint';
-import { TransactionModifyingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/kit';
 import { Coins, User } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
 import { Button } from '@/components/ui/button';

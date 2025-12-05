@@ -1,8 +1,8 @@
 import { readFileSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
-import type { Address, TransactionSigner } from 'gill';
-import { createKeyPairSignerFromBytes, createNoopSigner } from 'gill';
+import type { Address, TransactionSigner } from '@solana/kit';
+import { createKeyPairSignerFromBytes, createNoopSigner } from '@solana/kit';
 
 export interface SolanaConfig {
     json_rpc_url: string;

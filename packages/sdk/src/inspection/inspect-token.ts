@@ -1,5 +1,5 @@
-import { type Address, type Commitment, fetchEncodedAccount, type Rpc, type SolanaRpcApi } from 'gill';
-import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from 'gill/programs/token';
+import { type Address, type Commitment, fetchEncodedAccount, type Rpc, type SolanaRpcApi } from '@solana/kit';
+import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from '@solana-program/token-2022';
 import type {
     AclMode,
     ScaledUiAmountInfo,

@@ -5,7 +5,7 @@ import {
     type SolanaRpcApi,
     type TransactionModifyingSigner,
     isAddress,
-} from 'gill';
+} from '@solana/kit';
 import {
     getTokenPauseState,
     type PauseTokenResult,

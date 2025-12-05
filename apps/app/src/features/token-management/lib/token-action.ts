@@ -8,12 +8,13 @@ import {
     getSignatureFromTransaction,
     createSolanaRpcSubscriptions,
     type TransactionModifyingSigner,
-    type FullTransaction,
     type TransactionVersion,
     type TransactionMessageWithFeePayer,
-    type TransactionWithBlockhashLifetime,
-} from 'gill';
+    type TransactionMessageWithBlockhashLifetime,
+    assertIsTransactionWithBlockhashLifetime,
+} from '@solana/kit';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
+import type { FullTransaction } from '@/lib/solana/types';
 
 /**
  * Base options interface that all token action options must extend
@@ -50,7 +51,9 @@ export interface TokenActionConfig<TOptions extends BaseOptions, TResult extends
     validate: (options: TOptions) => void;
     buildTransaction: (
         params: BuildTransactionParams<TOptions>,
-    ) => Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>>;
+    ) => Promise<
+        FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionMessageWithBlockhashLifetime>
+    >;
     buildSuccessResult: (
         signature: string,
         options: TOptions,
@@ -99,6 +102,7 @@ export async function executeTokenAction<TOptions extends BaseOptions, TResult e
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });

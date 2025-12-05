@@ -1,15 +1,16 @@
 import {
-    createTransaction,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
     type Address,
-    type FullTransaction,
     type Instruction,
     type Rpc,
     type SolanaRpcApi,
-    type TransactionMessageWithFeePayer,
     type TransactionSigner,
-    type TransactionVersion,
-    type TransactionWithBlockhashLifetime,
-} from 'gill';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
 import { findMintConfigPda, getSetGatingProgramInstruction } from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
 
@@ -67,14 +68,13 @@ export const getSetGatingProgramTransaction = async (input: {
     authority: TransactionSigner<string>;
     mint: Address;
     gatingProgram: Address;
-}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+}): Promise<FullTransaction> => {
     const instructions = await getSetGatingProgramInstructions(input);
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    const transaction = createTransaction({
-        feePayer: input.payer,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
-    return transaction;
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(input.payer.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };

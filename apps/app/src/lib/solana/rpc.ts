@@ -1,5 +1,14 @@
-import { createSolanaRpc, type Rpc, type SolanaRpcApi, type Address, type Commitment } from 'gill';
-import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from 'gill/programs/token';
+import {
+    createSolanaRpc,
+    createSolanaRpcSubscriptions,
+    type Rpc,
+    type SolanaRpcApi,
+    type RpcSubscriptions,
+    type SolanaRpcSubscriptionsApi,
+    type Address,
+    type Commitment,
+} from '@solana/kit';
+import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from '@solana-program/token-2022';
 import { fetchEncodedAccount } from '@solana/accounts';
 
 /**
@@ -91,6 +100,17 @@ export function getWsUrl(rpcUrl: string): string {
 export function createRpcClient(rpcUrl?: string): Rpc<SolanaRpcApi> {
     const url = getRpcUrl(rpcUrl);
     return createSolanaRpc(url);
+}
+
+/**
+ * Creates a Solana RPC subscriptions client
+ * @param rpcUrl - Optional RPC URL, defaults to NEXT_PUBLIC_SOLANA_RPC_URL or devnet
+ * @returns RPC subscriptions client instance
+ */
+export function createRpcSubscriptions(rpcUrl?: string): RpcSubscriptions<SolanaRpcSubscriptionsApi> {
+    const url = getRpcUrl(rpcUrl);
+    const wsUrl = getWsUrl(url);
+    return createSolanaRpcSubscriptions(wsUrl);
 }
 
 /**

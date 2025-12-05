@@ -1,12 +1,17 @@
 import {
     type Address,
     createNoopSigner,
-    createTransaction,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
     type Instruction,
     type Rpc,
     type SolanaRpcApi,
     type TransactionSigner,
-} from 'gill';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
 import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util';
 import {
     ABL_PROGRAM_ID,
@@ -18,7 +23,11 @@ import {
 import { findListConfigPda, Mode } from '@token-acl/abl-sdk';
 import { getFreezeInstructions } from '../token-acl/freeze';
 import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless';
-import { getFreezeAccountInstruction, getThawAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
+import {
+    getFreezeAccountInstruction,
+    getThawAccountInstruction,
+    TOKEN_2022_PROGRAM_ADDRESS,
+} from '@solana-program/token-2022';
 
 export const isAblAllowlist = async (rpc: Rpc<SolanaRpcApi>, listConfig: Address) => {
     const list = await getList({ rpc, listConfig });
@@ -81,16 +90,16 @@ export const createAddToAllowlistTransaction = async (
     mint: Address,
     account: Address,
     authority: Address | TransactionSigner<string>,
-) => {
+): Promise<FullTransaction> => {
     const instructions = await getAddToAllowlistInstructions(rpc, mint, account, authority);
     const authoritySigner = typeof authority === 'string' ? createNoopSigner(authority) : authority;
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    return createTransaction({
-        feePayer: authoritySigner,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(authoritySigner.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };
 
 export const getRemoveFromAllowlistInstructions = async (
@@ -156,14 +165,14 @@ export const createRemoveFromAllowlistTransaction = async (
     mint: Address,
     account: Address,
     authority: Address | TransactionSigner<string>,
-) => {
+): Promise<FullTransaction> => {
     const instructions = await getRemoveFromAllowlistInstructions(rpc, mint, account, authority);
     const authoritySigner = typeof authority === 'string' ? createNoopSigner(authority) : authority;
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    return createTransaction({
-        feePayer: authoritySigner,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(authoritySigner.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };

@@ -9,7 +9,7 @@ import {
     type SolanaRpcApi,
     type SolanaRpcSubscriptionsApi,
     type TransactionSigner,
-} from 'gill';
+} from '@solana/kit';
 
 export interface Client {
     rpc: Rpc<SolanaRpcApi>;

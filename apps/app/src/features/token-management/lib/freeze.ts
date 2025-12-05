@@ -1,5 +1,5 @@
-import { type Address, type TransactionModifyingSigner, isAddress } from 'gill';
-import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
+import { type Address, type TransactionModifyingSigner, isAddress } from '@solana/kit';
+import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { getFreezeTransaction } from '@mosaic/sdk';
 import { executeTokenAction } from './token-action';
 
@@ -58,11 +58,11 @@ export const freezeTokenAccount = (
         validate: validateFreezeAccountOptions,
         buildTransaction: async ({ rpc, signer, options }) => {
             // Derive the Associated Token Account from wallet + mint
-            const tokenAccount = await getAssociatedTokenAccountAddress(
-                options.mintAddress as Address,
-                options.walletAddress as Address,
-                TOKEN_2022_PROGRAM_ADDRESS,
-            );
+            const [tokenAccount] = await findAssociatedTokenPda({
+                mint: options.mintAddress as Address,
+                owner: options.walletAddress as Address,
+                tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+            });
 
             return getFreezeTransaction({
                 rpc,

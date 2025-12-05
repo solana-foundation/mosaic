@@ -1,5 +1,5 @@
-import { type Address, type TransactionModifyingSigner, isAddress } from 'gill';
-import { AuthorityType } from 'gill/programs/token';
+import { type Address, type TransactionModifyingSigner, isAddress } from '@solana/kit';
+import { AuthorityType } from '@solana-program/token-2022';
 import { getUpdateAuthorityTransaction, getRemoveAuthorityTransaction } from '@mosaic/sdk';
 import { executeTokenAction } from './token-action';
 

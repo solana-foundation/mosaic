@@ -21,7 +21,7 @@ import {
     getTupleCodec,
     getStructEncoder,
     getDiscriminatedUnionEncoder,
-} from 'gill';
+} from '@solana/kit';
 
 function getInstructionEncoder<T extends object>(discriminator: Uint8Array, dataEncoder: Encoder<T>): Encoder<T> {
     return transformEncoder(getTupleEncoder([getBytesEncoder(), dataEncoder]), (data: T): [Uint8Array, T] => [

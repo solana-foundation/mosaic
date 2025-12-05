@@ -4,14 +4,18 @@ import type {
     SolanaRpcApi,
     TransactionMessageWithFeePayer,
     TransactionVersion,
-    TransactionWithBlockhashLifetime,
-    FullTransaction,
+    TransactionMessageWithBlockhashLifetime,
     Commitment,
     Signature,
-} from 'gill';
-import { getSignatureFromTransaction, signTransactionMessageWithSigners, sendAndConfirmTransactionFactory } from 'gill';
+} from '@solana/kit';
+import type { FullTransaction } from '../../transaction-util';
+import {
+    getSignatureFromTransaction,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+} from '@solana/kit';
 import type { Client } from './setup';
-import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
+import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
     inspectToken,
     type AclMode,
@@ -33,7 +37,7 @@ export const describeSkipIf = (condition?: boolean) => (condition ? describe.ski
  */
 export async function sendAndConfirmTransaction(
     client: Client,
-    tx: FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>,
+    tx: FullTransaction,
     commitment: Commitment = DEFAULT_COMMITMENT,
     skipPreflight = true,
 ): Promise<Signature> {
@@ -42,7 +46,7 @@ export async function sendAndConfirmTransaction(
 
     // Get signature and wire transaction
     const signature = getSignatureFromTransaction(signedTransaction);
-    await sendAndConfirmTransactionFactory(client)(signedTransaction, {
+    await sendAndConfirmTransactionFactory(client)(signedTransaction as any, {
         commitment,
         skipPreflight,
     });
@@ -59,7 +63,7 @@ export async function getBalance(
     mint: Address,
     commitment: Commitment = DEFAULT_COMMITMENT,
 ): Promise<bigint> {
-    const ata = await getAssociatedTokenAccountAddress(mint, wallet, TOKEN_2022_PROGRAM_ADDRESS);
+    const [ata] = await findAssociatedTokenPda({ owner: wallet, tokenProgram: TOKEN_2022_PROGRAM_ADDRESS, mint });
 
     const accountInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed', commitment }).send();
 
@@ -75,7 +79,7 @@ export async function getBalance(
  * Check if an account is frozen
  */
 export async function isAccountFrozen(rpc: Rpc<SolanaRpcApi>, wallet: Address, mint: Address): Promise<boolean> {
-    const ata = await getAssociatedTokenAccountAddress(mint, wallet, TOKEN_2022_PROGRAM_ADDRESS);
+    const [ata] = await findAssociatedTokenPda({ owner: wallet, tokenProgram: TOKEN_2022_PROGRAM_ADDRESS, mint });
 
     const accountInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed' }).send();
 
@@ -112,14 +116,7 @@ export async function assertMemo(
 /**
  * Assert transaction fails
  */
-export async function assertTxFailure(
-    client: Client,
-    transactionToThrow: FullTransaction<
-        TransactionVersion,
-        TransactionMessageWithFeePayer,
-        TransactionWithBlockhashLifetime
-    >,
-): Promise<void> {
+export async function assertTxFailure(client: Client, transactionToThrow: FullTransaction): Promise<void> {
     await expect(sendAndConfirmTransaction(client, transactionToThrow)).rejects.toThrow();
 }
 

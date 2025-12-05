@@ -1,5 +1,5 @@
-import type { Address, Rpc, SolanaRpcApi } from 'gill';
-import { TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
+import type { Address, Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
+import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
 import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
 
@@ -36,7 +36,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
         }));
         const { createMintToTransaction } = await import('../mint');
         const tx = await createMintToTransaction(rpc, mint, wallet, 1, mintAuthority, feePayer);
-        expect(tx.instructions.some(i => i.programAddress !== undefined)).toBe(true);
+        expect(tx.instructions.some((i: Instruction) => i.programAddress !== undefined)).toBe(true);
         expect(tx.instructions.length).toBe(2);
     });
 

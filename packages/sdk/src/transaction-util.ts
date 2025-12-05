@@ -1,20 +1,26 @@
 import type {
-    FullTransaction,
-    TransactionVersion,
+    TransactionMessage,
     TransactionMessageWithFeePayer,
     TransactionMessageWithBlockhashLifetime,
     Rpc,
     Address,
     SolanaRpcApi,
-} from 'gill';
+} from '@solana/kit';
+
+// Type alias for convenience - represents a complete transaction message ready to be compiled
+export type FullTransaction<
+    TFeePayer extends TransactionMessageWithFeePayer = TransactionMessageWithFeePayer,
+    TLifetime extends TransactionMessageWithBlockhashLifetime = TransactionMessageWithBlockhashLifetime,
+> = TransactionMessage & TFeePayer & TLifetime;
 import {
     getBase58Decoder,
     compileTransaction,
     address,
     getTransactionCodec,
     getBase64EncodedWireTransaction,
-} from 'gill';
-import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS, SYSTEM_PROGRAM_ADDRESS } from 'gill/programs';
+} from '@solana/kit';
+import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { TOKEN_ACL_PROGRAM_ID } from './token-acl/utils';
 
 /**
@@ -25,13 +31,7 @@ import { TOKEN_ACL_PROGRAM_ID } from './token-acl/utils';
  * @param transaction - The full transaction object to encode.
  * @returns The base58-encoded transaction as a string.
  */
-export const transactionToB58 = (
-    transaction: FullTransaction<
-        TransactionVersion,
-        TransactionMessageWithFeePayer,
-        TransactionMessageWithBlockhashLifetime
-    >,
-): string => {
+export const transactionToB58 = (transaction: FullTransaction): string => {
     const compiledTransaction = compileTransaction(transaction);
     const transactionBytes = getTransactionCodec().encode(compiledTransaction);
     return getBase58Decoder().decode(transactionBytes);
@@ -45,13 +45,7 @@ export const transactionToB58 = (
  * @param transaction - The full transaction object to encode.
  * @returns The base64-encoded transaction as a string.
  */
-export const transactionToB64 = (
-    transaction: FullTransaction<
-        TransactionVersion,
-        TransactionMessageWithFeePayer,
-        TransactionMessageWithBlockhashLifetime
-    >,
-): string => {
+export const transactionToB64 = (transaction: FullTransaction): string => {
     const compiledTransaction = compileTransaction(transaction);
     return getBase64EncodedWireTransaction(compiledTransaction);
 };
@@ -170,7 +164,7 @@ export async function resolveTokenAccount(
     }
 
     // Derive ATA for wallet address
-    const ata = await getAssociatedTokenAccountAddress(mint, account, TOKEN_2022_PROGRAM_ADDRESS);
+    const [ata] = await findAssociatedTokenPda({ owner: account, tokenProgram: TOKEN_2022_PROGRAM_ADDRESS, mint });
     // check if the ATA is frozen
     const ataInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed' }).send();
     if (ataInfo.value?.data && 'parsed' in ataInfo.value.data && ataInfo.value.data.parsed?.info) {

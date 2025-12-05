@@ -1,18 +1,19 @@
 import { Token } from '../issuance';
-import type {
-    Rpc,
-    Address,
-    SolanaRpcApi,
-    FullTransaction,
-    TransactionMessageWithFeePayer,
-    TransactionVersion,
-    TransactionSigner,
-    TransactionWithBlockhashLifetime,
-} from 'gill';
-import { createNoopSigner, createTransaction } from 'gill';
+import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
+import {
+    createNoopSigner,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
+} from '@solana/kit';
 import { Mode } from '@token-acl/abl-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils';
+import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
 import { getCreateConfigInstructions } from '../token-acl/create-config';
+import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
 import { getCreateListInstructions } from '../abl/list';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
@@ -92,7 +93,7 @@ export const createCustomTokenInitTransaction = async (
         transferHookAuthority?: Address;
         transferHookProgramId?: Address;
     },
-): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
@@ -234,24 +235,30 @@ export const createCustomTokenInitTransaction = async (
         rpc,
         decimals,
         mintAuthority,
-        freezeAuthority: options?.freezeAuthority,
+        freezeAuthority: options?.freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
         mint: mintSigner,
         feePayer: feePayerSigner,
     });
 
     // If SRFC-37 is not enabled or mint authority is not the fee payer, return simple transaction
-    if (mintAuthority !== feePayerSigner.address || !useSrfc37) {
+    if (mintAuthorityAddress !== feePayerSigner.address || !useSrfc37) {
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-        return createTransaction({
-            feePayer,
-            version: 'legacy',
-            latestBlockhash,
-            instructions,
-        });
+        return pipe(
+            createTransactionMessage({ version: 0 }),
+            m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
+            m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+            m => appendTransactionMessageInstructions(instructions, m),
+        );
     }
 
     // SRFC-37 setup: Create Token ACL configuration
     const { instructions: createConfigInstructions } = await getCreateConfigInstructions({
+        authority: feePayerSigner,
+        mint: mintSigner.address,
+        gatingProgram: ABL_PROGRAM_ID,
+    });
+
+    const setGatingProgramInstructions = await getSetGatingProgramInstructions({
         authority: feePayerSigner,
         mint: mintSigner.address,
         gatingProgram: ABL_PROGRAM_ID,
@@ -278,16 +285,17 @@ export const createCustomTokenInitTransaction = async (
     });
 
     instructions.push(...createConfigInstructions);
+    instructions.push(...setGatingProgramInstructions);
     instructions.push(...enablePermissionlessThawInstructions);
     instructions.push(...createListInstructions);
     instructions.push(...setExtraMetasInstructions);
 
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    return createTransaction({
-        feePayer,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    );
 };

@@ -1,4 +1,4 @@
-import { type Address, type TransactionModifyingSigner, isAddress } from 'gill';
+import { type Address, type TransactionModifyingSigner, isAddress } from '@solana/kit';
 import { createMintToTransaction } from '@mosaic/sdk';
 import { executeTokenAction } from './token-action';
 

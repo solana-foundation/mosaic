@@ -1,8 +1,11 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { useShallow } from 'zustand/shallow';
-import { type Address, createSolanaRpc, type Rpc, type SolanaRpcApi } from 'gill';
-import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS, TOKEN_PROGRAM_ADDRESS } from 'gill/programs';
+import { type Address, createSolanaRpc, type Rpc, type SolanaRpcApi } from '@solana/kit';
+import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+
+// Original SPL Token program address
+const TOKEN_PROGRAM_ADDRESS = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address;
 
 // Token balance result
 interface TokenBalanceResult {
@@ -73,7 +76,11 @@ async function tryGetBalance(
     tokenProgram: typeof TOKEN_2022_PROGRAM_ADDRESS | typeof TOKEN_PROGRAM_ADDRESS,
 ): Promise<TokenBalanceResult | null> {
     try {
-        const ata = await getAssociatedTokenAccountAddress(mintAddress, walletAddress, tokenProgram);
+        const [ata] = await findAssociatedTokenPda({
+            mint: mintAddress,
+            owner: walletAddress,
+            tokenProgram,
+        });
 
         const accountInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed' }).send();
 

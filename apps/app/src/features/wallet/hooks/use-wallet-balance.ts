@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useConnector, useCluster } from '@solana/connector/react';
-import { type Address, createSolanaRpc } from 'gill';
+import { type Address, createSolanaRpc } from '@solana/kit';
 
 export function useWalletBalance() {
     const { selectedAccount } = useConnector();

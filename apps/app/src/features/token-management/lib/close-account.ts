@@ -1,4 +1,4 @@
-import { type Address, type TransactionModifyingSigner, isAddress } from 'gill';
+import { type Address, type TransactionModifyingSigner, isAddress } from '@solana/kit';
 import { createCloseAccountTransaction } from '@mosaic/sdk';
 import { executeTokenAction } from './token-action';
 

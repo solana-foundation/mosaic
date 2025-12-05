@@ -2,8 +2,8 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import { getList } from '@mosaic/sdk';
-import { createSolanaClient } from '../../utils/rpc.js';
-import { type Address } from 'gill';
+import { createRpcClient } from '../../utils/rpc.js';
+import { type Address } from '@solana/kit';
 
 interface CreateConfigOptions {
     list: string;
@@ -20,7 +20,7 @@ export const fetchList = new Command('fetch-list')
         try {
             const parentOpts = command.parent?.parent?.opts() || {};
             const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
-            const { rpc } = createSolanaClient(rpcUrl);
+            const rpc = createRpcClient(rpcUrl);
 
             const list = await getList({ rpc, listConfig: options.list as Address });
             spinner.succeed('Fetched list successfully!');

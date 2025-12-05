@@ -17,7 +17,7 @@ import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
 import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 import { buildAddressExplorerUrl } from '@/lib/solana/explorer';
-import { type Address, createSolanaRpc } from 'gill';
+import { type Address, createSolanaRpc } from '@solana/kit';
 import { IconHexagonFill } from 'symbols-react';
 import { usePauseState, useTokenExtensionStore } from '@/stores/token-extension-store';
 

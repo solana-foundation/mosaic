@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { useShallow } from 'zustand/shallow';
-import { type TransactionModifyingSigner } from 'gill';
+import { type TransactionModifyingSigner } from '@solana/kit';
 import { toast } from '@/components/ui/sonner';
 import {
     checkTokenPauseState,

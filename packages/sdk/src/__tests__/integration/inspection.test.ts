@@ -1,7 +1,7 @@
 import setupTestSuite from './setup';
 import type { Client } from './setup';
-import type { KeyPairSigner, TransactionSigner } from 'gill';
-import { generateKeyPairSigner } from 'gill';
+import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
+import { generateKeyPairSigner } from '@solana/kit';
 import { sendAndConfirmTransaction, DEFAULT_TIMEOUT, DEFAULT_COMMITMENT, describeSkipIf } from './helpers';
 import { Token } from '../../issuance';
 import { createMintToTransaction } from '../../management';

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { forceBurnTokens, type ForceBurnOptions } from '@/features/token-management/lib/force-burn';
-import { TransactionModifyingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/kit';
 import { Flame } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
 

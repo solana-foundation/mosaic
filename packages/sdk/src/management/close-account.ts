@@ -1,15 +1,14 @@
-import type {
-    Address,
-    Rpc,
-    SolanaRpcApi,
-    FullTransaction,
-    TransactionMessageWithFeePayer,
-    TransactionVersion,
-    TransactionSigner,
-    TransactionWithBlockhashLifetime,
-} from 'gill';
-import { createNoopSigner, createTransaction } from 'gill';
-import { getCloseAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
+import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
+import {
+    createNoopSigner,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
+} from '@solana/kit';
+import { getCloseAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { resolveTokenAccount } from '../transaction-util';
 
 /**
@@ -29,7 +28,7 @@ export const createCloseAccountTransaction = async (
     owner: Address | TransactionSigner<string>,
     destination: Address,
     feePayer: Address | TransactionSigner<string>,
-): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+): Promise<FullTransaction> => {
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
     const ownerSigner = typeof owner === 'string' ? createNoopSigner(owner) : owner;
     const ownerAddress = typeof owner === 'string' ? owner : owner.address;
@@ -60,10 +59,10 @@ export const createCloseAccountTransaction = async (
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
-    return createTransaction({
-        feePayer: feePayerSigner,
-        version: 'legacy',
-        latestBlockhash,
-        instructions: [closeInstruction],
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(feePayerSigner.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions([closeInstruction], m),
+    ) as FullTransaction;
 };

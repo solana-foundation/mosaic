@@ -1,7 +1,7 @@
-import type { Address, Rpc, SolanaRpcApi } from 'gill';
+import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
 import { createMockSigner, createMockRpc, seedTokenAccount } from '../../__tests__/test-utils';
 import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
-import { TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
+import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
 describe('force-burn', () => {
     let rpc: Rpc<SolanaRpcApi>;
