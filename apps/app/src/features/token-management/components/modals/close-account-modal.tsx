@@ -85,7 +85,7 @@ export function CloseAccountModalContent({
             if (result.success && result.transactionSignature) {
                 setSuccess(true);
                 setTransactionSignature(result.transactionSignature);
-                onSuccess?.();
+                // Note: onSuccess is called in handleClose, not here, to avoid state changes while modal is open
             } else {
                 setError(result.error || 'Close account failed');
             }
@@ -96,7 +96,11 @@ export function CloseAccountModalContent({
         }
     };
 
-    const resetForm = () => {
+    const handleClose = () => {
+        // Call onSuccess when closing after a successful operation
+        if (success) {
+            onSuccess?.();
+        }
         setUseCustomDestination(false);
         setDestination('');
         reset();
@@ -119,7 +123,7 @@ export function CloseAccountModalContent({
             icon={XCircle}
             iconClassName="text-red-500"
             isSuccess={success}
-            onClose={resetForm}
+            onClose={handleClose}
             successView={
                 <TransactionSuccessView
                     title="Account closed successfully!"
