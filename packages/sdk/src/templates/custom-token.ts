@@ -11,6 +11,7 @@ import {
 } from '@solana/kit';
 import { Mode } from '@token-acl/abl-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils';
+import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
 import { getCreateConfigInstructions } from '../token-acl/create-config';
 import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
@@ -234,7 +235,7 @@ export const createCustomTokenInitTransaction = async (
         rpc,
         decimals,
         mintAuthority,
-        freezeAuthority: options?.freezeAuthority,
+        freezeAuthority: options?.freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
         mint: mintSigner,
         feePayer: feePayerSigner,
     });

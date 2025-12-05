@@ -7,6 +7,7 @@ import {
     AccountState,
     getPreInitializeInstructionsForMintExtensions,
 } from '@solana-program/token-2022';
+import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl/utils';
 
 describe('templates enableSrfc37 option', () => {
     let rpc: Rpc<SolanaRpcApi>;
@@ -70,7 +71,7 @@ describe('templates enableSrfc37 option', () => {
         expect(hasDefaultInitialized).toBe(true);
     });
 
-    test('arcade token: enableSrfc37 true uses default account state frozen', async () => {
+    test('arcade token: enableSrfc37 true uses default account state frozen and TOKEN_ACL_PROGRAM_ID as freeze authority', async () => {
         const mintAuthoritySigner = createMockSigner();
         const decimals = 6;
         const { createArcadeTokenInitTransaction } = await import('../arcade-token');
@@ -92,11 +93,12 @@ describe('templates enableSrfc37 option', () => {
         const instructions = tx.instructions;
         expect(instructions.length).toBeGreaterThan(0);
 
+        // When SRFC-37 is enabled, freeze authority should be TOKEN_ACL_PROGRAM_ID
         const expectedInit = getInitializeMintInstruction(
             {
                 mint: mint.address,
                 decimals,
-                freezeAuthority: feePayer.address,
+                freezeAuthority: TOKEN_ACL_PROGRAM_ID,
                 mintAuthority: mintAuthoritySigner.address,
             },
             { programAddress: TOKEN_2022_PROGRAM_ADDRESS },

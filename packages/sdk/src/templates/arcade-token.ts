@@ -12,6 +12,7 @@ import {
 import { getCreateConfigInstructions } from '../token-acl/create-config';
 import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
 import { ABL_PROGRAM_ID } from '../abl/utils';
+import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
 import { getCreateListInstructions } from '../abl/list';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
@@ -76,7 +77,7 @@ export const createArcadeTokenInitTransaction = async (
             rpc,
             decimals,
             mintAuthority,
-            freezeAuthority,
+            freezeAuthority: freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
             mint: mintSigner,
             feePayer: feePayerSigner,
         });
