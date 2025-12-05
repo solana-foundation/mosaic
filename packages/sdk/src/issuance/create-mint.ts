@@ -1,12 +1,13 @@
-import type {
-    Address,
-    Instruction,
-    Rpc,
-    SolanaRpcApiMainnet,
-    TransactionSigner,
-} from '@solana/kit';
+import type { Address, Instruction, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
-import { pipe, createTransactionMessage, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash, appendTransactionMessageInstructions, some } from '@solana/kit';
+import {
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
+    some,
+} from '@solana/kit';
 import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     AccountState,

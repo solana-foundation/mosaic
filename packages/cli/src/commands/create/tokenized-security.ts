@@ -3,7 +3,15 @@ import chalk from 'chalk';
 import { ABL_PROGRAM_ID, TOKEN_ACL_PROGRAM_ID, createTokenizedSecurityInitTransaction } from '@mosaic/sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
-import { generateKeyPairSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner, sendAndConfirmTransactionFactory, assertIsTransactionWithBlockhashLifetime, getSignatureFromTransaction } from '@solana/kit';
+import {
+    generateKeyPairSigner,
+    signTransactionMessageWithSigners,
+    type Address,
+    type TransactionSigner,
+    sendAndConfirmTransactionFactory,
+    assertIsTransactionWithBlockhashLifetime,
+    getSignatureFromTransaction,
+} from '@solana/kit';
 import { findListConfigPda } from '@token-acl/abl-sdk';
 import { findMintConfigPda } from '@token-acl/sdk';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';

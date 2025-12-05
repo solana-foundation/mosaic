@@ -51,7 +51,9 @@ export interface TokenActionConfig<TOptions extends BaseOptions, TResult extends
     validate: (options: TOptions) => void;
     buildTransaction: (
         params: BuildTransactionParams<TOptions>,
-    ) => Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionMessageWithBlockhashLifetime>>;
+    ) => Promise<
+        FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionMessageWithBlockhashLifetime>
+    >;
     buildSuccessResult: (
         signature: string,
         options: TOptions,

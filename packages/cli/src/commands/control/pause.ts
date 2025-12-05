@@ -74,7 +74,12 @@ export const pauseCommand = new Command('pause')
                 feePayer: parentOpts.feePayer || pauseAuthority,
             });
 
-            const { raw, signature } = await sendOrOutputTransaction(transactionMessage, rawTx, spinner, sendAndConfirmTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transactionMessage,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
             if (raw) return;
 
             spinner.succeed('Token paused successfully!');

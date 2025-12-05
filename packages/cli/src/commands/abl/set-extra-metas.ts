@@ -46,7 +46,12 @@ export const setExtraMetas = new Command('set-extra-metas')
                 lists: [options.list] as Address[],
             });
 
-            const { raw, signature } = await sendOrOutputTransaction(transaction, rawTx, spinner, sendAndConfirmTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
             if (raw) return;
 
             spinner.succeed('Extra metas set successfully!');

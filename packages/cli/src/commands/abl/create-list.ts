@@ -44,7 +44,12 @@ export const createList = new Command('create-list')
                 mint: options.mint as Address,
             });
 
-            const { raw, signature } = await sendOrOutputTransaction(transaction, rawTx, spinner, sendAndConfirmTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
             if (raw) return;
 
             spinner.succeed('ABL list created successfully!');

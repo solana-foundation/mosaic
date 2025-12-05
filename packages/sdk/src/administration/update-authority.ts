@@ -4,15 +4,16 @@ import {
     getUpdateTokenMetadataUpdateAuthorityInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
-import type {
-    Address,
-    Instruction,
-    TransactionSigner,
-    Rpc,
-    SolanaRpcApi,
-} from '@solana/kit';
+import type { Address, Instruction, TransactionSigner, Rpc, SolanaRpcApi } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
-import { pipe, createTransactionMessage, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash, appendTransactionMessageInstructions, none } from '@solana/kit';
+import {
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
+    none,
+} from '@solana/kit';
 
 type AuthorityRole = AuthorityType | 'Metadata';
 

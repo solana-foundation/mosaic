@@ -68,7 +68,12 @@ export const forceTransferCommand = new Command('force-transfer')
                 payer.address,
             );
 
-            const { raw, signature } = await sendOrOutputTransaction(transaction, rawTx, spinner, sendAndConfirmTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
             if (raw) return;
 
             spinner.succeed('Force transfer completed successfully!');

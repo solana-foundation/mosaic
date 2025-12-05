@@ -4,7 +4,15 @@ import { getThawPermissionlessTransaction } from '@mosaic/sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import { maybeOutputRawTx } from '../../utils/raw-tx.js';
-import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner, sendAndConfirmTransactionFactory, assertIsTransactionWithBlockhashLifetime, getSignatureFromTransaction } from '@solana/kit';
+import {
+    createNoopSigner,
+    signTransactionMessageWithSigners,
+    type Address,
+    type TransactionSigner,
+    sendAndConfirmTransactionFactory,
+    assertIsTransactionWithBlockhashLifetime,
+    getSignatureFromTransaction,
+} from '@solana/kit';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
@@ -47,7 +55,11 @@ export const thawPermissionless = new Command('thaw-permissionless')
 
             spinner.text = 'Building transaction...';
 
-            const [ata] = await findAssociatedTokenPda({ mint, owner: signerAddress, tokenProgram: TOKEN_2022_PROGRAM_ADDRESS });
+            const [ata] = await findAssociatedTokenPda({
+                mint,
+                owner: signerAddress,
+                tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+            });
 
             const transaction = await getThawPermissionlessTransaction({
                 rpc,

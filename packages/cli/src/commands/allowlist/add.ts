@@ -53,7 +53,12 @@ export const addCommand = new Command('add')
                 authoritySigner,
             );
 
-            const { raw, signature } = await sendOrOutputTransaction(transaction, rawTx, spinner, sendAndConfirmTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
             if (raw) return;
 
             spinner.succeed('Account added to allowlist successfully!');

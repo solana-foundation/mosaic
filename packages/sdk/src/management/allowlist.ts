@@ -23,7 +23,11 @@ import {
 import { findListConfigPda, Mode } from '@token-acl/abl-sdk';
 import { getFreezeInstructions } from '../token-acl/freeze';
 import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless';
-import { getFreezeAccountInstruction, getThawAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+    getFreezeAccountInstruction,
+    getThawAccountInstruction,
+    TOKEN_2022_PROGRAM_ADDRESS,
+} from '@solana-program/token-2022';
 
 export const isAblAllowlist = async (rpc: Rpc<SolanaRpcApi>, listConfig: Address) => {
     const list = await getList({ rpc, listConfig });

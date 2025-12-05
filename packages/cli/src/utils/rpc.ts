@@ -1,4 +1,11 @@
-import { createSolanaRpc, createSolanaRpcSubscriptions, type Rpc, type SolanaRpcApi, type RpcSubscriptions, type SolanaRpcSubscriptionsApi } from '@solana/kit';
+import {
+    createSolanaRpc,
+    createSolanaRpcSubscriptions,
+    type Rpc,
+    type SolanaRpcApi,
+    type RpcSubscriptions,
+    type SolanaRpcSubscriptionsApi,
+} from '@solana/kit';
 import { getSolanaConfig } from './solana.js';
 
 function getRpcUrl(rpcUrl?: string) {
@@ -8,15 +15,15 @@ function getRpcUrl(rpcUrl?: string) {
 
 function getWsUrl(rpcUrl?: string): string {
     const url = getRpcUrl(rpcUrl);
-    
+
     // Handle localhost special case (Solana validator uses different ports for HTTP and WS)
     const LOCALHOST_RPC_URL = 'http://127.0.0.1:8899';
     const LOCALHOST_WS_URL = 'ws://127.0.0.1:8900';
-    
+
     if (url === LOCALHOST_RPC_URL || url === 'http://localhost:8899') {
         return LOCALHOST_WS_URL;
     }
-    
+
     try {
         const urlObj = new URL(url);
         urlObj.protocol = urlObj.protocol === 'https:' ? 'wss:' : 'ws:';

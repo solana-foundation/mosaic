@@ -9,7 +9,11 @@ import type {
     Signature,
 } from '@solana/kit';
 import type { FullTransaction } from '../../transaction-util';
-import { getSignatureFromTransaction, signTransactionMessageWithSigners, sendAndConfirmTransactionFactory } from '@solana/kit';
+import {
+    getSignatureFromTransaction,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+} from '@solana/kit';
 import type { Client } from './setup';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
@@ -112,10 +116,7 @@ export async function assertMemo(
 /**
  * Assert transaction fails
  */
-export async function assertTxFailure(
-    client: Client,
-    transactionToThrow: FullTransaction,
-): Promise<void> {
+export async function assertTxFailure(client: Client, transactionToThrow: FullTransaction): Promise<void> {
     await expect(sendAndConfirmTransaction(client, transactionToThrow)).rejects.toThrow();
 }
 

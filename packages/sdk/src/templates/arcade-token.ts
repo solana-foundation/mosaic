@@ -1,12 +1,14 @@
 import { Token } from '../issuance';
-import type {
-    Rpc,
-    Address,
-    SolanaRpcApi,
-    TransactionSigner,
-} from '@solana/kit';
+import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
-import { createNoopSigner, pipe, createTransactionMessage, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash, appendTransactionMessageInstructions } from '@solana/kit';
+import {
+    createNoopSigner,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
+} from '@solana/kit';
 import { getCreateConfigInstructions } from '../token-acl/create-config';
 import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
 import { ABL_PROGRAM_ID } from '../abl/utils';

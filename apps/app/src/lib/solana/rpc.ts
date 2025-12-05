@@ -1,4 +1,13 @@
-import { createSolanaRpc, createSolanaRpcSubscriptions, type Rpc, type SolanaRpcApi, type RpcSubscriptions, type SolanaRpcSubscriptionsApi, type Address, type Commitment } from '@solana/kit';
+import {
+    createSolanaRpc,
+    createSolanaRpcSubscriptions,
+    type Rpc,
+    type SolanaRpcApi,
+    type RpcSubscriptions,
+    type SolanaRpcSubscriptionsApi,
+    type Address,
+    type Commitment,
+} from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from '@solana-program/token-2022';
 import { fetchEncodedAccount } from '@solana/accounts';
 

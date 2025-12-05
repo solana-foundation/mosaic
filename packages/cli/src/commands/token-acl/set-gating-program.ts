@@ -3,7 +3,15 @@ import chalk from 'chalk';
 import { getSetGatingProgramTransaction } from '@mosaic/sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner, sendAndConfirmTransactionFactory, assertIsTransactionWithBlockhashLifetime, getSignatureFromTransaction } from '@solana/kit';
+import {
+    createNoopSigner,
+    signTransactionMessageWithSigners,
+    type Address,
+    type TransactionSigner,
+    sendAndConfirmTransactionFactory,
+    assertIsTransactionWithBlockhashLifetime,
+    getSignatureFromTransaction,
+} from '@solana/kit';
 import { maybeOutputRawTx } from '../../utils/raw-tx.js';
 import { findMintConfigPda } from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './util.js';

@@ -7,7 +7,11 @@ import type {
     TransactionWithinSizeLimit,
     Commitment,
 } from '@solana/kit';
-import { signTransactionMessageWithSigners, getSignatureFromTransaction, assertIsTransactionWithBlockhashLifetime } from '@solana/kit';
+import {
+    signTransactionMessageWithSigners,
+    getSignatureFromTransaction,
+    assertIsTransactionWithBlockhashLifetime,
+} from '@solana/kit';
 import { maybeOutputRawTx } from './raw-tx.js';
 import type { FullTransaction } from './types.js';
 
@@ -46,7 +50,7 @@ export async function sendOrOutputTransaction(
     spinner.text = 'Signing transaction...';
     const signed = await signTransactionMessageWithSigners(transaction);
     spinner.text = 'Sending transaction...';
-    
+
     // Assert the transaction has blockhash lifetime for sendAndConfirmTransaction
     assertIsTransactionWithBlockhashLifetime(signed);
     await sendFn(signed as SendableTx, { commitment: 'confirmed' });

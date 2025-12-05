@@ -61,7 +61,12 @@ export const resumeCommand = new Command('resume')
                 feePayer: pauseAuthority, // Use same signer for fee payer
             });
 
-            const { raw, signature } = await sendOrOutputTransaction(transactionMessage, rawTx, spinner, sendAndConfirmTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transactionMessage,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
             if (raw) return;
 
             spinner.succeed('Token resumed successfully!');

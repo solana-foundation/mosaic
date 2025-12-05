@@ -12,7 +12,11 @@ import {
     type TransactionSigner,
 } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
-import { getFreezeAccountInstruction, getThawAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+    getFreezeAccountInstruction,
+    getThawAccountInstruction,
+    TOKEN_2022_PROGRAM_ADDRESS,
+} from '@solana-program/token-2022';
 import { findListConfigPda, Mode } from '@token-acl/abl-sdk';
 import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util';
 import { ABL_PROGRAM_ID, getAddWalletInstructions, getList, getRemoveWalletInstructions } from '../abl';

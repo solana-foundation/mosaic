@@ -68,7 +68,12 @@ export const forceBurnCommand = new Command('force-burn')
                 payer.address,
             );
 
-            const { raw, signature } = await sendOrOutputTransaction(transaction, rawTx, spinner, sendAndConfirmTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
             if (raw) return;
 
             spinner.succeed('Force burn completed successfully!');
