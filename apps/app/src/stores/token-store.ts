@@ -228,7 +228,9 @@ export function useWalletTokens(walletAddress: string | undefined): TokenDisplay
 export function useMetadataFetchState(mintAddress: string | undefined): MetadataFetchState {
     return useTokenStore(
         useShallow(state =>
-            mintAddress ? state.metadataFetchState[mintAddress] ?? DEFAULT_METADATA_FETCH_STATE : DEFAULT_METADATA_FETCH_STATE,
+            mintAddress
+                ? (state.metadataFetchState[mintAddress] ?? DEFAULT_METADATA_FETCH_STATE)
+                : DEFAULT_METADATA_FETCH_STATE,
         ),
     );
 }

@@ -127,8 +127,10 @@ export function createReallocateInstruction(args: ReallocateInstruction): Instru
     // We always include TokenMetadata extension type (19)
     const data = Buffer.from([
         29, // Reallocate instruction discriminator
-        1, 0, // Array length (1 extension) as u16 little-endian
-        ExtensionType.TokenMetadata, 0, // TokenMetadata extension type as u16 little-endian
+        1,
+        0, // Array length (1 extension) as u16 little-endian
+        ExtensionType.TokenMetadata,
+        0, // TokenMetadata extension type as u16 little-endian
     ]);
 
     return {

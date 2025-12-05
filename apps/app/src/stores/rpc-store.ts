@@ -20,7 +20,7 @@ interface RpcStore {
 
 export const useRpcStore = create<RpcStore>()(
     persist(
-        (set) => ({
+        set => ({
             customRpcs: [],
             selectedClusterId: null,
             addCustomRpc: rpc => {

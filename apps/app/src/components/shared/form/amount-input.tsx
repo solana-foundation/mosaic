@@ -145,9 +145,7 @@ export function AmountInput({
                     value={value}
                     onChange={handleInputChange}
                     placeholder={placeholder}
-                    className={cn(
-                        !isValid && value && 'border-red-500 focus:ring-red-500',
-                    )}
+                    className={cn(!isValid && value && 'border-red-500 focus:ring-red-500')}
                     disabled={disabled}
                 />
 

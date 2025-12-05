@@ -10,11 +10,7 @@ import { AmountInput } from '@/components/shared/form/amount-input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { HelpCircle } from 'lucide-react';
-import {
-    useTokenExtensionStore,
-    usePauseState,
-    useScaledUiAmountState,
-} from '@/stores/token-extension-store';
+import { useTokenExtensionStore, usePauseState, useScaledUiAmountState } from '@/stores/token-extension-store';
 
 interface TokenExtensionsProps {
     token: TokenDisplay;
@@ -157,10 +153,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
 
     // Fetch pause state on mount if token has pausable extension
     useEffect(() => {
-        if (
-            token.address &&
-            token.extensions?.some(ext => ext === 'Pausable' || ext === 'PausableConfig')
-        ) {
+        if (token.address && token.extensions?.some(ext => ext === 'Pausable' || ext === 'PausableConfig')) {
             fetchPauseState(token.address, cluster?.url || '');
         }
     }, [token.address, token.extensions, cluster?.url, fetchPauseState]);

@@ -71,7 +71,12 @@ export function TokenizedSecurityCreateForm({
                           ? String((addrValue as { toString: () => string }).toString())
                           : '';
 
-                const tokenDisplay = await createTokenDisplayFromResult(result, 'tokenized-security', options, creatorWallet);
+                const tokenDisplay = await createTokenDisplayFromResult(
+                    result,
+                    'tokenized-security',
+                    options,
+                    creatorWallet,
+                );
                 // Save to store (automatically persists to localStorage)
                 addToken(tokenDisplay);
 
@@ -144,40 +149,40 @@ export function TokenizedSecurityCreateForm({
                         </div>
                     </button>
                 </div>
-                    {showOptional && (
-                        <div id="optional-settings" className="p-6 space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="multiplier">Scaled UI Amount Multiplier</Label>
-                                    <Input
-                                        id="multiplier"
-                                        type="number"
-                                        min={0}
-                                        step="any"
-                                        value={options.multiplier || '1'}
-                                        onChange={e => handleInputChange('multiplier', e.target.value)}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="access-control-mode">Access Control Mode</Label>
-                                    <Select
-                                        value={options.aclMode || 'blocklist'}
-                                        onValueChange={value => handleInputChange('aclMode', value)}
-                                    >
-                                        <SelectTrigger id="access-control-mode" className="w-full">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="blocklist">Blocklist (for sanctions, etc)</SelectItem>
-                                            <SelectItem value="allowlist">Allowlist (Closed-loop)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                {showOptional && (
+                    <div id="optional-settings" className="p-6 space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="multiplier">Scaled UI Amount Multiplier</Label>
+                                <Input
+                                    id="multiplier"
+                                    type="number"
+                                    min={0}
+                                    step="any"
+                                    value={options.multiplier || '1'}
+                                    onChange={e => handleInputChange('multiplier', e.target.value)}
+                                />
                             </div>
-
-                            <TokenizedSecurityAuthorityParams options={options} onInputChange={handleInputChange} />
+                            <div className="space-y-2">
+                                <Label htmlFor="access-control-mode">Access Control Mode</Label>
+                                <Select
+                                    value={options.aclMode || 'blocklist'}
+                                    onValueChange={value => handleInputChange('aclMode', value)}
+                                >
+                                    <SelectTrigger id="access-control-mode" className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="blocklist">Blocklist (for sanctions, etc)</SelectItem>
+                                        <SelectItem value="allowlist">Allowlist (Closed-loop)</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
                         </div>
-                    )}
+
+                        <TokenizedSecurityAuthorityParams options={options} onInputChange={handleInputChange} />
+                    </div>
+                )}
             </div>
 
             <div className="flex gap-4">

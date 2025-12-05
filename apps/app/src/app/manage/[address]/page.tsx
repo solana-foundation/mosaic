@@ -461,7 +461,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56 rounded-xl">
-                                    <DropdownMenuLabel className="text-primary/30 text-xs">Token Actions</DropdownMenuLabel>
+                                    <DropdownMenuLabel className="text-primary/30 text-xs">
+                                        Token Actions
+                                    </DropdownMenuLabel>
                                     <DropdownMenuSeparator />
                                     {transactionSendingSigner && (
                                         <>

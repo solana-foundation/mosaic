@@ -447,7 +447,7 @@ const DEFAULT_SCALED_UI_STATE: ScaledUiAmountState = {
  */
 export function usePauseState(mint: string | undefined): PauseState {
     return useTokenExtensionStore(
-        useShallow(state => (mint ? state.extensions[mint]?.pause ?? DEFAULT_PAUSE_STATE : DEFAULT_PAUSE_STATE)),
+        useShallow(state => (mint ? (state.extensions[mint]?.pause ?? DEFAULT_PAUSE_STATE) : DEFAULT_PAUSE_STATE)),
     );
 }
 
@@ -458,7 +458,7 @@ export function usePauseState(mint: string | undefined): PauseState {
 export function useScaledUiAmountState(mint: string | undefined): ScaledUiAmountState {
     return useTokenExtensionStore(
         useShallow(state =>
-            mint ? state.extensions[mint]?.scaledUiAmount ?? DEFAULT_SCALED_UI_STATE : DEFAULT_SCALED_UI_STATE,
+            mint ? (state.extensions[mint]?.scaledUiAmount ?? DEFAULT_SCALED_UI_STATE) : DEFAULT_SCALED_UI_STATE,
         ),
     );
 }

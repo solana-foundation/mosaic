@@ -331,9 +331,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                                 setAuthorities(prev =>
                                                     prev.map((auth, i) =>
-                                                        i === index
-                                                            ? { ...auth, newAuthority: e.target.value }
-                                                            : auth,
+                                                        i === index ? { ...auth, newAuthority: e.target.value } : auth,
                                                     ),
                                                 )
                                             }
