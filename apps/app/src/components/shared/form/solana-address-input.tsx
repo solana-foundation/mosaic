@@ -1,4 +1,5 @@
 import { useInputValidation } from '@/hooks/use-input-validation';
+import { Input } from '@/components/ui/input';
 
 interface SolanaAddressInputProps {
     label: string;
@@ -30,12 +31,12 @@ export function SolanaAddressInput({
                 {label}
                 {required && <span className="text-red-500 ml-1">*</span>}
             </label>
-            <input
+            <Input
                 type="text"
                 value={value}
                 onChange={e => onChange(e.target.value)}
                 placeholder={placeholder}
-                className="w-full p-2 border rounded-md"
+                className=""
                 disabled={disabled}
             />
             {helpText && <p className="text-xs text-muted-foreground mt-1">{helpText}</p>}

@@ -76,6 +76,7 @@ export interface TokenDashboardData {
     decimals: number;
     supply: string;
     uri?: string;
+    image?: string;
     detectedPatterns: TokenType[];
 
     // ACL configuration

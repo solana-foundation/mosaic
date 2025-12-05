@@ -16,6 +16,7 @@ import { ModalFooter } from '@/components/shared/modals/modal-footer';
 import { TransactionSuccessView } from '@/components/shared/modals/transaction-success-view';
 import { useTransactionModal, useWalletConnection } from '@/features/token-management/hooks/use-transaction-modal';
 import { MODAL_ERRORS } from '@/features/token-management/constants/modal-text';
+import { humanizeError } from '@/lib/errors';
 
 interface UpdateMetadataModalContentProps {
     mintAddress: string;
@@ -24,6 +25,7 @@ interface UpdateMetadataModalContentProps {
     currentUri?: string;
     metadataAuthority?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    onSuccess?: (updates: { name?: string; symbol?: string; uri?: string }) => void;
 }
 
 interface StringInputConfig {
@@ -45,6 +47,7 @@ export function UpdateMetadataModalContent({
     currentUri,
     metadataAuthority,
     transactionSendingSigner,
+    onSuccess,
 }: UpdateMetadataModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
@@ -117,11 +120,18 @@ export function UpdateMetadataModalContent({
                 setSuccess(true);
                 setTransactionSignature(result.transactionSignature);
                 setUpdatedFields(result.updatedFields || []);
+
+                // Update local cache with the new metadata values
+                onSuccess?.({
+                    ...(hasNameChanged && { name: name.trim() }),
+                    ...(hasSymbolChanged && { symbol: symbol.trim() }),
+                    ...(hasUriChanged && { uri: uri.trim() }),
+                });
             } else {
                 setError(result.error || 'Update failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
+            setError(humanizeError(err));
         } finally {
             setIsLoading(false);
         }

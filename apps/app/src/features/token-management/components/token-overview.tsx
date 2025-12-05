@@ -1,7 +1,5 @@
-import { Button } from '@/components/ui/button';
-import { RefreshCw } from 'lucide-react';
 import { TokenDisplay } from '@/types/token';
-import { useEffect, useState, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useImperativeHandle, forwardRef, type ReactNode } from 'react';
 import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
 import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
@@ -10,6 +8,20 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { CopyButton } from '@/components/ui/copy-button';
+
+interface InfoRowProps {
+    label: string;
+    children: ReactNode;
+}
+
+function InfoRow({ label, children }: InfoRowProps) {
+    return (
+        <div className="flex justify-between items-center py-4 px-6 border-b last:border-0">
+            <span className="text-sm text-muted-foreground">{label}</span>
+            {children}
+        </div>
+    );
+}
 
 interface TokenOverviewProps {
     token: TokenDisplay;
@@ -86,79 +98,60 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
 
     return (
         <Card>
-            <CardContent className="p-6 px-8 rounded-[20px]">
-                <div className="space-y-4">
-                    <div className="flex justify-between items-center py-2 border-b last:border-0">
-                        <span className="text-sm text-muted-foreground">Token Address</span>
-                        {token.address ? (
-                            <CopyButton
-                                textToCopy={token.address}
-                                displayText={formatAddress(token.address)}
-                                variant="ghost"
-                                size="sm"
-                                iconClassName="h-3 w-3"
-                                iconClassNameCheck="h-3 w-3"
-                            />
-                        ) : (
-                            <span className="font-mono text-sm">Unknown</span>
-                        )}
-                    </div>
+            <CardContent className="p-0 rounded-[20px]">
+                <InfoRow label="Token Address">
+                    {token.address ? (
+                        <CopyButton
+                            textToCopy={token.address}
+                            displayText={formatAddress(token.address)}
+                            variant="ghost"
+                            size="sm"
+                            iconClassName="h-3 w-3"
+                            iconClassNameCheck="h-3 w-3"
+                            className="font-berkeley-mono"
+                        />
+                    ) : (
+                        <span className="font-mono text-sm">Unknown</span>
+                    )}
+                </InfoRow>
 
-                    <div className="flex justify-between items-center py-2 border-b last:border-0">
-                        <span className="text-sm text-muted-foreground">Creation Address</span>
-                        {token.mintAuthority || token.transactionSignature ? (
-                            <CopyButton
-                                textToCopy={token.mintAuthority || token.transactionSignature || ''}
-                                displayText={formatAddress(token.mintAuthority || token.transactionSignature)}
-                                variant="ghost"
-                                size="sm"
-                                iconClassName="h-3 w-3"
-                                iconClassNameCheck="h-3 w-3"
-                            />
-                        ) : (
-                            <span className="font-mono text-sm">Unknown</span>
-                        )}
-                    </div>
+                <InfoRow label="Creation Address">
+                    {token.mintAuthority || token.transactionSignature ? (
+                        <CopyButton
+                            textToCopy={token.mintAuthority || token.transactionSignature || ''}
+                            displayText={formatAddress(token.mintAuthority || token.transactionSignature)}
+                            variant="ghost"
+                            size="sm"
+                            iconClassName="h-3 w-3"
+                            iconClassNameCheck="h-3 w-3"
+                            className="font-berkeley-mono"
+                        />
+                    ) : (
+                        <span className="font-mono text-sm">Unknown</span>
+                    )}
+                </InfoRow>
 
-                    <div className="flex justify-between items-center py-2 border-b last:border-0">
-                        <span className="text-sm text-muted-foreground">Supply</span>
-                        <div className="flex items-center gap-2">
-                            {isLoadingSupply ? (
-                                <Spinner size={14} className="text-muted-foreground" />
-                            ) : (
-                                <>
-                                    <span className="font-semibold">{currentSupply}</span>
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-6 w-6"
-                                        onClick={fetchSupply}
-                                        title="Refresh supply"
-                                    >
-                                        <RefreshCw className="h-3 w-3" />
-                                    </Button>
-                                </>
-                            )}
-                        </div>
-                    </div>
+                <InfoRow label="Supply">
+                    {isLoadingSupply ? (
+                        <Spinner size={14} className="text-muted-foreground" />
+                    ) : (
+                        <span className="font-semibold text-sm font-berkeley-mono px-2">{currentSupply}</span>
+                    )}
+                </InfoRow>
 
-                    <div className="flex justify-between items-center py-2 border-b last:border-0">
-                        <span className="text-sm text-muted-foreground">Created</span>
-                        <span className="font-semibold">{formatDate(token.createdAt)}</span>
-                    </div>
+                <InfoRow label="Created">
+                    <span className="font-semibold text-sm font-berkeley-mono px-2">{formatDate(token.createdAt)}</span>
+                </InfoRow>
 
-                    <div className="flex justify-between items-center py-2 border-b last:border-0">
-                        <span className="text-sm text-muted-foreground">Template</span>
-                        <Badge variant="secondary" className="rounded-full">
-                            {getTokenPatternsLabel(token.detectedPatterns)}
-                        </Badge>
-                    </div>
+                <InfoRow label="Template">
+                    <Badge variant="secondary" className="rounded-full">
+                        {getTokenPatternsLabel(token.detectedPatterns)}
+                    </Badge>
+                </InfoRow>
 
-                    <div className="flex justify-between items-center py-2 border-b last:border-0">
-                        <span className="text-sm text-muted-foreground">Decimals</span>
-                        <span className="font-semibold">{token.decimals ?? 9}</span>
-                    </div>
-                </div>
+                <InfoRow label="Decimals">
+                    <span className="font-semibold text-sm font-berkeley-mono px-2">{token.decimals ?? 9}</span>
+                </InfoRow>
             </CardContent>
         </Card>
     );

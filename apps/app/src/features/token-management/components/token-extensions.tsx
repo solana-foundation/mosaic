@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { updateScaledUiMultiplier } from '@/features/token-management/lib/scaled-ui-amount';
 import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/features/wallet/hooks/use-connector-signer';
 import { TokenDisplay } from '@/types/token';
@@ -11,6 +10,11 @@ import { AmountInput } from '@/components/shared/form/amount-input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { HelpCircle } from 'lucide-react';
+import {
+    useTokenExtensionStore,
+    usePauseState,
+    useScaledUiAmountState,
+} from '@/stores/token-extension-store';
 
 interface TokenExtensionsProps {
     token: TokenDisplay;
@@ -20,7 +24,7 @@ interface ExtensionConfig {
     displayName: string;
     description: string;
     helpText: string;
-    type: 'address' | 'toggle' | 'number' | 'readonly';
+    type: 'address' | 'toggle' | 'number' | 'readonly' | 'pausable';
     editable?: boolean;
     getDisplayValue?: (token: TokenDisplay) => string | number | boolean | undefined;
 }
@@ -46,25 +50,25 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         displayName: 'Pausable',
         description: 'Lets an authority pause all token transfers globally.',
         helpText:
-            'When paused, all token transfers are halted. Only the pause authority can pause/unpause. Use Admin Actions to toggle pause state.',
-        type: 'toggle',
-        getDisplayValue: () => true, // Always true if extension exists
+            'When paused, all token transfers are halted. Only the pause authority can pause/unpause. Toggle to change the pause state.',
+        type: 'pausable', // Special type for interactive pause toggle
+        getDisplayValue: () => true,
     },
     DefaultAccountState: {
         displayName: 'Default Account State',
         description: 'Configures default state (Frozen/Initialized) for new accounts.',
         helpText:
             'New token accounts are created in this state (Frozen or Initialized). Cannot be changed after mint creation. Frozen by default enables allowlist mode.',
-        type: 'toggle',
-        getDisplayValue: () => true, // Always true if extension exists
+        type: 'readonly',
+        getDisplayValue: () => true,
     },
     ConfidentialTransferMint: {
         displayName: 'Confidential Balances',
         description: 'Enables confidential transfer functionality for privacy.',
         helpText:
             'Enables encrypted token balances and transfers for privacy. Balances are hidden from public view. Requires special handling in wallets and dApps.',
-        type: 'toggle',
-        getDisplayValue: () => true, // Always true if extension exists
+        type: 'readonly',
+        getDisplayValue: () => true,
     },
     ScaledUiAmountConfig: {
         displayName: 'Scaled UI Amount',
@@ -102,7 +106,7 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         description: 'Tokens cannot be transferred to other accounts (soul-bound).',
         helpText:
             'Tokens are permanently bound to the account they are minted to. Cannot be transferred, but can be burned or the account can be closed. Used for achievements, credentials, or identity tokens.',
-        type: 'toggle',
+        type: 'readonly',
         getDisplayValue: () => true,
     },
     TransferHook: {
@@ -136,55 +140,85 @@ export function TokenExtensions({ token }: TokenExtensionsProps) {
 }
 
 function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
-    const [showScaledUiEditor, setShowScaledUiEditor] = useState(false);
-    const [newMultiplier, setNewMultiplier] = useState<string>('');
-    const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState<string>('');
-
-    // Use the connector signer hook which provides a gill-compatible transaction signer
+    const { selectedAccount, cluster } = useConnector();
     const transactionSendingSigner = useConnectorSigner();
 
-    // Get extensions that are present and have config
-    const presentExtensions = (token.extensions || [])
-        .map(extName => {
-            // Map common display names to SDK names
-            const sdkName = mapDisplayNameToSdkName(extName);
-            const config = EXTENSION_CONFIG[sdkName];
-            return config ? { sdkName, displayName: extName, config } : null;
-        })
-        .filter((ext): ext is NonNullable<typeof ext> => ext !== null);
+    // Scaled UI Amount local state for edit mode
+    const [showScaledUiEditor, setShowScaledUiEditor] = useState(false);
+    const [newMultiplier, setNewMultiplier] = useState<string>('');
 
+    // Get pause state from centralized store
+    const { isPaused, isUpdating: isPauseUpdating, error: pauseError } = usePauseState(token.address);
+    const { fetchPauseState, togglePause } = useTokenExtensionStore();
+
+    // Get scaled UI state from centralized store
+    const { isUpdating: isScaledUiUpdating, error: scaledUiError } = useScaledUiAmountState(token.address);
+    const { updateScaledUiMultiplier, setScaledUiError } = useTokenExtensionStore();
+
+    // Fetch pause state on mount if token has pausable extension
+    useEffect(() => {
+        if (
+            token.address &&
+            token.extensions?.some(ext => ext === 'Pausable' || ext === 'PausableConfig')
+        ) {
+            fetchPauseState(token.address, cluster?.url || '');
+        }
+    }, [token.address, token.extensions, cluster?.url, fetchPauseState]);
+
+    // Handle pause toggle using store
+    const handlePauseToggle = async () => {
+        if (!token.address || !transactionSendingSigner || !selectedAccount) return;
+
+        await togglePause(
+            token.address,
+            {
+                pauseAuthority: token.pausableAuthority,
+                feePayer: selectedAccount,
+                rpcUrl: cluster?.url || '',
+            },
+            transactionSendingSigner,
+        );
+    };
+
+    // Handle scaled UI multiplier update using store
     const handleSaveMultiplier = async () => {
         if (!token.address || !transactionSendingSigner) {
-            setError('Wallet not connected');
+            setScaledUiError(token.address || '', 'Wallet not connected');
             return;
         }
 
         const trimmedValue = newMultiplier.trim();
         if (!trimmedValue) {
-            setError('Please enter a multiplier value');
+            setScaledUiError(token.address, 'Please enter a multiplier value');
             return;
         }
 
         const multiplier = parseFloat(trimmedValue);
         if (!Number.isFinite(multiplier) || multiplier <= 0) {
-            setError('Please enter a valid multiplier greater than 0');
+            setScaledUiError(token.address, 'Please enter a valid multiplier greater than 0');
             return;
         }
 
-        setIsSaving(true);
-        setError('');
+        const success = await updateScaledUiMultiplier(
+            token.address,
+            { multiplier, rpcUrl: cluster?.url },
+            transactionSendingSigner,
+        );
 
-        try {
-            await updateScaledUiMultiplier({ mint: token.address, multiplier }, transactionSendingSigner);
+        if (success) {
             setNewMultiplier('');
             setShowScaledUiEditor(false);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to update scaled UI multiplier');
-        } finally {
-            setIsSaving(false);
         }
     };
+
+    // Get extensions that are present and have config
+    const presentExtensions = (token.extensions || [])
+        .map(extName => {
+            const sdkName = mapDisplayNameToSdkName(extName);
+            const config = EXTENSION_CONFIG[sdkName];
+            return config ? { sdkName, displayName: extName, config } : null;
+        })
+        .filter((ext): ext is NonNullable<typeof ext> => ext !== null);
 
     if (presentExtensions.length === 0) {
         return (
@@ -208,7 +242,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
 
             {/* Extensions List */}
             <div className="p-2">
-                <div className="bg-muted border border-border rounded-2xl">
+                <div className="bg-muted/50 border border-border rounded-2xl">
                     <div className="divide-y divide-border">
                         {presentExtensions.map(({ sdkName, config }) => {
                             const value = config.getDisplayValue?.(token);
@@ -242,12 +276,12 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                     value={newMultiplier}
                                                     onChange={setNewMultiplier}
                                                     placeholder="0.005"
-                                                    disabled={isSaving}
+                                                    disabled={isScaledUiUpdating}
                                                     showValidation={false}
                                                 />
-                                                {error && (
+                                                {scaledUiError && (
                                                     <Alert variant="destructive">
-                                                        <AlertDescription>{error}</AlertDescription>
+                                                        <AlertDescription>{scaledUiError}</AlertDescription>
                                                     </Alert>
                                                 )}
                                                 <div className="flex items-center gap-2">
@@ -255,9 +289,9 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                         size="sm"
                                                         className="h-10 px-4 rounded-xl"
                                                         onClick={handleSaveMultiplier}
-                                                        disabled={isSaving || !newMultiplier.trim()}
+                                                        disabled={isScaledUiUpdating || !newMultiplier.trim()}
                                                     >
-                                                        {isSaving ? 'Saving...' : 'Save'}
+                                                        {isScaledUiUpdating ? 'Saving...' : 'Save'}
                                                     </Button>
                                                     <Button
                                                         variant="secondary"
@@ -266,9 +300,11 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                         onClick={() => {
                                                             setShowScaledUiEditor(false);
                                                             setNewMultiplier('');
-                                                            setError('');
+                                                            if (token.address) {
+                                                                setScaledUiError(token.address, null);
+                                                            }
                                                         }}
-                                                        disabled={isSaving}
+                                                        disabled={isScaledUiUpdating}
                                                     >
                                                         Cancel
                                                     </Button>
@@ -304,6 +340,20 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                 )}
                                                 {config.type === 'toggle' && (
                                                     <Switch checked={value === true} disabled />
+                                                )}
+                                                {config.type === 'pausable' && (
+                                                    <div className="flex items-center gap-2">
+                                                        {pauseError && (
+                                                            <span className="text-xs text-destructive max-w-[200px] truncate">
+                                                                {pauseError}
+                                                            </span>
+                                                        )}
+                                                        <Switch
+                                                            checked={isPaused}
+                                                            disabled={isPauseUpdating}
+                                                            onCheckedChange={handlePauseToggle}
+                                                        />
+                                                    </div>
                                                 )}
                                                 {config.type === 'number' && (
                                                     <div className="px-3 py-2 bg-muted rounded-xl font-mono text-sm">

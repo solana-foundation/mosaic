@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Check, X, Trash2, AlertTriangle } from 'lucide-react';
+import { Check, X, Trash2, AlertTriangle, Lock } from 'lucide-react';
 import { Spinner } from '@/components/ui/spinner';
 import { WarningText } from '@/components/ui/warning-text';
 import { TokenDisplay } from '@/types/token';
@@ -11,6 +11,7 @@ import { isAddress } from 'gill';
 import { useConnector } from '@solana/connector/react';
 import { useConnectorSigner } from '@/features/wallet/hooks/use-connector-signer';
 import { handleError } from '@/lib/errors';
+import { toast } from '@/components/ui/sonner';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -48,6 +49,20 @@ const AUTHORITY_ROLE_TO_KEY: Record<SupportedAuthorityRole, keyof BlockchainAuth
     [AuthorityType.ConfidentialTransferMint]: 'confidentialBalancesAuthority',
     [AuthorityType.PermanentDelegate]: 'permanentDelegateAuthority',
     [AuthorityType.ScaledUiAmount]: 'scaledUiAmountAuthority',
+};
+
+/**
+ * Descriptions shown when an authority has been revoked (locked).
+ * These explain the consequence of the authority being removed.
+ */
+const LOCKED_DESCRIPTIONS: Record<SupportedAuthorityRole, string> = {
+    [AuthorityType.MintTokens]: 'Fixed token supply. No more tokens can be minted.',
+    [AuthorityType.FreezeAccount]: 'Accounts cannot be frozen or unfrozen.',
+    Metadata: 'Token metadata cannot be updated.',
+    [AuthorityType.Pause]: 'Token transfers cannot be paused or unpaused.',
+    [AuthorityType.ConfidentialTransferMint]: 'Confidential transfer settings cannot be changed.',
+    [AuthorityType.PermanentDelegate]: 'No delegate can transfer or burn tokens from any account.',
+    [AuthorityType.ScaledUiAmount]: 'Token display multiplier cannot be updated.',
 };
 
 interface TokenAuthoritiesProps {
@@ -224,6 +239,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                             : auth,
                     ),
                 );
+                toast.success(`${authority.label} updated`);
             } else {
                 setError(`Failed to update authority: ${result.error}`);
             }
@@ -265,6 +281,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                             : auth,
                     ),
                 );
+                toast.success(`${authority.label} revoked`);
             } else {
                 setError(`Failed to revoke authority: ${result.error}`);
             }
@@ -283,8 +300,6 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
         return `${address.slice(0, 8)}... ${address.slice(-7)}`;
     };
 
-    const filteredAuthorities = authorities.filter(authority => authority.currentAuthority);
-
     if (isLoadingAuthorities) {
         return (
             <div className="rounded-2xl border bg-card p-8 flex items-center justify-center">
@@ -293,19 +308,11 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
         );
     }
 
-    if (filteredAuthorities.length === 0) {
-        return (
-            <div className="rounded-2xl border bg-card p-8 text-center text-muted-foreground">
-                No authorities configured for this token.
-            </div>
-        );
-    }
-
     return (
         <div className="rounded-3xl border bg-card overflow-hidden">
             <div className="divide-y divide-border">
-                {filteredAuthorities.map(authority => {
-                    const originalIndex = authorities.findIndex(a => a.role === authority.role);
+                {authorities.map((authority, index) => {
+                    const isLocked = !authority.currentAuthority;
 
                     return (
                         <div key={authority.role} className="p-5">
@@ -324,7 +331,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                             onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                                                 setAuthorities(prev =>
                                                     prev.map((auth, i) =>
-                                                        i === originalIndex
+                                                        i === index
                                                             ? { ...auth, newAuthority: e.target.value }
                                                             : auth,
                                                     ),
@@ -335,7 +342,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                         <Button
                                             size="sm"
                                             className="h-10 px-4 rounded-xl"
-                                            onClick={() => updateAuthority(originalIndex)}
+                                            onClick={() => updateAuthority(index)}
                                             disabled={
                                                 authority.isLoading || !validateSolanaAddress(authority.newAuthority)
                                             }
@@ -350,7 +357,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                             variant="outline"
                                             size="sm"
                                             className="h-10 px-4 rounded-xl"
-                                            onClick={() => cancelEditing(originalIndex)}
+                                            onClick={() => cancelEditing(index)}
                                             disabled={authority.isLoading}
                                         >
                                             <X className="h-4 w-4" />
@@ -363,6 +370,22 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                     >
                                         Please enter a valid Solana address
                                     </WarningText>
+                                </div>
+                            ) : isLocked ? (
+                                // Locked/Revoked mode
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-semibold text-foreground">{authority.label}</h3>
+                                        <p className="text-sm text-muted-foreground mt-0.5">
+                                            {LOCKED_DESCRIPTIONS[authority.role]}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <div className="px-3 py-2 bg-muted/50 rounded-xl text-sm text-muted-foreground flex items-center gap-2">
+                                            <Lock className="h-3.5 w-3.5" />
+                                            None
+                                        </div>
+                                    </div>
                                 </div>
                             ) : (
                                 // View mode
@@ -379,7 +402,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                             variant="secondary"
                                             size="sm"
                                             className="h-9 px-4 rounded-xl"
-                                            onClick={() => startEditing(originalIndex)}
+                                            onClick={() => startEditing(index)}
                                             disabled={!selectedAccount || authority.isLoading}
                                         >
                                             Edit
@@ -427,7 +450,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
                                                     <AlertDialogAction
-                                                        onClick={() => revokeAuthority(originalIndex)}
+                                                        onClick={() => revokeAuthority(index)}
                                                         className="rounded-xl bg-red-500 hover:bg-red-600 text-white"
                                                     >
                                                         Revoke Authority

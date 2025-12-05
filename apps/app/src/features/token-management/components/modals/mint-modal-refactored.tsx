@@ -23,6 +23,8 @@ import {
     MODAL_DESCRIPTIONS,
     MODAL_SUCCESS_MESSAGES,
 } from '@/features/token-management/constants/modal-text';
+import { humanizeError } from '@/lib/errors';
+import { Input } from '@/components/ui/input';
 
 interface MintModalContentProps {
     mintAddress: string;
@@ -94,7 +96,7 @@ export function MintModalContent({
                 setError(result.error || 'Minting failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : MODAL_ERRORS.AN_ERROR_OCCURRED);
+            setError(humanizeError(err));
         } finally {
             setIsLoading(false);
         }
@@ -170,12 +172,12 @@ export function MintModalContent({
                         </Button>
                     )}
                 </div>
-                <input
+                <Input
                     type="text"
                     value={recipient}
                     onChange={e => setRecipient(e.target.value)}
                     placeholder="Enter recipient Solana address..."
-                    className="w-full p-3 border rounded-xl bg-background"
+                    className=""
                     disabled={isLoading}
                 />
                 {recipient && !validateSolanaAddress(recipient) && (

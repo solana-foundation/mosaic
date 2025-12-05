@@ -8,8 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, CheckCircle2 } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
-import { getTokenDashboardData, TokenType } from '@mosaic/sdk';
-import { TokenDisplay } from '@/types/token';
+import { TokenType } from '@mosaic/sdk';
 import { useTokenStore } from '@/stores/token-store';
 import { Spinner } from '@/components/ui/spinner';
 import { address, createSolanaRpc, type Rpc, type SolanaRpcApi } from 'gill';
@@ -24,8 +23,9 @@ interface ImportTokenModalProps {
 
 export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: ImportTokenModalProps) {
     const { cluster, selectedAccount } = useConnector();
-    const addToken = useTokenStore(state => state.addToken);
+    const fetchTokenMetadata = useTokenStore(state => state.fetchTokenMetadata);
     const findTokenByAddress = useTokenStore(state => state.findTokenByAddress);
+    const updateToken = useTokenStore(state => state.updateToken);
 
     // Create RPC client from current cluster
     const rpc = useMemo(() => {
@@ -70,50 +70,15 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
                 throw new Error('Please enter a valid Solana token address');
             }
 
-            // Convert string to Address type
-            let mintAddress;
+            // Validate address format
             try {
-                mintAddress = address(tokenAddress);
+                address(tokenAddress);
             } catch {
                 throw new Error('Invalid Solana address format');
             }
 
-            // Fetch token data from blockchain
-            const tokenData = await getTokenDashboardData(rpc as Rpc<SolanaRpcApi>, mintAddress);
-
-            // Merge user-selected type with existing detected patterns
-            if (tokenType !== 'none') {
-                const selectedType = tokenType as TokenType;
-                const existingPatterns = tokenData.detectedPatterns || [];
-                if (!existingPatterns.includes(selectedType)) {
-                    tokenData.detectedPatterns = [...existingPatterns, selectedType];
-                }
-            }
-
-            // Convert to TokenDisplay format for storage
-            const tokenDisplay: TokenDisplay = {
-                name: tokenData.name || 'Unknown Token',
-                symbol: tokenData.symbol || 'UNKNOWN',
-                address: tokenData.address,
-                detectedPatterns: tokenData.detectedPatterns,
-                decimals: tokenData.decimals,
-                supply: tokenData.supply,
-                mintAuthority: tokenData.mintAuthority,
-                metadataAuthority: tokenData.metadataAuthority,
-                pausableAuthority: tokenData.pausableAuthority,
-                confidentialBalancesAuthority: tokenData.confidentialBalancesAuthority,
-                permanentDelegateAuthority: tokenData.permanentDelegateAuthority,
-                scaledUiAmountAuthority: tokenData.scaledUiAmountAuthority,
-                freezeAuthority: tokenData.freezeAuthority,
-                extensions: tokenData.extensions,
-                isSrfc37: tokenData.enableSrfc37,
-                metadataUri: tokenData.uri,
-                createdAt: new Date().toISOString(),
-                creatorWallet: selectedAccount || undefined,
-            };
-
             // Check if token already exists
-            const existingToken = findTokenByAddress(tokenData.address);
+            const existingToken = findTokenByAddress(tokenAddress);
             if (existingToken) {
                 const confirmUpdate = window.confirm(
                     'This token already exists in your dashboard. Do you want to update it with the latest information?',
@@ -124,14 +89,33 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
                 }
             }
 
-            // Save to store (automatically persists to localStorage)
-            addToken(tokenDisplay);
+            // Fetch token metadata using the store
+            const tokenDisplay = await fetchTokenMetadata(
+                tokenAddress,
+                rpc as Rpc<SolanaRpcApi>,
+                selectedAccount || undefined,
+            );
+
+            if (!tokenDisplay) {
+                throw new Error('Failed to fetch token metadata');
+            }
+
+            // Merge user-selected type with existing detected patterns
+            if (tokenType !== 'none') {
+                const selectedType = tokenType as TokenType;
+                const existingPatterns = tokenDisplay.detectedPatterns || [];
+                if (!existingPatterns.includes(selectedType)) {
+                    updateToken(tokenAddress, {
+                        detectedPatterns: [...existingPatterns, selectedType],
+                    });
+                }
+            }
 
             // Store info for success message
             setImportedTokenInfo({
                 name: tokenDisplay.name || '',
                 symbol: tokenDisplay.symbol || '',
-                type: getTokenPatternsLabel(tokenData.detectedPatterns),
+                type: getTokenPatternsLabel(tokenDisplay.detectedPatterns),
             });
 
             setSuccess(true);
@@ -186,8 +170,8 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
-                <div className="overflow-hidden">
-                    <DialogHeader className="p-6 pb-4 border-b">
+                <div className="overflow-hidden bg-primary/5">
+                    <DialogHeader className="p-6 pb-4 border-b border-primary/5 bg-primary/5">
                         <DialogTitle className="text-xl font-semibold">Import Existing Token</DialogTitle>
                         <DialogDescription>
                             Enter the address of an existing token to import it into the Mosaic platform

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { StablecoinOptions, StablecoinCreationResult } from '@/types/token';
 import { StablecoinBasicParams } from './stablecoin-basic-params';
 import { StablecoinAuthorityParams } from './stablecoin-authority-params';
@@ -67,7 +69,7 @@ export function StablecoinCreateForm({ transactionSendingSigner, rpcUrl, onToken
                 const derivedPermanentDelegateAuthority =
                     stablecoinOptions.permanentDelegateAuthority || derivedMintAuthority;
                 // Create token display object with creator wallet
-                const tokenDisplay = createTokenDisplayFromResult(
+                const tokenDisplay = await createTokenDisplayFromResult(
                     result,
                     'stablecoin',
                     stablecoinOptions,
@@ -158,15 +160,19 @@ export function StablecoinCreateForm({ transactionSendingSigner, rpcUrl, onToken
                             </p>
                         </div>
                         <div className="p-6 space-y-2">
-                            <label className="block text-sm font-medium">Access Control Mode</label>
-                            <select
-                                className="w-full p-3 border rounded-lg"
+                            <Label htmlFor="stablecoin-acl-mode">Access Control Mode</Label>
+                            <Select
                                 value={stablecoinOptions.aclMode || 'blocklist'}
-                                onChange={e => handleInputChange('aclMode', e.target.value)}
+                                onValueChange={value => handleInputChange('aclMode', value)}
                             >
-                                <option value="blocklist">Blocklist (for sanctions, etc)</option>
-                                <option value="allowlist">Allowlist (Closed-loop)</option>
-                            </select>
+                                <SelectTrigger id="stablecoin-acl-mode" className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="blocklist">Blocklist (for sanctions, etc)</SelectItem>
+                                    <SelectItem value="allowlist">Allowlist (Closed-loop)</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 

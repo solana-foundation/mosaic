@@ -22,6 +22,7 @@ import { TokenDisplay } from '@/types/token';
 import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 import { useTokenStore } from '@/stores/token-store';
+import { useTokenExtensionStore, usePauseState } from '@/stores/token-extension-store';
 import { TokenOverview } from '@/features/token-management/components/token-overview';
 import { TokenAuthorities } from '@/features/token-management/components/token-authorities';
 import { TokenExtensions } from '@/features/token-management/components/token-extensions';
@@ -49,11 +50,6 @@ import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from 'gill';
 import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
 import { Mode } from '@token-acl/abl-sdk';
 import { buildAddressExplorerUrl } from '@/lib/solana/explorer';
-import {
-    pauseTokenWithWallet,
-    unpauseTokenWithWallet,
-    checkTokenPauseState,
-} from '@/features/token-management/lib/pause';
 import { getTokenAuthorities } from '@/lib/solana/rpc';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -113,19 +109,22 @@ function ManageTokenConnected({ address }: { address: string }) {
     const { selectedAccount, cluster } = useConnector();
     const findTokenByAddress = useTokenStore(state => state.findTokenByAddress);
     const removeToken = useTokenStore(state => state.removeToken);
+    const updateToken = useTokenStore(state => state.updateToken);
     const [token, setToken] = useState<TokenDisplay | null>(null);
     const [loading, setLoading] = useState(true);
     const [accessList, setAccessList] = useState<string[]>([]);
     const [listType, setListType] = useState<'allowlist' | 'blocklist'>('blocklist');
     const [newAddress, setNewAddress] = useState('');
     const [showAccessListModal, setShowAccessListModal] = useState(false);
-    const [isPaused, setIsPaused] = useState(false);
-    const [pauseError, setPauseError] = useState('');
     const [actionInProgress, setActionInProgress] = useState(false);
     const [error, setError] = useState('');
     const [transactionSignature, setTransactionSignature] = useState('');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [supplyRefreshTrigger, setSupplyRefreshTrigger] = useState(0);
+
+    // Use centralized extension store for pause state
+    const { isPaused, isUpdating: isPauseUpdating, error: pauseError } = usePauseState(address);
+    const { fetchPauseState, togglePause, setPauseError } = useTokenExtensionStore();
 
     // Function to trigger supply refresh after mint/burn actions
     const refreshSupply = () => {
@@ -180,9 +179,9 @@ function ManageTokenConnected({ address }: { address: string }) {
 
                 setToken(foundToken);
 
+                // Fetch pause state using centralized store
                 if (foundToken.address) {
-                    const pauseState = await checkTokenPauseState(foundToken.address, cluster?.url || '');
-                    setIsPaused(pauseState);
+                    fetchPauseState(foundToken.address, cluster?.url || '');
                 }
             } catch {
                 // Token might not exist on this network - show the token with empty extensions
@@ -202,7 +201,7 @@ function ManageTokenConnected({ address }: { address: string }) {
         };
 
         loadTokenData();
-    }, [address, rpc, cluster?.url, findTokenByAddress]);
+    }, [address, rpc, cluster?.url, findTokenByAddress, fetchPauseState]);
 
     useEffect(() => {
         const loadAccessList = async () => {
@@ -348,58 +347,32 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     const handlePauseConfirm = async () => {
         if (!selectedAccount || !token?.address || !transactionSendingSigner) {
-            setPauseError('Required parameters not available');
+            setPauseError(address, 'Required parameters not available');
             return;
         }
 
         // Check if the connected wallet has pause authority
-        // Convert both to strings for comparison (selectedAccount might be an Address object)
         const walletAddress = String(selectedAccount);
         const pauseAuthority = token.pausableAuthority ? String(token.pausableAuthority) : '';
 
         if (pauseAuthority && pauseAuthority !== walletAddress) {
             setPauseError(
+                address,
                 'Connected wallet does not have pause authority. Only the pause authority can pause/unpause this token.',
             );
             return;
         }
 
-        // Clear any previous errors and start the action
-        setPauseError('');
-        setActionInProgress(true);
-
-        try {
-            const result = isPaused
-                ? await unpauseTokenWithWallet(
-                      {
-                          mintAddress: token.address,
-                          pauseAuthority: token.pausableAuthority,
-                          feePayer: selectedAccount,
-                          rpcUrl: cluster?.url || '',
-                      },
-                      transactionSendingSigner,
-                  )
-                : await pauseTokenWithWallet(
-                      {
-                          mintAddress: token.address,
-                          pauseAuthority: token.pausableAuthority,
-                          feePayer: selectedAccount,
-                          rpcUrl: cluster?.url || '',
-                      },
-                      transactionSendingSigner,
-                  );
-
-            if (result.success) {
-                setTransactionSignature(result.transactionSignature || '');
-                setIsPaused(result.paused ?? !isPaused);
-            } else {
-                setError(result.error || 'Operation failed');
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
-        } finally {
-            setActionInProgress(false);
-        }
+        // Use centralized store to toggle pause
+        await togglePause(
+            token.address,
+            {
+                pauseAuthority: token.pausableAuthority,
+                feePayer: selectedAccount,
+                rpcUrl: cluster?.url || '',
+            },
+            transactionSendingSigner,
+        );
     };
 
     if (loading) {
@@ -448,8 +421,16 @@ function ManageTokenConnected({ address }: { address: string }) {
                                     <ChevronLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200 ease-in-out" />
                                 </Button>
                             </Link>
-                            <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10">
-                                <IconHexagonFill className="h-6 w-6 fill-primary/50" width={32} height={32} />
+                            <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10 overflow-hidden">
+                                {token.image ? (
+                                    <img
+                                        src={token.image}
+                                        alt={token.name || 'Token'}
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <IconHexagonFill className="h-6 w-6 fill-primary/50" width={32} height={32} />
+                                )}
                             </div>
                             <div>
                                 <h1 className="text-xl font-bold">{token.name}</h1>
@@ -480,7 +461,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-56 rounded-xl">
-                                    <DropdownMenuLabel className="text-primary/30 text-xs">Actions</DropdownMenuLabel>
+                                    <DropdownMenuLabel className="text-primary/30 text-xs">Token Actions</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
                                     {transactionSendingSigner && (
                                         <>
@@ -554,6 +535,28 @@ function ManageTokenConnected({ address }: { address: string }) {
                                                         currentUri={token?.metadataUri}
                                                         metadataAuthority={token?.metadataAuthority}
                                                         transactionSendingSigner={transactionSendingSigner}
+                                                        onSuccess={updates => {
+                                                            updateToken(address, {
+                                                                ...(updates.name && { name: updates.name }),
+                                                                ...(updates.symbol && { symbol: updates.symbol }),
+                                                                ...(updates.uri && { metadataUri: updates.uri }),
+                                                            });
+                                                            // Also update local state for immediate UI feedback
+                                                            setToken(prev =>
+                                                                prev
+                                                                    ? {
+                                                                          ...prev,
+                                                                          ...(updates.name && { name: updates.name }),
+                                                                          ...(updates.symbol && {
+                                                                              symbol: updates.symbol,
+                                                                          }),
+                                                                          ...(updates.uri && {
+                                                                              metadataUri: updates.uri,
+                                                                          }),
+                                                                      }
+                                                                    : prev,
+                                                            );
+                                                        }}
                                                     />
                                                 </AlertDialog>
                                             )}
@@ -561,7 +564,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                                                 <>
                                                     <DropdownMenuSeparator />
                                                     <DropdownMenuLabel className="text-primary/30 text-xs">
-                                                        Authority
+                                                        Administrative Actions
                                                     </DropdownMenuLabel>
                                                     <DropdownMenuSeparator />
 
@@ -661,7 +664,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                                             <AlertDialog
                                                 onOpenChange={open => {
                                                     if (!open) {
-                                                        setPauseError('');
+                                                        setPauseError(address, null);
                                                     }
                                                 }}
                                             >
@@ -687,8 +690,8 @@ function ManageTokenConnected({ address }: { address: string }) {
                                                     onConfirm={handlePauseConfirm}
                                                     isPaused={isPaused}
                                                     tokenName={token?.name || 'Token'}
-                                                    isLoading={actionInProgress}
-                                                    error={pauseError}
+                                                    isLoading={isPauseUpdating}
+                                                    error={pauseError ?? undefined}
                                                 />
                                             </AlertDialog>
                                         </>
@@ -733,12 +736,14 @@ function ManageTokenConnected({ address }: { address: string }) {
                                 >
                                     Permissions
                                 </TabsTrigger>
-                                <TabsTrigger
-                                    value="blocklist"
-                                    className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
-                                >
-                                    {listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}
-                                </TabsTrigger>
+                                {token.isSrfc37 && (
+                                    <TabsTrigger
+                                        value="blocklist"
+                                        className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                    >
+                                        {listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+                                    </TabsTrigger>
+                                )}
                                 <TabsTrigger
                                     value="extensions"
                                     className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
@@ -752,15 +757,17 @@ function ManageTokenConnected({ address }: { address: string }) {
                             <TabsContent value="permissions">
                                 <TokenAuthorities setError={setError} token={token} />
                             </TabsContent>
-                            <TabsContent value="blocklist">
-                                <TransferRestrictions
-                                    accessList={accessList}
-                                    listType={listType}
-                                    tokenSymbol={token.symbol}
-                                    onAddToAccessList={() => setShowAccessListModal(true)}
-                                    onRemoveFromAccessList={removeFromAccessList}
-                                />
-                            </TabsContent>
+                            {token.isSrfc37 && (
+                                <TabsContent value="blocklist">
+                                    <TransferRestrictions
+                                        accessList={accessList}
+                                        listType={listType}
+                                        tokenSymbol={token.symbol}
+                                        onAddToAccessList={() => setShowAccessListModal(true)}
+                                        onRemoveFromAccessList={removeFromAccessList}
+                                    />
+                                </TabsContent>
+                            )}
                             <TabsContent value="extensions">
                                 <TokenExtensions token={token} />
                             </TabsContent>

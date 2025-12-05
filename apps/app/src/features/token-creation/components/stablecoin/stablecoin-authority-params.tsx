@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ChevronRight } from 'lucide-react';
 import { StablecoinOptions } from '@/types/token';
 
@@ -37,51 +39,51 @@ export function StablecoinAuthorityParams({ options, onInputChange }: Stablecoin
             </CardHeader>
             {showOptionalParams && (
                 <CardContent id="stablecoin-authority-params" className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Mint Authority</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="stablecoin-mint-authority">Mint Authority</Label>
+                        <Input
+                            id="stablecoin-mint-authority"
                             type="text"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="Public key or leave empty for connected wallet"
                             value={options.mintAuthority}
                             onChange={e => onInputChange('mintAuthority', e.target.value)}
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Metadata Authority</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="stablecoin-metadata-authority">Metadata Authority</Label>
+                        <Input
+                            id="stablecoin-metadata-authority"
                             type="text"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="Public key or leave empty for connected wallet"
                             value={options.metadataAuthority}
                             onChange={e => onInputChange('metadataAuthority', e.target.value)}
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Pausable Authority</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="stablecoin-pausable-authority">Pausable Authority</Label>
+                        <Input
+                            id="stablecoin-pausable-authority"
                             type="text"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="Public key or leave empty for connected wallet"
                             value={options.pausableAuthority}
                             onChange={e => onInputChange('pausableAuthority', e.target.value)}
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Confidential Balances Authority</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="stablecoin-confidential-authority">Confidential Balances Authority</Label>
+                        <Input
+                            id="stablecoin-confidential-authority"
                             type="text"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="Public key or leave empty for connected wallet"
                             value={options.confidentialBalancesAuthority}
                             onChange={e => onInputChange('confidentialBalancesAuthority', e.target.value)}
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Permanent Delegate Authority</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="stablecoin-delegate-authority">Permanent Delegate Authority</Label>
+                        <Input
+                            id="stablecoin-delegate-authority"
                             type="text"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="Public key or leave empty for connected wallet"
                             value={options.permanentDelegateAuthority}
                             onChange={e => onInputChange('permanentDelegateAuthority', e.target.value)}

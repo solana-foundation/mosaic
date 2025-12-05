@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { freezeTokenAccount, type FreezeAccountOptions } from '@/features/token-management/lib/freeze';
-import { thawTokenAccount, type ThawAccountOptions } from '@/features/token-management/lib/thaw';
+import { freezeTokenAccount } from '@/features/token-management/lib/freeze';
+import { thawTokenAccount } from '@/features/token-management/lib/thaw';
 import { TransactionModifyingSigner } from '@solana/signers';
 import { Snowflake, Sun, LucideIcon } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
@@ -25,6 +25,7 @@ import {
     MODAL_DESCRIPTIONS,
     MODAL_SUCCESS_MESSAGES,
 } from '@/features/token-management/constants/modal-text';
+import { humanizeError } from '@/lib/errors';
 
 interface ModeConfig {
     icon: LucideIcon;
@@ -42,7 +43,7 @@ interface ModeConfig {
     actionClassName: string;
     unauthorizedType: 'freeze' | 'thaw';
     action: (
-        options: FreezeAccountOptions | ThawAccountOptions,
+        options: { walletAddress: string; mintAddress: string; rpcUrl?: string },
         signer: TransactionModifyingSigner<string>,
     ) => Promise<{ success: boolean; transactionSignature?: string; error?: string }>;
 }
@@ -91,7 +92,7 @@ interface FreezeThawModalContentProps {
 }
 
 export function FreezeThawModalContent({
-    mintAddress: _mintAddress,
+    mintAddress,
     freezeAuthority,
     transactionSendingSigner,
     mode,
@@ -111,7 +112,7 @@ export function FreezeThawModalContent({
         reset,
     } = useTransactionModal();
 
-    const [tokenAccount, setTokenAccount] = useState('');
+    const [targetWallet, setTargetWallet] = useState('');
 
     const {
         icon: Icon,
@@ -136,8 +137,8 @@ export function FreezeThawModalContent({
             return;
         }
 
-        if (!validateSolanaAddress(tokenAccount)) {
-            setError(MODAL_ERRORS.INVALID_TOKEN_ACCOUNT);
+        if (!validateSolanaAddress(targetWallet)) {
+            setError('Invalid wallet address');
             return;
         }
 
@@ -147,8 +148,9 @@ export function FreezeThawModalContent({
         try {
             const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
-            const options: FreezeAccountOptions | ThawAccountOptions = {
-                tokenAccount,
+            const options = {
+                walletAddress: targetWallet,
+                mintAddress,
                 rpcUrl,
             };
 
@@ -161,14 +163,14 @@ export function FreezeThawModalContent({
                 setError(result.error || `${title} failed`);
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
+            setError(humanizeError(err));
         } finally {
             setIsLoading(false);
         }
     };
 
     const resetForm = () => {
-        setTokenAccount('');
+        setTargetWallet('');
         reset();
     };
 
@@ -180,8 +182,8 @@ export function FreezeThawModalContent({
     // Compute disabled label to help user understand what's needed
     const getDisabledLabel = (): string | undefined => {
         if (!walletAddress) return MODAL_BUTTONS.CONNECT_WALLET;
-        if (!tokenAccount.trim()) return MODAL_BUTTONS.ENTER_ADDRESS;
-        if (tokenAccount.trim() && !validateSolanaAddress(tokenAccount)) return MODAL_BUTTONS.INVALID_ADDRESS;
+        if (!targetWallet.trim()) return MODAL_BUTTONS.ENTER_ADDRESS;
+        if (targetWallet.trim() && !validateSolanaAddress(targetWallet)) return MODAL_BUTTONS.INVALID_ADDRESS;
         return undefined;
     };
 
@@ -216,18 +218,18 @@ export function FreezeThawModalContent({
             successView={
                 <TransactionSuccessView
                     title={`${successTitle}!`}
-                    message={successMessage(tokenAccount)}
+                    message={successMessage(targetWallet)}
                     transactionSignature={transactionSignature}
                     cluster={(cluster as { name?: string })?.name}
                 />
             }
         >
             <SolanaAddressInput
-                label={MODAL_LABELS.TOKEN_ACCOUNT_ADDRESS}
-                value={tokenAccount}
-                onChange={setTokenAccount}
-                placeholder="Enter token account address..."
-                helpText={MODAL_HELP_TEXT.TOKEN_ACCOUNT_HELP}
+                label="Wallet Address"
+                value={targetWallet}
+                onChange={setTargetWallet}
+                placeholder="Enter wallet address to freeze..."
+                helpText="The wallet address whose token account will be frozen or thawed"
                 required
                 disabled={isLoading}
             />
@@ -254,7 +256,7 @@ export function FreezeThawModalContent({
                 actionLabel={actionLabel}
                 loadingLabel={loadingLabel}
                 actionIcon={Icon}
-                actionDisabled={!walletAddress || !tokenAccount.trim() || !validateSolanaAddress(tokenAccount)}
+                actionDisabled={!walletAddress || !targetWallet.trim() || !validateSolanaAddress(targetWallet)}
                 disabledLabel={getDisabledLabel()}
                 actionClassName={actionClassName}
             />

@@ -25,6 +25,7 @@ import {
     MODAL_DESCRIPTIONS,
     MODAL_SUCCESS_MESSAGES,
 } from '@/features/token-management/constants/modal-text';
+import { humanizeError } from '@/lib/errors';
 
 interface ForceBurnModalContentProps {
     mintAddress: string;
@@ -97,7 +98,7 @@ export function ForceBurnModalContent({
                 setError(result.error || 'Force burn failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
+            setError(humanizeError(err));
         } finally {
             setIsLoading(false);
         }

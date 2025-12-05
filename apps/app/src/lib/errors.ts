@@ -92,3 +92,72 @@ export function createErrorHandler(fallback: string) {
         return handleError(error, setError, fallback);
     };
 }
+
+/**
+ * Mappings from technical SDK/validation error patterns to user-friendly messages.
+ * Patterns are tested in order; first match wins.
+ */
+const ERROR_MAPPINGS: Array<{ pattern: RegExp; message: string }> = [
+    // Permanent delegate errors
+    {
+        pattern: /does not have permanent delegate extension/i,
+        message: 'This token does not have permanent delegate authority configured.',
+    },
+    {
+        pattern: /Permanent delegate mismatch/i,
+        message: 'Your wallet is not the permanent delegate authority for this token.',
+    },
+
+    // Mint/authority errors
+    {
+        pattern: /Mint account .* not found/i,
+        message: 'Token not found. Please verify the token address.',
+    },
+    {
+        pattern: /Token account does not exist/i,
+        message: 'No token account found for this wallet.',
+    },
+    {
+        pattern: /Insufficient token balance/i,
+        message: 'Insufficient balance for this operation.',
+    },
+    {
+        pattern: /must have a zero balance/i,
+        message: 'Token account must have zero balance before closing.',
+    },
+
+    // Pause errors
+    { pattern: /already paused/i, message: 'This token is already paused.' },
+    { pattern: /not paused/i, message: 'This token is not currently paused.' },
+
+    // ACL errors
+    { pattern: /not an ABL blocklist/i, message: 'This token does not support blocklist operations.' },
+    { pattern: /not an ABL allowlist/i, message: 'This token does not support allowlist operations.' },
+
+    // Generic validation
+    { pattern: /Invalid.*address format/i, message: 'Please enter a valid Solana address.' },
+    { pattern: /Amount must be.*positive/i, message: 'Please enter an amount greater than zero.' },
+];
+
+/**
+ * Translates technical SDK/validation errors into user-friendly messages.
+ * Falls back to the original message if no mapping is found.
+ * @param error - The error to humanize
+ * @param fallback - Fallback message if extraction fails
+ * @returns A user-friendly error message
+ */
+export function humanizeError(error: unknown, fallback = 'An unexpected error occurred'): string {
+    if (isSilentError(error)) {
+        return '';
+    }
+
+    const message = getErrorMessage(error, fallback);
+
+    for (const { pattern, message: humanMessage } of ERROR_MAPPINGS) {
+        if (pattern.test(message)) {
+            return humanMessage;
+        }
+    }
+
+    return message;
+}

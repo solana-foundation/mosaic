@@ -11,7 +11,8 @@ import {
     TransactionModifyingSigner,
     isAddress,
 } from 'gill';
-import { createUpdateFieldInstruction, getMintDetails } from '@mosaic/sdk';
+import { createUpdateFieldInstruction, createReallocateInstruction, getMintDetails } from '@mosaic/sdk';
+import { SYSTEM_PROGRAM_ADDRESS } from 'gill/programs';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 
 export type MetadataFieldType = 'name' | 'symbol' | 'uri';
@@ -115,6 +116,15 @@ export const updateTokenMetadata = async (
         // Get mint details for program address
         const { programAddress } = await getMintDetails(rpc, options.mintAddress as Address);
 
+        // Create reallocate instruction to ensure enough space for new metadata
+        const reallocateInstruction = createReallocateInstruction({
+            programAddress,
+            mint: options.mintAddress as Address,
+            payer: signerAddress,
+            owner: signerAddress,
+            systemProgram: SYSTEM_PROGRAM_ADDRESS,
+        });
+
         // Create update field instruction
         const updateInstruction = createUpdateFieldInstruction({
             programAddress,
@@ -127,12 +137,12 @@ export const updateTokenMetadata = async (
         // Get latest blockhash
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
-        // Create transaction
+        // Create transaction with reallocate first, then update
         const transaction = createTransaction({
             feePayer: signer,
             version: 'legacy',
             latestBlockhash,
-            instructions: [updateInstruction],
+            instructions: [reallocateInstruction, updateInstruction],
         });
 
         // Sign and send the transaction
@@ -232,8 +242,17 @@ export const updateTokenMetadataBatch = async (
         // Get mint details for program address
         const { programAddress } = await getMintDetails(rpc, options.mintAddress as Address);
 
+        // Create reallocate instruction to ensure enough space for new metadata
+        const reallocateInstruction = createReallocateInstruction({
+            programAddress,
+            mint: options.mintAddress as Address,
+            payer: signerAddress,
+            owner: signerAddress,
+            systemProgram: SYSTEM_PROGRAM_ADDRESS,
+        });
+
         // Build instructions for each metadata update
-        const instructions = options.updates.map(({ field, value }) =>
+        const updateInstructions = options.updates.map(({ field, value }) =>
             createUpdateFieldInstruction({
                 programAddress,
                 metadata: options.mintAddress as Address,
@@ -247,12 +266,12 @@ export const updateTokenMetadataBatch = async (
         // Get latest blockhash
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
-        // Create transaction with all instructions
+        // Create transaction with reallocate first, then all update instructions
         const transaction = createTransaction({
             feePayer: signer,
             version: 'legacy',
             latestBlockhash,
-            instructions,
+            instructions: [reallocateInstruction, ...updateInstructions],
         });
 
         // Sign and send the transaction

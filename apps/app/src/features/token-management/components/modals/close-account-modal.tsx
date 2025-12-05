@@ -24,6 +24,7 @@ import {
     MODAL_DESCRIPTIONS,
     MODAL_SUCCESS_MESSAGES,
 } from '@/features/token-management/constants/modal-text';
+import { humanizeError } from '@/lib/errors';
 
 interface CloseAccountModalContentProps {
     mintAddress: string;
@@ -86,7 +87,7 @@ export function CloseAccountModalContent({
                 setError(result.error || 'Close account failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : MODAL_ERRORS.UNEXPECTED_ERROR);
+            setError(humanizeError(err));
         } finally {
             setIsLoading(false);
         }

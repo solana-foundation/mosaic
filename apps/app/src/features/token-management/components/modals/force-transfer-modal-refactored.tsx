@@ -24,6 +24,7 @@ import {
     MODAL_DESCRIPTIONS,
     MODAL_SUCCESS_MESSAGES,
 } from '@/features/token-management/constants/modal-text';
+import { humanizeError } from '@/lib/errors';
 
 interface ForceTransferModalContentProps {
     mintAddress: string;
@@ -109,7 +110,7 @@ export function ForceTransferModalContent({
                 setError(result.error || 'Force transfer failed');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : MODAL_ERRORS.AN_ERROR_OCCURRED);
+            setError(humanizeError(err));
         } finally {
             setIsLoading(false);
         }

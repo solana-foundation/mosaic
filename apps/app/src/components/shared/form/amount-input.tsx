@@ -4,6 +4,7 @@ import { useInputValidation } from '@/hooks/use-input-validation';
 import { ChevronUp, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface AmountInputProps {
     label: string;
@@ -138,16 +139,13 @@ export function AmountInput({
                 )}
             </div>
             <div className="relative">
-                <input
+                <Input
                     type="text"
                     inputMode="decimal"
                     value={value}
                     onChange={handleInputChange}
                     placeholder={placeholder}
                     className={cn(
-                        'w-full h-11 px-3 pr-10 border rounded-xl bg-background text-sm',
-                        'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-                        'disabled:cursor-not-allowed disabled:opacity-50',
                         !isValid && value && 'border-red-500 focus:ring-red-500',
                     )}
                     disabled={disabled}

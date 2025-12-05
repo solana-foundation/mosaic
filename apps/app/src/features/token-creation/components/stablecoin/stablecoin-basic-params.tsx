@@ -1,5 +1,7 @@
 import { EnableSrfc37Toggle } from '@/features/token-creation/components/enable-srfc37-toggle';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { StablecoinOptions } from '@/types/token';
 
 interface StablecoinBasicParamsProps {
@@ -16,22 +18,22 @@ export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasi
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Token Name *</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="stablecoin-name">Token Name *</Label>
+                        <Input
+                            id="stablecoin-name"
                             type="text"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="e.g., USD Coin"
                             value={options.name}
                             onChange={e => onInputChange('name', e.target.value)}
                             required
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Symbol *</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="stablecoin-symbol">Symbol *</Label>
+                        <Input
+                            id="stablecoin-symbol"
                             type="text"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="e.g., USDC"
                             value={options.symbol}
                             onChange={e => onInputChange('symbol', e.target.value)}
@@ -40,24 +42,24 @@ export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasi
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Decimals *</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="stablecoin-decimals">Decimals *</Label>
+                        <Input
+                            id="stablecoin-decimals"
                             type="number"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="6"
                             value={options.decimals}
                             onChange={e => onInputChange('decimals', e.target.value)}
-                            min="0"
-                            max="9"
+                            min={0}
+                            max={9}
                             required
                         />
                     </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-2">Metadata URI</label>
-                        <input
+                    <div className="space-y-2">
+                        <Label htmlFor="stablecoin-uri">Metadata URI</Label>
+                        <Input
+                            id="stablecoin-uri"
                             type="url"
-                            className="w-full p-3 border rounded-lg"
                             placeholder="https://example.com/metadata.json"
                             value={options.uri}
                             onChange={e => onInputChange('uri', e.target.value)}
