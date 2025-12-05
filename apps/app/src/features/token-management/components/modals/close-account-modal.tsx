@@ -30,12 +30,14 @@ interface CloseAccountModalContentProps {
     mintAddress: string;
     tokenSymbol?: string;
     transactionSendingSigner: TransactionModifyingSigner<string>;
+    onSuccess?: () => void;
 }
 
 export function CloseAccountModalContent({
     mintAddress,
     tokenSymbol,
     transactionSendingSigner,
+    onSuccess,
 }: CloseAccountModalContentProps) {
     const { walletAddress } = useWalletConnection();
     const { cluster } = useConnector();
@@ -83,6 +85,7 @@ export function CloseAccountModalContent({
             if (result.success && result.transactionSignature) {
                 setSuccess(true);
                 setTransactionSignature(result.transactionSignature);
+                onSuccess?.();
             } else {
                 setError(result.error || 'Close account failed');
             }

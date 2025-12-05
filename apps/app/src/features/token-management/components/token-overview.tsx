@@ -5,9 +5,16 @@ import { getTokenSupply } from '@/lib/utils';
 import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 import { type Address, createSolanaRpc } from 'gill';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
 import { CopyButton } from '@/components/ui/copy-button';
+import { AlertDialog, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { useTokenBalance } from '@/hooks/use-token-balance';
+import { useConnectorSigner } from '@/features/wallet/hooks/use-connector-signer';
+import { MintModalContent } from '@/features/token-management/components/modals/mint-modal-refactored';
+import { CloseAccountModalContent } from '@/features/token-management/components/modals/close-account-modal';
+import { Coins, XCircle } from 'lucide-react';
 
 interface InfoRowProps {
     label: string;
@@ -37,6 +44,8 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
     ref,
 ) {
     const { cluster } = useConnector();
+    const transactionSendingSigner = useConnectorSigner();
+    const { hasTokenAccount, refetch: refetchBalance } = useTokenBalance(token.address);
 
     const rpc = useMemo(() => {
         if (!cluster?.url) return null;
@@ -44,6 +53,14 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
     }, [cluster?.url]);
     const [currentSupply, setCurrentSupply] = useState<string>(token.supply || '0');
     const [isLoadingSupply, setIsLoadingSupply] = useState(false);
+
+    // Check if supply is zero (handle both string "0" and numeric 0)
+    const isZeroSupply = currentSupply === '0' || currentSupply === '0.0' || parseFloat(currentSupply) === 0;
+
+    const handleMintSuccess = () => {
+        fetchSupply();
+        refetchBalance();
+    };
 
     const fetchSupply = useCallback(async () => {
         if (!token.address || !rpc) return;
@@ -153,6 +170,50 @@ export const TokenOverview = forwardRef<TokenOverviewRef, TokenOverviewProps>(fu
                 <InfoRow label="Supply">
                     {isLoadingSupply ? (
                         <Spinner size={14} className="text-muted-foreground" />
+                    ) : isZeroSupply && transactionSendingSigner ? (
+                        <div className="flex items-center gap-2">
+                            {hasTokenAccount ? (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="bg-rose-500/10 hover:bg-rose-500/5 h-7 text-xs text-rose-500 hover:text-rose-600 gap-1.5 transition-all duration-200 ease-in-out"
+                                        >
+                                            <XCircle className="h-3.5 w-3.5 text-rose-500" />
+                                            Close empty account
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <CloseAccountModalContent
+                                        mintAddress={token.address || ''}
+                                        tokenSymbol={token.symbol}
+                                        transactionSendingSigner={transactionSendingSigner}
+                                        onSuccess={refetchBalance}
+                                    />
+                                </AlertDialog>
+                            ) : token.mintAuthority ? (
+                                <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="bg-blue-500/10 hover:bg-blue-500/5 h-7 text-xs text-blue-500 hover:text-blue-600 gap-1.5 transition-all duration-200 ease-in-out"
+                                        >
+                                            <Coins className="h-3.5 w-3.5 text-blue-500" />
+                                            Mint tokens to get started
+                                        </Button>
+                                    </AlertDialogTrigger>
+                                    <MintModalContent
+                                        mintAddress={token.address || ''}
+                                        mintAuthority={token.mintAuthority}
+                                        transactionSendingSigner={transactionSendingSigner}
+                                        onSuccess={handleMintSuccess}
+                                    />
+                                </AlertDialog>
+                            ) : (
+                                <span className="font-semibold text-sm font-berkeley-mono px-2">{currentSupply}</span>
+                            )}
+                        </div>
                     ) : (
                         <span className="font-semibold text-sm font-berkeley-mono px-2">{currentSupply}</span>
                     )}
