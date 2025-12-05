@@ -18,13 +18,13 @@ pnpm add @mosaic/sdk
 npm i @mosaic/sdk
 ```
 
-The SDK pulls in `gill` (RPC + SPL helpers) transitively; you can import helpers/types directly from `gill` in your app.
+The SDK uses `@solana/kit` (RPC + SPL helpers) transitively; you can import helpers/types directly from `@solana/kit` in your app.
 
 ## Quick start
 
 ```ts
 import { createStablecoinInitTransaction, transactionToB64 } from '@mosaic/sdk';
-import { createSolanaRpc, generateKeyPairSigner } from 'gill';
+import { createSolanaRpc, generateKeyPairSigner } from '@solana/kit';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
 const mint = await generateKeyPairSigner();
@@ -66,7 +66,7 @@ import {
     createArcadeTokenInitTransaction,
     createTokenizedSecurityInitTransaction,
 } from '@mosaic/sdk';
-import { createSolanaRpc, generateKeyPairSigner } from 'gill';
+import { createSolanaRpc, generateKeyPairSigner } from '@solana/kit';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
 const feePayer = YOUR_FEEPAYER_ADDRESS;
@@ -122,7 +122,7 @@ await createTokenizedSecurityInitTransaction(
 
 ```ts
 import { createMintToTransaction } from '@mosaic/sdk';
-import { createSolanaRpc, generateKeyPairSigner } from 'gill';
+import { createSolanaRpc, generateKeyPairSigner } from '@solana/kit';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
 const feePayer = await generateKeyPairSigner();

@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getTokenPauseState } from '@mosaic/sdk';
-import { createSolanaClient } from '../../utils/rpc.js';
-import { type Address } from 'gill';
+import { createRpcClient } from '../../utils/rpc.js';
+import { type Address } from '@solana/kit';
 import { getGlobalOpts, createSpinner } from '../../utils/cli.js';
 
 interface StatusOptions {
@@ -25,8 +25,8 @@ export const statusCommand = new Command('status')
         const spinner = createSpinner('Checking token pause status...');
 
         try {
-            // Create Solana client
-            const { rpc } = createSolanaClient(rpcUrl);
+            // Create RPC client
+            const rpc = createRpcClient(rpcUrl);
 
             // Check current pause state
             const isPaused = await getTokenPauseState(rpc, options.mintAddress as Address);

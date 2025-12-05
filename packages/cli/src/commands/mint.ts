@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { createMintToTransaction } from '@mosaic/sdk';
-import { createSolanaClient } from '../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
-import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
+import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../utils/cli.js';
 
 interface MintOptions {
@@ -32,8 +32,8 @@ export const mintCommand = new Command('mint')
         const spinner = createSpinner('Minting tokens...', rawTx);
 
         try {
-            // Create Solana client
-            const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+            // Create RPC client
+            const rpc = createRpcClient(rpcUrl);
 
             // Resolve authorities: support address-based for raw mode
             let mintAuthority: TransactionSigner<string>;
@@ -73,12 +73,9 @@ export const mintCommand = new Command('mint')
             );
 
             // If raw requested, output and exit
-            const { raw, signature } = await sendOrOutputTransaction(transaction, rawTx, spinner, tx =>
-                sendAndConfirmTransaction(tx, {
-                    skipPreflight: true,
-                    commitment: 'confirmed',
-                }),
-            );
+            const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
+            const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
+            const { raw, signature } = await sendOrOutputTransaction(transaction, rawTx, spinner, sendAndConfirmTransaction);
             if (raw) return;
 
             spinner.succeed('Tokens minted successfully!');

@@ -9,7 +9,8 @@ import {
     sendAndConfirmTransactionFactory,
     getSignatureFromTransaction,
     TransactionModifyingSigner,
-} from 'gill';
+    assertIsTransactionWithBlockhashLifetime,
+} from '@solana/kit';
 import { ArcadeTokenCreationResult, ArcadeTokenOptions } from '@/types/token';
 import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
@@ -127,7 +128,8 @@ export const createArcadeToken = async (
         // Sign the transaction with the modifying signer
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
 
-        // Send and confirm the signed transaction with timeout handling
+        // Assert blockhash lifetime and send
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
         const confirmationPromise = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });

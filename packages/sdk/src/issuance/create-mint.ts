@@ -3,14 +3,11 @@ import type {
     Instruction,
     Rpc,
     SolanaRpcApiMainnet,
-    TransactionMessageWithFeePayer,
     TransactionSigner,
-    TransactionVersion,
-    FullTransaction,
-    TransactionWithBlockhashLifetime,
-} from 'gill';
-import { createTransaction, some } from 'gill';
-import { getCreateAccountInstruction } from 'gill/programs';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
+import { pipe, createTransactionMessage, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash, appendTransactionMessageInstructions, some } from '@solana/kit';
+import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     AccountState,
     getMintSize,
@@ -21,7 +18,7 @@ import {
     getPreInitializeInstructionsForMintExtensions,
     TOKEN_2022_PROGRAM_ADDRESS,
     getInitializeTokenMetadataInstruction,
-} from 'gill/programs/token';
+} from '@solana-program/token-2022';
 import { createUpdateFieldInstruction } from './create-update-field-instruction';
 
 export class Token {
@@ -308,7 +305,7 @@ export class Token {
         freezeAuthority?: Address;
         mint: TransactionSigner<string>;
         feePayer: TransactionSigner<string>;
-    }): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> {
+    }): Promise<FullTransaction> {
         const instructions = await this.buildInstructions({
             rpc,
             decimals,
@@ -321,12 +318,12 @@ export class Token {
         // Get latest blockhash for transaction
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
-        return createTransaction({
-            feePayer,
-            version: 'legacy',
-            latestBlockhash,
-            instructions,
-        });
+        return pipe(
+            createTransactionMessage({ version: 0 }),
+            m => setTransactionMessageFeePayer(feePayer.address, m),
+            m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+            m => appendTransactionMessageInstructions(instructions, m),
+        ) as FullTransaction;
     }
 }
 

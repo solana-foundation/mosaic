@@ -9,7 +9,8 @@ import {
     sendAndConfirmTransactionFactory,
     getSignatureFromTransaction,
     TransactionModifyingSigner,
-} from 'gill';
+    assertIsTransactionWithBlockhashLifetime,
+} from '@solana/kit';
 import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/types/token';
 import { createTokenizedSecurityInitTransaction } from '@mosaic/sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
@@ -102,7 +103,8 @@ export const createTokenizedSecurity = async (
         // Sign the transaction with the modifying signer
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
 
-        // Send and confirm the signed transaction
+        // Assert blockhash lifetime and send
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });

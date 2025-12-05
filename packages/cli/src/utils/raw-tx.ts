@@ -1,12 +1,7 @@
-import type {
-    FullTransaction,
-    TransactionMessageWithBlockhashLifetime,
-    TransactionMessageWithFeePayer,
-    TransactionVersion,
-} from 'gill';
 import { transactionToB58, transactionToB64 } from '@mosaic/sdk';
+import type { FullTransaction } from './types.js';
 
-type Tx = FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionMessageWithBlockhashLifetime>;
+type Tx = FullTransaction;
 
 export function outputRawTransaction(encoding: string, transaction: Tx): void {
     const enc = encoding.toLowerCase();

@@ -2,14 +2,11 @@ import type {
     Address,
     Rpc,
     SolanaRpcApi,
-    FullTransaction,
-    TransactionMessageWithFeePayer,
-    TransactionVersion,
     TransactionSigner,
-    TransactionWithBlockhashLifetime,
-} from 'gill';
-import { createNoopSigner, createTransaction } from 'gill';
-import { getBurnCheckedInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
+import { createNoopSigner, pipe, createTransactionMessage, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash, appendTransactionMessageInstructions } from '@solana/kit';
+import { getBurnCheckedInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { resolveTokenAccount, decimalAmountToRaw, getMintDetails } from '../transaction-util';
 
 /**
@@ -29,7 +26,7 @@ export const createBurnTransaction = async (
     owner: Address | TransactionSigner<string>,
     decimalAmount: number,
     feePayer: Address | TransactionSigner<string>,
-): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+): Promise<FullTransaction> => {
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
     const ownerSigner = typeof owner === 'string' ? createNoopSigner(owner) : owner;
     const ownerAddress = typeof owner === 'string' ? owner : owner.address;
@@ -68,10 +65,10 @@ export const createBurnTransaction = async (
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
-    return createTransaction({
-        feePayer: feePayerSigner,
-        version: 'legacy',
-        latestBlockhash,
-        instructions: [burnInstruction],
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(feePayerSigner.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions([burnInstruction], m),
+    ) as FullTransaction;
 };

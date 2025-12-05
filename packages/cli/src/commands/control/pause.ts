@@ -1,8 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { type Address } from 'gill';
+import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { createPauseTransaction, MINT_ALREADY_PAUSED_ERROR } from '@mosaic/sdk';
-import { createSolanaClient } from '../../utils/rpc';
+import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc';
 import { resolveSigner } from '../../utils/solana';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli';
 
@@ -30,8 +30,10 @@ export const pauseCommand = new Command('pause')
         const spinner = createSpinner('Checking token state...', rawTx);
 
         try {
-            // Create Solana client
-            const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+            // Create RPC client
+            const rpc = createRpcClient(rpcUrl);
+            const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
+            const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
             // Show warning if not skipped
             if (!options.skipWarning && !rawTx) {
@@ -72,12 +74,7 @@ export const pauseCommand = new Command('pause')
                 feePayer: parentOpts.feePayer || pauseAuthority,
             });
 
-            const { raw, signature } = await sendOrOutputTransaction(transactionMessage, rawTx, spinner, tx =>
-                sendAndConfirmTransaction(tx, {
-                    skipPreflight: true,
-                    commitment: 'confirmed',
-                }),
-            );
+            const { raw, signature } = await sendOrOutputTransaction(transactionMessage, rawTx, spinner, sendAndConfirmTransaction);
             if (raw) return;
 
             spinner.succeed('Token paused successfully!');

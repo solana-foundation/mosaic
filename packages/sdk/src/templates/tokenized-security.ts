@@ -3,13 +3,10 @@ import type {
     Rpc,
     Address,
     SolanaRpcApi,
-    FullTransaction,
-    TransactionMessageWithFeePayer,
-    TransactionVersion,
     TransactionSigner,
-    TransactionWithBlockhashLifetime,
-} from 'gill';
-import { createNoopSigner, createTransaction } from 'gill';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
+import { createNoopSigner, pipe, createTransactionMessage, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash, appendTransactionMessageInstructions } from '@solana/kit';
 import { Mode } from '@token-acl/abl-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils';
 import { getCreateConfigInstructions } from '../token-acl/create-config';
@@ -46,7 +43,7 @@ export const createTokenizedSecurityInitTransaction = async (
             newMultiplier?: number;
         };
     },
-): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
@@ -93,12 +90,12 @@ export const createTokenizedSecurityInitTransaction = async (
 
     if (mintAuthorityAddress !== feePayerSigner.address || !useSrfc37) {
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-        return createTransaction({
-            feePayer,
-            version: 'legacy',
-            latestBlockhash,
-            instructions,
-        });
+        return pipe(
+            createTransactionMessage({ version: 0 }),
+            m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
+            m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+            m => appendTransactionMessageInstructions(instructions, m),
+        ) as FullTransaction;
     }
 
     const { instructions: createConfigInstructions } = await getCreateConfigInstructions({
@@ -137,10 +134,10 @@ export const createTokenizedSecurityInitTransaction = async (
     instructions.push(...setExtraMetasInstructions);
 
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    return createTransaction({
-        feePayer,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };

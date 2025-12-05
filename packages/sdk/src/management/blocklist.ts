@@ -1,13 +1,18 @@
 import {
     type Address,
     createNoopSigner,
-    createTransaction,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
     type Instruction,
     type Rpc,
     type SolanaRpcApi,
     type TransactionSigner,
-} from 'gill';
-import { getFreezeAccountInstruction, getThawAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
+import { getFreezeAccountInstruction, getThawAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { findListConfigPda, Mode } from '@token-acl/abl-sdk';
 import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util';
 import { ABL_PROGRAM_ID, getAddWalletInstructions, getList, getRemoveWalletInstructions } from '../abl';
@@ -87,16 +92,16 @@ export const createAddToBlocklistTransaction = async (
     mint: Address,
     account: Address,
     authority: Address | TransactionSigner<string>,
-) => {
+): Promise<FullTransaction> => {
     const instructions = await getAddToBlocklistInstructions(rpc, mint, account, authority);
     const authoritySigner = typeof authority === 'string' ? createNoopSigner(authority) : authority;
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    return createTransaction({
-        feePayer: authoritySigner,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(authoritySigner.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };
 
 export const getRemoveFromBlocklistInstructions = async (
@@ -164,14 +169,14 @@ export const createRemoveFromBlocklistTransaction = async (
     mint: Address,
     account: Address,
     authority: Address | TransactionSigner<string>,
-) => {
+): Promise<FullTransaction> => {
     const instructions = await getRemoveFromBlocklistInstructions(rpc, mint, account, authority);
     const authoritySigner = typeof authority === 'string' ? createNoopSigner(authority) : authority;
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    return createTransaction({
-        feePayer: authoritySigner,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(authoritySigner.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };

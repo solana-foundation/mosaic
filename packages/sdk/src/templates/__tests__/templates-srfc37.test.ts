@@ -1,4 +1,4 @@
-import type { Rpc, SolanaRpcApi } from 'gill';
+import type { Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
 import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
 import {
     TOKEN_2022_PROGRAM_ADDRESS,
@@ -6,7 +6,7 @@ import {
     extension,
     AccountState,
     getPreInitializeInstructionsForMintExtensions,
-} from 'gill/programs/token';
+} from '@solana-program/token-2022';
 
 describe('templates enableSrfc37 option', () => {
     let rpc: Rpc<SolanaRpcApi>;
@@ -50,7 +50,7 @@ describe('templates enableSrfc37 option', () => {
             { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
         );
         const hasInit = instructions.some(
-            i =>
+            (i: Instruction) =>
                 i.programAddress === expectedInit.programAddress &&
                 Buffer.compare(Buffer.from(i.data ?? []), Buffer.from(expectedInit.data)) === 0,
         );
@@ -63,7 +63,7 @@ describe('templates enableSrfc37 option', () => {
             defaultStateExt,
         ]);
         const hasDefaultInitialized = instructions.some(
-            i =>
+            (i: Instruction) =>
                 i.programAddress === expectedDefaultStateInit.programAddress &&
                 Buffer.compare(Buffer.from(i.data ?? []), Buffer.from(expectedDefaultStateInit.data ?? [])) === 0,
         );
@@ -102,7 +102,7 @@ describe('templates enableSrfc37 option', () => {
             { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
         );
         const hasInit = instructions.some(
-            i =>
+            (i: Instruction) =>
                 i.programAddress === expectedInit.programAddress &&
                 Buffer.compare(Buffer.from(i.data ?? []), Buffer.from(expectedInit.data)) === 0,
         );
@@ -115,7 +115,7 @@ describe('templates enableSrfc37 option', () => {
             defaultStateExt,
         ]);
         const hasDefaultInitialized = instructions.some(
-            i =>
+            (i: Instruction) =>
                 i.programAddress === expectedDefaultStateInit.programAddress &&
                 Buffer.compare(Buffer.from(i.data ?? []), Buffer.from(expectedDefaultStateInit.data ?? [])) === 0,
         );

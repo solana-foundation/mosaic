@@ -2,14 +2,12 @@ import type {
     Address,
     Rpc,
     SolanaRpcApi,
-    FullTransaction,
-    TransactionMessageWithFeePayer,
-    TransactionVersion,
     TransactionSigner,
-    TransactionWithBlockhashLifetime,
-} from 'gill';
-import { createNoopSigner, createTransaction } from 'gill';
-import { getBurnCheckedInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
+    Instruction,
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
+import { createNoopSigner, pipe, createTransactionMessage, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash, appendTransactionMessageInstructions } from '@solana/kit';
+import { getBurnCheckedInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
     resolveTokenAccount,
     decimalAmountToRaw,
@@ -37,7 +35,7 @@ export const createForceBurnTransaction = async (
     decimalAmount: number,
     permanentDelegate: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
-): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+): Promise<FullTransaction> => {
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
     const permanentDelegateSigner =
         typeof permanentDelegate === 'string' ? createNoopSigner(permanentDelegate) : permanentDelegate;
@@ -52,7 +50,7 @@ export const createForceBurnTransaction = async (
     // Resolve source token account
     const { tokenAccount: sourceTokenAccount, isFrozen } = await resolveTokenAccount(rpc, fromAccount, mint);
 
-    const instructions = [];
+    const instructions: Instruction[] = [];
 
     // Thaw the account if frozen and SRFC37 is enabled
     if (isFrozen && (enableSrfc37 ?? false)) {
@@ -86,12 +84,12 @@ export const createForceBurnTransaction = async (
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
-    return createTransaction({
-        feePayer: feePayerSigner,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(feePayerSigner.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };
 
 /**

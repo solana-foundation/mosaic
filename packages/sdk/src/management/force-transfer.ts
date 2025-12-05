@@ -2,18 +2,16 @@ import type {
     Address,
     Rpc,
     SolanaRpcApi,
-    FullTransaction,
-    TransactionMessageWithFeePayer,
-    TransactionVersion,
     TransactionSigner,
-    TransactionWithBlockhashLifetime,
-} from 'gill';
-import { createNoopSigner, createTransaction } from 'gill';
+    Instruction,
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
+import { createNoopSigner, pipe, createTransactionMessage, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash, appendTransactionMessageInstructions } from '@solana/kit';
 import {
     getCreateAssociatedTokenIdempotentInstruction,
     getTransferCheckedInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
-} from 'gill/programs/token';
+} from '@solana-program/token-2022';
 import {
     resolveTokenAccount,
     decimalAmountToRaw,
@@ -43,7 +41,7 @@ export const createForceTransferTransaction = async (
     decimalAmount: number,
     permanentDelegate: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
-): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+): Promise<FullTransaction> => {
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
     const permanentDelegateSigner =
         typeof permanentDelegate === 'string' ? createNoopSigner(permanentDelegate) : permanentDelegate;
@@ -63,7 +61,7 @@ export const createForceTransferTransaction = async (
         isFrozen,
     } = await resolveTokenAccount(rpc, toAccount, mint);
 
-    const instructions = [];
+    const instructions: Instruction[] = [];
 
     // Create destination ATA if needed (from wallet address)
     if (!destIsInitialized) {
@@ -110,12 +108,12 @@ export const createForceTransferTransaction = async (
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
-    return createTransaction({
-        feePayer: feePayerSigner,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(feePayerSigner.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };
 
 /**

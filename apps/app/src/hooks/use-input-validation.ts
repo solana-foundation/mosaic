@@ -1,4 +1,4 @@
-import { isAddress } from 'gill';
+import { isAddress } from '@solana/kit';
 
 /**
  * Common validation functions for form inputs

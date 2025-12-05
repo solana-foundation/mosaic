@@ -1,17 +1,18 @@
 import {
-    createTransaction,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
     type Address,
-    type FullTransaction,
     type Instruction,
     type Rpc,
     type SolanaRpcApi,
-    type TransactionMessageWithFeePayer,
     type TransactionSigner,
-    type TransactionVersion,
-    type TransactionWithBlockhashLifetime,
-} from 'gill';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
 import { findMintConfigPda, getFreezeInstruction } from '@token-acl/sdk';
-import { getFreezeAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
+import { getFreezeAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
 import { getMintDetails } from '../transaction-util';
 
@@ -113,14 +114,13 @@ export const getFreezeTransaction = async (input: {
     payer: TransactionSigner<string>;
     authority: TransactionSigner<string>;
     tokenAccount: Address;
-}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+}): Promise<FullTransaction> => {
     const instructions = await getFreezeInstructions(input);
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    const transaction = createTransaction({
-        feePayer: input.payer,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
-    return transaction;
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(input.payer.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };

@@ -1,5 +1,7 @@
-import { address, type Address } from 'gill';
-import { TOKEN_2022_PROGRAM_ADDRESS, TOKEN_PROGRAM_ADDRESS } from 'gill/programs/token';
+import { address, type Address } from '@solana/kit';
+import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+// TOKEN_PROGRAM_ADDRESS is for the original SPL Token program, defined locally for tests
+const TOKEN_PROGRAM_ADDRESS = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address;
 import {
     inspectToken,
     getTokenMetadata,
@@ -10,22 +12,22 @@ import {
 } from '../inspect-token';
 import type { TokenInspectionResult } from '../types';
 
-// Mock gill modules
-jest.mock('gill', () => ({
-    ...jest.requireActual('gill'),
+// Mock @solana/kit modules
+jest.mock('@solana/kit', () => ({
+    ...jest.requireActual('@solana/kit'),
     fetchEncodedAccount: jest.fn(),
     getAddressEncoder: jest.fn(() => ({
         encode: (addr: Address) => Buffer.from(addr as string),
     })),
 }));
 
-jest.mock('gill/programs/token', () => ({
-    ...jest.requireActual('gill/programs/token'),
+jest.mock('@solana-program/token-2022', () => ({
+    ...jest.requireActual('@solana-program/token-2022'),
     decodeMint: jest.fn(),
 }));
 
-import { fetchEncodedAccount } from 'gill';
-import { decodeMint } from 'gill/programs/token';
+import { fetchEncodedAccount } from '@solana/kit';
+import { decodeMint } from '@solana-program/token-2022';
 const mockMintAddress = address('AqQw6rR2Qw2LRp5MNDoAuCEiBzKBdZx2drF6DCJx4w5H');
 const mockAuthority = address('FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT');
 

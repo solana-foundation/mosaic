@@ -1,6 +1,10 @@
 import {
     createSolanaRpc,
-    createTransaction,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
+    pipe,
     type Address,
     type Rpc,
     type SolanaRpcApi,
@@ -10,9 +14,10 @@ import {
     createSolanaRpcSubscriptions,
     TransactionModifyingSigner,
     isAddress,
-} from 'gill';
+    assertIsTransactionWithBlockhashLifetime,
+} from '@solana/kit';
 import { createUpdateFieldInstruction, createReallocateInstruction, getMintDetails } from '@mosaic/sdk';
-import { SYSTEM_PROGRAM_ADDRESS } from 'gill/programs';
+import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 
 export type MetadataFieldType = 'name' | 'symbol' | 'uri';
@@ -138,15 +143,16 @@ export const updateTokenMetadata = async (
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
         // Create transaction with reallocate first, then update
-        const transaction = createTransaction({
-            feePayer: signer,
-            version: 'legacy',
-            latestBlockhash,
-            instructions: [reallocateInstruction, updateInstruction],
-        });
+        const transaction = pipe(
+            createTransactionMessage({ version: 0 }),
+            m => setTransactionMessageFeePayer(signer.address, m),
+            m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+            m => appendTransactionMessageInstructions([reallocateInstruction, updateInstruction], m),
+        );
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });
@@ -267,15 +273,16 @@ export const updateTokenMetadataBatch = async (
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
         // Create transaction with reallocate first, then all update instructions
-        const transaction = createTransaction({
-            feePayer: signer,
-            version: 'legacy',
-            latestBlockhash,
-            instructions: [reallocateInstruction, ...updateInstructions],
-        });
+        const transaction = pipe(
+            createTransactionMessage({ version: 0 }),
+            m => setTransactionMessageFeePayer(signer.address, m),
+            m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+            m => appendTransactionMessageInstructions([reallocateInstruction, ...updateInstructions], m),
+        );
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });

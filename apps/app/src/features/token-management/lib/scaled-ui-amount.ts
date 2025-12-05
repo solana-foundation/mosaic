@@ -1,5 +1,10 @@
 import {
     createSolanaRpc,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
+    pipe,
     type Address,
     type Rpc,
     type SolanaRpcApi,
@@ -8,9 +13,9 @@ import {
     getSignatureFromTransaction,
     createSolanaRpcSubscriptions,
     TransactionModifyingSigner,
-    createTransaction,
-} from 'gill';
-import { getUpdateMultiplierScaledUiMintInstruction } from 'gill/programs/token';
+    assertIsTransactionWithBlockhashLifetime,
+} from '@solana/kit';
+import { getUpdateMultiplierScaledUiMintInstruction } from '@solana-program/token-2022';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 import { getMintDetails } from '@mosaic/sdk';
 
@@ -55,14 +60,15 @@ export const updateScaledUiMultiplier = async (
         );
 
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-        const tx = createTransaction({
-            feePayer: signer,
-            version: 'legacy',
-            latestBlockhash,
-            instructions: [ix],
-        });
+        const tx = pipe(
+            createTransactionMessage({ version: 0 }),
+            m => setTransactionMessageFeePayer(signer.address, m),
+            m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+            m => appendTransactionMessageInstructions([ix], m),
+        );
 
         const signedTransaction = await signTransactionMessageWithSigners(tx);
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });

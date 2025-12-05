@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useMemo, useImperativeHandle, forward
 import { useConnector } from '@solana/connector/react';
 import { getTokenSupply } from '@/lib/utils';
 import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
-import { type Address, createSolanaRpc } from 'gill';
+import { type Address, createSolanaRpc } from '@solana/kit';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';

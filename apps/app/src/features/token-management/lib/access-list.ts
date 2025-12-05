@@ -8,7 +8,8 @@ import {
     createSolanaRpcSubscriptions,
     TransactionModifyingSigner,
     isAddress,
-} from 'gill';
+    assertIsTransactionWithBlockhashLifetime,
+} from '@solana/kit';
 import {
     createAddToBlocklistTransaction,
     createRemoveFromBlocklistTransaction,
@@ -81,6 +82,7 @@ export const addAddressToBlocklist = async (
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });
@@ -119,6 +121,7 @@ export const removeAddressFromBlocklist = async (
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });
@@ -157,6 +160,7 @@ export const addAddressToAllowlist = async (
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });
@@ -195,6 +199,7 @@ export const removeAddressFromAllowlist = async (
 
         // Sign and send the transaction
         const signedTransaction = await signTransactionMessageWithSigners(transaction);
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
         await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
             commitment: getCommitment(),
         });

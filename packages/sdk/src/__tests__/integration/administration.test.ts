@@ -1,8 +1,8 @@
 import setupTestSuite from './setup';
 import type { Client } from './setup';
-import type { KeyPairSigner, TransactionSigner } from 'gill';
-import { generateKeyPairSigner } from 'gill';
-import { AuthorityType } from 'gill/programs/token';
+import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
+import { generateKeyPairSigner } from '@solana/kit';
+import { AuthorityType } from '@solana-program/token-2022';
 import {
     sendAndConfirmTransaction,
     assertTxSuccess,

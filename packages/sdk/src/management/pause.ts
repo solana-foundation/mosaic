@@ -8,11 +8,8 @@ import {
     setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
-    type TransactionWithBlockhashLifetime,
-    type TransactionMessageWithFeePayer,
-    type TransactionVersion,
-    type FullTransaction,
-} from 'gill';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
 import { getPauseInstruction, getResumeInstruction } from '@solana-program/token-2022';
 import { inspectToken } from '../inspection';
 
@@ -57,11 +54,7 @@ export const createPauseTransaction = async (
     options: PauseTokenOptions,
 ): Promise<{
     currentlyPaused: boolean;
-    transactionMessage: FullTransaction<
-        TransactionVersion,
-        TransactionMessageWithFeePayer,
-        TransactionWithBlockhashLifetime
-    >;
+    transactionMessage: FullTransaction;
 }> => {
     const { mint, feePayer, pauseAuthority } = options;
     const currentlyPaused = await getTokenPauseState(rpc, mint);
@@ -90,11 +83,7 @@ export const createResumeTransaction = async (
     options: PauseTokenOptions,
 ): Promise<{
     currentlyPaused: boolean;
-    transactionMessage: FullTransaction<
-        TransactionVersion,
-        TransactionMessageWithFeePayer,
-        TransactionWithBlockhashLifetime
-    >;
+    transactionMessage: FullTransaction;
 }> => {
     const { mint, feePayer, pauseAuthority } = options;
     const currentlyPaused = await getTokenPauseState(rpc, mint);

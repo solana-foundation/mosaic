@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { createForceTransferTransaction, validatePermanentDelegate } from '@mosaic/sdk';
-import { createSolanaClient } from '../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
-import { createNoopSigner, type Address, type TransactionSigner } from 'gill';
+import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../utils/cli.js';
 
 interface ForceTransferOptions {
@@ -27,8 +27,10 @@ export const forceTransferCommand = new Command('force-transfer')
         const spinner = createSpinner('Force transferring tokens...', parentOpts.rawTx);
 
         try {
-            // Create Solana client
-            const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+            // Create RPC client
+            const rpc = createRpcClient(rpcUrl);
+            const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
+            const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
             let authority: TransactionSigner<string>;
             let payer: TransactionSigner<string>;
@@ -66,12 +68,7 @@ export const forceTransferCommand = new Command('force-transfer')
                 payer.address,
             );
 
-            const { raw, signature } = await sendOrOutputTransaction(transaction, rawTx, spinner, tx =>
-                sendAndConfirmTransaction(tx, {
-                    skipPreflight: true,
-                    commitment: 'confirmed',
-                }),
-            );
+            const { raw, signature } = await sendOrOutputTransaction(transaction, rawTx, spinner, sendAndConfirmTransaction);
             if (raw) return;
 
             spinner.succeed('Force transfer completed successfully!');

@@ -11,7 +11,7 @@ import { useConnector } from '@solana/connector/react';
 import { TokenType } from '@mosaic/sdk';
 import { useTokenStore } from '@/stores/token-store';
 import { Spinner } from '@/components/ui/spinner';
-import { address, createSolanaRpc, type Rpc, type SolanaRpcApi } from 'gill';
+import { address, createSolanaRpc, type Rpc, type SolanaRpcApi } from '@solana/kit';
 import { getTokenPatternsLabel } from '@/lib/token/token-type-utils';
 import { cn } from '@/lib/utils';
 

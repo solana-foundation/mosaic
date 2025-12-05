@@ -1,5 +1,5 @@
 import type { SetGatingProgramInstruction, TogglePermissionlessInstructionsInstruction } from '@token-acl/sdk';
-import { AccountRole, type Address, type TransactionSigner } from 'gill';
+import { AccountRole, type Address, type TransactionSigner } from '@solana/kit';
 
 export async function findMintConfigPda(): Promise<[string, string]> {
     return ['MintCfgMock1111111111111111111111111111111', 'bump'];
@@ -96,5 +96,5 @@ export function getTogglePermissionlessInstructionsInstruction({
             { address: mintConfig as Address, role: AccountRole.WRITABLE },
         ],
         data: new Uint8Array([1]),
-    } as TogglePermissionlessInstructionsInstruction;
+    } as unknown as TogglePermissionlessInstructionsInstruction;
 }

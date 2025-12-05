@@ -9,6 +9,7 @@ export * from './templates';
 export * from './management';
 export * from './administration';
 export * from './transaction-util';
+export type { FullTransaction } from './transaction-util';
 export * from './abl';
 export * from './token-acl';
 export * from './token';

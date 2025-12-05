@@ -3,19 +3,16 @@ import {
     getSetAuthorityInstruction,
     getUpdateTokenMetadataUpdateAuthorityInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
-} from 'gill/programs/token';
+} from '@solana-program/token-2022';
 import type {
     Address,
     Instruction,
-    FullTransaction,
-    TransactionVersion,
-    TransactionMessageWithFeePayer,
     TransactionSigner,
     Rpc,
     SolanaRpcApi,
-    TransactionWithBlockhashLifetime,
-} from 'gill';
-import { createTransaction, none } from 'gill';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
+import { pipe, createTransactionMessage, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash, appendTransactionMessageInstructions, none } from '@solana/kit';
 
 type AuthorityRole = AuthorityType | 'Metadata';
 
@@ -125,7 +122,7 @@ export const getUpdateAuthorityTransaction = async (input: {
     role: AuthorityRole;
     currentAuthority: TransactionSigner<string>;
     newAuthority: Address;
-}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+}): Promise<FullTransaction> => {
     const instructions = getUpdateAuthorityInstructions({
         mint: input.mint,
         role: input.role,
@@ -134,12 +131,12 @@ export const getUpdateAuthorityTransaction = async (input: {
     });
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
 
-    return createTransaction({
-        feePayer: input.payer,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(input.payer.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };
 
 /**
@@ -162,7 +159,7 @@ export const getRemoveAuthorityTransaction = async (input: {
     mint: Address;
     role: AuthorityRole;
     currentAuthority: TransactionSigner<string>;
-}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+}): Promise<FullTransaction> => {
     const instructions = getRemoveAuthorityInstructions({
         mint: input.mint,
         role: input.role,
@@ -170,10 +167,10 @@ export const getRemoveAuthorityTransaction = async (input: {
     });
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
 
-    return createTransaction({
-        feePayer: input.payer,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(input.payer.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };

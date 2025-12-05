@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getFreezeTransaction } from '@mosaic/sdk';
-import { createSolanaClient } from '../../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner } from 'gill';
+import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner, sendAndConfirmTransactionFactory, assertIsTransactionWithBlockhashLifetime, getSignatureFromTransaction } from '@solana/kit';
 import { maybeOutputRawTx } from '../../utils/raw-tx.js';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
@@ -22,7 +22,9 @@ export const freeze = new Command('freeze')
         const spinner = createSpinner('Freezing token account...', rawTx);
 
         try {
-            const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+            const rpc = createRpcClient(rpcUrl);
+            const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
+            const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
             let authority: TransactionSigner<string>;
@@ -55,11 +57,13 @@ export const freeze = new Command('freeze')
 
             spinner.text = 'Sending transaction...';
 
-            // Send and confirm transaction
-            const signature = await sendAndConfirmTransaction(signedTransaction, {
+            // Assert blockhash lifetime and send
+            assertIsTransactionWithBlockhashLifetime(signedTransaction);
+            await sendAndConfirmTransaction(signedTransaction, {
                 skipPreflight: true,
                 commitment: 'confirmed',
             });
+            const signature = getSignatureFromTransaction(signedTransaction);
 
             spinner.succeed('Token account frozen successfully!');
 

@@ -1,7 +1,7 @@
 import setupTestSuite from './setup';
 import type { Client } from './setup';
-import type { KeyPairSigner, TransactionSigner } from 'gill';
-import { generateKeyPairSigner } from 'gill';
+import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
+import { generateKeyPairSigner } from '@solana/kit';
 import {
     sendAndConfirmTransaction,
     assertTxSuccess,
@@ -19,7 +19,7 @@ import { createMintToTransaction } from '../../management';
 import { createTransferTransaction } from '../../transfer';
 import { decimalAmountToRaw } from '../../transaction-util';
 import { getFreezeTransaction, TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
-import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
+import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
 describeSkipIf()('Transfer Integration Tests', () => {
     let client: Client;
@@ -487,11 +487,11 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
 
                 // Freeze sender account
-                const senderTokenAccount = await getAssociatedTokenAccountAddress(
-                    mint.address,
-                    sender.address,
-                    TOKEN_2022_PROGRAM_ADDRESS,
-                );
+                const [senderTokenAccount] = await findAssociatedTokenPda({
+                    owner: sender.address,
+                    tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                    mint: mint.address,
+                });
 
                 const freezeTx = await getFreezeTransaction({
                     rpc: client.rpc,
@@ -580,11 +580,11 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 // Verify receiver starts frozen (default state is frozen)
                 // Note: After minting with SRFC-37, account should be thawed
                 // But we can freeze it again for this test
-                const receiverTokenAccount = await getAssociatedTokenAccountAddress(
-                    mint.address,
-                    receiver.address,
-                    TOKEN_2022_PROGRAM_ADDRESS,
-                );
+                const [receiverTokenAccount] = await findAssociatedTokenPda({
+                    owner: receiver.address,
+                    tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                    mint: mint.address,
+                });
 
                 const freezeTx = await getFreezeTransaction({
                     rpc: client.rpc,

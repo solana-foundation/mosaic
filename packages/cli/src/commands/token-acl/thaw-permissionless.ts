@@ -1,11 +1,11 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getThawPermissionlessTransaction } from '@mosaic/sdk';
-import { createSolanaClient } from '../../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
 import { maybeOutputRawTx } from '../../utils/raw-tx.js';
-import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner } from 'gill';
-import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
+import { createNoopSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner, sendAndConfirmTransactionFactory, assertIsTransactionWithBlockhashLifetime, getSignatureFromTransaction } from '@solana/kit';
+import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface ThawPermissionlessOptions {
@@ -23,7 +23,9 @@ export const thawPermissionless = new Command('thaw-permissionless')
         const spinner = createSpinner('Thawing permissionless...', rawTx);
 
         try {
-            const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+            const rpc = createRpcClient(rpcUrl);
+            const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
+            const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
             let authority: TransactionSigner<string>;
@@ -45,7 +47,7 @@ export const thawPermissionless = new Command('thaw-permissionless')
 
             spinner.text = 'Building transaction...';
 
-            const ata = await getAssociatedTokenAccountAddress(mint, signerAddress, TOKEN_2022_PROGRAM_ADDRESS);
+            const [ata] = await findAssociatedTokenPda({ mint, owner: signerAddress, tokenProgram: TOKEN_2022_PROGRAM_ADDRESS });
 
             const transaction = await getThawPermissionlessTransaction({
                 rpc,
@@ -67,11 +69,13 @@ export const thawPermissionless = new Command('thaw-permissionless')
 
             spinner.text = 'Sending transaction...';
 
-            // Send and confirm transaction
-            const signature = await sendAndConfirmTransaction(signedTransaction, {
+            // Assert blockhash lifetime and send
+            assertIsTransactionWithBlockhashLifetime(signedTransaction);
+            await sendAndConfirmTransaction(signedTransaction, {
                 skipPreflight: true,
                 commitment: 'confirmed',
             });
+            const signature = getSignatureFromTransaction(signedTransaction);
 
             spinner.succeed('Permissionless thawed successfully!');
 

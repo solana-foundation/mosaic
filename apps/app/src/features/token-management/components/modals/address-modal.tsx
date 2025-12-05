@@ -11,7 +11,7 @@ import {
     AlertDialogTitle,
     AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
-import { isAddress } from 'gill';
+import { isAddress } from '@solana/kit';
 import { cn } from '@/lib/utils';
 import { MODAL_BUTTONS } from '@/features/token-management/constants/modal-text';
 

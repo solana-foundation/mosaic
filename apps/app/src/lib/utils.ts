@@ -1,7 +1,7 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-import { type Rpc, type SolanaRpcApiMainnet, type Address } from 'gill';
+import { type Rpc, type SolanaRpcApiMainnet, type Address } from '@solana/kit';
 
 export function cn(...inputs: ClassValue[]) {
     return twMerge(clsx(inputs));

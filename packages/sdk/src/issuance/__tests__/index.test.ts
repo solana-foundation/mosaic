@@ -1,7 +1,7 @@
 // Test imports - Jest globals are available automatically
-import type { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from 'gill';
-import { generateKeyPairSigner } from 'gill';
-import { AccountState, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs/token';
+import type { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
+import { generateKeyPairSigner } from '@solana/kit';
+import { AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { Token, getCreateMintInstructions } from '../index';
 import {
     createMockRpc,

@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { createRemoveFromAllowlistTransaction } from '@mosaic/sdk';
-import { createSolanaClient } from '../../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { resolveSigner } from '../../utils/solana.js';
-import { type Address } from 'gill';
+import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface RemoveOptions {
@@ -30,8 +30,10 @@ export const removeCommand = new Command('remove')
         const spinner = createSpinner('Removing account from allowlist...', rawTx);
 
         try {
-            // Create Solana client
-            const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+            // Create RPC client
+            const rpc = createRpcClient(rpcUrl);
+            const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
+            const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
             // Resolve authority signer or address
             const { signer: authoritySigner, address: authorityAddress } = await resolveSigner(
@@ -50,9 +52,7 @@ export const removeCommand = new Command('remove')
                 authoritySigner,
             );
 
-            const { raw, signature } = await sendOrOutputTransaction(transaction, rawTx, spinner, tx =>
-                sendAndConfirmTransaction(tx),
-            );
+            const { raw, signature } = await sendOrOutputTransaction(transaction, rawTx, spinner, sendAndConfirmTransaction);
             if (raw) return;
 
             spinner.succeed('Account removed from allowlist successfully!');
