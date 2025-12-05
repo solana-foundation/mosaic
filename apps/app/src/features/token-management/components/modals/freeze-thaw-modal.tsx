@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { freezeTokenAccount } from '@/features/token-management/lib/freeze';
 import { thawTokenAccount } from '@/features/token-management/lib/thaw';
-import { TransactionModifyingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/kit';
 import { Snowflake, Sun, LucideIcon } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
 

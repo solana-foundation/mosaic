@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { forceTransferTokens, type ForceTransferOptions } from '@/features/token-management/lib/force-transfer';
-import { TransactionModifyingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/kit';
 import { useConnector } from '@solana/connector/react';
 
 import { ExtensionModal } from '@/components/shared/modals/extension-modal';

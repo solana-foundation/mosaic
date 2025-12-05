@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { transferTokens, type TransferTokensOptions } from '@/features/token-management/lib/transfer';
-import { TransactionModifyingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/kit';
 import { Send } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
 import { Input } from '@/components/ui/input';

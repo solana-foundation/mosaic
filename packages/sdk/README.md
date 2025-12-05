@@ -20,6 +20,8 @@ npm i @mosaic/sdk
 
 The SDK uses `@solana/kit` (RPC + SPL helpers) transitively; you can import helpers/types directly from `@solana/kit` in your app.
 
+> **Note on Solana Kit v5:** This SDK uses the Solana Kit v5.0 ecosystem (`@solana/kit@^5.0.0`, `@solana/sysvars@^5.0.0`, `@solana-program/token-2022@^0.6.1`). These packages are published to npm under an experimental/next tag and may not appear as the "latest" version on npmjs.com. The monorepo uses pnpm overrides (in the root `pnpm-lock.yaml`) to ensure consistent version resolution across all `@solana/*` packages. See the [Anza Kit repository](https://github.com/anza-xyz/kit) for upstream details.
+
 ## Quick start
 
 ```ts

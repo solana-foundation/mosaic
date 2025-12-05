@@ -7,7 +7,7 @@ import { StablecoinBasicParams } from './stablecoin-basic-params';
 import { StablecoinAuthorityParams } from './stablecoin-authority-params';
 import { StablecoinCreationResultDisplay } from './stablecoin-creation-result';
 import { createStablecoin } from '@/features/token-creation/lib/stablecoin';
-import type { TransactionModifyingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/kit';
 import { createTokenDisplayFromResult } from '@/features/token-creation/lib/token-storage';
 import { useTokenStore } from '@/stores/token-store';
 

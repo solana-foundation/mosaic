@@ -5,7 +5,7 @@ import { ArcadeTokenBasicParams } from './arcade-token-basic-params';
 import { ArcadeTokenAuthorityParams } from './arcade-token-authority-params';
 import { ArcadeTokenCreationResultDisplay } from './arcade-token-creation-result';
 import { createArcadeToken } from '@/features/token-creation/lib/arcade-token';
-import type { TransactionModifyingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/kit';
 import { createTokenDisplayFromResult } from '@/features/token-creation/lib/token-storage';
 import { useTokenStore } from '@/stores/token-store';
 

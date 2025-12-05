@@ -248,7 +248,7 @@ export const createCustomTokenInitTransaction = async (
             m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
             m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
             m => appendTransactionMessageInstructions(instructions, m),
-        ) as FullTransaction;
+        );
     }
 
     // SRFC-37 setup: Create Token ACL configuration
@@ -297,5 +297,5 @@ export const createCustomTokenInitTransaction = async (
         m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    );
 };

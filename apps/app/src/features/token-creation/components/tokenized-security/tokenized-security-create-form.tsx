@@ -9,7 +9,7 @@ import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/typ
 import { TokenizedSecurityBasicParams } from './tokenized-security-basic-params';
 import { TokenizedSecurityAuthorityParams } from './tokenized-security-authority-params';
 import { createTokenizedSecurity } from '@/features/token-creation/lib/tokenized-security';
-import type { TransactionModifyingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/kit';
 import { createTokenDisplayFromResult } from '@/features/token-creation/lib/token-storage';
 import { useTokenStore } from '@/stores/token-store';
 

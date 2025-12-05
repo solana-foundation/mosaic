@@ -6,7 +6,7 @@ import { CustomTokenExtensionSelector } from './custom-token-extension-selector'
 import { CustomTokenAuthorityParams } from './custom-token-authority-params';
 import { CustomTokenCreationResultDisplay } from './custom-token-creation-result';
 import { createCustomToken } from '@/features/token-creation/lib/custom-token';
-import type { TransactionModifyingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/kit';
 import { createTokenDisplayFromResult } from '@/features/token-creation/lib/token-storage';
 import { useTokenStore } from '@/stores/token-store';
 

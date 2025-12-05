@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { closeTokenAccount, type CloseAccountOptions } from '@/features/token-management/lib/close-account';
-import { TransactionModifyingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/kit';
 import { XCircle } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
 import { Switch } from '@/components/ui/switch';

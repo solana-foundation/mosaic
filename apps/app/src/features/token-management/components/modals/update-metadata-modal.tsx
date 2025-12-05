@@ -4,7 +4,7 @@ import {
     type UpdateMetadataBatchOptions,
     type MetadataUpdate,
 } from '@/features/token-management/lib/metadata';
-import { TransactionModifyingSigner } from '@solana/signers';
+import type { TransactionModifyingSigner } from '@solana/kit';
 import { FileText } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
 import { Input } from '@/components/ui/input';
