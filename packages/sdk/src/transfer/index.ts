@@ -5,7 +5,7 @@ import {
     type TransactionSigner,
     pipe,
     createTransactionMessage,
-    setTransactionMessageFeePayer,
+    setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
     createNoopSigner,
@@ -165,7 +165,7 @@ export const createTransferTransaction = async (input: {
 
     return pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(feePayerSigner.address, m),
+        m => setTransactionMessageFeePayerSigner(feePayerSigner, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;

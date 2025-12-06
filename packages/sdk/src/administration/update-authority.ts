@@ -9,7 +9,7 @@ import type { FullTransaction } from '../transaction-util';
 import {
     pipe,
     createTransactionMessage,
-    setTransactionMessageFeePayer,
+    setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
     none,
@@ -134,7 +134,7 @@ export const getUpdateAuthorityTransaction = async (input: {
 
     return pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(input.payer.address, m),
+        m => setTransactionMessageFeePayerSigner(input.payer, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;
@@ -170,7 +170,7 @@ export const getRemoveAuthorityTransaction = async (input: {
 
     return pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(input.payer.address, m),
+        m => setTransactionMessageFeePayerSigner(input.payer, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;

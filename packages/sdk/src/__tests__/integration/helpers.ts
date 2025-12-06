@@ -106,7 +106,7 @@ export async function assertMemo(
     memo: string,
     commitment: Commitment = 'confirmed', // method doesn't support processed commitment
 ): Promise<void> {
-    const transaction = await rpc.getTransaction(transactionId, { commitment, encoding: 'base64' }).send();
+    const transaction = await rpc.getTransaction(transactionId, { commitment, encoding: 'base64', maxSupportedTransactionVersion: 0 }).send();
     const logs = transaction?.meta?.logMessages;
     expect(transaction?.meta?.logMessages).toBeDefined();
     const joinedLogs = logs?.join('\n');
