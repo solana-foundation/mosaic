@@ -78,10 +78,15 @@ export async function getBalance(
 /**
  * Check if an account is frozen
  */
-export async function isAccountFrozen(rpc: Rpc<SolanaRpcApi>, wallet: Address, mint: Address): Promise<boolean> {
+export async function isAccountFrozen(
+    rpc: Rpc<SolanaRpcApi>,
+    wallet: Address,
+    mint: Address,
+    commitment: Commitment = DEFAULT_COMMITMENT,
+): Promise<boolean> {
     const [ata] = await findAssociatedTokenPda({ owner: wallet, tokenProgram: TOKEN_2022_PROGRAM_ADDRESS, mint });
 
-    const accountInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed' }).send();
+    const accountInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed', commitment }).send();
 
     if (!accountInfo?.value?.data) {
         return false;

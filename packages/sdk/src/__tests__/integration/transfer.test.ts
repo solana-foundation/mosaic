@@ -362,7 +362,7 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 );
 
                 // Verify receiver account is not frozen after transfer
-                const frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address);
+                const frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(false);
             },
             DEFAULT_TIMEOUT,
@@ -502,7 +502,7 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
 
                 // Verify sender is frozen
-                const frozen = await isAccountFrozen(client.rpc, sender.address, mint.address);
+                const frozen = await isAccountFrozen(client.rpc, sender.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(true);
 
                 // When: Try to transfer from frozen account
@@ -594,7 +594,7 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 });
                 await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
 
-                let frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address);
+                let frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(true);
 
                 // When: Transfer to frozen receiver (should auto-thaw with SRFC-37)
@@ -629,7 +629,7 @@ describeSkipIf()('Transfer Integration Tests', () => {
                     DEFAULT_COMMITMENT,
                 );
 
-                frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address);
+                frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(false);
             },
             DEFAULT_TIMEOUT,

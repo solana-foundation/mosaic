@@ -801,7 +801,7 @@ describeSkipIf()('Management Integration Tests', () => {
         const signature = await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
         assertTxSuccess(signature);
 
-        const frozen = await isAccountFrozen(rpc, wallet.address, mint.address);
+        const frozen = await isAccountFrozen(rpc, wallet.address, mint.address, DEFAULT_COMMITMENT);
         expect(frozen).toBe(true);
     }
 
@@ -824,7 +824,7 @@ describeSkipIf()('Management Integration Tests', () => {
         const signature = await sendAndConfirmTransaction(client, thawTx, DEFAULT_COMMITMENT);
         assertTxSuccess(signature);
 
-        const frozen = await isAccountFrozen(rpc, wallet.address, mint.address);
+        const frozen = await isAccountFrozen(rpc, wallet.address, mint.address, DEFAULT_COMMITMENT);
         expect(frozen).toBe(false);
     }
 
@@ -838,7 +838,7 @@ describeSkipIf()('Management Integration Tests', () => {
                 const { tokenAccount } = await setupTokenWithMint(TOKEN_ACL_PROGRAM_ID, 'Freeze Token', 'FRZ', wallet);
 
                 // Verify not frozen initially
-                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(false);
 
                 // When: Freeze the account
@@ -878,7 +878,7 @@ describeSkipIf()('Management Integration Tests', () => {
                 );
 
                 // Initial state: not frozen
-                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(false);
 
                 // When: Freeze the account
@@ -915,7 +915,7 @@ describeSkipIf()('Management Integration Tests', () => {
                 );
 
                 // Verify not frozen initially
-                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(false);
 
                 // When: Freeze the account using standard freeze authority
@@ -960,7 +960,7 @@ describeSkipIf()('Management Integration Tests', () => {
                 );
 
                 // Initial state: not frozen
-                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address);
+                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(false);
 
                 // When: Freeze the account
