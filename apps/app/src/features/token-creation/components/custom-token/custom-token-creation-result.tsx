@@ -85,7 +85,7 @@ export function CustomTokenCreationResultDisplay({ result, cluster = 'devnet' }:
                                             ({result.details.transferFeeBasisPoints} bps)
                                         </span>
                                     </div>
-                                    {result.details?.transferFeeMaximum && (
+                                    {result.details?.transferFeeMaximum != null && (
                                         <div>
                                             <strong>Maximum Fee:</strong> {result.details.transferFeeMaximum}
                                             <span className="text-muted-foreground ml-1">(smallest units)</span>

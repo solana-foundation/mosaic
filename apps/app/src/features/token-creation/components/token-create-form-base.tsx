@@ -53,7 +53,7 @@ export function TokenCreateFormBase<TOptions, TResult>({
             {/* Scrollable Content Area */}
             <div className="flex-1 overflow-y-auto min-h-0 space-y-6">
                 <FormStepper steps={steps} currentStep={currentStep} />
-                <StepContainer currentStep={currentStep} direction={direction}>
+                <StepContainer>
                     {renderStep(currentStep, options, setOption)}
                 </StepContainer>
             </div>

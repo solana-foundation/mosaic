@@ -32,7 +32,14 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
     // Transfer Fee calculations
     const decimals = parseInt(options.decimals || '6', 10) || 6;
     const transferFeeBasisPoints = parseInt(options.transferFeeBasisPoints || '0', 10) || 0;
-    const transferFeeMaximum = options.transferFeeMaximum ? BigInt(options.transferFeeMaximum) : 0n;
+    const transferFeeMaximum = (() => {
+        if (!options.transferFeeMaximum) return 0n;
+        try {
+            return BigInt(options.transferFeeMaximum);
+        } catch {
+            return 0n;
+        }
+    })();
     const transferFeeMaximumDisplay = transferFeeMaximum > 0n 
         ? (Number(transferFeeMaximum) / Math.pow(10, decimals)).toLocaleString()
         : '0';
@@ -152,11 +159,11 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                         {mode === 'static' && (
                             <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
                                 <div className="space-y-1">
-                                    <Label htmlFor="scaledUiAmountMultiplier" className="text-xs text-muted-foreground">
+                                    <Label htmlFor="scaledUiAmountMultiplier_static" className="text-xs text-muted-foreground">
                                         Display Multiplier
                                     </Label>
                                     <Input
-                                        id="scaledUiAmountMultiplier"
+                                        id="scaledUiAmountMultiplier_static"
                                         type="number"
                                         placeholder="1"
                                         value={options.scaledUiAmountMultiplier || ''}
@@ -179,11 +186,11 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                             <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <Label htmlFor="scaledUiAmountMultiplier" className="text-xs text-muted-foreground">
+                                        <Label htmlFor="scaledUiAmountMultiplier_scheduled" className="text-xs text-muted-foreground">
                                             Current Multiplier
                                         </Label>
                                         <Input
-                                            id="scaledUiAmountMultiplier"
+                                            id="scaledUiAmountMultiplier_scheduled"
                                             type="number"
                                             placeholder="1"
                                             value={options.scaledUiAmountMultiplier || ''}
@@ -235,11 +242,11 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                         {mode === 'rebasing' && (
                             <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
                                 <div className="space-y-1">
-                                    <Label htmlFor="scaledUiAmountMultiplier" className="text-xs text-muted-foreground">
+                                    <Label htmlFor="scaledUiAmountMultiplier_rebasing" className="text-xs text-muted-foreground">
                                         Initial Multiplier
                                     </Label>
                                     <Input
-                                        id="scaledUiAmountMultiplier"
+                                        id="scaledUiAmountMultiplier_rebasing"
                                         type="number"
                                         placeholder="1"
                                         value={options.scaledUiAmountMultiplier || ''}

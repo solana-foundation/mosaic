@@ -229,8 +229,13 @@ export const createCustomToken = async (
                     }
                     // Scheduled or rebasing: convert ISO date to Unix timestamp
                     if (options.scaledUiAmountEffectiveTimestamp) {
-                        const timestamp = Math.floor(new Date(options.scaledUiAmountEffectiveTimestamp).getTime() / 1000);
-                        return BigInt(timestamp);
+                        const parsedTime = new Date(options.scaledUiAmountEffectiveTimestamp).getTime();
+                        if (!Number.isFinite(parsedTime)) {
+                            throw new Error(
+                                `Invalid scaledUiAmountEffectiveTimestamp: "${options.scaledUiAmountEffectiveTimestamp}" is not a valid date`
+                            );
+                        }
+                        return BigInt(Math.floor(parsedTime / 1000));
                     }
                     return 0n;
                 })(),

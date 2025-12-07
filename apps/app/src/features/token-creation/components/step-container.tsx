@@ -1,10 +1,6 @@
-'use client';
-
 import { ReactNode } from 'react';
 
 interface StepContainerProps {
-    currentStep: number;
-    direction: number;
     children: ReactNode;
 }
 
