@@ -27,6 +27,7 @@ interface UseTokenCreationFormConfig<TOptions extends BaseTokenOptions, TResult 
     ) => Promise<TResult>;
     templateId: TemplateId;
     totalSteps?: number;
+    getTotalSteps?: (options: TOptions) => number;
     canProceed?: (step: number, options: TOptions) => boolean;
     transactionSendingSigner: TransactionModifyingSigner<string>;
     rpcUrl?: string;
@@ -52,18 +53,25 @@ export function useTokenCreationForm<TOptions extends BaseTokenOptions, TResult 
     initialOptions,
     createToken,
     templateId,
-    totalSteps = 3,
+    totalSteps: fixedTotalSteps = 3,
+    getTotalSteps,
     canProceed,
     transactionSendingSigner,
     rpcUrl,
     onTokenCreated,
 }: UseTokenCreationFormConfig<TOptions, TResult>): UseTokenCreationFormReturn<TOptions, TResult> {
     const addToken = useTokenStore(state => state.addToken);
-    const { currentStep, direction, isFirstStep, isLastStep, nextStep, prevStep } = useMultiStepForm({
+    const [options, setOptions] = useState<TOptions>(initialOptions);
+
+    // Compute dynamic total steps based on options
+    const totalSteps = getTotalSteps ? getTotalSteps(options) : fixedTotalSteps;
+
+    const { currentStep, direction, isFirstStep, nextStep, prevStep } = useMultiStepForm({
         totalSteps,
     });
 
-    const [options, setOptions] = useState<TOptions>(initialOptions);
+    // Compute isLastStep dynamically based on current totalSteps
+    const isLastStep = currentStep === totalSteps - 1;
     const [isCreating, setIsCreating] = useState(false);
     const [result, setResult] = useState<TResult | null>(null);
 

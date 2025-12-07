@@ -49,22 +49,28 @@ export function TokenCreateFormBase<TOptions, TResult>({
     }
 
     return (
-        <div className="space-y-6">
-            <FormStepper steps={steps} currentStep={currentStep} />
-            <StepContainer currentStep={currentStep} direction={direction}>
-                {renderStep(currentStep, options, setOption)}
-            </StepContainer>
-            <StepNavigation
-                isFirstStep={isFirstStep}
-                isLastStep={isLastStep}
-                onBack={goToPrevStep}
-                onNext={goToNextStep}
-                onSubmit={handleSubmit}
-                onCancel={onCancel}
-                isSubmitting={isCreating}
-                submitLabel={submitLabel}
-                nextDisabled={!canProceedFromStep(currentStep)}
-            />
+        <div className="flex flex-col h-full min-h-0">
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto min-h-0 space-y-6">
+                <FormStepper steps={steps} currentStep={currentStep} />
+                <StepContainer currentStep={currentStep} direction={direction}>
+                    {renderStep(currentStep, options, setOption)}
+                </StepContainer>
+            </div>
+            {/* Sticky Navigation at Bottom */}
+            <div className="shrink-0">
+                <StepNavigation
+                    isFirstStep={isFirstStep}
+                    isLastStep={isLastStep}
+                    onBack={goToPrevStep}
+                    onNext={goToNextStep}
+                    onSubmit={handleSubmit}
+                    onCancel={onCancel}
+                    isSubmitting={isCreating}
+                    submitLabel={submitLabel}
+                    nextDisabled={!canProceedFromStep(currentStep)}
+                />
+            </div>
         </div>
     );
 }

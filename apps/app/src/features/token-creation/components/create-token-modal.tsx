@@ -99,16 +99,19 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
             <DialogContent
                 className={cn(
                     'overflow-hidden sm:rounded-3xl p-0 gap-0 transition-all duration-300 [&>button]:hidden',
-                    selectedTemplate ? 'max-w-lg' : 'max-w-lg',
+                    selectedTemplate ? 'h-auto max-w-lg' : 'h-auto max-w-lg',
                 )}
             >
                 <div
                     className={cn(
-                        'overflow-hidden transition-all duration-300 ease-in-out',
-                        selectedTemplate ? 'max-h-auto' : 'max-h-[700px]',
+                        'overflow-hidden transition-all duration-300 ease-in-out flex flex-col',
+                        selectedTemplate ? 'h-auto' : 'h-auto',
                     )}
                 >
-                    <div className="overflow-y-auto max-h-[90vh] bg-primary/5">
+                    <div className={cn(
+                        'bg-primary/5 flex flex-col',
+                        selectedTemplate ? 'flex-1 min-h-auto h-auto' : 'overflow-y-auto h-auto'
+                    )}>
                         {!selectedTemplate ? (
                             <>
                                 <div className="flex items-center justify-between p-6 pb-4 border-b border-primary/5 bg-primary/5">
@@ -201,8 +204,9 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                 </div>
                             </>
                         ) : (
-                            <>
-                                <DialogHeader className="p-6 pb-4 border-b border-primary/5 bg-primary/5">
+                            <div className="flex flex-col h-full max-h-[90vh]">
+                                {/* Sticky Header */}
+                                <DialogHeader className="shrink-0 p-6 pb-4 border-b border-primary/5 bg-primary/5">
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <DialogTitle className="text-xl">
@@ -220,8 +224,9 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                     </div>
                                 </DialogHeader>
 
-                                <div className="p-6">{renderForm()}</div>
-                            </>
+                                {/* Scrollable Content */}
+                                <div className="flex-1 overflow-y-auto p-6">{renderForm()}</div>
+                            </div>
                         )}
                     </div>
                 </div>

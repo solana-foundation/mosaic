@@ -1,7 +1,12 @@
+'use client';
+
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { CustomTokenOptions } from '@/types/token';
 import {
     FileText,
@@ -16,6 +21,9 @@ import {
     Ban,
     Webhook,
     AlertTriangle,
+    ChevronDown,
+    X,
+    Info,
 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -31,6 +39,13 @@ interface ExtensionInfo {
     icon: React.ComponentType<{ className?: string }>;
     defaultEnabled?: boolean;
 }
+
+// Define extension conflicts: key -> array of conflicting extension keys
+const extensionConflicts: Record<string, string[]> = {
+    enableNonTransferable: ['enableTransferFee', 'enableTransferHook'],
+    enableTransferFee: ['enableNonTransferable'],
+    enableTransferHook: ['enableNonTransferable'],
+};
 
 const extensions: ExtensionInfo[] = [
     {
@@ -102,176 +117,156 @@ const extensions: ExtensionInfo[] = [
     },
 ];
 
+// Helper to check if an extension has conflicts with currently enabled extensions
+function getConflictingExtensions(options: CustomTokenOptions): Set<string> {
+    const conflicting = new Set<string>();
+
+    for (const [extKey, conflicts] of Object.entries(extensionConflicts)) {
+        const isEnabled = options[extKey as keyof CustomTokenOptions];
+        if (isEnabled) {
+            for (const conflictKey of conflicts) {
+                const conflictEnabled = options[conflictKey as keyof CustomTokenOptions];
+                if (conflictEnabled) {
+                    conflicting.add(extKey);
+                    conflicting.add(conflictKey);
+                }
+            }
+        }
+    }
+
+    return conflicting;
+}
+
+// Export for use in form validation
+export function hasExtensionConflicts(options: CustomTokenOptions): boolean {
+    return getConflictingExtensions(options).size > 0;
+}
+
+// Check if any selected extensions require additional configuration
+export function hasExtensionsRequiringConfig(options: CustomTokenOptions): boolean {
+    return !!(
+        options.enableTransferFee ||
+        options.enableInterestBearing ||
+        options.enableTransferHook ||
+        options.enableSrfc37 ||
+        options.enableScaledUiAmount
+    );
+}
+
 export function CustomTokenExtensionSelector({ options, onInputChange }: CustomTokenExtensionSelectorProps) {
+    const [isOpen, setIsOpen] = useState(false);
+
     const handleToggle = (key: keyof CustomTokenOptions, enabled: boolean) => {
         onInputChange(key as string, enabled);
     };
 
+    const isExtensionEnabled = (extension: ExtensionInfo) => {
+        const value = options[extension.key];
+        return typeof value === 'boolean' ? value : (extension.defaultEnabled ?? false);
+    };
+
+    const selectedExtensions = extensions.filter(ext => isExtensionEnabled(ext));
+    const selectedCount = selectedExtensions.length;
+    const conflictingExtensions = getConflictingExtensions(options);
+    const hasConflicts = conflictingExtensions.size > 0;
+
     return (
-        <Card>
-            <CardHeader>
+        <Card className="">
+            <CardHeader className="sr-only">
                 <CardTitle>Token Extensions</CardTitle>
                 <CardDescription>Select which Token-2022 extensions to enable for your token</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                {extensions.map(extension => {
-                    const Icon = extension.icon;
-                    const value = options[extension.key];
-                    const isEnabled = typeof value === 'boolean' ? value : (extension.defaultEnabled ?? false);
+            <CardContent className="space-y-2 p-2">
+                {/* Multi-select dropdown */}
+                <Popover open={isOpen} onOpenChange={setIsOpen}>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between h-auto min-h-10 py-2">
+                            <span className="text-muted-foreground">
+                                {selectedCount === 0
+                                    ? 'Select extensions...'
+                                    : `${selectedCount} extension${selectedCount !== 1 ? 's' : ''} selected`}
+                            </span>
+                            <ChevronDown className="h-4 w-4 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                        className="w-[var(--radix-popover-trigger-width)] p-0 bg-background dark:bg-zinc-900 border-border"
+                        align="start"
+                    >
+                        <div className="overflow-y-auto p-2" style={{ maxHeight: 'min(450px, 50vh)' }}>
+                            {extensions.map(extension => {
+                                const Icon = extension.icon;
+                                const isEnabled = isExtensionEnabled(extension);
+                                const isConflicting = conflictingExtensions.has(extension.key);
 
-                    return (
-                        <div
-                            key={extension.key}
-                            className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                        >
-                            <div className="mt-1">
-                                <Icon className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                            <div className="flex-1">
-                                <div className="flex items-center justify-between mb-1">
-                                    <Label htmlFor={extension.key} className="font-semibold cursor-pointer">
-                                        {extension.label}
-                                    </Label>
-                                    <Switch
-                                        id={extension.key}
-                                        checked={isEnabled}
-                                        onCheckedChange={checked => handleToggle(extension.key, checked)}
-                                    />
-                                </div>
-                                <p className="text-sm text-muted-foreground">{extension.description}</p>
-                            </div>
+                                return (
+                                    <div
+                                        key={extension.key}
+                                        className="flex items-center gap-3 px-2 py-2 rounded-md hover:bg-muted cursor-pointer text-foreground"
+                                        onClick={() => handleToggle(extension.key, !isEnabled)}
+                                    >
+                                        <Checkbox
+                                            checked={isEnabled}
+                                            onCheckedChange={checked => handleToggle(extension.key, !!checked)}
+                                            onClick={e => e.stopPropagation()}
+                                        />
+                                        <Icon className={`h-4 w-4 shrink-0 ${isConflicting ? 'text-destructive' : 'text-muted-foreground'}`} />
+                                        <span className={`flex-1 text-sm ${isConflicting ? 'text-destructive' : ''}`}>
+                                            {extension.label}
+                                        </span>
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <button
+                                                    type="button"
+                                                    className="p-1 hover:bg-muted rounded"
+                                                    onClick={e => e.stopPropagation()}
+                                                >
+                                                    <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                                                </button>
+                                            </TooltipTrigger>
+                                            <TooltipContent side="right" className="max-w-[200px]">
+                                                {extension.description}
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </div>
+                                );
+                            })}
                         </div>
-                    );
-                })}
-
-                {options.enableSrfc37 && (
-                    <div className="mt-4 p-4 bg-muted/50 rounded-lg">
-                        <Label className="block text-sm font-medium mb-2">ACL Mode</Label>
-                        <div className="flex gap-4">
-                            <label className="flex items-center gap-2">
-                                <input
-                                    type="radio"
-                                    name="aclMode"
-                                    value="allowlist"
-                                    checked={options.aclMode === 'allowlist'}
-                                    onChange={() => onInputChange('aclMode', 'allowlist')}
-                                    className="w-4 h-4"
-                                />
-                                <span className="text-sm">Allowlist</span>
-                            </label>
-                            <label className="flex items-center gap-2">
-                                <input
-                                    type="radio"
-                                    name="aclMode"
-                                    value="blocklist"
-                                    checked={options.aclMode === 'blocklist' || !options.aclMode}
-                                    onChange={() => onInputChange('aclMode', 'blocklist')}
-                                    className="w-4 h-4"
-                                />
-                                <span className="text-sm">Blocklist</span>
-                            </label>
-                        </div>
+                    </PopoverContent>
+                </Popover>
+                {/* Selected extensions as badges */}
+                {selectedCount > 0 && (
+                    <div className="flex flex-wrap gap-2 border-t border-primary/10 pt-2">
+                        {selectedExtensions.map(extension => {
+                            const isConflicting = conflictingExtensions.has(extension.key);
+                            return (
+                                <Badge
+                                    key={extension.key}
+                                    variant={isConflicting ? 'destructive' : 'secondary'}
+                                    className="gap-1.5 pr-1 cursor-default"
+                                >
+                                    {extension.label}
+                                    <button
+                                        type="button"
+                                        className="ml-1 p-0.5 hover:bg-muted-foreground/30 rounded cursor-pointer"
+                                        onClick={() => handleToggle(extension.key, false)}
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </Badge>
+                            );
+                        })}
                     </div>
                 )}
 
-                {/* Transfer Fee Configuration */}
-                {options.enableTransferFee && (
-                    <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-4">
-                        <Label className="block text-sm font-medium">Transfer Fee Configuration</Label>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <Label htmlFor="transferFeeBasisPoints" className="text-xs text-muted-foreground">
-                                    Fee (basis points, 100 = 1%)
-                                </Label>
-                                <Input
-                                    id="transferFeeBasisPoints"
-                                    type="number"
-                                    min="0"
-                                    max="10000"
-                                    placeholder="100"
-                                    value={options.transferFeeBasisPoints || ''}
-                                    onChange={e => onInputChange('transferFeeBasisPoints', e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <Label htmlFor="transferFeeMaximum" className="text-xs text-muted-foreground">
-                                    Maximum Fee (in smallest units)
-                                </Label>
-                                <Input
-                                    id="transferFeeMaximum"
-                                    type="text"
-                                    placeholder="1000000"
-                                    value={options.transferFeeMaximum || ''}
-                                    onChange={e => onInputChange('transferFeeMaximum', e.target.value)}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Interest Bearing Configuration */}
-                {options.enableInterestBearing && (
-                    <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-4">
-                        <Label className="block text-sm font-medium">Interest Bearing Configuration</Label>
-                        <div>
-                            <Label htmlFor="interestRate" className="text-xs text-muted-foreground">
-                                Interest Rate (basis points, 500 = 5% annual)
-                            </Label>
-                            <Input
-                                id="interestRate"
-                                type="number"
-                                min="0"
-                                placeholder="500"
-                                value={options.interestRate || ''}
-                                onChange={e => onInputChange('interestRate', e.target.value)}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                {/* Non-Transferable Warning */}
-                {options.enableNonTransferable && (
-                    <Alert className="mt-4">
+                {/* Single conflict error alert */}
+                {hasConflicts && (
+                    <Alert variant="warning" className="border-amber-500/50">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertDescription>
-                            Non-transferable tokens are permanently bound to the account they are minted to. They cannot
-                            be transferred to other accounts (soul-bound).
-                        </AlertDescription>
-                    </Alert>
-                )}
-
-                {/* Transfer Hook Configuration */}
-                {options.enableTransferHook && (
-                    <div className="mt-4 p-4 bg-muted/50 rounded-lg space-y-4">
-                        <Label className="block text-sm font-medium">Transfer Hook Configuration</Label>
-                        <div>
-                            <Label htmlFor="transferHookProgramId" className="text-xs text-muted-foreground">
-                                Hook Program ID (required)
-                            </Label>
-                            <Input
-                                id="transferHookProgramId"
-                                type="text"
-                                placeholder="Program address..."
-                                value={options.transferHookProgramId || ''}
-                                onChange={e => onInputChange('transferHookProgramId', e.target.value)}
-                            />
-                        </div>
-                        <Alert>
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertDescription>
-                                Transfer hooks require a deployed program that implements the transfer hook interface.
-                            </AlertDescription>
-                        </Alert>
-                    </div>
-                )}
-
-                {/* Conflict Warning: NonTransferable + TransferFee */}
-                {options.enableNonTransferable && options.enableTransferFee && (
-                    <Alert variant="destructive" className="mt-4">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                            Non-transferable tokens cannot have transfer fees since no transfers occur. Please disable
-                            one of these extensions.
+                            Non-transferable tokens cannot have transfer fees
+                            or transfer hooks. Please disable one of the conflicting extensions
+                            to continue.
                         </AlertDescription>
                     </Alert>
                 )}

@@ -73,6 +73,95 @@ export function CustomTokenCreationResultDisplay({ result, cluster = 'devnet' }:
                             </div>
                         </div>
 
+                        {/* Transfer Fee Details */}
+                        {result.details?.transferFeeBasisPoints !== undefined && (
+                            <>
+                                <div className="pt-2 text-sm text-muted-foreground">Transfer Fee Configuration</div>
+                                <div className="grid grid-cols-2 gap-3 text-sm p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                                    <div>
+                                        <strong>Fee Rate:</strong>{' '}
+                                        {(result.details.transferFeeBasisPoints / 100).toFixed(2)}%
+                                        <span className="text-muted-foreground ml-1">
+                                            ({result.details.transferFeeBasisPoints} bps)
+                                        </span>
+                                    </div>
+                                    {result.details?.transferFeeMaximum && (
+                                        <div>
+                                            <strong>Maximum Fee:</strong> {result.details.transferFeeMaximum}
+                                            <span className="text-muted-foreground ml-1">(smallest units)</span>
+                                        </div>
+                                    )}
+                                    {result.details?.transferFeeAuthority && (
+                                        <div className="col-span-2">
+                                            <strong>Fee Authority:</strong>{' '}
+                                            <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                                {result.details.transferFeeAuthority}
+                                            </code>
+                                        </div>
+                                    )}
+                                    {result.details?.withdrawWithheldAuthority && (
+                                        <div className="col-span-2">
+                                            <strong>Withdraw Authority:</strong>{' '}
+                                            <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                                {result.details.withdrawWithheldAuthority}
+                                            </code>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+
+                        {/* Interest Bearing Details */}
+                        {result.details?.interestRate !== undefined && (
+                            <>
+                                <div className="pt-2 text-sm text-muted-foreground">Interest Bearing Configuration</div>
+                                <div className="grid grid-cols-2 gap-3 text-sm p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                    <div>
+                                        <strong>Annual Rate:</strong>{' '}
+                                        {(result.details.interestRate / 100).toFixed(2)}%
+                                        <span className="text-muted-foreground ml-1">
+                                            ({result.details.interestRate} bps)
+                                        </span>
+                                    </div>
+                                    {result.details?.interestBearingAuthority && (
+                                        <div className="col-span-2">
+                                            <strong>Rate Authority:</strong>{' '}
+                                            <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                                {result.details.interestBearingAuthority}
+                                            </code>
+                                        </div>
+                                    )}
+                                    <div className="col-span-2 text-xs text-muted-foreground">
+                                        Interest is displayed cosmetically only — no new tokens are minted.
+                                    </div>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Transfer Hook Details */}
+                        {result.details?.transferHookProgramId && (
+                            <>
+                                <div className="pt-2 text-sm text-muted-foreground">Transfer Hook Configuration</div>
+                                <div className="grid grid-cols-1 gap-3 text-sm p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg border border-purple-200 dark:border-purple-800">
+                                    <div>
+                                        <strong>Hook Program:</strong>{' '}
+                                        <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                            {result.details.transferHookProgramId}
+                                        </code>
+                                    </div>
+                                    {result.details?.transferHookAuthority && (
+                                        <div>
+                                            <strong>Hook Authority:</strong>{' '}
+                                            <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                                {result.details.transferHookAuthority}
+                                            </code>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+
+                        {/* Other Authorities */}
                         {(result.details?.metadataAuthority ||
                             result.details?.pausableAuthority ||
                             result.details?.permanentDelegateAuthority ||

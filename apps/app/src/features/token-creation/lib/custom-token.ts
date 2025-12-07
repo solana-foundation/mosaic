@@ -47,6 +47,17 @@ function validateCustomTokenOptions(options: CustomTokenOptions): number {
         if (multiplier <= 0) {
             throw new Error('Scaled UI Amount multiplier must be greater than zero');
         }
+        // Validate new multiplier for scheduled/rebasing modes
+        if (options.scaledUiAmountMode === 'scheduled' || 
+            (options.scaledUiAmountMode === 'rebasing' && options.scaledUiAmountEffectiveTimestamp)) {
+            const newMultiplier = options.scaledUiAmountNewMultiplier ? parseFloat(options.scaledUiAmountNewMultiplier) : 1;
+            if (isNaN(newMultiplier)) {
+                throw new Error('Scaled UI Amount new multiplier must be a valid number');
+            }
+            if (newMultiplier <= 0) {
+                throw new Error('Scaled UI Amount new multiplier must be greater than zero');
+            }
+        }
     }
 
     // Validate Transfer Fee configuration if enabled
@@ -195,9 +206,34 @@ export const createCustomToken = async (
                 scaledUiAmountMultiplier: options.scaledUiAmountMultiplier
                     ? parseFloat(options.scaledUiAmountMultiplier)
                     : undefined,
-                scaledUiAmountNewMultiplier: options.scaledUiAmountNewMultiplier
-                    ? parseFloat(options.scaledUiAmountNewMultiplier)
-                    : undefined,
+                // For static mode: newMultiplier = multiplier, timestamp = 0
+                // For scheduled/rebasing with timestamp: use provided values
+                scaledUiAmountNewMultiplier: (() => {
+                    const mode = options.scaledUiAmountMode || 'static';
+                    if (mode === 'static') {
+                        // Static mode: new multiplier equals current multiplier
+                        return options.scaledUiAmountMultiplier
+                            ? parseFloat(options.scaledUiAmountMultiplier)
+                            : undefined;
+                    }
+                    // Scheduled or rebasing with scheduled first rebase
+                    return options.scaledUiAmountNewMultiplier
+                        ? parseFloat(options.scaledUiAmountNewMultiplier)
+                        : undefined;
+                })(),
+                scaledUiAmountNewMultiplierEffectiveTimestamp: (() => {
+                    const mode = options.scaledUiAmountMode || 'static';
+                    if (mode === 'static') {
+                        // Static mode: no scheduled change
+                        return 0n;
+                    }
+                    // Scheduled or rebasing: convert ISO date to Unix timestamp
+                    if (options.scaledUiAmountEffectiveTimestamp) {
+                        const timestamp = Math.floor(new Date(options.scaledUiAmountEffectiveTimestamp).getTime() / 1000);
+                        return BigInt(timestamp);
+                    }
+                    return 0n;
+                })(),
                 defaultAccountStateInitialized: options.defaultAccountStateInitialized ?? true,
                 freezeAuthority,
                 // Transfer Fee configuration

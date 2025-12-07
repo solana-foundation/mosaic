@@ -155,8 +155,10 @@ export interface CustomTokenOptions {
     confidentialBalancesAuthority?: string;
     scaledUiAmountAuthority?: string;
     // Scaled UI Amount configuration
+    scaledUiAmountMode?: 'static' | 'scheduled' | 'rebasing';
     scaledUiAmountMultiplier?: string;
     scaledUiAmountNewMultiplier?: string;
+    scaledUiAmountEffectiveTimestamp?: string;
     // Default Account State configuration
     defaultAccountStateInitialized?: boolean;
     freezeAuthority?: string;
