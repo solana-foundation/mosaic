@@ -258,6 +258,9 @@ describeSkipIf()('Management Integration Tests', () => {
 
                         await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
+                        // Verify mint exists before proceeding
+                        await assertBalance(client.rpc, recipient.address, newMint.address, 0n, DEFAULT_COMMITMENT);
+
                         // Mint tokens
                         const mintTx = await createMintToTransaction(
                             client.rpc,
@@ -317,6 +320,9 @@ describeSkipIf()('Management Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n, DEFAULT_COMMITMENT);
 
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
@@ -489,6 +495,9 @@ describeSkipIf()('Management Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n, DEFAULT_COMMITMENT);
+
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
                     client.rpc,
@@ -568,6 +577,9 @@ describeSkipIf()('Management Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n, DEFAULT_COMMITMENT);
+
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
                     client.rpc,
@@ -638,6 +650,9 @@ describeSkipIf()('Management Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, wallet.address, mint.address, 0n, DEFAULT_COMMITMENT);
+
                 // Mint tokens to wallet
                 const mintTx = await createMintToTransaction(
                     client.rpc,
@@ -705,6 +720,9 @@ describeSkipIf()('Management Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, wallet.address, mint.address, 0n, DEFAULT_COMMITMENT);
 
                 // Mint tokens to wallet
                 const mintTx = await createMintToTransaction(

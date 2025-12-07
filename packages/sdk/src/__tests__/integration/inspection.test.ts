@@ -2,7 +2,7 @@ import setupTestSuite from './setup';
 import type { Client } from './setup';
 import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
-import { sendAndConfirmTransaction, DEFAULT_TIMEOUT, DEFAULT_COMMITMENT, describeSkipIf } from './helpers';
+import { sendAndConfirmTransaction, assertBalance, DEFAULT_TIMEOUT, DEFAULT_COMMITMENT, describeSkipIf } from './helpers';
 import { Token } from '../../issuance';
 import { createMintToTransaction } from '../../management';
 import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
@@ -626,6 +626,9 @@ describeSkipIf()('Inspection Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, recipient.address, mint.address, 0n, DEFAULT_COMMITMENT);
 
                 // Mint tokens
                 const mintTx = await createMintToTransaction(
