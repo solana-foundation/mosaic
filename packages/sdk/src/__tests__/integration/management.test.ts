@@ -937,6 +937,10 @@ describeSkipIf()('Management Integration Tests', () => {
                     wallet,
                 );
 
+                // Verify not frozen initially
+                let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address, DEFAULT_COMMITMENT);
+                expect(frozen).toBe(false);
+
                 // Freeze first
                 await freezeAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
 
