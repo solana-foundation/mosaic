@@ -156,6 +156,9 @@ describeSkipIf()('Transfer Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n);
+
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
                     client.rpc,
@@ -233,6 +236,9 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n);
 
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
@@ -398,6 +404,9 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n);
 
                 // Mint tokens to sender
                 const initialAmount = 1_000_000;

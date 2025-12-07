@@ -119,6 +119,9 @@ describeSkipIf()('Management Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, testRecipient.address, mint.address, 0n, DEFAULT_COMMITMENT);
+
                 // First mint
                 const mintTx1 = await createMintToTransaction(
                     client.rpc,
@@ -191,6 +194,9 @@ describeSkipIf()('Management Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, recipient.address, mint.address, 0n, DEFAULT_COMMITMENT);
 
                 // When: Minting 3 times to the same wallet
                 for (let i = 1; i <= 3; i++) {
@@ -400,6 +406,9 @@ describeSkipIf()('Management Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n, DEFAULT_COMMITMENT);
 
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
