@@ -1,7 +1,6 @@
 import { StablecoinOptions, StablecoinCreationResult } from '@/types/token';
 import { StablecoinBasicParams } from './stablecoin-basic-params';
 import { StablecoinFeaturesStep } from './stablecoin-features-step';
-import { StablecoinAuthorityParams } from './stablecoin-authority-params';
 import { StablecoinCreationResultDisplay } from './stablecoin-creation-result';
 import { createStablecoin } from '@/features/token-creation/lib/stablecoin';
 import type { TransactionModifyingSigner } from '@solana/kit';
@@ -19,7 +18,6 @@ interface StablecoinCreateFormProps {
 const STEPS: Step[] = [
     { id: 'identity', label: 'Token Identity' },
     { id: 'features', label: 'Features' },
-    { id: 'authorities', label: 'Authorities' },
 ];
 
 const INITIAL_OPTIONS: StablecoinOptions = {
@@ -46,6 +44,7 @@ export function StablecoinCreateForm({
         initialOptions: INITIAL_OPTIONS,
         createToken: createStablecoin,
         templateId: 'stablecoin',
+        totalSteps: 2,
         transactionSendingSigner,
         rpcUrl,
         onTokenCreated,
@@ -63,8 +62,6 @@ export function StablecoinCreateForm({
                         return <StablecoinBasicParams options={options} onInputChange={setOption} />;
                     case 1:
                         return <StablecoinFeaturesStep options={options} onInputChange={setOption} />;
-                    case 2:
-                        return <StablecoinAuthorityParams options={options} onInputChange={setOption} alwaysExpanded />;
                     default:
                         return null;
                 }

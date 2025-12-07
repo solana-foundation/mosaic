@@ -1,7 +1,6 @@
 import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/types/token';
 import { TokenizedSecurityBasicParams } from './tokenized-security-basic-params';
 import { TokenizedSecurityFeaturesStep } from './tokenized-security-features-step';
-import { TokenizedSecurityAuthorityParams } from './tokenized-security-authority-params';
 import { TokenizedSecurityCreationResultDisplay } from './tokenized-security-creation-result';
 import { createTokenizedSecurity } from '@/features/token-creation/lib/tokenized-security';
 import type { TransactionModifyingSigner } from '@solana/kit';
@@ -19,7 +18,6 @@ interface TokenizedSecurityCreateFormProps {
 const STEPS: Step[] = [
     { id: 'identity', label: 'Token Identity' },
     { id: 'features', label: 'Features' },
-    { id: 'authorities', label: 'Authorities' },
 ];
 
 const INITIAL_OPTIONS: TokenizedSecurityOptions = {
@@ -48,6 +46,7 @@ export function TokenizedSecurityCreateForm({
         initialOptions: INITIAL_OPTIONS,
         createToken: createTokenizedSecurity,
         templateId: 'tokenized-security',
+        totalSteps: 2,
         transactionSendingSigner,
         rpcUrl,
         onTokenCreated,
@@ -71,13 +70,6 @@ export function TokenizedSecurityCreateForm({
                     case 1:
                         return (
                             <TokenizedSecurityFeaturesStep
-                                options={options}
-                                onInputChange={setOption as (field: keyof TokenizedSecurityOptions, value: string | boolean) => void}
-                            />
-                        );
-                    case 2:
-                        return (
-                            <TokenizedSecurityAuthorityParams
                                 options={options}
                                 onInputChange={setOption as (field: keyof TokenizedSecurityOptions, value: string | boolean) => void}
                             />

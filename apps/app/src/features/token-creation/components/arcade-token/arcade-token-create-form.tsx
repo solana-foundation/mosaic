@@ -1,7 +1,6 @@
 import { ArcadeTokenOptions, ArcadeTokenCreationResult } from '@/types/token';
 import { ArcadeTokenBasicParams } from './arcade-token-basic-params';
 import { ArcadeTokenFeaturesStep } from './arcade-token-features-step';
-import { ArcadeTokenAuthorityParams } from './arcade-token-authority-params';
 import { ArcadeTokenCreationResultDisplay } from './arcade-token-creation-result';
 import { createArcadeToken } from '@/features/token-creation/lib/arcade-token';
 import type { TransactionModifyingSigner } from '@solana/kit';
@@ -19,7 +18,6 @@ interface ArcadeTokenCreateFormProps {
 const STEPS: Step[] = [
     { id: 'identity', label: 'Token Identity' },
     { id: 'features', label: 'Features' },
-    { id: 'authorities', label: 'Authorities' },
 ];
 
 const INITIAL_OPTIONS: ArcadeTokenOptions = {
@@ -44,6 +42,7 @@ export function ArcadeTokenCreateForm({
         initialOptions: INITIAL_OPTIONS,
         createToken: createArcadeToken,
         templateId: 'arcade-token',
+        totalSteps: 2,
         transactionSendingSigner,
         rpcUrl,
         onTokenCreated,
@@ -61,8 +60,6 @@ export function ArcadeTokenCreateForm({
                         return <ArcadeTokenBasicParams options={options} onInputChange={setOption} />;
                     case 1:
                         return <ArcadeTokenFeaturesStep />;
-                    case 2:
-                        return <ArcadeTokenAuthorityParams options={options} onInputChange={setOption} alwaysExpanded />;
                     default:
                         return null;
                 }

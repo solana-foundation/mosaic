@@ -12,16 +12,28 @@ interface ArcadeTokenBasicParamsProps {
 
 export function ArcadeTokenBasicParams({ options, onInputChange }: ArcadeTokenBasicParamsProps) {
     return (
-        <Card className="py-4">
-            <CardHeader>
+        <Card className="py-4 rounded-3xl">
+            <CardHeader className="sr-only">
                 <CardTitle>Token Identity</CardTitle>
                 <CardDescription>Configure the basic properties of your arcade token</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="flex gap-6">
-                    <TokenImagePreview uri={options.uri || ''} symbol={options.symbol || ''} />
-
-                    <div className="flex-1 space-y-4">
+                <div className="flex flex-col gap-6 py-2">
+                    <div className="flex flex-col items-center justify-center">
+                        <TokenImagePreview uri={options.uri || ''} symbol={options.symbol || ''} />
+                    </div>
+                    <div className="space-y-2">
+                            <Label htmlFor="arcade-uri">Metadata URI</Label>
+                            <Input
+                                id="arcade-uri"
+                                type="url"
+                                placeholder="https://example.com/metadata.json"
+                                value={options.uri}
+                                onChange={e => onInputChange('uri', e.target.value)}
+                            />
+                    </div>
+                    
+                    <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="arcade-name">Token Name</Label>
                             <Input
@@ -49,17 +61,6 @@ export function ArcadeTokenBasicParams({ options, onInputChange }: ArcadeTokenBa
                             value={options.decimals}
                             onChange={value => onInputChange('decimals', value)}
                         />
-
-                        <div className="space-y-2">
-                            <Label htmlFor="arcade-uri">Metadata URI</Label>
-                            <Input
-                                id="arcade-uri"
-                                type="url"
-                                placeholder="https://example.com/metadata.json"
-                                value={options.uri}
-                                onChange={e => onInputChange('uri', e.target.value)}
-                            />
-                        </div>
                     </div>
                 </div>
             </CardContent>

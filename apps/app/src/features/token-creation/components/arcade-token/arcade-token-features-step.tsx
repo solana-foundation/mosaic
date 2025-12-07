@@ -24,12 +24,16 @@ const DEFAULT_FEATURES = [
 
 export function ArcadeTokenFeaturesStep() {
     return (
-        <Card className="py-4">
-            <CardHeader>
-                <CardTitle>Enabled Features</CardTitle>
-                <CardDescription>
-                    Arcade tokens come pre-configured with the following features for closed-loop systems.
-                </CardDescription>
+        <Card className="py-4 rounded-3xl">
+            <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                    <div>
+                        <CardTitle className="text-base">Enabled Features</CardTitle>
+                        <CardDescription className="text-xs">
+                            Arcade tokens come pre-configured for closed-loop systems
+                        </CardDescription>
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
