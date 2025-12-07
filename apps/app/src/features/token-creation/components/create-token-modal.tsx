@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ChevronRight, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { templates, type Template } from '@/config/templates';
 import { useConnectorSigner } from '@/features/wallet/hooks/use-connector-signer';
@@ -12,6 +11,7 @@ import { ArcadeTokenCreateForm } from './arcade-token/arcade-token-create-form';
 import { TokenizedSecurityCreateForm } from './tokenized-security/tokenized-security-create-form';
 import { CustomTokenCreateForm } from './custom-token/custom-token-create-form';
 import { cn } from '@/lib/utils';
+// import { IconAppGiftFill } from 'symbols-react';
 
 interface CreateTokenModalProps {
     isOpen: boolean;
@@ -59,6 +59,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                         transactionSendingSigner={transactionSendingSigner}
                         rpcUrl={rpcUrl}
                         onTokenCreated={handleTokenCreated}
+                        onCancel={handleBack}
                     />
                 );
             case 'arcade-token':
@@ -67,6 +68,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                         transactionSendingSigner={transactionSendingSigner}
                         rpcUrl={rpcUrl}
                         onTokenCreated={handleTokenCreated}
+                        onCancel={handleBack}
                     />
                 );
             case 'tokenized-security':
@@ -75,6 +77,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                         transactionSendingSigner={transactionSendingSigner}
                         rpcUrl={rpcUrl}
                         onTokenCreated={handleTokenCreated}
+                        onCancel={handleBack}
                     />
                 );
             case 'custom-token':
@@ -83,6 +86,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                         transactionSendingSigner={transactionSendingSigner}
                         rpcUrl={rpcUrl}
                         onTokenCreated={handleTokenCreated}
+                        onCancel={handleBack}
                     />
                 );
             default:
@@ -94,14 +98,14 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
         <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent
                 className={cn(
-                    'overflow-hidden sm:rounded-3xl p-0 gap-0 transition-all duration-300',
-                    selectedTemplate ? 'max-w-3xl' : 'max-w-xl',
+                    'overflow-hidden sm:rounded-3xl p-0 gap-0 transition-all duration-300 [&>button]:hidden',
+                    selectedTemplate ? 'max-w-lg' : 'max-w-lg',
                 )}
             >
                 <div
                     className={cn(
                         'overflow-hidden transition-all duration-300 ease-in-out',
-                        selectedTemplate ? 'max-h-[90vh]' : 'max-h-[700px]',
+                        selectedTemplate ? 'max-h-auto' : 'max-h-[700px]',
                     )}
                 >
                     <div className="overflow-y-auto max-h-[90vh] bg-primary/5">
@@ -109,14 +113,16 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                             <>
                                 <div className="flex items-center justify-between p-6 pb-4 border-b border-primary/5 bg-primary/5">
                                     <DialogTitle className="text-xl font-semibold">Create New Token</DialogTitle>
-                                    {/* The Close button is automatically rendered by DialogContent, but we can hide it via CSS or rely on it. 
-                                        Shadcn's DialogContent includes a Close button absolute positioned. 
-                                        We'll let the default close button handle the closing, but it might overlap our header if we aren't careful.
-                                        The default close button is right-4 top-4.
-                                    */}
+                                    <button
+                                        onClick={handleClose}
+                                        className="rounded-full p-1.5 bg-primary/10 hover:bg-muted transition-colors cursor-pointer"
+                                        aria-label="Close"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
                                 </div>
 
-                                <div className="p-6 space-y-4">
+                                <div className="p-4.5 space-y-4">
                                     {/* Custom Token - First */}
                                     {(() => {
                                         const customToken = templates.find(t => t.id === 'custom-token');
@@ -147,10 +153,21 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                     })()}
 
                                     {/* Templates Label */}
-                                    <div className="pt-2 pb-2">
-                                        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-1 flex-col">
+                                            <div className="w-full h-px bg-border mb-1" />
+                                            <div className="w-full h-px bg-border mb-1" />
+                                            <div className="w-full h-px bg-border" />
+                                        </div>
+                                        <span className="text-sm font-medium text-primary flex items-center gap-2">
+                                            {/* <IconAppGiftFill className="h-4 w-4 fill-primary/30" /> */}
                                             Templates
-                                        </h3>
+                                        </span>
+                                        <div className="flex-1 flex-col">
+                                            <div className="w-full h-px bg-border mb-1" />
+                                            <div className="w-full h-px bg-border mb-1" />
+                                            <div className="w-full h-px bg-border" />
+                                        </div>
                                     </div>
 
                                     {/* Other Templates */}
@@ -186,21 +203,20 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                         ) : (
                             <>
                                 <DialogHeader className="p-6 pb-4 border-b border-primary/5 bg-primary/5">
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={handleBack}
-                                            className="h-8 w-8 p-0 -ml-2 mr-1"
-                                        >
-                                            <ArrowLeft className="h-4 w-4" />
-                                        </Button>
+                                    <div className="flex items-center justify-between">
                                         <div>
                                             <DialogTitle className="text-xl">
-                                                Create {selectedTemplate.title}
+                                                Create a {selectedTemplate.title}
                                             </DialogTitle>
                                             <DialogDescription>Configure your token parameters</DialogDescription>
                                         </div>
+                                        <button
+                                            onClick={handleClose}
+                                            className="rounded-full p-1.5 bg-primary/10 hover:bg-muted transition-colors cursor-pointer"
+                                            aria-label="Close"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
                                     </div>
                                 </DialogHeader>
 

@@ -2,6 +2,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CustomTokenOptions } from '@/types/token';
+import { TokenImagePreview } from '../token-image-preview';
+import { DecimalsSelector } from '../decimals-selector';
 
 interface CustomTokenBasicParamsProps {
     options: CustomTokenOptions;
@@ -10,58 +12,54 @@ interface CustomTokenBasicParamsProps {
 
 export function CustomTokenBasicParams({ options, onInputChange }: CustomTokenBasicParamsProps) {
     return (
-        <Card className="py-4">
-            <CardHeader>
-                <CardTitle>Basic Parameters</CardTitle>
-                <CardDescription>Configure the fundamental properties of your token</CardDescription>
+        <Card className="py-4 rounded-3xl">
+            <CardHeader className="sr-only">
+                <CardTitle>Token Identity</CardTitle>
+                <CardDescription>Configure the basic properties of your token</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="custom-name">Token Name *</Label>
-                        <Input
-                            id="custom-name"
-                            type="text"
-                            placeholder="e.g., My Token"
-                            value={options.name}
-                            onChange={e => onInputChange('name', e.target.value)}
-                            required
-                        />
+            <CardContent>
+                <div className="flex flex-col gap-6 py-2">
+                    <div className="flex flex-col items-center justify-center">
+                        <TokenImagePreview uri={options.uri || ''} symbol={options.symbol || ''} />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="custom-symbol">Symbol *</Label>
-                        <Input
-                            id="custom-symbol"
-                            type="text"
-                            placeholder="e.g., TOKEN"
-                            value={options.symbol}
-                            onChange={e => onInputChange('symbol', e.target.value)}
-                            required
-                        />
+                            <Label htmlFor="custom-uri">Metadata URI</Label>
+                            <Input
+                                id="custom-uri"
+                                type="url"
+                                placeholder="https://example.com/metadata.json"
+                                value={options.uri}
+                                onChange={e => onInputChange('uri', e.target.value)}
+                            />
                     </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                        <Label htmlFor="custom-decimals">Decimals *</Label>
-                        <Input
+                    
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="custom-name">Token Name</Label>
+                            <Input
+                                id="custom-name"
+                                type="text"
+                                placeholder="e.g., My Token"
+                                value={options.name}
+                                onChange={e => onInputChange('name', e.target.value)}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="custom-symbol">Symbol</Label>
+                            <Input
+                                id="custom-symbol"
+                                type="text"
+                                placeholder="e.g., TOKEN"
+                                value={options.symbol}
+                                onChange={e => onInputChange('symbol', e.target.value)}
+                            />
+                        </div>
+
+                        <DecimalsSelector
                             id="custom-decimals"
-                            type="number"
-                            placeholder="6"
                             value={options.decimals}
-                            onChange={e => onInputChange('decimals', e.target.value)}
-                            min={0}
-                            max={9}
-                            required
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="custom-uri">Metadata URI</Label>
-                        <Input
-                            id="custom-uri"
-                            type="url"
-                            placeholder="https://example.com/metadata.json"
-                            value={options.uri}
-                            onChange={e => onInputChange('uri', e.target.value)}
+                            onChange={value => onInputChange('decimals', value)}
                         />
                     </div>
                 </div>

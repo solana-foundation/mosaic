@@ -8,10 +8,15 @@ import { CustomTokenOptions } from '@/types/token';
 interface CustomTokenAuthorityParamsProps {
     options: CustomTokenOptions;
     onInputChange: (field: string, value: string | boolean) => void;
+    alwaysExpanded?: boolean;
 }
 
-export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTokenAuthorityParamsProps) {
-    const [showOptionalParams, setShowOptionalParams] = useState(false);
+export function CustomTokenAuthorityParams({
+    options,
+    onInputChange,
+    alwaysExpanded = false,
+}: CustomTokenAuthorityParamsProps) {
+    const [showOptionalParams, setShowOptionalParams] = useState(alwaysExpanded);
 
     // Check if any extension that requires authorities is enabled
     const hasEnabledExtensions =
@@ -25,29 +30,40 @@ export function CustomTokenAuthorityParams({ options, onInputChange }: CustomTok
         return null;
     }
 
+    const isExpanded = alwaysExpanded || showOptionalParams;
+
     return (
         <Card>
             <CardHeader>
-                <button
-                    type="button"
-                    onClick={() => setShowOptionalParams(!showOptionalParams)}
-                    aria-controls="custom-token-authority-params"
-                    aria-expanded={showOptionalParams}
-                    className="flex items-center gap-2 text-left"
-                    title={showOptionalParams ? 'Collapse' : 'Expand'}
-                >
-                    <ChevronRight
-                        className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${showOptionalParams ? 'rotate-90' : ''}`}
-                    />
+                {alwaysExpanded ? (
                     <div>
                         <h3 className="text-lg font-semibold">Authority Parameters (Optional)</h3>
                         <p className="text-sm text-muted-foreground">
                             Configure authorities for enabled extensions. Leave empty to use mint authority.
                         </p>
                     </div>
-                </button>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => setShowOptionalParams(!showOptionalParams)}
+                        aria-controls="custom-token-authority-params"
+                        aria-expanded={showOptionalParams}
+                        className="flex items-center gap-2 text-left"
+                        title={showOptionalParams ? 'Collapse' : 'Expand'}
+                    >
+                        <ChevronRight
+                            className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${showOptionalParams ? 'rotate-90' : ''}`}
+                        />
+                        <div>
+                            <h3 className="text-lg font-semibold">Authority Parameters (Optional)</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Configure authorities for enabled extensions. Leave empty to use mint authority.
+                            </p>
+                        </div>
+                    </button>
+                )}
             </CardHeader>
-            {showOptionalParams && (
+            {isExpanded && (
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="custom-mint-authority">Mint Authority</Label>

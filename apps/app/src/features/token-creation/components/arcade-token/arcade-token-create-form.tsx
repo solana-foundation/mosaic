@@ -1,162 +1,73 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { ArcadeTokenOptions, ArcadeTokenCreationResult } from '@/types/token';
 import { ArcadeTokenBasicParams } from './arcade-token-basic-params';
+import { ArcadeTokenFeaturesStep } from './arcade-token-features-step';
 import { ArcadeTokenAuthorityParams } from './arcade-token-authority-params';
 import { ArcadeTokenCreationResultDisplay } from './arcade-token-creation-result';
 import { createArcadeToken } from '@/features/token-creation/lib/arcade-token';
 import type { TransactionModifyingSigner } from '@solana/kit';
-import { createTokenDisplayFromResult } from '@/features/token-creation/lib/token-storage';
-import { useTokenStore } from '@/stores/token-store';
+import { useTokenCreationForm } from '@/features/token-creation/hooks/use-token-creation-form';
+import { TokenCreateFormBase } from '../token-create-form-base';
+import { Step } from '../form-stepper';
 
 interface ArcadeTokenCreateFormProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
     rpcUrl?: string;
     onTokenCreated?: () => void;
+    onCancel?: () => void;
 }
+
+const STEPS: Step[] = [
+    { id: 'identity', label: 'Token Identity' },
+    { id: 'features', label: 'Features' },
+    { id: 'authorities', label: 'Authorities' },
+];
+
+const INITIAL_OPTIONS: ArcadeTokenOptions = {
+    name: '',
+    symbol: '',
+    decimals: '6',
+    uri: '',
+    enableSrfc37: false,
+    mintAuthority: '',
+    metadataAuthority: '',
+    pausableAuthority: '',
+    permanentDelegateAuthority: '',
+};
 
 export function ArcadeTokenCreateForm({
     transactionSendingSigner,
     rpcUrl,
     onTokenCreated,
+    onCancel,
 }: ArcadeTokenCreateFormProps) {
-    const addToken = useTokenStore(state => state.addToken);
-    const [arcadeTokenOptions, setArcadeTokenOptions] = useState<ArcadeTokenOptions>({
-        name: '',
-        symbol: '',
-        decimals: '6',
-        uri: '',
-        enableSrfc37: false,
-        mintAuthority: '',
-        metadataAuthority: '',
-        pausableAuthority: '',
-        permanentDelegateAuthority: '',
+    const formState = useTokenCreationForm<ArcadeTokenOptions, ArcadeTokenCreationResult>({
+        initialOptions: INITIAL_OPTIONS,
+        createToken: createArcadeToken,
+        templateId: 'arcade-token',
+        transactionSendingSigner,
+        rpcUrl,
+        onTokenCreated,
     });
-    const [isCreating, setIsCreating] = useState(false);
-    const [result, setResult] = useState<ArcadeTokenCreationResult | null>(null);
-
-    const handleInputChange = (field: string, value: string | boolean) => {
-        setArcadeTokenOptions(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        setIsCreating(true);
-        setResult(null);
-
-        try {
-            const result = await createArcadeToken({ ...arcadeTokenOptions, rpcUrl }, transactionSendingSigner);
-
-            if (result.success && result.mintAddress) {
-                const addrValue: unknown = (
-                    transactionSendingSigner as {
-                        address?: unknown;
-                    }
-                ).address;
-                const defaultAuthority =
-                    typeof addrValue === 'string'
-                        ? addrValue
-                        : typeof addrValue === 'object' && addrValue !== null && 'toString' in addrValue
-                          ? String((addrValue as { toString: () => string }).toString())
-                          : '';
-
-                // Create token display object with creator wallet
-                const tokenDisplay = await createTokenDisplayFromResult(
-                    result,
-                    'arcade-token',
-                    arcadeTokenOptions,
-                    defaultAuthority,
-                );
-
-                // Save to store (automatically persists to localStorage)
-                addToken(tokenDisplay);
-
-                // Call the callback to notify parent
-                onTokenCreated?.();
-
-                setResult({
-                    success: true,
-                    mintAddress: result.mintAddress,
-                    transactionSignature: result.transactionSignature,
-                    details: {
-                        ...arcadeTokenOptions,
-                        decimals: parseInt(arcadeTokenOptions.decimals),
-                        enableSrfc37: arcadeTokenOptions.enableSrfc37 || false,
-                        mintAuthority: arcadeTokenOptions.mintAuthority || defaultAuthority,
-                        metadataAuthority: arcadeTokenOptions.metadataAuthority || defaultAuthority,
-                        pausableAuthority: arcadeTokenOptions.pausableAuthority || defaultAuthority,
-                        permanentDelegateAuthority: arcadeTokenOptions.permanentDelegateAuthority || defaultAuthority,
-                        extensions: ['Metadata', 'Pausable', 'Default Account State (Allowlist)', 'Permanent Delegate'],
-                    },
-                });
-            } else {
-                setResult({
-                    success: false,
-                    error: result.error || 'Unknown error occurred',
-                });
-            }
-        } catch (error) {
-            setResult({
-                success: false,
-                error: error instanceof Error ? error.message : 'Unknown error occurred',
-            });
-        } finally {
-            setIsCreating(false);
-        }
-    };
-
-    const handleReset = () => {
-        setArcadeTokenOptions({
-            name: '',
-            symbol: '',
-            decimals: '6',
-            uri: '',
-            enableSrfc37: false,
-            mintAuthority: '',
-            metadataAuthority: '',
-            pausableAuthority: '',
-            permanentDelegateAuthority: '',
-        });
-        setResult(null);
-    };
 
     return (
-        <>
-            {result ? (
-                <>
-                    <ArcadeTokenCreationResultDisplay result={result} />
-                    <div className="flex gap-4">
-                        <Button type="button" variant="outline" onClick={handleReset}>
-                            Create another arcade token
-                        </Button>
-                    </div>
-                </>
-            ) : (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                    <ArcadeTokenBasicParams options={arcadeTokenOptions} onInputChange={handleInputChange} />
-
-                    <ArcadeTokenAuthorityParams options={arcadeTokenOptions} onInputChange={handleInputChange} />
-
-                    <div className="flex gap-4">
-                        <Button
-                            type="submit"
-                            className="flex-1"
-                            disabled={
-                                isCreating ||
-                                !arcadeTokenOptions.name ||
-                                !arcadeTokenOptions.symbol ||
-                                !arcadeTokenOptions.decimals
-                            }
-                        >
-                            {isCreating ? 'Creating Arcade Token...' : 'Create Arcade Token'}
-                        </Button>
-                        <Button type="button" variant="outline" onClick={handleReset}>
-                            Reset
-                        </Button>
-                    </div>
-                </form>
-            )}
-        </>
+        <TokenCreateFormBase
+            steps={STEPS}
+            submitLabel="Create Arcade Token"
+            onCancel={onCancel}
+            {...formState}
+            renderStep={(step, options, setOption) => {
+                switch (step) {
+                    case 0:
+                        return <ArcadeTokenBasicParams options={options} onInputChange={setOption} />;
+                    case 1:
+                        return <ArcadeTokenFeaturesStep />;
+                    case 2:
+                        return <ArcadeTokenAuthorityParams options={options} onInputChange={setOption} alwaysExpanded />;
+                    default:
+                        return null;
+                }
+            }}
+            renderResult={result => <ArcadeTokenCreationResultDisplay result={result} />}
+        />
     );
 }

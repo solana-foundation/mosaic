@@ -8,34 +8,49 @@ import { ArcadeTokenOptions } from '@/types/token';
 interface ArcadeTokenAuthorityParamsProps {
     options: ArcadeTokenOptions;
     onInputChange: (field: string, value: string) => void;
+    alwaysExpanded?: boolean;
 }
 
-export function ArcadeTokenAuthorityParams({ options, onInputChange }: ArcadeTokenAuthorityParamsProps) {
-    const [showOptionalParams, setShowOptionalParams] = useState(false);
+export function ArcadeTokenAuthorityParams({
+    options,
+    onInputChange,
+    alwaysExpanded = false,
+}: ArcadeTokenAuthorityParamsProps) {
+    const [showOptionalParams, setShowOptionalParams] = useState(alwaysExpanded);
+    const isExpanded = alwaysExpanded || showOptionalParams;
 
     return (
         <Card>
             <CardHeader>
-                <button
-                    type="button"
-                    onClick={() => setShowOptionalParams(!showOptionalParams)}
-                    aria-controls="arcade-token-authority-params"
-                    aria-expanded={showOptionalParams}
-                    className="flex items-center gap-2 text-left"
-                    title={showOptionalParams ? 'Collapse' : 'Expand'}
-                >
-                    <ChevronRight
-                        className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${showOptionalParams ? 'rotate-90' : ''}`}
-                    />
+                {alwaysExpanded ? (
                     <div>
                         <h3 className="text-lg font-semibold">Authority Parameters (Optional)</h3>
                         <p className="text-sm text-muted-foreground">
                             Configure authorities for advanced token management
                         </p>
                     </div>
-                </button>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => setShowOptionalParams(!showOptionalParams)}
+                        aria-controls="arcade-token-authority-params"
+                        aria-expanded={showOptionalParams}
+                        className="flex items-center gap-2 text-left"
+                        title={showOptionalParams ? 'Collapse' : 'Expand'}
+                    >
+                        <ChevronRight
+                            className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${showOptionalParams ? 'rotate-90' : ''}`}
+                        />
+                        <div>
+                            <h3 className="text-lg font-semibold">Authority Parameters (Optional)</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Configure authorities for advanced token management
+                            </p>
+                        </div>
+                    </button>
+                )}
             </CardHeader>
-            {showOptionalParams && (
+            {isExpanded && (
                 <CardContent id="arcade-token-authority-params" className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="arcade-mint-authority">Mint Authority</Label>

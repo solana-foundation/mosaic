@@ -10,34 +10,49 @@ import { StablecoinOptions } from '@/types/token';
 interface StablecoinAuthorityParamsProps {
     options: StablecoinOptions;
     onInputChange: (field: string, value: string | boolean) => void;
+    alwaysExpanded?: boolean;
 }
 
-export function StablecoinAuthorityParams({ options, onInputChange }: StablecoinAuthorityParamsProps) {
-    const [showOptionalParams, setShowOptionalParams] = useState(false);
+export function StablecoinAuthorityParams({
+    options,
+    onInputChange,
+    alwaysExpanded = false,
+}: StablecoinAuthorityParamsProps) {
+    const [showOptionalParams, setShowOptionalParams] = useState(alwaysExpanded);
+    const isExpanded = alwaysExpanded || showOptionalParams;
 
     return (
         <Card>
             <CardHeader>
-                <button
-                    type="button"
-                    onClick={() => setShowOptionalParams(!showOptionalParams)}
-                    aria-controls="stablecoin-authority-params"
-                    aria-expanded={showOptionalParams}
-                    className="flex items-center gap-2 text-left"
-                    title={showOptionalParams ? 'Collapse' : 'Expand'}
-                >
-                    <ChevronRight
-                        className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${showOptionalParams ? 'rotate-90' : ''}`}
-                    />
+                {alwaysExpanded ? (
                     <div>
                         <h3 className="text-lg font-semibold">Authority Parameters (Optional)</h3>
                         <p className="text-sm text-muted-foreground">
                             Configure authorities for advanced token management
                         </p>
                     </div>
-                </button>
+                ) : (
+                    <button
+                        type="button"
+                        onClick={() => setShowOptionalParams(!showOptionalParams)}
+                        aria-controls="stablecoin-authority-params"
+                        aria-expanded={showOptionalParams}
+                        className="flex items-center gap-2 text-left"
+                        title={showOptionalParams ? 'Collapse' : 'Expand'}
+                    >
+                        <ChevronRight
+                            className={`mt-1 h-4 w-4 text-muted-foreground transition-transform ${showOptionalParams ? 'rotate-90' : ''}`}
+                        />
+                        <div>
+                            <h3 className="text-lg font-semibold">Authority Parameters (Optional)</h3>
+                            <p className="text-sm text-muted-foreground">
+                                Configure authorities for advanced token management
+                            </p>
+                        </div>
+                    </button>
+                )}
             </CardHeader>
-            {showOptionalParams && (
+            {isExpanded && (
                 <CardContent id="stablecoin-authority-params" className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="stablecoin-mint-authority">Mint Authority</Label>
