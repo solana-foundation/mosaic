@@ -23,16 +23,16 @@ export function CustomTokenBasicParams({ options, onInputChange }: CustomTokenBa
                         <TokenImagePreview uri={options.uri || ''} symbol={options.symbol || ''} />
                     </div>
                     <div className="space-y-2">
-                            <Label htmlFor="custom-uri">Metadata URI</Label>
-                            <Input
-                                id="custom-uri"
-                                type="url"
-                                placeholder="https://example.com/metadata.json"
-                                value={options.uri}
-                                onChange={e => onInputChange('uri', e.target.value)}
-                            />
+                        <Label htmlFor="custom-uri">Metadata URI</Label>
+                        <Input
+                            id="custom-uri"
+                            type="url"
+                            placeholder="https://example.com/metadata.json"
+                            value={options.uri}
+                            onChange={e => onInputChange('uri', e.target.value)}
+                        />
                     </div>
-                    
+
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="custom-name">Token Name</Label>

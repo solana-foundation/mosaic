@@ -48,9 +48,13 @@ function validateCustomTokenOptions(options: CustomTokenOptions): number {
             throw new Error('Scaled UI Amount multiplier must be greater than zero');
         }
         // Validate new multiplier for scheduled/rebasing modes
-        if (options.scaledUiAmountMode === 'scheduled' || 
-            (options.scaledUiAmountMode === 'rebasing' && options.scaledUiAmountEffectiveTimestamp)) {
-            const newMultiplier = options.scaledUiAmountNewMultiplier ? parseFloat(options.scaledUiAmountNewMultiplier) : 1;
+        if (
+            options.scaledUiAmountMode === 'scheduled' ||
+            (options.scaledUiAmountMode === 'rebasing' && options.scaledUiAmountEffectiveTimestamp)
+        ) {
+            const newMultiplier = options.scaledUiAmountNewMultiplier
+                ? parseFloat(options.scaledUiAmountNewMultiplier)
+                : 1;
             if (isNaN(newMultiplier)) {
                 throw new Error('Scaled UI Amount new multiplier must be a valid number');
             }
@@ -232,7 +236,7 @@ export const createCustomToken = async (
                         const parsedTime = new Date(options.scaledUiAmountEffectiveTimestamp).getTime();
                         if (!Number.isFinite(parsedTime)) {
                             throw new Error(
-                                `Invalid scaledUiAmountEffectiveTimestamp: "${options.scaledUiAmountEffectiveTimestamp}" is not a valid date`
+                                `Invalid scaledUiAmountEffectiveTimestamp: "${options.scaledUiAmountEffectiveTimestamp}" is not a valid date`,
                             );
                         }
                         return BigInt(Math.floor(parsedTime / 1000));

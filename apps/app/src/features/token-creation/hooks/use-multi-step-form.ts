@@ -16,10 +16,7 @@ interface UseMultiStepFormReturn {
     reset: () => void;
 }
 
-export function useMultiStepForm({
-    totalSteps,
-    initialStep = 0,
-}: UseMultiStepFormOptions): UseMultiStepFormReturn {
+export function useMultiStepForm({ totalSteps, initialStep = 0 }: UseMultiStepFormOptions): UseMultiStepFormReturn {
     const [[currentStep, direction], setStepState] = useState<[number, number]>([initialStep, 0]);
 
     const nextStep = useCallback(() => {

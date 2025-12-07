@@ -210,7 +210,9 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
                                             onCheckedChange={checked => handleToggle(extension.key, !!checked)}
                                             onClick={e => e.stopPropagation()}
                                         />
-                                        <Icon className={`h-4 w-4 shrink-0 ${isConflicting ? 'text-destructive' : 'text-muted-foreground'}`} />
+                                        <Icon
+                                            className={`h-4 w-4 shrink-0 ${isConflicting ? 'text-destructive' : 'text-muted-foreground'}`}
+                                        />
                                         <span className={`flex-1 text-sm ${isConflicting ? 'text-destructive' : ''}`}>
                                             {extension.label}
                                         </span>
@@ -264,9 +266,8 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
                     <Alert variant="warning" className="border-amber-500/50">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertDescription>
-                            Non-transferable tokens cannot have transfer fees
-                            or transfer hooks. Please disable one of the conflicting extensions
-                            to continue.
+                            Non-transferable tokens cannot have transfer fees or transfer hooks. Please disable one of
+                            the conflicting extensions to continue.
                         </AlertDescription>
                     </Alert>
                 )}

@@ -64,14 +64,24 @@ export function TokenizedSecurityCreateForm({
                         return (
                             <TokenizedSecurityBasicParams
                                 options={options}
-                                onInputChange={setOption as (field: keyof TokenizedSecurityOptions, value: string | boolean) => void}
+                                onInputChange={
+                                    setOption as (
+                                        field: keyof TokenizedSecurityOptions,
+                                        value: string | boolean,
+                                    ) => void
+                                }
                             />
                         );
                     case 1:
                         return (
                             <TokenizedSecurityFeaturesStep
                                 options={options}
-                                onInputChange={setOption as (field: keyof TokenizedSecurityOptions, value: string | boolean) => void}
+                                onInputChange={
+                                    setOption as (
+                                        field: keyof TokenizedSecurityOptions,
+                                        value: string | boolean,
+                                    ) => void
+                                }
                             />
                         );
                     default:

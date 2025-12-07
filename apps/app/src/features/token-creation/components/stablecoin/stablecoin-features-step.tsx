@@ -17,9 +17,7 @@ export function StablecoinFeaturesStep({ options, onInputChange }: StablecoinFea
                 <div className="flex items-center gap-2">
                     <div>
                         <CardTitle className="text-base">Access Control Mode</CardTitle>
-                        <CardDescription className="text-xs">
-                            Configure transfer restrictions
-                        </CardDescription>
+                        <CardDescription className="text-xs">Configure transfer restrictions</CardDescription>
                     </div>
                 </div>
             </CardHeader>
@@ -32,13 +30,13 @@ export function StablecoinFeaturesStep({ options, onInputChange }: StablecoinFea
                             'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer',
                             options.aclMode === 'allowlist'
                                 ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                                : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
+                                : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
                         )}
                     >
                         <ShieldCheck
                             className={cn(
                                 'h-6 w-6',
-                                options.aclMode === 'allowlist' ? 'text-primary' : 'text-muted-foreground'
+                                options.aclMode === 'allowlist' ? 'text-primary' : 'text-muted-foreground',
                             )}
                         />
                         <div className="text-center">
@@ -53,7 +51,7 @@ export function StablecoinFeaturesStep({ options, onInputChange }: StablecoinFea
                             'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer',
                             options.aclMode === 'blocklist' || !options.aclMode
                                 ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                                : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
+                                : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
                         )}
                     >
                         <ShieldX
@@ -61,7 +59,7 @@ export function StablecoinFeaturesStep({ options, onInputChange }: StablecoinFea
                                 'h-6 w-6',
                                 options.aclMode === 'blocklist' || !options.aclMode
                                     ? 'text-primary'
-                                    : 'text-muted-foreground'
+                                    : 'text-muted-foreground',
                             )}
                         />
                         <div className="text-center">

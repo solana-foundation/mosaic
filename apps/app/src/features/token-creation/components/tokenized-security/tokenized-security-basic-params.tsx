@@ -23,16 +23,16 @@ export function TokenizedSecurityBasicParams({ options, onInputChange }: Tokeniz
                         <TokenImagePreview uri={options.uri || ''} symbol={options.symbol || ''} />
                     </div>
                     <div className="space-y-2">
-                            <Label htmlFor="security-uri">Metadata URI</Label>
-                            <Input
-                                id="security-uri"
-                                type="url"
-                                placeholder="https://example.com/metadata.json"
-                                value={options.uri}
-                                onChange={e => onInputChange('uri', e.target.value)}
-                            />
+                        <Label htmlFor="security-uri">Metadata URI</Label>
+                        <Input
+                            id="security-uri"
+                            type="url"
+                            placeholder="https://example.com/metadata.json"
+                            value={options.uri}
+                            onChange={e => onInputChange('uri', e.target.value)}
+                        />
                     </div>
-                    
+
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="security-name">Token Name</Label>

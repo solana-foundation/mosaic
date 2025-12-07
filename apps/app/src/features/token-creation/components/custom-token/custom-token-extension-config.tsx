@@ -3,15 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-    AlertTriangle,
-    ShieldCheck,
-    ShieldX,
-    Lock,
-    CalendarClock,
-    RefreshCw,
-    Info,
-} from 'lucide-react';
+import { AlertTriangle, ShieldCheck, ShieldX, Lock, CalendarClock, RefreshCw, Info } from 'lucide-react';
 import { CustomTokenOptions } from '@/types/token';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -40,9 +32,8 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
             return 0n;
         }
     })();
-    const transferFeeMaximumDisplay = transferFeeMaximum > 0n 
-        ? (Number(transferFeeMaximum) / Math.pow(10, decimals)).toLocaleString()
-        : '0';
+    const transferFeeMaximumDisplay =
+        transferFeeMaximum > 0n ? (Number(transferFeeMaximum) / Math.pow(10, decimals)).toLocaleString() : '0';
     const transferFeePreview = (() => {
         const amount = 1000;
         const feePercent = transferFeeBasisPoints / 10000;
@@ -97,13 +88,13 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     'flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all cursor-pointer',
                                     mode === 'static'
                                         ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
+                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
                                 )}
                             >
                                 <Lock
                                     className={cn(
                                         'h-5 w-5',
-                                        mode === 'static' ? 'text-primary' : 'text-muted-foreground'
+                                        mode === 'static' ? 'text-primary' : 'text-muted-foreground',
                                     )}
                                 />
                                 <div className="text-center">
@@ -118,13 +109,13 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     'flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all cursor-pointer',
                                     mode === 'scheduled'
                                         ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
+                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
                                 )}
                             >
                                 <CalendarClock
                                     className={cn(
                                         'h-5 w-5',
-                                        mode === 'scheduled' ? 'text-primary' : 'text-muted-foreground'
+                                        mode === 'scheduled' ? 'text-primary' : 'text-muted-foreground',
                                     )}
                                 />
                                 <div className="text-center">
@@ -139,13 +130,13 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     'flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all cursor-pointer',
                                     mode === 'rebasing'
                                         ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
+                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
                                 )}
                             >
                                 <RefreshCw
                                     className={cn(
                                         'h-5 w-5',
-                                        mode === 'rebasing' ? 'text-primary' : 'text-muted-foreground'
+                                        mode === 'rebasing' ? 'text-primary' : 'text-muted-foreground',
                                     )}
                                 />
                                 <div className="text-center">
@@ -159,7 +150,10 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                         {mode === 'static' && (
                             <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
                                 <div className="space-y-1">
-                                    <Label htmlFor="scaledUiAmountMultiplier_static" className="text-xs text-muted-foreground">
+                                    <Label
+                                        htmlFor="scaledUiAmountMultiplier_static"
+                                        className="text-xs text-muted-foreground"
+                                    >
                                         Display Multiplier
                                     </Label>
                                     <Input
@@ -175,7 +169,8 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <Info className="h-4 w-4" />
                                     <span>
-                                        Preview: 1,000 tokens × {multiplier} = {(1000 * multiplier).toLocaleString()} displayed
+                                        Preview: 1,000 tokens × {multiplier} = {(1000 * multiplier).toLocaleString()}{' '}
+                                        displayed
                                     </span>
                                 </div>
                             </div>
@@ -186,7 +181,10 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                             <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-1">
-                                        <Label htmlFor="scaledUiAmountMultiplier_scheduled" className="text-xs text-muted-foreground">
+                                        <Label
+                                            htmlFor="scaledUiAmountMultiplier_scheduled"
+                                            className="text-xs text-muted-foreground"
+                                        >
                                             Current Multiplier
                                         </Label>
                                         <Input
@@ -200,7 +198,10 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor="scaledUiAmountNewMultiplier" className="text-xs text-muted-foreground">
+                                        <Label
+                                            htmlFor="scaledUiAmountNewMultiplier"
+                                            className="text-xs text-muted-foreground"
+                                        >
                                             New Multiplier
                                         </Label>
                                         <Input
@@ -215,14 +216,19 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     </div>
                                 </div>
                                 <div className="space-y-1">
-                                    <Label htmlFor="scaledUiAmountEffectiveTimestamp" className="text-xs text-muted-foreground">
+                                    <Label
+                                        htmlFor="scaledUiAmountEffectiveTimestamp"
+                                        className="text-xs text-muted-foreground"
+                                    >
                                         Effective Date & Time (UTC)
                                     </Label>
                                     <Input
                                         id="scaledUiAmountEffectiveTimestamp"
                                         type="datetime-local"
                                         value={options.scaledUiAmountEffectiveTimestamp || ''}
-                                        onChange={e => onInputChange('scaledUiAmountEffectiveTimestamp', e.target.value)}
+                                        onChange={e =>
+                                            onInputChange('scaledUiAmountEffectiveTimestamp', e.target.value)
+                                        }
                                     />
                                 </div>
                                 <div className="space-y-1 text-sm text-muted-foreground">
@@ -242,7 +248,10 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                         {mode === 'rebasing' && (
                             <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
                                 <div className="space-y-1">
-                                    <Label htmlFor="scaledUiAmountMultiplier_rebasing" className="text-xs text-muted-foreground">
+                                    <Label
+                                        htmlFor="scaledUiAmountMultiplier_rebasing"
+                                        className="text-xs text-muted-foreground"
+                                    >
                                         Initial Multiplier
                                     </Label>
                                     <Input
@@ -260,7 +269,9 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     <AlertTriangle className="h-4 w-4" />
                                     <AlertDescription>
                                         <p className="text-xs">
-                                            Rebasing requires external coordination. The multiplier authority will need to call updateMultiplier separately, or use a cron job to call the function periodically.
+                                            Rebasing requires external coordination. The multiplier authority will need
+                                            to call updateMultiplier separately, or use a cron job to call the function
+                                            periodically.
                                         </p>
                                     </AlertDescription>
                                 </Alert>
@@ -275,7 +286,7 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                                 if (!checked) {
                                                     onInputChange(
                                                         'scaledUiAmountNewMultiplier',
-                                                        options.scaledUiAmountMultiplier || '1'
+                                                        options.scaledUiAmountMultiplier || '1',
                                                     );
                                                     onInputChange('scaledUiAmountEffectiveTimestamp', '');
                                                 }
@@ -317,7 +328,10 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                                     type="datetime-local"
                                                     value={options.scaledUiAmountEffectiveTimestamp || ''}
                                                     onChange={e =>
-                                                        onInputChange('scaledUiAmountEffectiveTimestamp', e.target.value)
+                                                        onInputChange(
+                                                            'scaledUiAmountEffectiveTimestamp',
+                                                            e.target.value,
+                                                        )
                                                     }
                                                 />
                                             </div>
@@ -337,9 +351,7 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                         <div className="flex items-center gap-2">
                             <div>
                                 <CardTitle className="text-base">SRFC-37 Access Control</CardTitle>
-                                <CardDescription className="text-xs">
-                                    Configure transfer restrictions
-                                </CardDescription>
+                                <CardDescription className="text-xs">Configure transfer restrictions</CardDescription>
                             </div>
                         </div>
                     </CardHeader>
@@ -352,18 +364,20 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer',
                                     options.aclMode === 'allowlist'
                                         ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
+                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
                                 )}
                             >
                                 <ShieldCheck
                                     className={cn(
                                         'h-6 w-6',
-                                        options.aclMode === 'allowlist' ? 'text-primary' : 'text-muted-foreground'
+                                        options.aclMode === 'allowlist' ? 'text-primary' : 'text-muted-foreground',
                                     )}
                                 />
                                 <div className="text-center">
                                     <p className="text-sm font-medium">Allowlist</p>
-                                    <p className="text-xs text-muted-foreground">Only approved addresses can transfer</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Only approved addresses can transfer
+                                    </p>
                                 </div>
                             </button>
                             <button
@@ -373,7 +387,7 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer',
                                     options.aclMode === 'blocklist' || !options.aclMode
                                         ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
+                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
                                 )}
                             >
                                 <ShieldX
@@ -381,12 +395,14 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                         'h-6 w-6',
                                         options.aclMode === 'blocklist' || !options.aclMode
                                             ? 'text-primary'
-                                            : 'text-muted-foreground'
+                                            : 'text-muted-foreground',
                                     )}
                                 />
                                 <div className="text-center">
                                     <p className="text-sm font-medium">Blocklist</p>
-                                    <p className="text-xs text-muted-foreground">Block specific addresses from transfers</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Block specific addresses from transfers
+                                    </p>
                                 </div>
                             </button>
                         </div>
@@ -427,7 +443,7 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                             'px-3 py-2 text-sm rounded-md border transition-all',
                                             options.transferFeeBasisPoints === preset.value
                                                 ? 'border-primary bg-primary/10 text-primary font-medium'
-                                                : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
+                                                : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
                                         )}
                                     >
                                         {preset.label}
@@ -452,7 +468,10 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                         onChange={e => onInputChange('transferFeeBasisPoints', e.target.value)}
                                     />
                                     <p className="text-xs text-muted-foreground">
-                                        {transferFeeBasisPoints > 0 ? `${(transferFeeBasisPoints / 100).toFixed(2)}%` : '0%'} per transfer
+                                        {transferFeeBasisPoints > 0
+                                            ? `${(transferFeeBasisPoints / 100).toFixed(2)}%`
+                                            : '0%'}{' '}
+                                        per transfer
                                     </p>
                                 </div>
                                 <div className="space-y-1">
@@ -467,7 +486,8 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                         onChange={e => onInputChange('transferFeeMaximum', e.target.value)}
                                     />
                                     <p className="text-xs text-muted-foreground">
-                                        In smallest units (with {decimals} decimals = {transferFeeMaximumDisplay} tokens max)
+                                        In smallest units (with {decimals} decimals = {transferFeeMaximumDisplay} tokens
+                                        max)
                                     </p>
                                 </div>
                             </div>
@@ -485,11 +505,15 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs">Recipient Gets</p>
-                                        <p className="font-medium text-green-600">{transferFeePreview.received.toLocaleString()} tokens</p>
+                                        <p className="font-medium text-green-600">
+                                            {transferFeePreview.received.toLocaleString()} tokens
+                                        </p>
                                     </div>
                                     <div>
                                         <p className="text-muted-foreground text-xs">Fee Withheld</p>
-                                        <p className="font-medium text-amber-600">{transferFeePreview.fee.toLocaleString()} tokens</p>
+                                        <p className="font-medium text-amber-600">
+                                            {transferFeePreview.fee.toLocaleString()} tokens
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -499,8 +523,9 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                             <AlertTriangle className="h-4 w-4" />
                             <AlertDescription>
                                 <p className="text-xs">
-                                    <strong>Important:</strong> Fee configuration changes take ~4 days (2 epochs) to become effective. 
-                                    Fees accumulate in recipient accounts and must be harvested by the withdraw authority.
+                                    <strong>Important:</strong> Fee configuration changes take ~4 days (2 epochs) to
+                                    become effective. Fees accumulate in recipient accounts and must be harvested by the
+                                    withdraw authority.
                                 </p>
                             </AlertDescription>
                         </Alert>
@@ -541,7 +566,7 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                             'px-3 py-2 text-sm rounded-md border transition-all',
                                             options.interestRate === preset.value
                                                 ? 'border-primary bg-primary/10 text-primary font-medium'
-                                                : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50'
+                                                : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
                                         )}
                                     >
                                         {preset.label}
@@ -564,7 +589,8 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     onChange={e => onInputChange('interestRate', e.target.value)}
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    {interestRatePercent > 0 ? `${interestRatePercent.toFixed(2)}%` : '0%'} annual rate (continuously compounded)
+                                    {interestRatePercent > 0 ? `${interestRatePercent.toFixed(2)}%` : '0%'} annual rate
+                                    (continuously compounded)
                                 </p>
                             </div>
 
@@ -579,11 +605,15 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                         <div>
                                             <p className="text-muted-foreground text-xs">After 1 Year</p>
                                             <p className="font-medium">{interestPreview.after1Year.toLocaleString()}</p>
-                                            <p className="text-xs text-green-600">+{interestPreview.growth1Year.toLocaleString()}</p>
+                                            <p className="text-xs text-green-600">
+                                                +{interestPreview.growth1Year.toLocaleString()}
+                                            </p>
                                         </div>
                                         <div>
                                             <p className="text-muted-foreground text-xs">After 5 Years</p>
-                                            <p className="font-medium">{interestPreview.after5Years.toLocaleString()}</p>
+                                            <p className="font-medium">
+                                                {interestPreview.after5Years.toLocaleString()}
+                                            </p>
                                         </div>
                                         <div>
                                             <p className="text-muted-foreground text-xs">Actual Balance</p>
@@ -599,8 +629,8 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                             <Info className="h-4 w-4 text-blue-600" />
                             <AlertDescription>
                                 <p className="text-xs text-blue-800 dark:text-blue-200">
-                                    <strong>Display Only:</strong> Interest is calculated on-chain but shown cosmetically. 
-                                    No new tokens are minted — the actual token balance remains unchanged. 
+                                    <strong>Display Only:</strong> Interest is calculated on-chain but shown
+                                    cosmetically. No new tokens are minted — the actual token balance remains unchanged.
                                     The authority can update the rate at any time.
                                 </p>
                             </AlertDescription>
@@ -625,7 +655,10 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                     <CardContent className="space-y-3">
                         <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
                             <div className="space-y-1">
-                                <Label htmlFor="transferHookProgramId" className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Label
+                                    htmlFor="transferHookProgramId"
+                                    className="text-xs text-muted-foreground flex items-center gap-1"
+                                >
                                     Hook Program ID
                                     <span className="text-destructive">*</span>
                                 </Label>
@@ -636,7 +669,8 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     value={options.transferHookProgramId || ''}
                                     onChange={e => onInputChange('transferHookProgramId', e.target.value)}
                                     className={cn(
-                                        !options.transferHookProgramId?.trim() && 'border-destructive focus-visible:ring-destructive'
+                                        !options.transferHookProgramId?.trim() &&
+                                            'border-destructive focus-visible:ring-destructive',
                                     )}
                                 />
                                 {!options.transferHookProgramId?.trim() && (
@@ -650,8 +684,8 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                             <AlertTriangle className="h-4 w-4" />
                             <AlertDescription>
                                 <p className="text-xs">
-                                    Transfer hooks require a deployed program that implements the transfer hook interface. 
-                                    The program must be deployed before creating the token.
+                                    Transfer hooks require a deployed program that implements the transfer hook
+                                    interface. The program must be deployed before creating the token.
                                 </p>
                             </AlertDescription>
                         </Alert>

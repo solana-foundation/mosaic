@@ -23,16 +23,16 @@ export function ArcadeTokenBasicParams({ options, onInputChange }: ArcadeTokenBa
                         <TokenImagePreview uri={options.uri || ''} symbol={options.symbol || ''} />
                     </div>
                     <div className="space-y-2">
-                            <Label htmlFor="arcade-uri">Metadata URI</Label>
-                            <Input
-                                id="arcade-uri"
-                                type="url"
-                                placeholder="https://example.com/metadata.json"
-                                value={options.uri}
-                                onChange={e => onInputChange('uri', e.target.value)}
-                            />
+                        <Label htmlFor="arcade-uri">Metadata URI</Label>
+                        <Input
+                            id="arcade-uri"
+                            type="url"
+                            placeholder="https://example.com/metadata.json"
+                            value={options.uri}
+                            onChange={e => onInputChange('uri', e.target.value)}
+                        />
                     </div>
-                    
+
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="arcade-name">Token Name</Label>

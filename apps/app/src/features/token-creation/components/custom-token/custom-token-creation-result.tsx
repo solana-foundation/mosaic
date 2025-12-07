@@ -117,8 +117,7 @@ export function CustomTokenCreationResultDisplay({ result, cluster = 'devnet' }:
                                 <div className="pt-2 text-sm text-muted-foreground">Interest Bearing Configuration</div>
                                 <div className="grid grid-cols-2 gap-3 text-sm p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                                     <div>
-                                        <strong>Annual Rate:</strong>{' '}
-                                        {(result.details.interestRate / 100).toFixed(2)}%
+                                        <strong>Annual Rate:</strong> {(result.details.interestRate / 100).toFixed(2)}%
                                         <span className="text-muted-foreground ml-1">
                                             ({result.details.interestRate} bps)
                                         </span>

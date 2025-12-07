@@ -108,10 +108,12 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                         selectedTemplate ? 'h-auto' : 'h-auto',
                     )}
                 >
-                    <div className={cn(
-                        'bg-primary/5 flex flex-col',
-                        selectedTemplate ? 'flex-1 min-h-auto h-auto' : 'overflow-y-auto h-auto'
-                    )}>
+                    <div
+                        className={cn(
+                            'bg-primary/5 flex flex-col',
+                            selectedTemplate ? 'flex-1 min-h-auto h-auto' : 'overflow-y-auto h-auto',
+                        )}
+                    >
                         {!selectedTemplate ? (
                             <>
                                 <div className="flex items-center justify-between p-6 pb-4 border-b border-primary/5 bg-primary/5">

@@ -23,16 +23,16 @@ export function StablecoinBasicParams({ options, onInputChange }: StablecoinBasi
                         <TokenImagePreview uri={options.uri || ''} symbol={options.symbol || ''} />
                     </div>
                     <div className="space-y-2">
-                            <Label htmlFor="stablecoin-uri">Metadata URI</Label>
-                            <Input
-                                id="stablecoin-uri"
-                                type="url"
-                                placeholder="https://example.com/metadata.json"
-                                value={options.uri}
-                                onChange={e => onInputChange('uri', e.target.value)}
-                            />
+                        <Label htmlFor="stablecoin-uri">Metadata URI</Label>
+                        <Input
+                            id="stablecoin-uri"
+                            type="url"
+                            placeholder="https://example.com/metadata.json"
+                            value={options.uri}
+                            onChange={e => onInputChange('uri', e.target.value)}
+                        />
                     </div>
-                    
+
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <Label htmlFor="stablecoin-name">Token Name</Label>

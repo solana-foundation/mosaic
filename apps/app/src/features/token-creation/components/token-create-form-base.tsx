@@ -20,7 +20,11 @@ interface TokenCreateFormBaseProps<TOptions, TResult> {
     result: TResult | null;
     handleSubmit: () => Promise<void>;
     canProceedFromStep: (step: number) => boolean;
-    renderStep: (step: number, options: TOptions, setOption: (field: string, value: string | boolean) => void) => ReactNode;
+    renderStep: (
+        step: number,
+        options: TOptions,
+        setOption: (field: string, value: string | boolean) => void,
+    ) => ReactNode;
     renderResult: (result: TResult) => ReactNode;
     onCancel?: () => void;
 }
@@ -31,7 +35,7 @@ export function TokenCreateFormBase<TOptions, TResult>({
     options,
     setOption,
     currentStep,
-    direction,
+    direction: _direction,
     isFirstStep,
     isLastStep,
     goToNextStep,
@@ -53,9 +57,7 @@ export function TokenCreateFormBase<TOptions, TResult>({
             {/* Scrollable Content Area */}
             <div className="flex-1 overflow-y-auto min-h-0 space-y-6">
                 <FormStepper steps={steps} currentStep={currentStep} />
-                <StepContainer>
-                    {renderStep(currentStep, options, setOption)}
-                </StepContainer>
+                <StepContainer>{renderStep(currentStep, options, setOption)}</StepContainer>
             </div>
             {/* Sticky Navigation at Bottom */}
             <div className="shrink-0">

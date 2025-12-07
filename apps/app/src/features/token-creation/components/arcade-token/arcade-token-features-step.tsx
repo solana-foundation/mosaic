@@ -38,10 +38,7 @@ export function ArcadeTokenFeaturesStep() {
             <CardContent>
                 <div className="space-y-3">
                     {DEFAULT_FEATURES.map(feature => (
-                        <div
-                            key={feature.name}
-                            className="flex items-start gap-3 p-3 rounded-lg bg-muted/50"
-                        >
+                        <div key={feature.name} className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
                             <div className="mt-0.5 p-1 rounded-full bg-primary/10">
                                 <Check className="w-3 h-3 text-primary" />
                             </div>

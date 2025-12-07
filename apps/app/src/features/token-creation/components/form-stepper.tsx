@@ -16,9 +16,7 @@ export function FormStepper({ steps, currentStep }: FormStepperProps) {
     return (
         <div className="w-full mb-6">
             {/* Current step label */}
-            <p className="text-center text-sm text-muted-foreground mb-3">
-                {steps[currentStep]?.label}
-            </p>
+            <p className="text-center text-sm text-muted-foreground mb-3">{steps[currentStep]?.label}</p>
             {/* Step indicators */}
             <div className="flex items-center justify-center gap-2">
                 {steps.map((step, index) => {
