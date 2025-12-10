@@ -1,4 +1,4 @@
-import type { Address, Rpc, SolanaRpcApi } from 'gill';
+import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
 
 export const Mode = { Allow: 1, Block: 2 } as const;
 

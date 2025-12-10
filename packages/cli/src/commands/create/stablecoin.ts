@@ -1,9 +1,16 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ABL_PROGRAM_ID, createStablecoinInitTransaction, TOKEN_ACL_PROGRAM_ID } from '@mosaic/sdk';
-import { createSolanaClient } from '../../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
-import { generateKeyPairSigner, signTransactionMessageWithSigners, type Address } from 'gill';
+import {
+    generateKeyPairSigner,
+    signTransactionMessageWithSigners,
+    type Address,
+    sendAndConfirmTransactionFactory,
+    assertIsTransactionWithBlockhashLifetime,
+    getSignatureFromTransaction,
+} from '@solana/kit';
 import { findListConfigPda } from '@token-acl/abl-sdk';
 import { findMintConfigPda } from '@token-acl/sdk';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
@@ -57,7 +64,9 @@ export const createStablecoinCommand = new Command('stablecoin')
 
         try {
             // Create Solana client with sendAndConfirmTransaction
-            const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+            const rpc = createRpcClient(rpcUrl);
+            const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
+            const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
             // Default to the provided mint authority if raw tx, otherwise use keypair
@@ -108,7 +117,7 @@ export const createStablecoinCommand = new Command('stablecoin')
             );
 
             if (rawTx) {
-                const { maybeOutputRawTx } = await import('../../utils/rawTx.js');
+                const { maybeOutputRawTx } = await import('../../utils/raw-tx.js');
                 if (maybeOutputRawTx(rawTx, transaction)) {
                     return;
                 }
@@ -121,8 +130,10 @@ export const createStablecoinCommand = new Command('stablecoin')
 
             spinner.text = 'Sending transaction...';
 
-            // Send and confirm transaction
-            const signature = await sendAndConfirmTransaction(signedTransaction);
+            // Assert blockhash lifetime and send
+            assertIsTransactionWithBlockhashLifetime(signedTransaction);
+            await sendAndConfirmTransaction(signedTransaction, { commitment: 'confirmed' });
+            const signature = getSignatureFromTransaction(signedTransaction);
 
             spinner.succeed('Stablecoin created successfully!');
 

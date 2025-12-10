@@ -3,25 +3,26 @@ import {
     type Rpc,
     type SolanaRpcApi,
     type TransactionSigner,
-    type FullTransaction,
-    type TransactionMessageWithFeePayer,
-    type TransactionVersion,
-    type TransactionWithBlockhashLifetime,
-    createTransaction,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayerSigner,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
     createNoopSigner,
-} from 'gill';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
 import {
     decimalAmountToRaw,
     resolveTokenAccount,
     getMintDetails,
     isDefaultAccountStateSetFrozen,
-} from '../transactionUtil';
+} from '../transaction-util';
 import {
     getCreateAssociatedTokenIdempotentInstruction,
     getTransferCheckedInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
-} from 'gill/programs/token';
-import { getAddMemoInstruction } from 'gill/programs';
+} from '@solana-program/token-2022';
+import { getAddMemoInstruction } from '@solana-program/memo';
 import { getThawPermissionlessInstructions, TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 
 /**
@@ -149,7 +150,7 @@ export const createTransferTransaction = async (input: {
     authority: Address | TransactionSigner<string>;
     amount: string;
     memo?: string;
-}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+}): Promise<FullTransaction> => {
     const feePayerSigner = typeof input.feePayer === 'string' ? createNoopSigner(input.feePayer) : input.feePayer;
     const authoritySigner = typeof input.authority === 'string' ? createNoopSigner(input.authority) : input.authority;
 
@@ -162,10 +163,10 @@ export const createTransferTransaction = async (input: {
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
 
-    return createTransaction({
-        feePayer: feePayerSigner,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayerSigner(feePayerSigner, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };

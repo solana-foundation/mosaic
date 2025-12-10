@@ -1,16 +1,30 @@
 import ora, { type Ora } from 'ora';
 import type { Command, OptionValues } from 'commander';
 import type {
-    FullTransaction,
-    TransactionMessageWithBlockhashLifetime,
-    TransactionMessageWithFeePayer,
-    TransactionVersion,
-    SendAndConfirmTransactionWithSignersFunction,
-} from 'gill';
-import { signTransactionMessageWithSigners } from 'gill';
-import { maybeOutputRawTx } from './rawTx.js';
+    Transaction,
+    TransactionWithBlockhashLifetime,
+    FullySignedTransaction,
+    TransactionWithinSizeLimit,
+    Commitment,
+} from '@solana/kit';
+import {
+    signTransactionMessageWithSigners,
+    getSignatureFromTransaction,
+    assertIsTransactionWithBlockhashLifetime,
+} from '@solana/kit';
+import { maybeOutputRawTx } from './raw-tx.js';
+import type { FullTransaction } from './types.js';
 
-type Tx = FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionMessageWithBlockhashLifetime>;
+type Tx = FullTransaction;
+
+// Type for the transaction expected by sendAndConfirmTransaction
+type SendableTx = FullySignedTransaction & Transaction & TransactionWithBlockhashLifetime & TransactionWithinSizeLimit;
+
+// Type for sendAndConfirmTransaction function from factory
+type SendAndConfirmFn = (
+    transaction: SendableTx,
+    config: { commitment: Commitment; skipPreflight?: boolean },
+) => Promise<void>;
 
 export function getGlobalOpts(command: Command): OptionValues {
     // Safely attempts parent->parent then parent; falls back to empty object
@@ -28,7 +42,7 @@ export async function sendOrOutputTransaction(
     transaction: Tx,
     rawTx: string | undefined,
     spinner: Ora,
-    sendAndConfirmTransaction: SendAndConfirmTransactionWithSignersFunction,
+    sendFn: SendAndConfirmFn,
 ): Promise<{ raw: boolean; signature?: string }> {
     if (maybeOutputRawTx(rawTx, transaction)) {
         return { raw: true };
@@ -36,9 +50,10 @@ export async function sendOrOutputTransaction(
     spinner.text = 'Signing transaction...';
     const signed = await signTransactionMessageWithSigners(transaction);
     spinner.text = 'Sending transaction...';
-    const signature = await sendAndConfirmTransaction(signed, {
-        skipPreflight: true,
-        commitment: 'confirmed',
-    });
+
+    // Assert the transaction has blockhash lifetime for sendAndConfirmTransaction
+    assertIsTransactionWithBlockhashLifetime(signed);
+    await sendFn(signed as SendableTx, { commitment: 'confirmed' });
+    const signature = getSignatureFromTransaction(signed);
     return { raw: false, signature };
 }

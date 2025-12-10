@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { createSolanaClient } from '../utils/rpc.js';
-import { type Address } from 'gill';
-import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from 'gill/programs/token';
+import { createRpcClient } from '../utils/rpc.js';
+import { type Address } from '@solana/kit';
+import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from '@solana-program/token-2022';
 import { fetchEncodedAccount } from '@solana/accounts';
 
 interface InspectMintOptions {
@@ -32,8 +32,8 @@ export const inspectMintCommand = new Command('inspect-mint')
             const parentOpts = command.parent?.opts() || {};
             const rpcUrl = options.rpcUrl || parentOpts.rpcUrl;
 
-            // Create Solana client
-            const { rpc } = createSolanaClient(rpcUrl);
+            // Create RPC client
+            const rpc = createRpcClient(rpcUrl);
 
             spinner.text = 'Loading mint account...';
 

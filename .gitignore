@@ -60,6 +60,7 @@ logs
 # Temporary files
 .tmp/
 .temp/
+.pnpm-store/
 
 # Solana specific
 .anchor/
@@ -80,4 +81,5 @@ yarn.lock
 #cursor
 .cursor/
 
-/commerce-kit/
+#references
+/references/

@@ -1,8 +1,14 @@
 import setupTestSuite from './setup';
 import type { Client } from './setup';
-import type { KeyPairSigner, TransactionSigner } from 'gill';
-import { generateKeyPairSigner } from 'gill';
-import { sendAndConfirmTransaction, DEFAULT_TIMEOUT, DEFAULT_COMMITMENT, describeSkipIf } from './helpers';
+import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
+import { generateKeyPairSigner } from '@solana/kit';
+import {
+    sendAndConfirmTransaction,
+    assertBalance,
+    DEFAULT_TIMEOUT,
+    DEFAULT_COMMITMENT,
+    describeSkipIf,
+} from './helpers';
 import { Token } from '../../issuance';
 import { createMintToTransaction } from '../../management';
 import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
@@ -13,7 +19,7 @@ import {
     inspectionResultToDashboardData,
     getTokenDashboardData,
 } from '../../inspection';
-import { decimalAmountToRaw } from '../../transactionUtil';
+import { decimalAmountToRaw } from '../../transaction-util';
 
 describeSkipIf()('Inspection Integration Tests', () => {
     let client: Client;
@@ -626,6 +632,9 @@ describeSkipIf()('Inspection Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, recipient.address, mint.address, 0n, DEFAULT_COMMITMENT);
 
                 // Mint tokens
                 const mintTx = await createMintToTransaction(

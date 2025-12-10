@@ -1,3 +1,4 @@
 export * from './stablecoin';
-export * from './arcadeToken';
-export * from './tokenizedSecurity';
+export * from './arcade-token';
+export * from './tokenized-security';
+export * from './custom-token';

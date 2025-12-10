@@ -63,7 +63,7 @@ src/
 │  └─ sections/hero.tsx           # Landing hero
 ├─ context/
 │  ├─ ChainContextProvider.tsx    # Cluster selection (devnet/testnet/mainnet)
-│  ├─ RpcContextProvider.tsx      # gill RPC + subscriptions
+│  ├─ RpcContextProvider.tsx      # @solana/kit RPC + subscriptions
 │  └─ SelectedWalletAccount*      # Selected wallet state
 ├─ lib/
 │  ├─ issuance/*                  # High-level create flows using @mosaic/sdk
@@ -79,6 +79,10 @@ src/
 - Wallets: configured in `components/solana-provider.tsx` (uses Devnet endpoint by default)
 - RPC/cluster: provided by `ChainContextProvider` and `RpcContextProvider` (Devnet/Testnet/Mainnet)
 - SDK: all blockchain operations use `@mosaic/sdk`
+
+### Environment Variables
+
+- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom Solana RPC endpoint URL. If not set, defaults to `https://api.devnet.solana.com`. This variable is exposed to the client-side and available in production builds. See `.env.example` for more details.
 
 ## Development
 
@@ -99,4 +103,4 @@ pnpm start
 
 - Next.js 15, React 18, TailwindCSS
 - Wallet adapters (`@solana/wallet-adapter-*`)
-- Mosaic SDK (`@mosaic/sdk`) and `gill` (`@solana/kit`)
+- Mosaic SDK (`@mosaic/sdk`) and `@solana/kit`

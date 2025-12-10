@@ -3,14 +3,21 @@ import chalk from 'chalk';
 import {
     signTransactionMessageWithSigners,
     type Address,
-    createTransaction,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
     createNoopSigner,
     type TransactionSigner,
-} from 'gill';
+    sendAndConfirmTransactionFactory,
+    getSignatureFromTransaction,
+    assertIsTransactionWithBlockhashLifetime,
+} from '@solana/kit';
 import { createTransferInstructions } from '@mosaic/sdk';
 import { createSpinner, getGlobalOpts } from '../utils/cli.js';
-import { maybeOutputRawTx } from '../utils/rawTx.js';
-import { createSolanaClient } from '../utils/rpc.js';
+import { maybeOutputRawTx } from '../utils/raw-tx.js';
+import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 
 interface TransferOptions {
@@ -37,8 +44,10 @@ export const transferCommand = new Command('transfer')
         const spinner = createSpinner('Transferring tokens...', rawTx);
 
         try {
-            // Create Solana client
-            const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+            // Create RPC client
+            const rpc = createRpcClient(rpcUrl);
+            const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
+            const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
             let authority: TransactionSigner<string>;
             let feePayer: TransactionSigner<string>;
@@ -71,12 +80,12 @@ export const transferCommand = new Command('transfer')
             const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
             // Create transaction
-            const transaction = createTransaction({
-                version: 'legacy',
-                feePayer,
-                latestBlockhash,
-                instructions,
-            });
+            const transaction = pipe(
+                createTransactionMessage({ version: 0 }),
+                m => setTransactionMessageFeePayer(feePayer.address, m),
+                m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+                m => appendTransactionMessageInstructions(instructions, m),
+            );
 
             if (maybeOutputRawTx(rawTx, transaction)) {
                 return;
@@ -89,8 +98,13 @@ export const transferCommand = new Command('transfer')
 
             spinner.text = 'Sending transaction...';
 
-            // Send and confirm transaction
-            const signature = await sendAndConfirmTransaction(signedTransaction);
+            // Assert blockhash lifetime and send
+            assertIsTransactionWithBlockhashLifetime(signedTransaction);
+            await sendAndConfirmTransaction(signedTransaction, {
+                skipPreflight: true,
+                commitment: 'confirmed',
+            });
+            const signature = getSignatureFromTransaction(signedTransaction);
 
             spinner.succeed('Transfer completed successfully!');
 

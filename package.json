@@ -46,5 +46,19 @@
         "node": ">=20.0.0",
         "pnpm": ">=10.0.0"
     },
-    "packageManager": "pnpm@10.21.0"
+    "packageManager": "pnpm@10.24.0",
+    "pnpm": {
+        "overrides": {
+            "@solana/accounts": "^5.0.0",
+            "@solana/addresses": "^5.0.0",
+            "@solana/signers": "^5.0.0",
+            "@solana/rpc": "^5.0.0",
+            "@solana/rpc-types": "^5.0.0",
+            "@solana/transactions": "^5.0.0",
+            "@solana/transaction-messages": "^5.0.0",
+            "@solana/keys": "^5.0.0",
+            "@solana/codecs": "^5.0.0",
+            "@solana-program/compute-budget": "^0.11.0"
+        }
+    }
 }

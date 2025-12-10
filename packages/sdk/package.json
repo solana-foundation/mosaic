@@ -27,10 +27,16 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@solana-program/token-2022": "^0.5.0",
-        "@token-acl/abl-sdk": "^0.1.2",
-        "@token-acl/sdk": "^0.1.4",
-        "gill": "^0.10.2"
+        "@solana/kit": "^5.0.0",
+        "@solana-program/memo": "^0.10.0",
+        "@solana-program/system": "^0.10.0",
+        "@solana-program/token-2022": "^0.6.1",
+        "@solana/sysvars": "^5.0.0",
+        "@token-acl/abl-sdk": "^0.2.0",
+        "@token-acl/sdk": "^0.2.7"
+    },
+    "_dependencyNotes": {
+        "solanaKitV5": "This SDK uses Solana Kit v5.0 ecosystem packages (@solana/kit@5.0, @solana/sysvars@5.0, @solana-program/token-2022@0.6.1). These are published to npm under the 'experimental' or 'next' tag. The root pnpm-lock.yaml contains overrides to ensure consistent resolution across all @solana/* packages. See: https://github.com/anza-xyz/kit"
     },
     "devDependencies": {
         "@jest/test-sequencer": "^29.7.0",

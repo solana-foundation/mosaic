@@ -1,9 +1,17 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ABL_PROGRAM_ID, createArcadeTokenInitTransaction, TOKEN_ACL_PROGRAM_ID } from '@mosaic/sdk';
-import { createSolanaClient } from '../../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
-import { generateKeyPairSigner, signTransactionMessageWithSigners, type Address, type TransactionSigner } from 'gill';
+import {
+    generateKeyPairSigner,
+    signTransactionMessageWithSigners,
+    type Address,
+    type TransactionSigner,
+    sendAndConfirmTransactionFactory,
+    assertIsTransactionWithBlockhashLifetime,
+    getSignatureFromTransaction,
+} from '@solana/kit';
 import { findListConfigPda } from '@token-acl/abl-sdk';
 import { findMintConfigPda } from '@token-acl/sdk';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
@@ -49,7 +57,9 @@ export const createArcadeTokenCommand = new Command('arcade-token')
 
         try {
             // Create Solana client
-            const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+            const rpc = createRpcClient(rpcUrl);
+            const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
+            const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
             // Load signer and payer keypairs
@@ -95,7 +105,7 @@ export const createArcadeTokenCommand = new Command('arcade-token')
             );
 
             if (rawTx) {
-                const { maybeOutputRawTx } = await import('../../utils/rawTx.js');
+                const { maybeOutputRawTx } = await import('../../utils/raw-tx.js');
                 if (maybeOutputRawTx(rawTx, transaction)) {
                     return;
                 }
@@ -108,11 +118,13 @@ export const createArcadeTokenCommand = new Command('arcade-token')
 
             spinner.text = 'Sending transaction...';
 
-            // Send and confirm transaction
-            const signature = await sendAndConfirmTransaction(signedTransaction, {
+            // Assert blockhash lifetime and send
+            assertIsTransactionWithBlockhashLifetime(signedTransaction);
+            await sendAndConfirmTransaction(signedTransaction, {
                 skipPreflight: true,
                 commitment: 'confirmed',
             });
+            const signature = getSignatureFromTransaction(signedTransaction);
 
             spinner.succeed('Arcade token created successfully!');
 

@@ -18,13 +18,15 @@ pnpm add @mosaic/sdk
 npm i @mosaic/sdk
 ```
 
-The SDK pulls in `gill` (RPC + SPL helpers) transitively; you can import helpers/types directly from `gill` in your app.
+The SDK uses `@solana/kit` (RPC + SPL helpers) transitively; you can import helpers/types directly from `@solana/kit` in your app.
+
+> **Note on Solana Kit v5:** This SDK uses the Solana Kit v5.0 ecosystem (`@solana/kit@^5.0.0`, `@solana/sysvars@^5.0.0`, `@solana-program/token-2022@^0.6.1`). These packages are published to npm under an experimental/next tag and may not appear as the "latest" version on npmjs.com. The monorepo uses pnpm overrides (in the root `pnpm-lock.yaml`) to ensure consistent version resolution across all `@solana/*` packages. See the [Anza Kit repository](https://github.com/anza-xyz/kit) for upstream details.
 
 ## Quick start
 
 ```ts
 import { createStablecoinInitTransaction, transactionToB64 } from '@mosaic/sdk';
-import { createSolanaRpc, generateKeyPairSigner } from 'gill';
+import { createSolanaRpc, generateKeyPairSigner } from '@solana/kit';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
 const mint = await generateKeyPairSigner();
@@ -66,7 +68,7 @@ import {
     createArcadeTokenInitTransaction,
     createTokenizedSecurityInitTransaction,
 } from '@mosaic/sdk';
-import { createSolanaRpc, generateKeyPairSigner } from 'gill';
+import { createSolanaRpc, generateKeyPairSigner } from '@solana/kit';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
 const feePayer = YOUR_FEEPAYER_ADDRESS;
@@ -122,7 +124,7 @@ await createTokenizedSecurityInitTransaction(
 
 ```ts
 import { createMintToTransaction } from '@mosaic/sdk';
-import { createSolanaRpc, generateKeyPairSigner } from 'gill';
+import { createSolanaRpc, generateKeyPairSigner } from '@solana/kit';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
 const feePayer = await generateKeyPairSigner();
@@ -288,7 +290,11 @@ import {
     transactionToB58,
 } from '@mosaic/sdk';
 
-const { tokenAccount, isInitialized, isFrozen } = await resolveTokenAccount(rpc, 'WalletOrAta...', 'Mint...');
+const { tokenAccount, isInitialized, isFrozen, balance, uiBalance } = await resolveTokenAccount(
+    rpc,
+    'WalletOrAta...',
+    'Mint...',
+);
 const decimals = await getMintDecimals(rpc, 'Mint...');
 const raw = decimalAmountToRaw(1.23, decimals);
 // Encode a built transaction for transport/signing

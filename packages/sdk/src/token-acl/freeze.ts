@@ -1,26 +1,30 @@
 import {
-    createTransaction,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayerSigner,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
     type Address,
-    type FullTransaction,
     type Instruction,
     type Rpc,
     type SolanaRpcApi,
-    type TransactionMessageWithFeePayer,
     type TransactionSigner,
-    type TransactionVersion,
-    type TransactionWithBlockhashLifetime,
-} from 'gill';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
 import { findMintConfigPda, getFreezeInstruction } from '@token-acl/sdk';
+import { getFreezeAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
+import { getMintDetails } from '../transaction-util';
 
 /**
  * Generates instructions for freezing a token account.
  *
- * This function creates instructions to freeze a token account.
+ * This function creates instructions to freeze a token account. It automatically
+ * detects whether the token uses Token ACL or standard SPL Token-2022 freeze authority
+ * and uses the appropriate instruction.
  *
  * @param input - Configuration parameters for freezing a token account
  * @param input.authority - The authority signer who can freeze the token account
- * @param input.mint - The mint address of the token account
  * @param input.tokenAccount - The token account address to freeze
  * @returns Promise containing the instructions for freezing a token account
  */
@@ -55,16 +59,37 @@ export const getFreezeInstructions = async (input: {
         state: tokenInfo.state,
     };
 
-    const mintConfigPda = await findMintConfigPda({ mint: token.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
+    // Get mint details to determine if this token uses Token ACL
+    const { freezeAuthority, programAddress } = await getMintDetails(input.rpc, token.mint);
 
-    const freezeInstruction = getFreezeInstruction(
+    // Check if freeze authority is the Token ACL program
+    if (freezeAuthority === TOKEN_ACL_PROGRAM_ID) {
+        // Use Token ACL instruction
+        const mintConfigPda = await findMintConfigPda({ mint: token.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
+
+        const freezeInstruction = getFreezeInstruction(
+            {
+                authority: input.authority,
+                mintConfig: mintConfigPda[0],
+                mint: token.mint,
+                tokenAccount: input.tokenAccount,
+            },
+            { programAddress: TOKEN_ACL_PROGRAM_ID },
+        );
+
+        return [freezeInstruction];
+    }
+
+    // Use standard SPL Token-2022 freeze instruction
+    const freezeInstruction = getFreezeAccountInstruction(
         {
-            authority: input.authority,
-            mintConfig: mintConfigPda[0],
+            account: input.tokenAccount,
             mint: token.mint,
-            tokenAccount: input.tokenAccount,
+            owner: input.authority,
         },
-        { programAddress: TOKEN_ACL_PROGRAM_ID },
+        {
+            programAddress: programAddress as typeof TOKEN_2022_PROGRAM_ADDRESS,
+        },
     );
 
     return [freezeInstruction];
@@ -89,14 +114,13 @@ export const getFreezeTransaction = async (input: {
     payer: TransactionSigner<string>;
     authority: TransactionSigner<string>;
     tokenAccount: Address;
-}): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+}): Promise<FullTransaction> => {
     const instructions = await getFreezeInstructions(input);
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    const transaction = createTransaction({
-        feePayer: input.payer,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
-    return transaction;
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayerSigner(input.payer, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };

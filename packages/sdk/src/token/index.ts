@@ -1,5 +1,5 @@
-import { type Address, fetchEncodedAccount, type Rpc, type SolanaRpcApi } from 'gill';
-import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from 'gill/programs';
+import { type Address, fetchEncodedAccount, type Rpc, type SolanaRpcApi } from '@solana/kit';
+import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from '@solana-program/token-2022';
 
 export const getTokenExtensions = async (rpc: Rpc<SolanaRpcApi>, mintAddress: Address): Promise<string[]> => {
     const encodedAccount = await fetchEncodedAccount(rpc, mintAddress);

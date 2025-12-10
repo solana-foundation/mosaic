@@ -1,7 +1,7 @@
 import setupTestSuite from './setup';
 import type { Client } from './setup';
-import type { KeyPairSigner, TransactionSigner } from 'gill';
-import { generateKeyPairSigner } from 'gill';
+import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
+import { generateKeyPairSigner } from '@solana/kit';
 import {
     sendAndConfirmTransaction,
     assertTxSuccess,
@@ -17,9 +17,9 @@ import {
 import { Token } from '../../issuance';
 import { createMintToTransaction } from '../../management';
 import { createTransferTransaction } from '../../transfer';
-import { decimalAmountToRaw } from '../../transactionUtil';
+import { decimalAmountToRaw } from '../../transaction-util';
 import { getFreezeTransaction, TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
-import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
+import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
 describeSkipIf()('Transfer Integration Tests', () => {
     let client: Client;
@@ -69,6 +69,9 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n);
 
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
@@ -156,6 +159,9 @@ describeSkipIf()('Transfer Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n);
+
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
                     client.rpc,
@@ -233,6 +239,9 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n);
 
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
@@ -362,7 +371,7 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 );
 
                 // Verify receiver account is not frozen after transfer
-                const frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address);
+                const frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(false);
             },
             DEFAULT_TIMEOUT,
@@ -398,6 +407,9 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n);
 
                 // Mint tokens to sender
                 const initialAmount = 1_000_000;
@@ -475,6 +487,9 @@ describeSkipIf()('Transfer Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n, DEFAULT_COMMITMENT);
+
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
                     client.rpc,
@@ -487,11 +502,11 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
 
                 // Freeze sender account
-                const senderTokenAccount = await getAssociatedTokenAccountAddress(
-                    mint.address,
-                    sender.address,
-                    TOKEN_2022_PROGRAM_ADDRESS,
-                );
+                const [senderTokenAccount] = await findAssociatedTokenPda({
+                    owner: sender.address,
+                    tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                    mint: mint.address,
+                });
 
                 const freezeTx = await getFreezeTransaction({
                     rpc: client.rpc,
@@ -502,7 +517,7 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
 
                 // Verify sender is frozen
-                const frozen = await isAccountFrozen(client.rpc, sender.address, mint.address);
+                const frozen = await isAccountFrozen(client.rpc, sender.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(true);
 
                 // When: Try to transfer from frozen account
@@ -556,6 +571,9 @@ describeSkipIf()('Transfer Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n, DEFAULT_COMMITMENT);
+
                 // Mint tokens to both sender and receiver
                 const mintToSenderTx = await createMintToTransaction(
                     client.rpc,
@@ -580,11 +598,11 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 // Verify receiver starts frozen (default state is frozen)
                 // Note: After minting with SRFC-37, account should be thawed
                 // But we can freeze it again for this test
-                const receiverTokenAccount = await getAssociatedTokenAccountAddress(
-                    mint.address,
-                    receiver.address,
-                    TOKEN_2022_PROGRAM_ADDRESS,
-                );
+                const [receiverTokenAccount] = await findAssociatedTokenPda({
+                    owner: receiver.address,
+                    tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                    mint: mint.address,
+                });
 
                 const freezeTx = await getFreezeTransaction({
                     rpc: client.rpc,
@@ -594,7 +612,7 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 });
                 await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
 
-                let frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address);
+                let frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(true);
 
                 // When: Transfer to frozen receiver (should auto-thaw with SRFC-37)
@@ -629,7 +647,7 @@ describeSkipIf()('Transfer Integration Tests', () => {
                     DEFAULT_COMMITMENT,
                 );
 
-                frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address);
+                frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(false);
             },
             DEFAULT_TIMEOUT,
@@ -663,6 +681,9 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n, DEFAULT_COMMITMENT);
 
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
@@ -719,6 +740,9 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 });
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // Verify mint exists before proceeding
+                await assertBalance(client.rpc, sender.address, mint.address, 0n, DEFAULT_COMMITMENT);
 
                 // Mint only 100k tokens to sender
                 const mintToSenderTx = await createMintToTransaction(

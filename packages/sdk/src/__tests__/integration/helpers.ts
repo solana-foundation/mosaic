@@ -4,14 +4,18 @@ import type {
     SolanaRpcApi,
     TransactionMessageWithFeePayer,
     TransactionVersion,
-    TransactionWithBlockhashLifetime,
-    FullTransaction,
+    TransactionMessageWithBlockhashLifetime,
     Commitment,
     Signature,
-} from 'gill';
-import { getSignatureFromTransaction, signTransactionMessageWithSigners, sendAndConfirmTransactionFactory } from 'gill';
+} from '@solana/kit';
+import type { FullTransaction } from '../../transaction-util';
+import {
+    getSignatureFromTransaction,
+    signTransactionMessageWithSigners,
+    sendAndConfirmTransactionFactory,
+} from '@solana/kit';
 import type { Client } from './setup';
-import { getAssociatedTokenAccountAddress, TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
+import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
     inspectToken,
     type AclMode,
@@ -24,7 +28,9 @@ import {
 } from '../../inspection';
 
 export const DEFAULT_TIMEOUT = 60000;
-export const DEFAULT_COMMITMENT = 'processed';
+// Use 'confirmed' commitment to ensure transactions are visible to subsequent RPC reads
+// 'processed' is too weak and can cause race conditions where accounts aren't found yet
+export const DEFAULT_COMMITMENT = 'confirmed';
 
 export const describeSkipIf = (condition?: boolean) => (condition ? describe.skip : describe);
 
@@ -33,7 +39,7 @@ export const describeSkipIf = (condition?: boolean) => (condition ? describe.ski
  */
 export async function sendAndConfirmTransaction(
     client: Client,
-    tx: FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>,
+    tx: FullTransaction,
     commitment: Commitment = DEFAULT_COMMITMENT,
     skipPreflight = true,
 ): Promise<Signature> {
@@ -42,7 +48,7 @@ export async function sendAndConfirmTransaction(
 
     // Get signature and wire transaction
     const signature = getSignatureFromTransaction(signedTransaction);
-    await sendAndConfirmTransactionFactory(client)(signedTransaction, {
+    await sendAndConfirmTransactionFactory(client)(signedTransaction as any, {
         commitment,
         skipPreflight,
     });
@@ -59,7 +65,7 @@ export async function getBalance(
     mint: Address,
     commitment: Commitment = DEFAULT_COMMITMENT,
 ): Promise<bigint> {
-    const ata = await getAssociatedTokenAccountAddress(mint, wallet, TOKEN_2022_PROGRAM_ADDRESS);
+    const [ata] = await findAssociatedTokenPda({ owner: wallet, tokenProgram: TOKEN_2022_PROGRAM_ADDRESS, mint });
 
     const accountInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed', commitment }).send();
 
@@ -74,10 +80,15 @@ export async function getBalance(
 /**
  * Check if an account is frozen
  */
-export async function isAccountFrozen(rpc: Rpc<SolanaRpcApi>, wallet: Address, mint: Address): Promise<boolean> {
-    const ata = await getAssociatedTokenAccountAddress(mint, wallet, TOKEN_2022_PROGRAM_ADDRESS);
+export async function isAccountFrozen(
+    rpc: Rpc<SolanaRpcApi>,
+    wallet: Address,
+    mint: Address,
+    commitment: Commitment = DEFAULT_COMMITMENT,
+): Promise<boolean> {
+    const [ata] = await findAssociatedTokenPda({ owner: wallet, tokenProgram: TOKEN_2022_PROGRAM_ADDRESS, mint });
 
-    const accountInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed' }).send();
+    const accountInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed', commitment }).send();
 
     if (!accountInfo?.value?.data) {
         return false;
@@ -102,7 +113,9 @@ export async function assertMemo(
     memo: string,
     commitment: Commitment = 'confirmed', // method doesn't support processed commitment
 ): Promise<void> {
-    const transaction = await rpc.getTransaction(transactionId, { commitment, encoding: 'base64' }).send();
+    const transaction = await rpc
+        .getTransaction(transactionId, { commitment, encoding: 'base64', maxSupportedTransactionVersion: 0 })
+        .send();
     const logs = transaction?.meta?.logMessages;
     expect(transaction?.meta?.logMessages).toBeDefined();
     const joinedLogs = logs?.join('\n');
@@ -112,14 +125,7 @@ export async function assertMemo(
 /**
  * Assert transaction fails
  */
-export async function assertTxFailure(
-    client: Client,
-    transactionToThrow: FullTransaction<
-        TransactionVersion,
-        TransactionMessageWithFeePayer,
-        TransactionWithBlockhashLifetime
-    >,
-): Promise<void> {
+export async function assertTxFailure(client: Client, transactionToThrow: FullTransaction): Promise<void> {
     await expect(sendAndConfirmTransaction(client, transactionToThrow)).rejects.toThrow();
 }
 

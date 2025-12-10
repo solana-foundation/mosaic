@@ -1,5 +1,5 @@
-import type { Address, Rpc, TransactionSigner } from 'gill';
-import { TOKEN_2022_PROGRAM_ADDRESS } from 'gill/programs';
+import type { Address, Rpc, TransactionSigner } from '@solana/kit';
+import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
 /**
  * Creates a mock RPC client for testing

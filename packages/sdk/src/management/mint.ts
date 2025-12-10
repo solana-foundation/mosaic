@@ -1,26 +1,25 @@
-import type {
-    Address,
-    Rpc,
-    SolanaRpcApi,
-    FullTransaction,
-    TransactionMessageWithFeePayer,
-    TransactionVersion,
-    TransactionSigner,
-    TransactionWithBlockhashLifetime,
-} from 'gill';
-import { createNoopSigner, createTransaction } from 'gill';
+import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
+import {
+    createNoopSigner,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
+} from '@solana/kit';
 import {
     TOKEN_2022_PROGRAM_ADDRESS,
     getMintToInstruction,
     getCreateAssociatedTokenIdempotentInstruction,
-} from 'gill/programs/token';
+} from '@solana-program/token-2022';
 import { getThawPermissionlessInstructions } from '../token-acl';
 import {
     decimalAmountToRaw,
     getMintDetails,
     isDefaultAccountStateSetFrozen,
     resolveTokenAccount,
-} from '../transactionUtil';
+} from '../transaction-util';
 
 /**
  * Creates a transaction to mint tokens to a recipient's associated token account.
@@ -41,7 +40,7 @@ export const createMintToTransaction = async (
     amount: number,
     mintAuthority: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
-): Promise<FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>> => {
+): Promise<FullTransaction> => {
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
     const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
 
@@ -86,12 +85,12 @@ export const createMintToTransaction = async (
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
-    return createTransaction({
-        feePayer: feePayerSigner,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(feePayerSigner.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
 };
 
 /**

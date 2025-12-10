@@ -1,18 +1,18 @@
-import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from 'gill';
-import { fetchEncodedAccount } from 'gill';
-import { decodeMint } from 'gill/programs/token';
+import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
+import { fetchEncodedAccount } from '@solana/kit';
+import { decodeMint } from '@solana-program/token-2022';
 import { getTokenPauseState } from '../pause';
 import { createMockRpc, createMockSigner } from '../../__tests__/test-utils';
 
-// Mock gill modules
-jest.mock('gill', () => ({
-    ...jest.requireActual('gill'),
+// Mock @solana/kit modules
+jest.mock('@solana/kit', () => ({
+    ...jest.requireActual('@solana/kit'),
     fetchEncodedAccount: jest.fn(),
     createTransaction: jest.fn(),
 }));
 
-jest.mock('gill/programs/token', () => ({
-    ...jest.requireActual('gill/programs/token'),
+jest.mock('@solana-program/token-2022', () => ({
+    ...jest.requireActual('@solana-program/token-2022'),
     decodeMint: jest.fn(),
 }));
 

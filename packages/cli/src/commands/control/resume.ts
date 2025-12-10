@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getTokenPauseState, createResumeTransaction, MINT_NOT_PAUSED_ERROR } from '@mosaic/sdk';
-import { createSolanaClient } from '../../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { resolveSigner } from '../../utils/solana.js';
-import { type Address } from 'gill';
+import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface ResumeOptions {
@@ -28,8 +28,10 @@ export const resumeCommand = new Command('resume')
         const spinner = createSpinner('Checking token state...', rawTx);
 
         try {
-            // Create Solana client
-            const { rpc, sendAndConfirmTransaction } = createSolanaClient(rpcUrl);
+            // Create RPC client
+            const rpc = createRpcClient(rpcUrl);
+            const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
+            const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
             // Check current pause state
             spinner.text = 'Checking current pause state...';
@@ -59,11 +61,11 @@ export const resumeCommand = new Command('resume')
                 feePayer: pauseAuthority, // Use same signer for fee payer
             });
 
-            const { raw, signature } = await sendOrOutputTransaction(transactionMessage, rawTx, spinner, tx =>
-                sendAndConfirmTransaction(tx, {
-                    skipPreflight: true,
-                    commitment: 'confirmed',
-                }),
+            const { raw, signature } = await sendOrOutputTransaction(
+                transactionMessage,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
             );
             if (raw) return;
 

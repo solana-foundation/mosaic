@@ -19,6 +19,8 @@ export interface TokenDisplay {
     createdAt?: string;
     isSrfc37?: boolean;
     metadataUri?: string;
+    image?: string;
+    creatorWallet?: string;
 }
 
 export interface StablecoinOptions {
@@ -47,10 +49,10 @@ export interface StablecoinCreationResult {
         decimals: number;
         aclMode?: 'allowlist' | 'blocklist';
         mintAuthority: string;
-        metadataAuthority: string;
-        pausableAuthority: string;
-        confidentialBalancesAuthority: string;
-        permanentDelegateAuthority: string;
+        metadataAuthority?: string;
+        pausableAuthority?: string;
+        confidentialBalancesAuthority?: string;
+        permanentDelegateAuthority?: string;
         extensions: string[];
     };
 }
@@ -68,6 +70,7 @@ export interface ArcadeTokenOptions {
     mintKeypair?: string;
     rpcUrl?: string;
     keypair?: string;
+    confirmationTimeoutMs?: number; // Transaction confirmation timeout in milliseconds (default: 60000)
 }
 
 export interface ArcadeTokenCreationResult {
@@ -80,9 +83,9 @@ export interface ArcadeTokenCreationResult {
         symbol: string;
         decimals: number;
         mintAuthority: string;
-        metadataAuthority: string;
-        pausableAuthority: string;
-        permanentDelegateAuthority: string;
+        metadataAuthority?: string;
+        pausableAuthority?: string;
+        permanentDelegateAuthority?: string;
         enableSrfc37: boolean;
         extensions: string[];
     };
@@ -116,11 +119,92 @@ export interface TokenizedSecurityCreationResult {
         decimals: number;
         aclMode?: 'allowlist' | 'blocklist';
         mintAuthority: string;
-        metadataAuthority: string;
-        pausableAuthority: string;
-        confidentialBalancesAuthority: string;
-        permanentDelegateAuthority: string;
+        metadataAuthority?: string;
+        pausableAuthority?: string;
+        confidentialBalancesAuthority?: string;
+        permanentDelegateAuthority?: string;
         multiplier: number;
+        extensions: string[];
+    };
+}
+
+export interface CustomTokenOptions {
+    name: string;
+    symbol: string;
+    decimals: string;
+    uri?: string;
+    // Extension toggles
+    enableMetadata?: boolean;
+    enablePausable?: boolean;
+    enablePermanentDelegate?: boolean;
+    enableDefaultAccountState?: boolean;
+    enableConfidentialBalances?: boolean;
+    enableScaledUiAmount?: boolean;
+    enableSrfc37?: boolean;
+    enableTransferFee?: boolean;
+    enableInterestBearing?: boolean;
+    enableNonTransferable?: boolean;
+    enableTransferHook?: boolean;
+    // ACL mode (only relevant if SRFC-37 is enabled)
+    aclMode?: 'allowlist' | 'blocklist';
+    // Authority addresses
+    mintAuthority?: string;
+    metadataAuthority?: string;
+    pausableAuthority?: string;
+    permanentDelegateAuthority?: string;
+    confidentialBalancesAuthority?: string;
+    scaledUiAmountAuthority?: string;
+    // Scaled UI Amount configuration
+    scaledUiAmountMode?: 'static' | 'scheduled' | 'rebasing';
+    scaledUiAmountMultiplier?: string;
+    scaledUiAmountNewMultiplier?: string;
+    scaledUiAmountEffectiveTimestamp?: string;
+    // Default Account State configuration
+    defaultAccountStateInitialized?: boolean;
+    freezeAuthority?: string;
+    // Transfer Fee configuration
+    transferFeeBasisPoints?: string;
+    transferFeeMaximum?: string;
+    transferFeeAuthority?: string;
+    withdrawWithheldAuthority?: string;
+    // Interest Bearing configuration
+    interestRate?: string;
+    interestBearingAuthority?: string;
+    // Transfer Hook configuration
+    transferHookProgramId?: string;
+    transferHookAuthority?: string;
+    rpcUrl?: string;
+}
+
+export interface CustomTokenCreationResult {
+    success: boolean;
+    error?: string;
+    transactionSignature?: string;
+    mintAddress?: string;
+    details?: {
+        name: string;
+        symbol: string;
+        decimals: number;
+        aclMode?: 'allowlist' | 'blocklist';
+        mintAuthority: string;
+        metadataAuthority?: string;
+        pausableAuthority?: string;
+        confidentialBalancesAuthority?: string;
+        permanentDelegateAuthority?: string;
+        scaledUiAmountAuthority?: string;
+        scaledUiAmountMultiplier?: number;
+        defaultAccountStateInitialized?: boolean;
+        // Transfer Fee details
+        transferFeeBasisPoints?: number;
+        transferFeeMaximum?: string;
+        transferFeeAuthority?: string;
+        withdrawWithheldAuthority?: string;
+        // Interest Bearing details
+        interestRate?: number;
+        interestBearingAuthority?: string;
+        // Transfer Hook details
+        transferHookProgramId?: string;
+        transferHookAuthority?: string;
         extensions: string[];
     };
 }

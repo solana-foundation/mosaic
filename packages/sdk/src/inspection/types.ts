@@ -1,4 +1,4 @@
-import type { Address } from 'gill';
+import type { Address } from '@solana/kit';
 
 export interface TokenMetadata {
     name?: string;
@@ -76,6 +76,7 @@ export interface TokenDashboardData {
     decimals: number;
     supply: string;
     uri?: string;
+    image?: string;
     detectedPatterns: TokenType[];
 
     // ACL configuration

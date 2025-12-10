@@ -1,30 +1,22 @@
 'use client';
 import { ModeToggle } from '@/components/mode-toggle';
-import { Button } from '@/components/ui/button';
-import { useRouter, usePathname } from 'next/navigation';
+
 import Link from 'next/link';
-import { ConnectWalletMenu } from '@/components/ConnectWallet/ConnectWalletMenu';
+import { ConnectButton } from '@/features/wallet/components/connect-button';
+import { Logo } from '@/components/logo';
 
 export function Header() {
-    const router = useRouter();
-    const pathname = usePathname();
-
     return (
-        <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-            <div className="container flex h-20 items-center justify-between">
+        <header
+            suppressHydrationWarning
+            className="sticky px-4 xl:px-0 top-0 z-50 w-full border-b bg-bg1 dark:bg-background backdrop-blur"
+        >
+            <div className="max-w-6xl mx-auto flex h-20 items-center justify-between">
                 <Link className="flex items-center space-x-2" href={'/'}>
-                    <h1 className="text-3xl font-bold mosaic-text">mosaic</h1>
+                    <Logo className="text-foreground" width={24} height={24} />
                 </Link>
                 <div className="flex items-center space-x-4">
-                    {pathname === '/' ? (
-                        <Button variant="outline" onClick={() => router.push('/dashboard')} className="p-6 text-lg">
-                            Get Started
-                        </Button>
-                    ) : (
-                        <ConnectWalletMenu>
-                            <p>Connect Wallet</p>
-                        </ConnectWalletMenu>
-                    )}
+                    <ConnectButton />
                     <ModeToggle />
                 </div>
             </div>

@@ -1,16 +1,17 @@
 import {
-    createTransaction,
+    pipe,
+    createTransactionMessage,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    appendTransactionMessageInstructions,
     type Address,
     type Base58EncodedBytes,
-    type FullTransaction,
     type Instruction,
     type Rpc,
     type SolanaRpcApi,
-    type TransactionMessageWithFeePayer,
     type TransactionSigner,
-    type TransactionVersion,
-    type TransactionWithBlockhashLifetime,
-} from 'gill';
+} from '@solana/kit';
+import type { FullTransaction } from '../transaction-util';
 import { ABL_PROGRAM_ID } from './utils';
 import {
     fetchListConfig,
@@ -77,7 +78,7 @@ export const getCreateListTransaction = async (input: {
     authority: TransactionSigner<string>;
     mint: Address;
 }): Promise<{
-    transaction: FullTransaction<TransactionVersion, TransactionMessageWithFeePayer, TransactionWithBlockhashLifetime>;
+    transaction: FullTransaction;
     listConfig: Address;
 }> => {
     const { instructions, listConfig } = await getCreateListInstructions({
@@ -85,12 +86,12 @@ export const getCreateListTransaction = async (input: {
         mint: input.mint,
     });
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    const transaction = createTransaction({
-        feePayer: input.payer,
-        version: 'legacy',
-        latestBlockhash,
-        instructions,
-    });
+    const transaction = pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayer(input.payer.address, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
     return {
         transaction,
         listConfig,
