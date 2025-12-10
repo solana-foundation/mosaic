@@ -27,7 +27,6 @@ export const templates: Template[] = [
             'pausable',
             'permanentDelegate',
             'confidentialBalances',
-            'confidentialMintBurn',
         ],
         enabledExtensionKeys: [
             'extMetadata',

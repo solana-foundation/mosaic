@@ -121,6 +121,78 @@ describe('Token', () => {
         });
     });
 
+    describe('withConfidentialTransferFee', () => {
+        it('should throw error if ConfidentialTransferMint is not enabled', () => {
+            expect(() => {
+                token.withConfidentialTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawWithheldAuthorityElGamalPubkey: TEST_AUTHORITY,
+                });
+            }).toThrow('ConfidentialTransferMint extension must be enabled before adding ConfidentialTransferFee');
+        });
+
+        it('should throw error if TransferFeeConfig is not enabled', () => {
+            token.withConfidentialBalances(TEST_AUTHORITY);
+            expect(() => {
+                token.withConfidentialTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawWithheldAuthorityElGamalPubkey: TEST_AUTHORITY,
+                });
+            }).toThrow('TransferFeeConfig extension must be enabled before adding ConfidentialTransferFee');
+        });
+
+        it('should add confidential transfer fee config when both required extensions are present', () => {
+            const elGamalPubkey = generateMockAddress() as Address;
+            const result = token
+                .withConfidentialBalances(TEST_AUTHORITY)
+                .withTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawAuthority: TEST_AUTHORITY,
+                    feeBasisPoints: 100,
+                    maximumFee: 1000n,
+                })
+                .withConfidentialTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawWithheldAuthorityElGamalPubkey: elGamalPubkey,
+                });
+
+            expect(result).toBe(token);
+            expect(token.getExtensions()).toHaveLength(2); // ConfidentialTransferMint + TransferFeeConfig
+        });
+
+        it('should include confidential transfer fee instruction in buildInstructions', async () => {
+            const elGamalPubkey = generateMockAddress() as Address;
+            token
+                .withConfidentialBalances(TEST_AUTHORITY)
+                .withTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawAuthority: TEST_AUTHORITY,
+                    feeBasisPoints: 100,
+                    maximumFee: 1000n,
+                })
+                .withConfidentialTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawWithheldAuthorityElGamalPubkey: elGamalPubkey,
+                });
+
+            const instructions = await token.buildInstructions({
+                rpc: mockRpc,
+                decimals: 6,
+                mintAuthority: TEST_AUTHORITY,
+                mint: mockMint,
+                feePayer: mockFeePayer,
+            });
+
+            // Should have: create + pre-init (confidential transfer mint + confidential transfer fee) + init
+            expect(instructions.length).toBeGreaterThan(2);
+            // Check that one of the pre-init instructions is for confidential transfer fee
+            const hasConfidentialTransferFeeInstruction = instructions.some(
+                (inst: any) => inst.programAddress === TOKEN_2022_PROGRAM_ADDRESS && inst.data,
+            );
+            expect(hasConfidentialTransferFeeInstruction).toBe(true);
+        });
+    });
+
     describe('method chaining', () => {
         it('should allow chaining multiple extensions', () => {
             const additionalMetadata = createTestAdditionalMetadata();
