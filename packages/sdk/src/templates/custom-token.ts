@@ -208,15 +208,15 @@ export const createCustomTokenInitTransaction = async (
     // Add Confidential Transfer Fee extension
     if (options?.enableConfidentialTransferFee) {
         if (!options?.enableConfidentialBalances) {
-            throw new Error(
-                'enableConfidentialBalances must be enabled when enableConfidentialTransferFee is enabled',
-            );
+            throw new Error('enableConfidentialBalances must be enabled when enableConfidentialTransferFee is enabled');
         }
         if (!options?.enableTransferFee) {
             throw new Error('enableTransferFee must be enabled when enableConfidentialTransferFee is enabled');
         }
         if (!options.withdrawWithheldAuthorityElGamalPubkey) {
-            throw new Error('withdrawWithheldAuthorityElGamalPubkey is required when enableConfidentialTransferFee is enabled');
+            throw new Error(
+                'withdrawWithheldAuthorityElGamalPubkey is required when enableConfidentialTransferFee is enabled',
+            );
         }
         const confidentialTransferFeeAuthority = options.confidentialTransferFeeAuthority || mintAuthorityAddress;
         tokenBuilder = tokenBuilder.withConfidentialTransferFee({

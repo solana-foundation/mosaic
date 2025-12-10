@@ -211,7 +211,7 @@ export class Token {
      * and TransferFee extensions to be enabled.
      *
      * @param config - Confidential transfer fee configuration
-     * @param config.authority - Optional authority to set the withdraw withheld authority ElGamal key
+     * @param config.authority - Authority to set the withdraw withheld authority ElGamal key
      * @param config.withdrawWithheldAuthorityElGamalPubkey - ElGamal public key for encrypted withheld fees
      */
     withConfidentialTransferFee(config: {
@@ -220,9 +220,7 @@ export class Token {
     }): Token {
         // Check that ConfidentialTransferMint is enabled
         if (!this.extensions.some(ext => ext.__kind === 'ConfidentialTransferMint')) {
-            throw new Error(
-                'ConfidentialTransferMint extension must be enabled before adding ConfidentialTransferFee',
-            );
+            throw new Error('ConfidentialTransferMint extension must be enabled before adding ConfidentialTransferFee');
         }
         // Check that TransferFeeConfig is enabled
         if (!this.extensions.some(ext => ext.__kind === 'TransferFeeConfig')) {
