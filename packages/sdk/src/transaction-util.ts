@@ -5,6 +5,7 @@ import type {
     Rpc,
     Address,
     SolanaRpcApi,
+    Commitment,
 } from '@solana/kit';
 
 // Type alias for convenience - represents a complete transaction message ready to be compiled
@@ -187,10 +188,11 @@ export async function resolveTokenAccount(
  *
  * @param rpc - The Solana RPC client instance
  * @param mint - The mint address
+ * @param commitment - Commitment level for the RPC call (defaults to 'confirmed')
  * @returns Promise with mint information including decimals
  */
-export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address) {
-    const accountInfo = await rpc.getAccountInfo(mint, { encoding: 'jsonParsed' }).send();
+export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address, commitment: Commitment = 'confirmed') {
+    const accountInfo = await rpc.getAccountInfo(mint, { encoding: 'jsonParsed', commitment }).send();
 
     if (!accountInfo.value) {
         throw new Error(`Mint account ${mint} not found`);
@@ -211,7 +213,9 @@ export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address) {
     let usesTokenAcl = false;
 
     if (mintInfo.freezeAuthority) {
-        const freezeAuthorityAccountInfo = await rpc.getAccountInfo(address(mintInfo.freezeAuthority)).send();
+        const freezeAuthorityAccountInfo = await rpc
+            .getAccountInfo(address(mintInfo.freezeAuthority), { commitment })
+            .send();
         if (!freezeAuthorityAccountInfo.value) {
             throw new Error(`Freeze authority account ${mintInfo.freezeAuthority} not found`);
         }

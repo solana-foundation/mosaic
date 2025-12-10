@@ -28,7 +28,9 @@ import {
 } from '../../inspection';
 
 export const DEFAULT_TIMEOUT = 60000;
-export const DEFAULT_COMMITMENT = 'processed';
+// Use 'confirmed' commitment to ensure transactions are visible to subsequent RPC reads
+// 'processed' is too weak and can cause race conditions where accounts aren't found yet
+export const DEFAULT_COMMITMENT = 'confirmed';
 
 export const describeSkipIf = (condition?: boolean) => (condition ? describe.skip : describe);
 
