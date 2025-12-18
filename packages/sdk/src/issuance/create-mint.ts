@@ -19,11 +19,16 @@ import {
     getPreInitializeInstructionsForMintExtensions,
     TOKEN_2022_PROGRAM_ADDRESS,
     getInitializeTokenMetadataInstruction,
+    getInitializeConfidentialTransferFeeInstruction,
 } from '@solana-program/token-2022';
 import { createUpdateFieldInstruction } from './create-update-field-instruction';
 
 export class Token {
     private extensions: Extension[] = [];
+    private confidentialTransferFeeConfig?: {
+        authority: Address;
+        withdrawWithheldAuthorityElGamalPubkey: Address;
+    };
 
     getExtensions(): Extension[] {
         return this.extensions;
@@ -200,6 +205,31 @@ export class Token {
         return this;
     }
 
+    /**
+     * Adds the Confidential Transfer Fee extension to the token.
+     * Enables confidential transfers with fees. Requires both ConfidentialTransferMint
+     * and TransferFee extensions to be enabled.
+     *
+     * @param config - Confidential transfer fee configuration
+     * @param config.authority - Authority to set the withdraw withheld authority ElGamal key
+     * @param config.withdrawWithheldAuthorityElGamalPubkey - ElGamal public key for encrypted withheld fees
+     */
+    withConfidentialTransferFee(config: {
+        authority: Address;
+        withdrawWithheldAuthorityElGamalPubkey: Address;
+    }): Token {
+        // Check that ConfidentialTransferMint is enabled
+        if (!this.extensions.some(ext => ext.__kind === 'ConfidentialTransferMint')) {
+            throw new Error('ConfidentialTransferMint extension must be enabled before adding ConfidentialTransferFee');
+        }
+        // Check that TransferFeeConfig is enabled
+        if (!this.extensions.some(ext => ext.__kind === 'TransferFeeConfig')) {
+            throw new Error('TransferFeeConfig extension must be enabled before adding ConfidentialTransferFee');
+        }
+        this.confidentialTransferFeeConfig = config;
+        return this;
+    }
+
     async buildInstructions({
         rpc,
         decimals,
@@ -236,6 +266,24 @@ export class Token {
         const preInitializeInstructions = this.extensions.flatMap(ext =>
             getPreInitializeInstructionsForMintExtensions(mint.address, [ext]),
         );
+
+        // Add ConfidentialTransferFee initialization if configured
+        if (this.confidentialTransferFeeConfig) {
+            preInitializeInstructions.push(
+                getInitializeConfidentialTransferFeeInstruction(
+                    {
+                        mint: mint.address,
+                        authority: some(this.confidentialTransferFeeConfig.authority),
+                        withdrawWithheldAuthorityElGamalPubkey: some(
+                            this.confidentialTransferFeeConfig.withdrawWithheldAuthorityElGamalPubkey,
+                        ),
+                    },
+                    {
+                        programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+                    },
+                ),
+            );
+        }
 
         // TODO: Add other post-initialize instructions as needed like for transfer hooks
         if (

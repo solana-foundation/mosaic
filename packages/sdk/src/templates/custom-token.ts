@@ -54,6 +54,7 @@ export const createCustomTokenInitTransaction = async (
         enableScaledUiAmount?: boolean;
         enableSrfc37?: boolean;
         enableTransferFee?: boolean;
+        enableConfidentialTransferFee?: boolean;
         enableInterestBearing?: boolean;
         enableNonTransferable?: boolean;
         enableTransferHook?: boolean;
@@ -84,6 +85,10 @@ export const createCustomTokenInitTransaction = async (
         withdrawWithheldAuthority?: Address;
         transferFeeBasisPoints?: number;
         transferFeeMaximum?: bigint;
+
+        // Confidential Transfer Fee configuration
+        confidentialTransferFeeAuthority?: Address;
+        withdrawWithheldAuthorityElGamalPubkey?: Address;
 
         // Interest Bearing configuration
         interestBearingAuthority?: Address;
@@ -197,6 +202,26 @@ export const createCustomTokenInitTransaction = async (
             withdrawAuthority: withdrawWithheldAuthority,
             feeBasisPoints,
             maximumFee,
+        });
+    }
+
+    // Add Confidential Transfer Fee extension
+    if (options?.enableConfidentialTransferFee) {
+        if (!options?.enableConfidentialBalances) {
+            throw new Error('enableConfidentialBalances must be enabled when enableConfidentialTransferFee is enabled');
+        }
+        if (!options?.enableTransferFee) {
+            throw new Error('enableTransferFee must be enabled when enableConfidentialTransferFee is enabled');
+        }
+        if (!options.withdrawWithheldAuthorityElGamalPubkey) {
+            throw new Error(
+                'withdrawWithheldAuthorityElGamalPubkey is required when enableConfidentialTransferFee is enabled',
+            );
+        }
+        const confidentialTransferFeeAuthority = options.confidentialTransferFeeAuthority || mintAuthorityAddress;
+        tokenBuilder = tokenBuilder.withConfidentialTransferFee({
+            authority: confidentialTransferFeeAuthority,
+            withdrawWithheldAuthorityElGamalPubkey: options.withdrawWithheldAuthorityElGamalPubkey,
         });
     }
 

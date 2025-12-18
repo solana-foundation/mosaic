@@ -82,8 +82,8 @@ export const capabilityNodes: Record<CapabilityKey, ReactNode> = {
     ),
     confidentialMintBurn: (
         <>
-            <strong>Confidential mint/burn</strong>: Feature under audit enabling mint/burn with encrypted amounts.
-            Amounts are not revealed to anyone but the token owner and an optional auditor.
+            <strong>Confidential mint/burn</strong>: <em>(Coming soon)</em> Feature enabling mint/burn with encrypted
+            amounts. Amounts are not revealed to anyone but the token owner and an optional auditor.
         </>
     ),
     scaledUIAmount: (

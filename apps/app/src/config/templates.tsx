@@ -21,14 +21,7 @@ export const templates: Template[] = [
         description: 'Create a regulatory-compliant stablecoin with transfer restrictions and metadata management.',
         colorClass: 'bg-indigo-100',
         iconColorClass: 'text-indigo-600',
-        coreCapabilityKeys: [
-            'metadata',
-            'accessControls',
-            'pausable',
-            'permanentDelegate',
-            'confidentialBalances',
-            'confidentialMintBurn',
-        ],
+        coreCapabilityKeys: ['metadata', 'accessControls', 'pausable', 'permanentDelegate', 'confidentialBalances'],
         enabledExtensionKeys: [
             'extMetadata',
             'extPausable',
