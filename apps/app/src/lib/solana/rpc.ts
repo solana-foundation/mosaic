@@ -120,77 +120,71 @@ export function createRpcSubscriptions(rpcUrl?: string): RpcSubscriptions<Solana
  * @returns Promise with current authorities
  */
 export async function getTokenAuthorities(mintAddress: string, rpcUrl?: string): Promise<TokenAuthorities> {
-    try {
-        const rpc = createRpcClient(rpcUrl);
+    const rpc = createRpcClient(rpcUrl);
 
-        // Fetch account using @solana/kit like inspect-mint does
-        const mintAddressTyped = mintAddress as Address;
-        const encodedAccount = await fetchEncodedAccount(rpc, mintAddressTyped);
+    // Fetch account using @solana/kit like inspect-mint does
+    const mintAddressTyped = mintAddress as Address;
+    const encodedAccount = await fetchEncodedAccount(rpc, mintAddressTyped);
 
-        if (!encodedAccount.exists) {
-            throw new Error('Mint account not found');
-        }
+    if (!encodedAccount.exists) {
+        throw new Error('Mint account not found');
+    }
 
-        // Check if this is a Token-2022 mint
-        if (encodedAccount.programAddress !== TOKEN_2022_PROGRAM_ADDRESS) {
-            throw new Error(`Not a Token-2022 mint (owner: ${encodedAccount.programAddress})`);
-        }
+    // Check if this is a Token-2022 mint
+    if (encodedAccount.programAddress !== TOKEN_2022_PROGRAM_ADDRESS) {
+        throw new Error(`Not a Token-2022 mint (owner: ${encodedAccount.programAddress})`);
+    }
 
-        // Decode mint data using gill's decodeMint
-        const decodedMint = decodeMint(encodedAccount);
+    // Decode mint data using gill's decodeMint
+    const decodedMint = decodeMint(encodedAccount);
 
-        // Extract basic authorities
-        const authorities: TokenAuthorities = {
-            mintAuthority:
-                decodedMint.data.mintAuthority?.__option === 'Some' ? decodedMint.data.mintAuthority.value : undefined,
-            freezeAuthority:
-                decodedMint.data.freezeAuthority?.__option === 'Some'
-                    ? decodedMint.data.freezeAuthority.value
-                    : undefined,
-        };
+    // Extract basic authorities
+    const authorities: TokenAuthorities = {
+        mintAuthority:
+            decodedMint.data.mintAuthority?.__option === 'Some' ? decodedMint.data.mintAuthority.value : undefined,
+        freezeAuthority:
+            decodedMint.data.freezeAuthority?.__option === 'Some' ? decodedMint.data.freezeAuthority.value : undefined,
+    };
 
-        // Extract extension authorities
-        if (decodedMint.data.extensions && decodedMint.data.extensions.__option === 'Some') {
-            for (const ext of decodedMint.data.extensions.value) {
-                if (!ext.__kind) continue;
+    // Extract extension authorities
+    if (decodedMint.data.extensions && decodedMint.data.extensions.__option === 'Some') {
+        for (const ext of decodedMint.data.extensions.value) {
+            if (!ext.__kind) continue;
 
-                switch (ext.__kind) {
-                    case 'TokenMetadata':
-                        if ('updateAuthority' in ext && ext.updateAuthority) {
-                            authorities.metadataAuthority =
-                                ext.updateAuthority.__option === 'Some' ? ext.updateAuthority.value : undefined;
-                        }
-                        break;
-                    case 'PermanentDelegate':
-                        if ('delegate' in ext) {
-                            authorities.permanentDelegateAuthority = ext.delegate;
-                        }
-                        break;
-                    case 'ConfidentialTransferMint':
-                        if ('authority' in ext && ext.authority) {
-                            authorities.confidentialBalancesAuthority =
-                                ext.authority.__option === 'Some' ? ext.authority.value : undefined;
-                        }
-                        break;
-                    case 'PausableConfig':
-                        if ('authority' in ext && ext.authority) {
-                            authorities.pausableAuthority =
-                                ext.authority.__option === 'Some' ? ext.authority.value : undefined;
-                        }
-                        break;
-                    case 'ScaledUiAmountConfig':
-                        if ('authority' in ext && ext.authority) {
-                            authorities.scaledUiAmountAuthority = ext.authority;
-                        }
-                        break;
-                }
+            switch (ext.__kind) {
+                case 'TokenMetadata':
+                    if ('updateAuthority' in ext && ext.updateAuthority) {
+                        authorities.metadataAuthority =
+                            ext.updateAuthority.__option === 'Some' ? ext.updateAuthority.value : undefined;
+                    }
+                    break;
+                case 'PermanentDelegate':
+                    if ('delegate' in ext) {
+                        authorities.permanentDelegateAuthority = ext.delegate;
+                    }
+                    break;
+                case 'ConfidentialTransferMint':
+                    if ('authority' in ext && ext.authority) {
+                        authorities.confidentialBalancesAuthority =
+                            ext.authority.__option === 'Some' ? ext.authority.value : undefined;
+                    }
+                    break;
+                case 'PausableConfig':
+                    if ('authority' in ext && ext.authority) {
+                        authorities.pausableAuthority =
+                            ext.authority.__option === 'Some' ? ext.authority.value : undefined;
+                    }
+                    break;
+                case 'ScaledUiAmountConfig':
+                    if ('authority' in ext && ext.authority) {
+                        authorities.scaledUiAmountAuthority = ext.authority;
+                    }
+                    break;
             }
         }
-
-        return authorities;
-    } catch (error) {
-        throw error;
     }
+
+    return authorities;
 }
 
 /**
@@ -202,18 +196,14 @@ export async function getExtensionAuthorities(
     _mintAddress: string,
     _rpcUrl?: string,
 ): Promise<Partial<TokenAuthorities>> {
-    try {
-        // TODO: Implement extension-specific authority fetching
-        // This would require fetching each extension's account data
-        // For now, return empty object as placeholder
+    // TODO: Implement extension-specific authority fetching
+    // This would require fetching each extension's account data
+    // For now, return empty object as placeholder
 
-        return {
-            metadataAuthority: undefined,
-            pausableAuthority: undefined,
-            confidentialBalancesAuthority: undefined,
-            permanentDelegateAuthority: undefined,
-        };
-    } catch (error) {
-        throw error;
-    }
+    return {
+        metadataAuthority: undefined,
+        pausableAuthority: undefined,
+        confidentialBalancesAuthority: undefined,
+        permanentDelegateAuthority: undefined,
+    };
 }

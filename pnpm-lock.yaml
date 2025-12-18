@@ -180,6 +180,9 @@ importers:
       '@eslint/js':
         specifier: ^9.32.0
         version: 9.39.1
+      '@next/eslint-plugin-next':
+        specifier: ^16.1.0
+        version: 16.1.0
       '@tailwindcss/postcss':
         specifier: ^4.1.17
         version: 4.1.17
@@ -196,7 +199,7 @@ importers:
         specifier: ^8.34.0
         version: 8.46.3(@typescript-eslint/parser@8.46.3(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3)
       '@typescript-eslint/parser':
-        specifier: ^8.34.0
+        specifier: ^8.46.3
         version: 8.46.3(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3)
       autoprefixer:
         specifier: ^10.4.21
@@ -210,6 +213,15 @@ importers:
       eslint-plugin-import:
         specifier: ^2.32.0
         version: 2.32.0(@typescript-eslint/parser@8.46.3(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.1(jiti@2.6.1))
+      eslint-plugin-react:
+        specifier: ^7.37.5
+        version: 7.37.5(eslint@9.39.1(jiti@2.6.1))
+      eslint-plugin-react-hooks:
+        specifier: ^7.0.1
+        version: 7.0.1(eslint@9.39.1(jiti@2.6.1))
+      globals:
+        specifier: ^16.5.0
+        version: 16.5.0
       postcss:
         specifier: ^8.5.6
         version: 8.5.6
@@ -3639,6 +3651,10 @@ packages:
     resolution: {integrity: sha512-ob/2LcVVaVGCYN+r14cnwnoDPUufjiYgSqRhiFD0Q1iI4Odora5RE8Iv1D24hAz5oMophRGkGz+yuvQmmUMnMw==}
     engines: {node: '>=18'}
 
+  globals@16.5.0:
+    resolution: {integrity: sha512-c/c15i26VrJ4IRt5Z89DnIzCGDn9EcebibhAOjw5ibqEHsE1wLUgkPn9RDmNcUKyU87GeaL633nyJ+pplFR2ZQ==}
+    engines: {node: '>=18'}
+
   globalthis@1.0.4:
     resolution: {integrity: sha512-DpLKbNU4WylpxJykQujfCcwYWiV/Jhm50Goo0wrVILAv5jOr9d+H+UR3PhSCD2rCCEIg0uc+G+muBTwD54JhDQ==}
     engines: {node: '>= 0.4'}
@@ -4891,11 +4907,6 @@ packages:
 
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
-    hasBin: true
-
-  semver@7.7.2:
-    resolution: {integrity: sha512-RF0Fw+rO5AMf9MAyaRXI4AV0Ulj5lMHqVxxdSgiVbixSCXoEmmX/jk0CuJw4+3SqroYO9VoUh+HcuJivvtJemA==}
-    engines: {node: '>=10'}
     hasBin: true
 
   semver@7.7.3:
@@ -8529,7 +8540,7 @@ snapshots:
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
-      semver: 7.7.2
+      semver: 7.7.3
       ts-api-utils: 2.1.0(typescript@5.8.3)
       typescript: 5.8.3
     transitivePeerDependencies:
@@ -8545,7 +8556,7 @@ snapshots:
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
-      semver: 7.7.2
+      semver: 7.7.3
       ts-api-utils: 2.1.0(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -9956,6 +9967,8 @@ snapshots:
   globals@14.0.0: {}
 
   globals@16.4.0: {}
+
+  globals@16.5.0: {}
 
   globalthis@1.0.4:
     dependencies:
@@ -11518,8 +11531,6 @@ snapshots:
   scheduler@0.27.0: {}
 
   semver@6.3.1: {}
-
-  semver@7.7.2: {}
 
   semver@7.7.3: {}
 

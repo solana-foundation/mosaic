@@ -1,23 +1,45 @@
-import { FlatCompat } from '@eslint/eslintrc';
 import js from '@eslint/js';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import nextPlugin from '@next/eslint-plugin-next';
+import reactPlugin from 'eslint-plugin-react';
+import reactHooksPlugin from 'eslint-plugin-react-hooks';
+import tsParser from '@typescript-eslint/parser';
+import tsPlugin from '@typescript-eslint/eslint-plugin';
+import globals from 'globals';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-});
-
-const config = [
-    // Extend Next.js config using compat
-    ...compat.extends('next/core-web-vitals', 'next/typescript'),
-
+export default [
+    js.configs.recommended,
     {
         files: ['**/*.{js,jsx,ts,tsx}'],
+        languageOptions: {
+            parser: tsParser,
+            parserOptions: {
+                ecmaVersion: 'latest',
+                sourceType: 'module',
+                ecmaFeatures: { jsx: true },
+            },
+            globals: {
+                ...globals.browser,
+                ...globals.node,
+                React: 'readonly',
+            },
+        },
+        plugins: {
+            '@next/next': nextPlugin,
+            react: reactPlugin,
+            'react-hooks': reactHooksPlugin,
+            '@typescript-eslint': tsPlugin,
+        },
         rules: {
+            // Next.js rules
+            ...nextPlugin.configs.recommended.rules,
+            ...nextPlugin.configs['core-web-vitals'].rules,
+
+            // React rules
+            'react/react-in-jsx-scope': 'off',
+            'react/prop-types': 'off',
+            'react-hooks/rules-of-hooks': 'error',
+            'react-hooks/exhaustive-deps': 'warn',
+
             // TypeScript specific rules
             '@typescript-eslint/no-unused-vars': [
                 'error',
@@ -27,6 +49,7 @@ const config = [
                 },
             ],
             '@typescript-eslint/no-explicit-any': 'warn',
+            'no-unused-vars': 'off', // Use TypeScript version instead
 
             // General JavaScript rules
             'prefer-const': 'error',
@@ -41,10 +64,7 @@ const config = [
             },
         },
     },
-
     {
         ignores: ['node_modules/', '.next/', 'out/', 'build/', 'dist/'],
     },
 ];
-
-export default config;
