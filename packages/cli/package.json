@@ -1,5 +1,5 @@
 {
-    "name": "@mosaic/cli",
+    "name": "@solana/mosaic-cli",
     "version": "0.1.0",
     "description": "Command-line interface for managing Token-2022 tokens with extensions",
     "type": "module",
@@ -21,7 +21,7 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@mosaic/sdk": "workspace:*",
+        "@solana/mosaic-sdk": "workspace:*",
         "@solana/kit": "^5.0.0",
         "@solana-program/system": "^0.7.0",
         "@solana-program/token-2022": "^0.5.0",

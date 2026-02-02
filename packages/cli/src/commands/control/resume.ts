@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { getTokenPauseState, createResumeTransaction, MINT_NOT_PAUSED_ERROR } from '@mosaic/sdk';
+import { getTokenPauseState, createResumeTransaction, MINT_NOT_PAUSED_ERROR } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { resolveSigner } from '../../utils/solana.js';
 import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';

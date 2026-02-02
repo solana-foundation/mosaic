@@ -13,7 +13,7 @@ import {
     assertIsTransactionWithBlockhashLifetime,
 } from '@solana/kit';
 import { CustomTokenCreationResult, CustomTokenOptions } from '@/types/token';
-import { createCustomTokenInitTransaction } from '@mosaic/sdk';
+import { createCustomTokenInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 
 /**

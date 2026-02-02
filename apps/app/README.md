@@ -66,7 +66,7 @@ src/
 │  ├─ RpcContextProvider.tsx      # @solana/kit RPC + subscriptions
 │  └─ SelectedWalletAccount*      # Selected wallet state
 ├─ lib/
-│  ├─ issuance/*                  # High-level create flows using @mosaic/sdk
+│  ├─ issuance/*                  # High-level create flows using @solana/mosaic-sdk
 │  ├─ management/*                # Mint/transfer/freeze/thaw helpers
 │  ├─ management/accessList.ts    # Allowlist/blocklist helpers
 │  ├─ token/*                     # Local storage + token data
@@ -78,7 +78,7 @@ src/
 
 - Wallets: configured in `components/solana-provider.tsx` (uses Devnet endpoint by default)
 - RPC/cluster: provided by `ChainContextProvider` and `RpcContextProvider` (Devnet/Testnet/Mainnet)
-- SDK: all blockchain operations use `@mosaic/sdk`
+- SDK: all blockchain operations use `@solana/mosaic-sdk`
 
 ### Environment Variables
 
@@ -103,4 +103,4 @@ pnpm start
 
 - Next.js 15, React 18, TailwindCSS
 - Wallet adapters (`@solana/wallet-adapter-*`)
-- Mosaic SDK (`@mosaic/sdk`) and `@solana/kit`
+- Mosaic SDK (`@solana/mosaic-sdk`) and `@solana/kit`

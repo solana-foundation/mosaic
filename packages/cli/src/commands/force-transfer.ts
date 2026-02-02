@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createForceTransferTransaction, validatePermanentDelegate } from '@mosaic/sdk';
+import { createForceTransferTransaction, validatePermanentDelegate } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';

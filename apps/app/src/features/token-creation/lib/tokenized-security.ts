@@ -12,7 +12,7 @@ import {
     assertIsTransactionWithBlockhashLifetime,
 } from '@solana/kit';
 import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/types/token';
-import { createTokenizedSecurityInitTransaction } from '@mosaic/sdk';
+import { createTokenizedSecurityInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 
 function validateOptions(options: TokenizedSecurityOptions): number {

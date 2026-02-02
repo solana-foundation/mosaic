@@ -16,7 +16,7 @@ import {
     isAddress,
     assertIsTransactionWithBlockhashLifetime,
 } from '@solana/kit';
-import { createUpdateFieldInstruction, createReallocateInstruction, getMintDetails } from '@mosaic/sdk';
+import { createUpdateFieldInstruction, createReallocateInstruction, getMintDetails } from '@solana/mosaic-sdk';
 import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 

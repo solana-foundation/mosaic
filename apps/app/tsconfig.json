@@ -21,7 +21,7 @@
         "baseUrl": ".",
         "paths": {
             "@/*": ["./src/*"],
-            "@mosaic/sdk": ["../../packages/sdk/src"]
+            "@solana/mosaic-sdk": ["../../packages/sdk/src"]
         }
     },
     "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],

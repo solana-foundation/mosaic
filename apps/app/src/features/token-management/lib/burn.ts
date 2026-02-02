@@ -1,5 +1,5 @@
 import { type Address, type TransactionModifyingSigner, isAddress } from '@solana/kit';
-import { createBurnTransaction } from '@mosaic/sdk';
+import { createBurnTransaction } from '@solana/mosaic-sdk';
 import { executeTokenAction } from './token-action';
 
 export interface BurnOptions {

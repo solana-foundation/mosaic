@@ -1,6 +1,6 @@
 import { type Address, type TransactionModifyingSigner, isAddress } from '@solana/kit';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-import { getFreezeTransaction } from '@mosaic/sdk';
+import { getFreezeTransaction } from '@solana/mosaic-sdk';
 import { executeTokenAction } from './token-action';
 
 export interface FreezeAccountOptions {

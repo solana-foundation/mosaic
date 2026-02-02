@@ -1,4 +1,4 @@
-import { transactionToB58, transactionToB64 } from '@mosaic/sdk';
+import { transactionToB58, transactionToB64 } from '@solana/mosaic-sdk';
 import type { FullTransaction } from './types.js';
 
 type Tx = FullTransaction;

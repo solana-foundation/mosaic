@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
-import { createPauseTransaction, MINT_ALREADY_PAUSED_ERROR } from '@mosaic/sdk';
+import { createPauseTransaction, MINT_ALREADY_PAUSED_ERROR } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc';
 import { resolveSigner } from '../../utils/solana';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli';

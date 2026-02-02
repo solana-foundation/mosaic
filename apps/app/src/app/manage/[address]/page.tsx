@@ -47,7 +47,7 @@ import {
     removeAddressFromAllowlist,
 } from '@/features/token-management/lib/access-list';
 import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from '@solana/kit';
-import { getList, getListConfigPda, getTokenExtensions } from '@mosaic/sdk';
+import { getList, getListConfigPda, getTokenExtensions } from '@solana/mosaic-sdk';
 import { Mode } from '@token-acl/abl-sdk';
 import { buildAddressExplorerUrl } from '@/lib/solana/explorer';
 import { getTokenAuthorities } from '@/lib/solana/rpc';

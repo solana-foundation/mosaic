@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, CheckCircle2 } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
-import { TokenType } from '@mosaic/sdk';
+import { TokenType } from '@solana/mosaic-sdk';
 import { useTokenStore } from '@/stores/token-store';
 import { Spinner } from '@/components/ui/spinner';
 import { address, createSolanaRpc, type Rpc, type SolanaRpcApi } from '@solana/kit';

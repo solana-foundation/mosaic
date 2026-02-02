@@ -17,7 +17,7 @@ import {
 } from '@solana/kit';
 import { getUpdateMultiplierScaledUiMintInstruction } from '@solana-program/token-2022';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
-import { getMintDetails } from '@mosaic/sdk';
+import { getMintDetails } from '@solana/mosaic-sdk';
 
 export interface UpdateScaledUiMultiplierOptions {
     mint: string;

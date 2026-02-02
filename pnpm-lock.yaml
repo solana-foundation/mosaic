@@ -47,7 +47,7 @@ importers:
 
   apps/app:
     dependencies:
-      '@mosaic/sdk':
+      '@solana/mosaic-sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
       '@radix-ui/react-accordion':
@@ -234,7 +234,7 @@ importers:
 
   packages/cli:
     dependencies:
-      '@mosaic/sdk':
+      '@solana/mosaic-sdk':
         specifier: workspace:*
         version: link:../sdk
       '@solana-program/system':

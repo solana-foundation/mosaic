@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { getTokenPauseState } from '@mosaic/sdk';
+import { getTokenPauseState } from '@solana/mosaic-sdk';
 import { createRpcClient } from '../../utils/rpc.js';
 import { type Address } from '@solana/kit';
 import { getGlobalOpts, createSpinner } from '../../utils/cli.js';

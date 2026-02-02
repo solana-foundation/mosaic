@@ -1,5 +1,5 @@
 import { type Address, type TransactionModifyingSigner, isAddress } from '@solana/kit';
-import { createMintToTransaction } from '@mosaic/sdk';
+import { createMintToTransaction } from '@solana/mosaic-sdk';
 import { executeTokenAction } from './token-action';
 
 export interface MintOptions {

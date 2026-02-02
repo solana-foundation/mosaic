@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    transpilePackages: ['@mosaic/sdk'],
+    transpilePackages: ['@solana/mosaic-sdk'],
 };
 
 export default nextConfig;

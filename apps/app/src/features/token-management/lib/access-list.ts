@@ -15,7 +15,7 @@ import {
     createRemoveFromBlocklistTransaction,
     createAddToAllowlistTransaction,
     createRemoveFromAllowlistTransaction,
-} from '@mosaic/sdk';
+} from '@solana/mosaic-sdk';
 import { getCommitment } from '@/lib/solana/rpc';
 
 export interface BlocklistOptions {
