@@ -2,6 +2,11 @@
     "name": "@solana/mosaic-cli",
     "version": "0.1.0",
     "description": "Command-line interface for managing Token-2022 tokens with extensions",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/solana-foundation/mosaic",
+        "directory": "packages/cli"
+    },
     "type": "module",
     "main": "./dist/index.js",
     "bin": {

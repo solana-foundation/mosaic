@@ -2,6 +2,11 @@
     "name": "@solana/mosaic-sdk",
     "version": "0.1.0",
     "description": "SDK for Mosaic with helper functions for issuance and management of any token",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/solana-foundation/mosaic",
+        "directory": "packages/sdk"
+    },
     "type": "module",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
