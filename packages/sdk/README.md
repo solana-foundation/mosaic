@@ -162,7 +162,12 @@ const tx = await createForceTransferTransaction(
 Create and manage allowlists/blocklists that gate who can thaw/hold tokens.
 
 ```ts
-import { getCreateListTransaction, getAddWalletTransaction, getRemoveWalletTransaction, getList } from '@solana/mosaic-sdk';
+import {
+    getCreateListTransaction,
+    getAddWalletTransaction,
+    getRemoveWalletTransaction,
+    getList,
+} from '@solana/mosaic-sdk';
 import { generateKeyPairSigner } from 'gill';
 
 const authority = await generateKeyPairSigner();
