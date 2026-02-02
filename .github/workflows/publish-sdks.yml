@@ -24,7 +24,6 @@ jobs:
   publish-packages:
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
-    environment: npm-publish
 
     steps:
       - name: Checkout code
@@ -64,12 +63,16 @@ jobs:
       - name: Publish @solana/mosaic-sdk
         if: ${{ startsWith(github.ref, 'refs/tags/') || github.event.inputs.package == 'all' || github.event.inputs.package == 'sdk' }}
         working-directory: packages/sdk
-        run: npm publish --access public
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @solana/mosaic-cli
         if: ${{ startsWith(github.ref, 'refs/tags/') || github.event.inputs.package == 'all' || github.event.inputs.package == 'cli' }}
         working-directory: packages/cli
-        run: npm publish --access public
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   create-release:
     if: startsWith(github.ref, 'refs/tags/') && always() && !cancelled()
