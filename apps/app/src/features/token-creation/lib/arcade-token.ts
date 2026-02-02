@@ -12,7 +12,7 @@ import {
     assertIsTransactionWithBlockhashLifetime,
 } from '@solana/kit';
 import { ArcadeTokenCreationResult, ArcadeTokenOptions } from '@/types/token';
-import { createArcadeTokenInitTransaction } from '@mosaic/sdk';
+import { createArcadeTokenInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 
 /**

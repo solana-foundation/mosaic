@@ -6,13 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Mosaic is a TypeScript monorepo for managing Token-2022 extensions on Solana, specifically designed for Stablecoin and Arcade Token use cases. The project uses pnpm workspaces and Turbo for build orchestration with the following structure:
 
-- **@mosaic/sdk** (`packages/sdk/`) - Core SDK with token templates and management utilities
+- **@solana/mosaic-sdk** (`packages/sdk/`) - Core SDK with token templates and management utilities
     - Uses `gill` library for Solana interactions
     - Provides `Token` class for building token transactions with extensions
     - Contains predefined templates for stablecoin and arcade tokens
     - Token extensions include: Metadata, Pausable, Default Account State, Confidential Balances, Permanent Delegate
     - Key modules: issuance, management, administration, templates
-- **@mosaic/cli** (`packages/cli/`) - Command-line interface built with Commander.js
+- **@solana/mosaic-cli** (`packages/cli/`) - Command-line interface built with Commander.js
     - Commands: `create stablecoin`, `create arcade-token`, `mint`
     - Global options: `--rpc-url`, `--keypair`
 - **@mosaic/app** (`apps/app/`) - Dashboard application (Next.js) with Tailwind CSS and Radix UI components

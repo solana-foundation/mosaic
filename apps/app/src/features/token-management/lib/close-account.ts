@@ -1,5 +1,5 @@
 import { type Address, type TransactionModifyingSigner, isAddress } from '@solana/kit';
-import { createCloseAccountTransaction } from '@mosaic/sdk';
+import { createCloseAccountTransaction } from '@solana/mosaic-sdk';
 import { executeTokenAction } from './token-action';
 
 export interface CloseAccountOptions {

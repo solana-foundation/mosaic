@@ -1,0 +1,116 @@
+name: Publish SDKs
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Which package(s) to publish to npm'
+        type: choice
+        required: true
+        default: all
+        options:
+          - all
+          - sdk
+          - cli
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish-packages:
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    environment: npm-publish
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10.28.0
+
+      - name: Update npm for trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Run tests (skip for now)
+        run: echo "Skipping tests for initial publish"
+
+      - name: Publish @solana/mosaic-sdk
+        if: ${{ startsWith(github.ref, 'refs/tags/') || github.event.inputs.package == 'all' || github.event.inputs.package == 'sdk' }}
+        working-directory: packages/sdk
+        run: npm publish --access public
+
+      - name: Publish @solana/mosaic-cli
+        if: ${{ startsWith(github.ref, 'refs/tags/') || github.event.inputs.package == 'all' || github.event.inputs.package == 'cli' }}
+        working-directory: packages/cli
+        run: npm publish --access public
+
+  create-release:
+    if: startsWith(github.ref, 'refs/tags/') && always() && !cancelled()
+    needs: [publish-packages]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Compute release version
+        id: version
+        run: |
+          echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Release ${{ steps.version.outputs.tag }}
+          body: |
+            ## Mosaic Packages Published
+
+            ### @solana/mosaic-sdk
+            - Package: `@solana/mosaic-sdk`
+            - Version: ${{ steps.version.outputs.version }}
+            - Registry: npm
+
+            ### @solana/mosaic-cli
+            - Package: `@solana/mosaic-cli`
+            - Version: ${{ steps.version.outputs.version }}
+            - Registry: npm
+
+            ## Installation
+
+            ```bash
+            npm install @solana/mosaic-sdk@${{ steps.version.outputs.version }}
+            npm install @solana/mosaic-cli@${{ steps.version.outputs.version }}
+            ```
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.tag, '-') }}

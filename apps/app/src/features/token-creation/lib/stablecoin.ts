@@ -12,7 +12,7 @@ import {
     assertIsTransactionWithBlockhashLifetime,
 } from '@solana/kit';
 import { StablecoinCreationResult, StablecoinOptions } from '@/types/token';
-import { createStablecoinInitTransaction } from '@mosaic/sdk';
+import { createStablecoinInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 
 /**

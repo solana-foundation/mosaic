@@ -1,6 +1,6 @@
-# @mosaic/cli
+# @solana/mosaic-cli
 
-CLI for building and operating Token-2022 mints with modern extensions on Solana. Pairs with `@mosaic/sdk` and uses your filesystem keypair or the Solana CLI config by default.
+CLI for building and operating Token-2022 mints with modern extensions on Solana. Pairs with `@solana/mosaic-sdk` and uses your filesystem keypair or the Solana CLI config by default.
 
 ## Features
 

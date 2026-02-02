@@ -11,7 +11,7 @@ import {
     type PauseTokenResult,
     createPauseTransaction,
     createResumeTransaction,
-} from '@mosaic/sdk';
+} from '@solana/mosaic-sdk';
 import { getRpcUrl } from '@/lib/solana/rpc';
 import { executeTokenAction } from './token-action';
 

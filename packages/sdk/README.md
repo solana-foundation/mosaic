@@ -1,4 +1,4 @@
-# @mosaic/sdk
+# @solana/mosaic-sdk
 
 TypeScript SDK for building and operating Token-2022 mints with modern extensions. Batteries-included templates (Stablecoin, Arcade Token, Tokenized Security), and access-control management via Token ACL (SRFC-37). It is unopinionated about what kind of signer you use, whether that's a connected wallet, filesystem wallet, or 3rd party key management system.
 
@@ -13,9 +13,9 @@ TypeScript SDK for building and operating Token-2022 mints with modern extension
 ## Installation
 
 ```bash
-pnpm add @mosaic/sdk
+pnpm add @solana/mosaic-sdk
 # or
-npm i @mosaic/sdk
+npm i @solana/mosaic-sdk
 ```
 
 The SDK uses `@solana/kit` (RPC + SPL helpers) transitively; you can import helpers/types directly from `@solana/kit` in your app.
@@ -25,7 +25,7 @@ The SDK uses `@solana/kit` (RPC + SPL helpers) transitively; you can import help
 ## Quick start
 
 ```ts
-import { createStablecoinInitTransaction, transactionToB64 } from '@mosaic/sdk';
+import { createStablecoinInitTransaction, transactionToB64 } from '@solana/mosaic-sdk';
 import { createSolanaRpc, generateKeyPairSigner } from '@solana/kit';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
@@ -67,7 +67,7 @@ import {
     createStablecoinInitTransaction,
     createArcadeTokenInitTransaction,
     createTokenizedSecurityInitTransaction,
-} from '@mosaic/sdk';
+} from '@solana/mosaic-sdk';
 import { createSolanaRpc, generateKeyPairSigner } from '@solana/kit';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
@@ -123,7 +123,7 @@ await createTokenizedSecurityInitTransaction(
 ## Token management
 
 ```ts
-import { createMintToTransaction } from '@mosaic/sdk';
+import { createMintToTransaction } from '@solana/mosaic-sdk';
 import { createSolanaRpc, generateKeyPairSigner } from '@solana/kit';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
@@ -144,7 +144,7 @@ const tx = await createMintToTransaction(
 ### Force transfer (Permanent Delegate)
 
 ```ts
-import { createForceTransferTransaction } from '@mosaic/sdk';
+import { createForceTransferTransaction } from '@solana/mosaic-sdk';
 
 const tx = await createForceTransferTransaction(
     rpc,
@@ -162,7 +162,7 @@ const tx = await createForceTransferTransaction(
 Create and manage allowlists/blocklists that gate who can thaw/hold tokens.
 
 ```ts
-import { getCreateListTransaction, getAddWalletTransaction, getRemoveWalletTransaction, getList } from '@mosaic/sdk';
+import { getCreateListTransaction, getAddWalletTransaction, getRemoveWalletTransaction, getList } from '@solana/mosaic-sdk';
 import { generateKeyPairSigner } from 'gill';
 
 const authority = await generateKeyPairSigner();
@@ -207,8 +207,8 @@ import {
     getFreezeTransaction,
     getThawTransaction,
     getThawPermissionlessTransaction,
-} from '@mosaic/sdk';
-import { ABL_PROGRAM_ID } from '@mosaic/sdk';
+} from '@solana/mosaic-sdk';
+import { ABL_PROGRAM_ID } from '@solana/mosaic-sdk';
 
 // One-time: create Token ACL mint config and set ABL as gating program (templates do this for single-signer flow)
 await getCreateConfigTransaction({
@@ -255,7 +255,7 @@ await getThawPermissionlessTransaction({
 ## Administration (authorities)
 
 ```ts
-import { getUpdateAuthorityTransaction } from '@mosaic/sdk';
+import { getUpdateAuthorityTransaction } from '@solana/mosaic-sdk';
 import { AuthorityType } from 'gill/programs/token';
 
 // Transfer freeze authority to a new address
@@ -288,7 +288,7 @@ import {
     decimalAmountToRaw,
     transactionToB64,
     transactionToB58,
-} from '@mosaic/sdk';
+} from '@solana/mosaic-sdk';
 
 const { tokenAccount, isInitialized, isFrozen, balance, uiBalance } = await resolveTokenAccount(
     rpc,

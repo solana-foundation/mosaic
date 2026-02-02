@@ -67,7 +67,7 @@ pnpm start create arcade-token \
 See the [sdk readme](packages/sdk/README.md) for detailed docs
 
 ```typescript
-import { createStablecoinInitTransaction, createArcadeTokenInitTransaction } from '@mosaic/sdk';
+import { createStablecoinInitTransaction, createArcadeTokenInitTransaction } from '@solana/mosaic-sdk';
 import { createSolanaRpc, generateKeyPairSigner } from 'gill';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
@@ -91,8 +91,8 @@ const tx = await createStablecoinInitTransaction(
 
 This monorepo contains the following packages:
 
-- **[@mosaic/sdk](packages/sdk/)** - Core SDK with token templates, allowlist / blocklist integrations, management utilities, and Token-2022 integration
-- **[@mosaic/cli](packages/cli/)** - Command-line interface for token creation and management
+- **[@solana/mosaic-sdk](packages/sdk/)** - Core SDK with token templates, allowlist / blocklist integrations, management utilities, and Token-2022 integration
+- **[@solana/mosaic-cli](packages/cli/)** - Command-line interface for token creation and management
 - **[@mosaic/app](apps/app/)** - Dashboard application for a full featured tokenization engine for token management with wallet integration and sRFC-37 administration
 - **[@mosaic/abl](packages/abl/)** - Allowlist/Blocklist implementation for sRFC-37 compliance
 - **[@mosaic/token-acl](packages/token-acl/)** - Token ACL (sRFC-37). This standard provides management of access control lists for Solana Tokens.
@@ -191,8 +191,8 @@ pnpm lint       # Lint code
 The project implements a layered architecture:
 
 1. **Low-level Packages**: `@mosaic/abl`, `@mosaic/token-acl`, `@mosaic/tlv-account-resolution`
-2. **Core SDK**: `@mosaic/sdk` integrates all low-level packages
-3. **User Interfaces**: `@mosaic/cli` and `@mosaic/app` provide different ways to interact with the SDK
+2. **Core SDK**: `@solana/mosaic-sdk` integrates all low-level packages
+3. **User Interfaces**: `@solana/mosaic-cli` and `@mosaic/app` provide different ways to interact with the SDK
 
 The monorepo uses Turbo for build orchestration and is organized with:
 

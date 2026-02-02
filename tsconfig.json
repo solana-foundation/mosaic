@@ -3,8 +3,8 @@
     "compilerOptions": {
         "baseUrl": ".",
         "paths": {
-            "@mosaic/sdk": ["./packages/sdk/src"],
-            "@mosaic/cli": ["./packages/cli/src"],
+            "@solana/mosaic-sdk": ["./packages/sdk/src"],
+            "@solana/mosaic-cli": ["./packages/cli/src"],
             "@mosaic/app": ["./apps/app/src"]
         }
     },

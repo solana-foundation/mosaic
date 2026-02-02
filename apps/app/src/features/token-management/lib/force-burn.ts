@@ -1,5 +1,5 @@
 import { type Address, type TransactionModifyingSigner, isAddress } from '@solana/kit';
-import { createForceBurnTransaction, validatePermanentDelegateForBurn } from '@mosaic/sdk';
+import { createForceBurnTransaction, validatePermanentDelegateForBurn } from '@solana/mosaic-sdk';
 import { executeTokenAction } from './token-action';
 
 export interface ForceBurnOptions {

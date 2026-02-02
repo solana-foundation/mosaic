@@ -1,4 +1,4 @@
-import type { TokenType } from '@mosaic/sdk';
+import type { TokenType } from '@solana/mosaic-sdk';
 
 export interface TokenDisplay {
     name?: string;

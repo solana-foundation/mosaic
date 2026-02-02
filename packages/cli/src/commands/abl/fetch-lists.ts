@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
-import { getAllListConfigs } from '@mosaic/sdk';
+import { getAllListConfigs } from '@solana/mosaic-sdk';
 import { createRpcClient } from '../../utils/rpc.js';
 
 interface CreateConfigOptions {
