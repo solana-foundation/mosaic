@@ -10,16 +10,25 @@ export type CapabilityKey =
     | 'confidentialMintBurn'
     | 'scaledUIAmount'
     | 'sRFC37'
-    | 'gatingProgram';
+    | 'gatingProgram'
+    | 'kycGating'
+    | 'kytHook'
+    | 'travelRule'
+    | 'yieldAllocation'
+    | 'crossBorderSettlement'
+    | 'complianceFee';
 
 export type ExtensionKey =
     | 'extMetadata'
     | 'extPausable'
     | 'extDefaultAccountStateAllowOrBlock'
     | 'extDefaultAccountStateAllow'
+    | 'extDefaultAccountStateFrozen'
     | 'extPermanentDelegate'
     | 'extConfidentialBalances'
-    | 'extScaledUIAmount';
+    | 'extScaledUIAmount'
+    | 'extTransferHook'
+    | 'extTransferFee';
 
 export const capabilityNodes: Record<CapabilityKey, ReactNode> = {
     metadata: (
@@ -112,6 +121,54 @@ export const capabilityNodes: Record<CapabilityKey, ReactNode> = {
             with a custom program for complex gating (e.g., jurisdictional KYC proofs).
         </>
     ),
+    kycGating: (
+        <>
+            <strong>KYC Gating</strong>: Accounts start frozen (DefaultAccountState = Frozen). The compliance authority
+            thaws each account after identity verification, ensuring only KYC-approved users can hold or transfer tokens.
+        </>
+    ),
+    kytHook: (
+        <>
+            <strong>KYT Transfer Hook</strong>: Every token transfer invokes the KYT hook program via the{' '}
+            <a
+                href="https://www.solana-program.com/docs/token-2022/extensions#transfer-hook"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                TransferHook
+            </a>{' '}
+            extension. The hook screens sender/receiver against sanctions lists and risk heuristics, blocking flagged
+            transactions on-chain.
+        </>
+    ),
+    travelRule: (
+        <>
+            <strong>Travel Rule (FATF R.16)</strong>: Transfers above the configured threshold attach originator and
+            beneficiary VASP data as a structured JSON memo via SPL Memo. Enables FATF, FinCEN, and MAS compliance for
+            cross-border institutional transfers.
+        </>
+    ),
+    yieldAllocation: (
+        <>
+            <strong>Yield Allocation</strong>: Deposited funds are automatically routed across yield sources (Kamino,
+            Drift, tokenized RWAs) according to configurable allocation rules (e.g., 60% yield / 30% reserve / 10%
+            cross-border). Blended APY is maximized subject to risk tier constraints.
+        </>
+    ),
+    crossBorderSettlement: (
+        <>
+            <strong>Cross-Border Settlement</strong>: The cross-border tranche enables instant token transfers across
+            jurisdictions with FX rate conversion (Pyth / SIX Financial Data), ISO-20022 purpose codes, and SWIFT BIC
+            tagging via SPL Memo.
+        </>
+    ),
+    complianceFee: (
+        <>
+            <strong>Compliance Fee (TransferFee)</strong>: A small per-transfer fee (e.g., 5 bps) is automatically
+            withheld and routed to the treasury reserve tranche, funding ongoing compliance operations without manual
+            intervention.
+        </>
+    ),
 };
 
 export const extensionNodes: Record<ExtensionKey, ReactNode> = {
@@ -172,6 +229,33 @@ export const extensionNodes: Record<ExtensionKey, ReactNode> = {
     extScaledUIAmount: (
         <a href="https://solana.com/docs/tokens/extensions/scaled-ui-amount" target="_blank" rel="noopener noreferrer">
             Scaled UI Amount
+        </a>
+    ),
+    extDefaultAccountStateFrozen: (
+        <a
+            href="https://www.solana-program.com/docs/token-2022/extensions#default-account-state"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            Default Account State (Frozen — KYC required)
+        </a>
+    ),
+    extTransferHook: (
+        <a
+            href="https://www.solana-program.com/docs/token-2022/extensions#transfer-hook"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            Transfer Hook (KYT)
+        </a>
+    ),
+    extTransferFee: (
+        <a
+            href="https://www.solana-program.com/docs/token-2022/extensions#transfer-fee"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            Transfer Fee (compliance reserve)
         </a>
     ),
 };

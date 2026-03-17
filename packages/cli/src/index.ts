@@ -5,6 +5,9 @@ import { createStablecoinCommand } from './commands/create/stablecoin';
 import { createArcadeTokenCommand } from './commands/create/arcade-token';
 import { mintCommand } from './commands/mint';
 import { createTokenizedSecurityCommand } from './commands/create/tokenized-security';
+import { createTreasuryVaultCommand } from './commands/create/treasury-vault';
+import { vaultCommand } from './commands/vault';
+import { complianceCommand } from './commands/compliance';
 import { forceTransferCommand } from './commands/force-transfer';
 import { forceBurnCommand } from './commands/force-burn';
 import { transferCommand } from './commands/transfer';
@@ -28,6 +31,7 @@ const createCommand = program.command('create').description('Create new tokens w
 createCommand.addCommand(createStablecoinCommand);
 createCommand.addCommand(createArcadeTokenCommand);
 createCommand.addCommand(createTokenizedSecurityCommand);
+createCommand.addCommand(createTreasuryVaultCommand);
 
 // Add allowlist commands
 const allowlistCommand = program.command('allowlist').description('Manage allowlists');
@@ -48,6 +52,8 @@ program.addCommand(controlCommand);
 program.addCommand(inspectMintCommand);
 program.addCommand(tokenAclCommand);
 program.addCommand(ablCommand);
+program.addCommand(vaultCommand);
+program.addCommand(complianceCommand);
 
 // Global options
 program

@@ -1,4 +1,6 @@
 export { Token } from './issuance';
+export * from './vault';
+export * from './compliance';
 export {
     createUpdateFieldInstruction,
     createReallocateInstruction,

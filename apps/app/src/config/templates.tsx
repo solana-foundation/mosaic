@@ -1,4 +1,4 @@
-import { DollarSign, Gamepad2, CandlestickChart, Upload, Settings, type LucideIcon } from 'lucide-react';
+import { DollarSign, Gamepad2, CandlestickChart, Upload, Settings, Landmark, type LucideIcon } from 'lucide-react';
 import type { CapabilityKey, ExtensionKey } from '@/features/token-creation/capabilities/registry';
 
 export interface Template {
@@ -65,6 +65,35 @@ export const templates: Template[] = [
         coreCapabilityKeys: ['closedLoopAllowlistOnly', 'pausable', 'metadata', 'permanentDelegate'],
         enabledExtensionKeys: ['extMetadata', 'extPausable', 'extDefaultAccountStateAllow', 'extPermanentDelegate'],
         standardKeys: ['sRFC37', 'gatingProgram'],
+    },
+    {
+        id: 'treasury-vault',
+        icon: Landmark,
+        title: 'Treasury Vault',
+        description:
+            'Compliant yield-enabled institutional vault. Auto-routes deposits to DeFi yield sources with KYC, KYT transfer-hook, Travel Rule, and cross-border instant settlement.',
+        colorClass: 'bg-teal-100',
+        iconColorClass: 'text-teal-600',
+        coreCapabilityKeys: [
+            'kycGating',
+            'kytHook',
+            'travelRule',
+            'yieldAllocation',
+            'crossBorderSettlement',
+            'complianceFee',
+            'pausable',
+            'permanentDelegate',
+            'metadata',
+        ],
+        enabledExtensionKeys: [
+            'extMetadata',
+            'extTransferHook',
+            'extTransferFee',
+            'extPausable',
+            'extDefaultAccountStateFrozen',
+            'extPermanentDelegate',
+        ],
+        standardKeys: [],
     },
     {
         id: 'custom-token',
