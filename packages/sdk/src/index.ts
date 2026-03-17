@@ -1,6 +1,7 @@
 export { Token } from './issuance';
 export * from './vault';
 export * from './compliance';
+export * from './oracle';
 export {
     createUpdateFieldInstruction,
     createReallocateInstruction,

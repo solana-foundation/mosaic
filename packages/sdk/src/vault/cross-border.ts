@@ -1,30 +1,83 @@
 import type { CrossBorderTransferParams, CrossBorderTransferResult } from './types';
 
-// ─── FX Rate Simulation ───────────────────────────────────────────────────────
-// In production, integrate SIX Financial Data or a Pyth FX price feed.
+// ─── FX Rate Simulation (fallback) ───────────────────────────────────────────
+// These rates are used when the SIX Financial Data API is unavailable.
+// In production the live rate comes from getSixClient().getFxRate() via the
+// Next.js /api/six-rates route; see apps/app/src/app/api/six-rates/route.ts
 
-/** Simulated spot FX rates to USD (updated via oracle in production) */
+/** Fallback spot FX rates to USD — replaced by SIX live data at runtime */
 const SIMULATED_FX_RATES: Record<string, number> = {
-    USD: 1.0,
-    EUR: 1.0827,
-    GBP: 1.2710,
-    JPY: 0.0066,
-    SGD: 0.7380,
-    CHF: 1.1240,
-    AED: 0.2723,
-    HKD: 0.1282,
-    CAD: 0.7330,
-    AUD: 0.6410,
+    USD: 1.0,     EUR: 1.0827, GBP: 1.2710, JPY: 0.0066,
+    SGD: 0.7380,  CHF: 1.1240, AED: 0.2723, HKD: 0.1282,
+    CAD: 0.7330,  AUD: 0.6410, ZAR: 0.0536, CNY: 0.1382,
+    KRW: 0.00075, BRL: 0.1980, MXN: 0.0583, INR: 0.0120,
+    NZD: 0.6100,
+    // Precious metals (USD per troy oz)
+    XAU: 2185.0,  XAG: 24.50,  XPD: 980.0,  XPT: 885.0,
 };
 
 /**
  * Returns the simulated FX rate for converting `from` → `to`.
  * Rate is expressed as "1 unit of `from` = X units of `to`".
+ *
+ * In the vault dashboard this is replaced by live SIX data from
+ * useSixRates(); the CLI uses this directly as a fallback.
  */
 export function getSimulatedFxRate(from: string, to: string): number {
     const fromUsd = SIMULATED_FX_RATES[from.toUpperCase()] ?? 1.0;
     const toUsd = SIMULATED_FX_RATES[to.toUpperCase()] ?? 1.0;
     return fromUsd / toUsd;
+}
+
+/**
+ * Live FX rate cache — populated by the Next.js API route or server-side
+ * SixClient calls. Falls back to `getSimulatedFxRate()` when empty.
+ *
+ * Key: "EUR/USD", "XAU/USD" etc.
+ * Value: mid price
+ */
+export const _liveFxCache: Record<string, number> = {};
+
+/**
+ * Injects live SIX rates into the cross-border module cache.
+ * Called by the Next.js API route response handler and useSixRates hook.
+ */
+export function updateLiveFxRates(rates: Record<string, number>): void {
+    Object.assign(_liveFxCache, rates);
+}
+
+/**
+ * Returns the best available FX rate: SIX live > fallback simulation.
+ */
+export function getBestFxRate(from: string, to: string): { rate: number; source: 'six_live' | 'simulated' } {
+    if (from === to) return { rate: 1.0, source: 'six_live' };
+
+    // Try direct pair
+    const directKey = `${from}/${to}`;
+    if (_liveFxCache[directKey] !== undefined) {
+        return { rate: _liveFxCache[directKey], source: 'six_live' };
+    }
+    // Try inverse pair
+    const inverseKey = `${to}/${from}`;
+    if (_liveFxCache[inverseKey] !== undefined) {
+        return { rate: 1 / _liveFxCache[inverseKey], source: 'six_live' };
+    }
+    // Cross through USD
+    const fromUsdKey = `${from}/USD`;
+    const toUsdKey = `${to}/USD`;
+    const usdFromKey = `USD/${from}`;
+    const usdToKey = `USD/${to}`;
+    const fromToUsd =
+        _liveFxCache[fromUsdKey] ??
+        (_liveFxCache[usdFromKey] ? 1 / _liveFxCache[usdFromKey] : undefined);
+    const toToUsd =
+        _liveFxCache[toUsdKey] ??
+        (_liveFxCache[usdToKey] ? 1 / _liveFxCache[usdToKey] : undefined);
+    if (fromToUsd !== undefined && toToUsd !== undefined) {
+        return { rate: fromToUsd / toToUsd, source: 'six_live' };
+    }
+
+    return { rate: getSimulatedFxRate(from, to), source: 'simulated' };
 }
 
 // ─── Settlement Rail Helpers ──────────────────────────────────────────────────
@@ -56,10 +109,12 @@ export function buildCrossBorderTransferMemo(
     params: CrossBorderTransferParams,
     travelRuleThresholdBaseUnits: bigint,
 ): CrossBorderTransferResult {
-    const fxRate = params.fxRate ?? getSimulatedFxRate(
+    const { rate: bestRate, source: rateSource } = getBestFxRate(
         params.sourceCurrency,
         params.destinationCurrency,
     );
+    const fxRate = params.fxRate ?? bestRate;
+    const fxRateSource: 'six_live' | 'simulated' = params.fxRate ? 'simulated' : rateSource;
 
     const rail = params.rail ?? 'solana_spl';
     const settlementSeconds = SETTLEMENT_TIMES[rail] ?? 1;
@@ -72,6 +127,7 @@ export function buildCrossBorderTransferMemo(
         src_currency: params.sourceCurrency,
         dst_currency: params.destinationCurrency,
         fx_rate: fxRate,
+        fx_rate_source: fxRateSource,
         purpose: params.purposeCode ?? 'TRAD',
         timestamp: new Date().toISOString(),
     };
@@ -96,6 +152,7 @@ export function buildCrossBorderTransferMemo(
         settlementSeconds,
         fxRate,
         travelRuleAttached: travelRuleRequired,
+        fxRateSource,
     };
 }
 

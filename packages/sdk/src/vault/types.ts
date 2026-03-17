@@ -81,6 +81,8 @@ export interface CrossBorderTransferResult {
     fxRate: number;
     /** Whether Travel Rule data was attached */
     travelRuleAttached: boolean;
+    /** Whether the FX rate came from the live SIX API or from simulation */
+    fxRateSource?: 'six_live' | 'simulated';
 }
 
 // ─── Vault Config ─────────────────────────────────────────────────────────────
