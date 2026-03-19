@@ -216,9 +216,6 @@ export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address, comm
         const freezeAuthorityAccountInfo = await rpc
             .getAccountInfo(address(mintInfo.freezeAuthority), { commitment })
             .send();
-        if (!freezeAuthorityAccountInfo.value) {
-            throw new Error(`Freeze authority account ${mintInfo.freezeAuthority} not found`);
-        }
         usesTokenAcl = freezeAuthorityAccountInfo.value?.owner === TOKEN_ACL_PROGRAM_ID;
     }
 

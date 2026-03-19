@@ -22,7 +22,7 @@ export function createMockRpc(): Rpc<any> {
                     },
                 }),
         }),
-        getAccountInfo: (address: Address, opts: { encoding: 'jsonParsed' | 'base64' }) => ({
+        getAccountInfo: (address: Address, opts?: { encoding?: 'jsonParsed' | 'base64' }) => ({
             send: async () => {
                 const entry = accountInfoRegistry.get(address as string);
                 if (!entry) return { value: null };
@@ -35,7 +35,7 @@ export function createMockRpc(): Rpc<any> {
                 if (opts?.encoding === 'base64') {
                     return entry.base64 ? { value: { data: [entry.base64, 'base64'], owner } } : { value: null };
                 }
-                return { value: null };
+                return { value: { owner } };
             },
         }),
         getProgramAccounts: (programAddress: Address, _opts?: any) => ({
@@ -167,4 +167,12 @@ export function seedProgramAccountBase64(
     const arr = reg.programAccountsRegistry.get(programAddress as string) || [];
     arr.push(entry);
     reg.programAccountsRegistry.set(programAddress as string, arr);
+}
+
+/**
+ * Seeds a plain account owner for getAccountInfo calls that only need owner metadata.
+ */
+export function seedAccountOwner(rpc: Rpc<any>, account: Address, owner: Address): void {
+    const reg = (rpc as any).__registry;
+    reg.accountInfoRegistry.set(account as string, { owner });
 }
