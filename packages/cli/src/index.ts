@@ -19,7 +19,7 @@ import { controlCommand } from './commands/control/index';
 
 const program = new Command();
 
-program.name('mosaic').description('CLI for managing Token-2022 tokens with extensions').version('0.1.0');
+program.name('mosaic').description('CLI for managing Token-2022 tokens with extensions').version('0.1.1');
 
 // Create command group
 const createCommand = program.command('create').description('Create new tokens with Token-2022 extensions');
