@@ -23,7 +23,7 @@ export const DEFAULT_ALLOCATION_RULES: AllocationRules = {
 
 // ─── Yield Sources ────────────────────────────────────────────────────────────
 
-export type YieldSourceKind = 'kamino' | 'drift' | 'rwa' | 'custom';
+export type YieldSourceKind = 'kamino' | 'drift' | 'rwa' | 'usx_yield_vault' | 'custom';
 
 export interface YieldSourceConfig {
     kind: YieldSourceKind;
@@ -37,6 +37,8 @@ export interface YieldSourceConfig {
     riskTier: 'low' | 'medium' | 'high';
     /** Whether this source is currently active */
     enabled: boolean;
+    /** Additional source-specific metadata */
+    meta?: Record<string, unknown>;
 }
 
 export interface AllocationResult {

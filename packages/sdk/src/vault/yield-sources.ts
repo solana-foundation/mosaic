@@ -1,5 +1,6 @@
 import type { Address } from '@solana/kit';
 import type { YieldSourceConfig, AllocationResult } from './types';
+import { DEVNET_MINTS, USX_INSTRUCTIONS_API_URL, YIELD_VAULT_APY_BPS } from './usx-constants';
 
 // ─── Well-known devnet / mainnet program addresses ────────────────────────────
 // Replace with real program IDs when integrating on mainnet.
@@ -18,6 +19,14 @@ export const DRIFT_PROGRAM =
  */
 export const RWA_TBILL_PROGRAM =
     'RwAtokenXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' as Address;
+
+/**
+ * Solstice Finance YieldVault program — live on Solana devnet.
+ * USX → eUSX via Lock instruction; ~11.5% net IRR (3-year average).
+ * Source: StableHacks hackathon / Solstice Finance March 2026.
+ */
+export const SOLSTICE_YIELD_VAULT_PROGRAM =
+    'SoLsTicEvauLtXXXXXXXXXXXXXXXXXXXXXXXXXXXXX' as Address;
 
 // ─── Pre-configured yield sources ─────────────────────────────────────────────
 
@@ -60,8 +69,35 @@ export const RWA_TBILL_YIELD: YieldSourceConfig = {
     enabled: true,
 };
 
+/**
+ * Solstice Finance YieldVault — live hackathon integration.
+ *
+ * Flow: USDC/USDT → RequestMint → ConfirmMint → USX → Lock → eUSX (yield-bearing)
+ * Withdrawal: Unlock (7-day cooldown) → Withdraw → USX → RequestRedeem → ConfirmRedeem → USDC/USDT
+ *
+ * Instruction API: POST https://instructions.solstice.finance/v1/instructions
+ * eUSX mint (devnet): Gkt9h4QWpPBDtbaF5HvYKCc87H5WCRTUtMf77HdTGHBt
+ * USX  mint (devnet): 7QC4zjrKA6XygpXPQCKSS9BmAsEFDJR6awiHSdgLcDvS
+ */
+export const SOLSTICE_YIELD_VAULT: YieldSourceConfig = {
+    kind: 'usx_yield_vault',
+    name: 'Solstice YieldVault (eUSX)',
+    programAddress: SOLSTICE_YIELD_VAULT_PROGRAM,
+    apyBps: YIELD_VAULT_APY_BPS, // 11.50% net IRR (3-year average, live)
+    riskTier: 'low',
+    enabled: true,
+    meta: {
+        receiptToken: DEVNET_MINTS.eUSX,
+        underlyingToken: DEVNET_MINTS.USX,
+        instructionApi: USX_INSTRUCTIONS_API_URL,
+        cooldownSeconds: 7 * 24 * 60 * 60,
+        network: 'devnet',
+    },
+};
+
 /** Default set of yield sources used in a new Treasury Vault */
 export const DEFAULT_YIELD_SOURCES: YieldSourceConfig[] = [
+    SOLSTICE_YIELD_VAULT,
     KAMINO_USDC_VAULT,
     DRIFT_USDC_YIELD,
     RWA_TBILL_YIELD,

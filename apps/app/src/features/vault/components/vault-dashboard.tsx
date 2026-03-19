@@ -64,7 +64,7 @@ export function VaultDashboard() {
                 {[
                     { label: 'Total Deposited', value: '$1,000,000', sub: 'demo balance', color: 'text-foreground' },
                     { label: 'Est. Annual Yield', value: `$${annualYield.toLocaleString('en-US', { maximumFractionDigits: 0 })}`, sub: `${apyBpsToString(Math.round(blended))} blended APY`, color: 'text-teal-600' },
-                    { label: 'Active Yield Sources', value: '3', sub: 'Kamino · Drift · RWA', color: 'text-foreground' },
+                    { label: 'Active Yield Sources', value: '4', sub: 'Solstice · Kamino · Drift · RWA', color: 'text-foreground' },
                     { label: 'Compliance', value: '5/5', sub: 'checks active', color: 'text-green-600' },
                 ].map(stat => (
                     <div key={stat.label} className="rounded-lg border p-4 space-y-1">
