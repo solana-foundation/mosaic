@@ -210,6 +210,7 @@ import {
     getCreateConfigTransaction,
     getEnablePermissionlessThawTransaction,
     getFreezeTransaction,
+    getFreezeWalletTransaction,
     getThawTransaction,
     getThawPermissionlessTransaction,
 } from '@solana/mosaic-sdk';
@@ -238,6 +239,14 @@ await getFreezeTransaction({
     payer: feePayer,
     authority: feePayer,
     tokenAccount: 'TokenAccountPubkey...',
+});
+// Freeze by owner wallet + mint. This creates the wallet ATA first if it does not exist.
+await getFreezeWalletTransaction({
+    rpc,
+    payer: feePayer,
+    authority: feePayer,
+    wallet: 'WalletPubkey...',
+    mint: 'MintPubkey...',
 });
 await getThawTransaction({
     rpc,

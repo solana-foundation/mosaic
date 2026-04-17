@@ -12,9 +12,52 @@ import {
 } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import { findMintConfigPda, getFreezeInstruction } from '@token-acl/sdk';
-import { getFreezeAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+    getCreateAssociatedTokenIdempotentInstruction,
+    getFreezeAccountInstruction,
+    TOKEN_2022_PROGRAM_ADDRESS,
+} from '@solana-program/token-2022';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
-import { getMintDetails } from '../transaction-util';
+import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util';
+
+type MintFreezeDetails = Awaited<ReturnType<typeof getMintDetails>>;
+
+const getFreezeInstructionForMint = async (input: {
+    authority: TransactionSigner<string>;
+    mint: Address;
+    tokenAccount: Address;
+    mintDetails: MintFreezeDetails;
+}): Promise<Instruction<string>> => {
+    const { freezeAuthority, programAddress } = input.mintDetails;
+
+    // Check if freeze authority is the Token ACL program
+    if (freezeAuthority === TOKEN_ACL_PROGRAM_ID) {
+        // Use Token ACL instruction
+        const mintConfigPda = await findMintConfigPda({ mint: input.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
+
+        return getFreezeInstruction(
+            {
+                authority: input.authority,
+                mintConfig: mintConfigPda[0],
+                mint: input.mint,
+                tokenAccount: input.tokenAccount,
+            },
+            { programAddress: TOKEN_ACL_PROGRAM_ID },
+        );
+    }
+
+    // Use standard SPL Token-2022 freeze instruction
+    return getFreezeAccountInstruction(
+        {
+            account: input.tokenAccount,
+            mint: input.mint,
+            owner: input.authority,
+        },
+        {
+            programAddress: programAddress as typeof TOKEN_2022_PROGRAM_ADDRESS,
+        },
+    );
+};
 
 /**
  * Generates instructions for freezing a token account.
@@ -59,40 +102,71 @@ export const getFreezeInstructions = async (input: {
         state: tokenInfo.state,
     };
 
-    // Get mint details to determine if this token uses Token ACL
-    const { freezeAuthority, programAddress } = await getMintDetails(input.rpc, token.mint);
+    const mintDetails = await getMintDetails(input.rpc, token.mint);
 
-    // Check if freeze authority is the Token ACL program
-    if (freezeAuthority === TOKEN_ACL_PROGRAM_ID) {
-        // Use Token ACL instruction
-        const mintConfigPda = await findMintConfigPda({ mint: token.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
+    return [
+        await getFreezeInstructionForMint({
+            authority: input.authority,
+            mint: token.mint,
+            tokenAccount: input.tokenAccount,
+            mintDetails,
+        }),
+    ];
+};
 
-        const freezeInstruction = getFreezeInstruction(
-            {
-                authority: input.authority,
-                mintConfig: mintConfigPda[0],
-                mint: token.mint,
-                tokenAccount: input.tokenAccount,
-            },
-            { programAddress: TOKEN_ACL_PROGRAM_ID },
+/**
+ * Generates instructions for freezing the associated token account for a wallet and mint.
+ *
+ * This helper is safe to use when the wallet does not have an ATA yet. It will create
+ * the ATA idempotently before freezing it, unless the mint's default account state
+ * already creates new accounts frozen through Token ACL/SRFC-37.
+ *
+ * @param input - Configuration parameters for freezing a wallet's ATA
+ * @param input.payer - The fee payer signer used when the ATA must be created
+ * @param input.authority - The authority signer who can freeze the token account
+ * @param input.wallet - The wallet address that owns the associated token account
+ * @param input.mint - The mint address for the associated token account
+ * @returns Promise containing the instructions for freezing the wallet's ATA
+ */
+export const getFreezeWalletInstructions = async (input: {
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner<string>;
+    authority: TransactionSigner<string>;
+    wallet: Address;
+    mint: Address;
+}): Promise<Instruction[]> => {
+    const { tokenAccount, isInitialized } = await resolveTokenAccount(input.rpc, input.wallet, input.mint);
+    const mintDetails = await getMintDetails(input.rpc, input.mint);
+    const usesTokenAcl = mintDetails.usesTokenAcl === true || mintDetails.freezeAuthority === TOKEN_ACL_PROGRAM_ID;
+    const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(mintDetails.extensions ?? []);
+    const instructions: Instruction[] = [];
+
+    if (!isInitialized) {
+        instructions.push(
+            getCreateAssociatedTokenIdempotentInstruction({
+                owner: input.wallet,
+                mint: input.mint,
+                ata: tokenAccount,
+                payer: input.payer,
+                tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+            }),
         );
 
-        return [freezeInstruction];
+        if (enableSrfc37) {
+            return instructions;
+        }
     }
 
-    // Use standard SPL Token-2022 freeze instruction
-    const freezeInstruction = getFreezeAccountInstruction(
-        {
-            account: input.tokenAccount,
-            mint: token.mint,
-            owner: input.authority,
-        },
-        {
-            programAddress: programAddress as typeof TOKEN_2022_PROGRAM_ADDRESS,
-        },
+    instructions.push(
+        await getFreezeInstructionForMint({
+            authority: input.authority,
+            mint: input.mint,
+            tokenAccount,
+            mintDetails,
+        }),
     );
 
-    return [freezeInstruction];
+    return instructions;
 };
 
 /**
@@ -116,6 +190,37 @@ export const getFreezeTransaction = async (input: {
     tokenAccount: Address;
 }): Promise<FullTransaction> => {
     const instructions = await getFreezeInstructions(input);
+    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
+    return pipe(
+        createTransactionMessage({ version: 0 }),
+        m => setTransactionMessageFeePayerSigner(input.payer, m),
+        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
+        m => appendTransactionMessageInstructions(instructions, m),
+    ) as FullTransaction;
+};
+
+/**
+ * Creates a complete transaction for freezing the associated token account for a wallet and mint.
+ *
+ * This function builds a full transaction that can be signed and sent even if the
+ * wallet's associated token account does not exist yet.
+ *
+ * @param input - Configuration parameters for the transaction
+ * @param input.rpc - The Solana RPC client instance
+ * @param input.payer - The transaction fee payer signer
+ * @param input.authority - The authority signer who can freeze the token account
+ * @param input.wallet - The wallet address that owns the associated token account
+ * @param input.mint - The mint address for the associated token account
+ * @returns Promise containing the full transaction for freezing a wallet's ATA
+ */
+export const getFreezeWalletTransaction = async (input: {
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner<string>;
+    authority: TransactionSigner<string>;
+    wallet: Address;
+    mint: Address;
+}): Promise<FullTransaction> => {
+    const instructions = await getFreezeWalletInstructions(input);
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
     return pipe(
         createTransactionMessage({ version: 0 }),
