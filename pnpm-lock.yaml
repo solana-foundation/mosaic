@@ -47,9 +47,6 @@ importers:
 
   apps/app:
     dependencies:
-      '@solana/mosaic-sdk':
-        specifier: workspace:*
-        version: link:../../packages/sdk
       '@radix-ui/react-accordion':
         specifier: ^1.2.12
         version: 1.2.12(@types/react-dom@19.2.3(@types/react@19.2.5))(@types/react@19.2.5)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -116,6 +113,9 @@ importers:
       '@solana/kit':
         specifier: ^5.0.0
         version: 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+      '@solana/mosaic-sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@solana/react':
         specifier: ^5.0.0
         version: 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(react@19.2.1)(typescript@5.9.3)
@@ -234,9 +234,6 @@ importers:
 
   packages/cli:
     dependencies:
-      '@solana/mosaic-sdk':
-        specifier: workspace:*
-        version: link:../sdk
       '@solana-program/system':
         specifier: ^0.7.0
         version: 0.7.0(@solana/kit@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)))
@@ -246,6 +243,9 @@ importers:
       '@solana/kit':
         specifier: ^5.0.0
         version: 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+      '@solana/mosaic-sdk':
+        specifier: workspace:*
+        version: link:../sdk
       '@token-acl/abl-sdk':
         specifier: ^0.2.0
         version: 0.2.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
@@ -290,8 +290,8 @@ importers:
         specifier: ^0.10.0
         version: 0.10.0(@solana/kit@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)))
       '@solana-program/token-2022':
-        specifier: ^0.6.1
-        version: 0.6.1(@solana/kit@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)))(@solana/sysvars@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))
+        specifier: ^0.8.0
+        version: 0.8.0(@solana/kit@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)))(@solana/sysvars@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))
       '@solana/kit':
         specifier: ^5.0.0
         version: 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
@@ -1831,6 +1831,12 @@ packages:
 
   '@solana-program/token-2022@0.6.1':
     resolution: {integrity: sha512-Ex02cruDMGfBMvZZCrggVR45vdQQSI/unHVpt/7HPt/IwFYB4eTlXtO8otYZyqV/ce5GqZ8S6uwyRf0zy6fdbA==}
+    peerDependencies:
+      '@solana/kit': ^5.0
+      '@solana/sysvars': ^5.0
+
+  '@solana-program/token-2022@0.8.0':
+    resolution: {integrity: sha512-2K/eJjGJQ1LPTCdbytfleTcwyZBjojPIzu/vsvTxixwRxCgsEMvu+gNjvfxo/mi2liRHp0xsm2MR4XQJTM2OVQ==}
     peerDependencies:
       '@solana/kit': ^5.0
       '@solana/sysvars': ^5.0
@@ -7146,6 +7152,11 @@ snapshots:
       '@solana/kit': 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
 
   '@solana-program/token-2022@0.6.1(@solana/kit@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)))(@solana/sysvars@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))':
+    dependencies:
+      '@solana/kit': 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+      '@solana/sysvars': 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+
+  '@solana-program/token-2022@0.8.0(@solana/kit@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)))(@solana/sysvars@5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))':
     dependencies:
       '@solana/kit': 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(ws@8.18.3(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       '@solana/sysvars': 5.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
