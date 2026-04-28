@@ -72,16 +72,19 @@ export const createInitLockAccountTransaction = async (
     });
 
     // Derive required token-account extensions from the mint's extensions. Token-2022 maps
-    // certain mint extensions to required account-side counterparts (TransferHook -> TransferHookAccount,
-    // PausableConfig -> PausableAccount, ConfidentialTransferMint -> ConfidentialTransferAccount).
-    // InitializeAccount3 fails with InvalidAccountData if the account doesn't have space for them.
+    // certain mint extensions to required account-side counterparts: TransferHook ->
+    // TransferHookAccount, PausableConfig -> PausableAccount. InitializeAccount3 fails with
+    // InvalidAccountData if the account doesn't have space for them.
     const { extensions: mintExtensions } = await getMintDetails(rpc, mint);
     const tokenAccountExtensions: ExtensionArgs[] = [];
     for (const ext of mintExtensions) {
         if (ext.extension === 'transferHook') {
             tokenAccountExtensions.push(extension('TransferHookAccount', { transferring: false }));
         } else if (ext.extension === 'pausableConfig') {
-            tokenAccountExtensions.push(extension('PausableAccount'));
+            // Built as a literal because the codama-generated `extension('PausableAccount')`
+            // overload is shadowed by the `extension('Uninitialized')` overload during TS
+            // overload resolution (both are zero-data variants with the same arity).
+            tokenAccountExtensions.push({ __kind: 'PausableAccount' });
         }
     }
     const space = BigInt(getTokenSize(tokenAccountExtensions));

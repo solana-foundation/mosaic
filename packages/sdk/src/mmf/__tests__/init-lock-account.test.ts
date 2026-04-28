@@ -4,14 +4,12 @@ import { createMockRpc, createMockSigner, seedMintDetails } from '../../__tests_
 import {
     AuthorityType,
     TOKEN_2022_PROGRAM_ADDRESS,
-    Token2022Instruction,
     extension,
     getFreezeAccountInstruction,
     getInitializeAccount3Instruction,
     getSetAuthorityInstruction,
     getThawAccountInstruction,
     getTokenSize,
-    identifyToken2022Instruction,
 } from '@solana-program/token-2022';
 import {
     SYSTEM_PROGRAM_ADDRESS,
@@ -33,17 +31,15 @@ describe('createInitLockAccountTransaction', () => {
 
     beforeEach(() => {
         rpc = createMockRpc();
-        // MMF mints carry transferHook + pausableConfig (and others), which require
-        // matching account-side extensions. The init builder reads these via getMintDetails.
+        // The init builder reads only transferHook and pausableConfig from the mint to derive
+        // the matching account-side extensions. Other mint extensions don't affect token-account
+        // sizing, so they're omitted from the mock.
         seedMintDetails(rpc, {
             address: MINT,
             decimals: 6,
             extensions: [
                 { extension: 'transferHook', state: {} },
                 { extension: 'pausableConfig', state: {} },
-                { extension: 'permanentDelegate', state: {} },
-                { extension: 'defaultAccountState', state: {} },
-                { extension: 'tokenMetadata', state: {} },
             ],
         });
     });
@@ -76,10 +72,7 @@ describe('createInitLockAccountTransaction', () => {
         // @solana-program/token-2022 ≥ 0.8.0; earlier versions had a codama bug that
         // under-counted PausableAccount by 2 bytes).
         const expectedSpace = BigInt(
-            getTokenSize([
-                extension('TransferHookAccount', { transferring: false }),
-                extension('PausableAccount'),
-            ]),
+            getTokenSize([extension('TransferHookAccount', { transferring: false }), { __kind: 'PausableAccount' }]),
         );
         const expectedCreate = getCreateAccountWithSeedInstruction({
             payer: feePayer,
@@ -138,14 +131,6 @@ describe('createInitLockAccountTransaction', () => {
             { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
         );
         expect(matchesIx(ixs[5], expectedFreeze)).toBe(true);
-
-        // SetAuthority order matters: close-auth pin must precede owner change.
-        expect(
-            identifyToken2022Instruction(ixs[3].data ?? new Uint8Array()),
-        ).toBe(Token2022Instruction.SetAuthority);
-        expect(
-            identifyToken2022Instruction(ixs[4].data ?? new Uint8Array()),
-        ).toBe(Token2022Instruction.SetAuthority);
     });
 
     test('mint-lock and burn-lock produce different lockAccount addresses', async () => {
