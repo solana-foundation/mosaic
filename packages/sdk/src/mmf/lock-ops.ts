@@ -131,8 +131,15 @@ export const createMintLockTransaction = async (
 };
 
 /**
- * Moves tokens from the holder's ATA into the burn-lock account: thaw -> transfer (PD authority) -> freeze.
- * Permanent delegate + freeze authority sign. Lock account must already exist.
+ * Moves tokens from the holder's ATA into the burn-lock account:
+ * thaw(lock) -> transfer (PD authority) -> freeze(lock). Permanent delegate + freeze authority sign.
+ *
+ * Preconditions (caller-enforced; not validated here):
+ *   - The lock account exists.
+ *   - The holder's ATA exists AND is thawed (i.e. the holder is allowlisted via SRFC-37
+ *     or out-of-band whitelist). Token-2022's TransferChecked rejects a frozen *source*
+ *     even when the PermanentDelegate is the authority. A frozen holder ATA correctly
+ *     blocks this op — that's the allowlist enforcing itself, not a bug to work around.
  */
 export const createBurnLockTransaction = async (
     rpc: Rpc<SolanaRpcApi>,

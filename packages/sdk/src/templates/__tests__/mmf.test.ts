@@ -1,4 +1,5 @@
 import type { Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
+import { generateKeyPairSigner } from '@solana/kit';
 import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
 import {
     AccountState,
@@ -86,6 +87,46 @@ describe('createMmfInitTransaction', () => {
             { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
         );
         expect(tx.instructions.some(i => matchesIx(i, expected))).toBe(true);
+    });
+
+    test('custom transferHookAuthority Signer is attached to the UpdateTransferHook ix', async () => {
+        // The ix data is identical whether authority is passed as Address or Signer (it's
+        // encoded by address). The difference is the *account meta*: a real partial-signer
+        // provided to the ix builder produces a meta with `signer` set, which the kit's
+        // signTransactionMessageWithSigners uses to sign the tx. If we passed only a bare
+        // Address (or, before this fix, a typed-Address-only option), no signer would be
+        // attached and signing would silently skip it.
+        // Use generateKeyPairSigner so the kit's isTransactionSigner check recognizes it
+        // (it requires signTransactions/modifyAndSignTransactions/signAndSendTransactions).
+        const mintAuthority = await generateKeyPairSigner();
+        const customHookAuthority = await generateKeyPairSigner();
+        const tx = await createMmfInitTransaction(
+            rpc,
+            'MMF',
+            'MMF',
+            6,
+            'uri',
+            mintAuthority,
+            mint,
+            feePayer,
+            undefined,
+            {
+                transferHookAuthority: customHookAuthority,
+            },
+        );
+
+        const updateIx = tx.instructions.find(
+            i =>
+                i.programAddress === TOKEN_2022_PROGRAM_ADDRESS &&
+                identifyToken2022Instruction(i.data ?? new Uint8Array()) === Token2022Instruction.UpdateTransferHook,
+        );
+        expect(updateIx).toBeDefined();
+
+        const authorityMeta = updateIx!.accounts?.find(a => a.address === customHookAuthority.address) as
+            | { address: string; signer?: unknown }
+            | undefined;
+        expect(authorityMeta).toBeDefined();
+        expect(authorityMeta!.signer).toBe(customHookAuthority);
     });
 
     test('does not include ConfidentialTransferMint by default', async () => {

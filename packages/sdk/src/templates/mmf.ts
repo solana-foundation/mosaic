@@ -46,7 +46,7 @@ export const createMmfInitTransaction = async (
         pausableAuthority?: Address;
         confidentialBalancesAuthority?: Address;
         permanentDelegateAuthority?: Address;
-        transferHookAuthority?: Address;
+        transferHookAuthority?: Address | TransactionSigner<string>;
         enableConfidentialBalances?: boolean;
         enableSrfc37?: boolean;
     },
@@ -72,7 +72,17 @@ export const createMmfInitTransaction = async (
     const metadataAuthority = options?.metadataAuthority || mintAuthorityAddress;
     const pausableAuthority = options?.pausableAuthority || mintAuthorityAddress;
     const permanentDelegateAuthority = options?.permanentDelegateAuthority || mintAuthorityAddress;
-    const transferHookAuthority = options?.transferHookAuthority || mintAuthorityAddress;
+    // transferHookAuthority must sign UpdateTransferHook below. Default to the mintAuthority
+    // input (preserving its TransactionSigner if provided) so the existing signer covers it.
+    // Callers that want a different key MUST pass a TransactionSigner here — passing a bare
+    // Address only works if some other instruction in the same tx already attaches a signer
+    // for that address, otherwise signTransactionMessageWithSigners will leave it unsigned.
+    const transferHookAuthorityInput: Address | TransactionSigner<string> =
+        options?.transferHookAuthority ?? mintAuthority;
+    const transferHookAuthorityAddress =
+        typeof transferHookAuthorityInput === 'string'
+            ? transferHookAuthorityInput
+            : transferHookAuthorityInput.address;
     const enableConfidential = options?.enableConfidentialBalances ?? false;
 
     let tokenBuilder = new Token()
@@ -88,8 +98,8 @@ export const createMmfInitTransaction = async (
         .withPermanentDelegate(permanentDelegateAuthority)
         // Initialize with placeholder programId; cleared to null below.
         .withTransferHook({
-            authority: transferHookAuthority,
-            programId: transferHookAuthority,
+            authority: transferHookAuthorityAddress,
+            programId: transferHookAuthorityAddress,
         });
 
     if (enableConfidential) {
@@ -107,11 +117,13 @@ export const createMmfInitTransaction = async (
     });
 
     // Clear the transfer hook program id so the extension is present but inert.
+    // Pass the resolved input (Signer-or-Address) so a custom Signer flows through and the
+    // kit attaches it to the ix; otherwise we rely on mintAuthority's signature covering it.
     instructions.push(
         getUpdateTransferHookInstruction(
             {
                 mint: mintSigner.address,
-                authority: transferHookAuthority,
+                authority: transferHookAuthorityInput,
                 programId: none(),
             },
             { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
