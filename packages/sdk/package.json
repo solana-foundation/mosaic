@@ -35,7 +35,7 @@
         "@solana/kit": "^5.0.0",
         "@solana-program/memo": "^0.10.0",
         "@solana-program/system": "^0.10.0",
-        "@solana-program/token-2022": "^0.6.1",
+        "@solana-program/token-2022": "^0.8.0",
         "@solana/sysvars": "^5.0.0",
         "@token-acl/abl-sdk": "^0.2.0",
         "@token-acl/sdk": "^0.2.7"
