@@ -57,6 +57,18 @@ export const createMmfInitTransaction = async (
 
     const aclMode = options?.aclMode ?? 'allowlist';
     const useSrfc37 = options?.enableSrfc37 ?? false;
+
+    // SRFC-37 setup is signed by feePayer, and the mint's freeze authority is set to
+    // TOKEN_ACL_PROGRAM_ID before the config account exists. If we early-out without
+    // installing the config (e.g. because mintAuthority !== feePayer), the mint is left
+    // with TOKEN_ACL_PROGRAM_ID as freeze authority and no config — bricked. Refuse upfront.
+    if (useSrfc37 && mintAuthorityAddress !== feePayerSigner.address) {
+        throw new Error(
+            'createMmfInitTransaction: enableSrfc37 requires mintAuthority === feePayer. ' +
+                'Either pass the same signer for both, or disable enableSrfc37 and configure SRFC-37 separately.',
+        );
+    }
+
     const metadataAuthority = options?.metadataAuthority || mintAuthorityAddress;
     const pausableAuthority = options?.pausableAuthority || mintAuthorityAddress;
     const permanentDelegateAuthority = options?.permanentDelegateAuthority || mintAuthorityAddress;
@@ -106,7 +118,7 @@ export const createMmfInitTransaction = async (
         ),
     );
 
-    if (mintAuthorityAddress !== feePayerSigner.address || !useSrfc37) {
+    if (!useSrfc37) {
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
         return pipe(
             createTransactionMessage({ version: 0 }),

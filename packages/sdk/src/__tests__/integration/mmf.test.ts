@@ -256,13 +256,14 @@ describeSkipIf()('MMF Integration Tests', () => {
             // Holder must be whitelisted (ATA thawed) before tokens can be transferred to them.
             const holderAta = await whitelistHolder(client, payer, payer, mint.address, holder.address);
 
-            // Settle: transfer locked balance to the holder's ATA, close the lock account.
+            // Settle: drain the full lock balance to the holder's ATA, close the lock account.
+            // Settle no longer takes an amount — it always drains via live RPC balance — so
+            // CloseAccount can't fail on a stale partial-amount residual.
             await sendAndConfirmViaPolling(
                 client,
                 await createSettleMintLockTransaction(client.rpc, {
                     mint: mint.address,
                     holder: holder.address,
-                    decimalAmount: 5,
                     permanentDelegate: payer,
                     freezeAuthority: payer,
                     feePayer: payer,
@@ -312,7 +313,12 @@ describeSkipIf()('MMF Integration Tests', () => {
             await sendInstructions(
                 client,
                 payer,
-                [getPauseInstruction({ mint: mint.address, authority: payer }, { programAddress: TOKEN_2022_PROGRAM_ADDRESS })],
+                [
+                    getPauseInstruction(
+                        { mint: mint.address, authority: payer },
+                        { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
+                    ),
+                ],
                 'pause',
             );
 

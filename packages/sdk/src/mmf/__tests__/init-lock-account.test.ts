@@ -11,10 +11,7 @@ import {
     getThawAccountInstruction,
     getTokenSize,
 } from '@solana-program/token-2022';
-import {
-    SYSTEM_PROGRAM_ADDRESS,
-    getCreateAccountWithSeedInstruction,
-} from '@solana-program/system';
+import { SYSTEM_PROGRAM_ADDRESS, getCreateAccountWithSeedInstruction } from '@solana-program/system';
 import { createInitLockAccountTransaction } from '../init-lock-account';
 import { deriveLockAccountAddress } from '../lock-address';
 

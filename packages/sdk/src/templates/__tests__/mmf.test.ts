@@ -47,6 +47,18 @@ describe('createMmfInitTransaction', () => {
         expect(tx.instructions.some(i => matchesIx(i, expectedFrozenInit))).toBe(true);
     });
 
+    test('throws when SRFC-37 is enabled but mintAuthority !== feePayer', async () => {
+        // Without this guard the mint's freeze authority would be set to TOKEN_ACL_PROGRAM_ID
+        // and then the function would early-return without installing the SRFC-37 config —
+        // bricking freeze/thaw for the lifetime of the mint.
+        const otherMintAuthority = createMockSigner('GA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT');
+        await expect(
+            createMmfInitTransaction(rpc, 'MMF', 'MMF', 6, 'uri', otherMintAuthority, mint, feePayer, undefined, {
+                enableSrfc37: true,
+            }),
+        ).rejects.toThrow(/enableSrfc37 requires mintAuthority === feePayer/);
+    });
+
     test('uses TOKEN_ACL_PROGRAM_ID as freeze authority when SRFC-37 enabled', async () => {
         // SRFC-37 path requires mint authority == fee payer (signer); pass feePayer as both.
         const tx = await createMmfInitTransaction(rpc, 'MMF', 'MMF', 6, 'uri', feePayer, mint, feePayer, undefined, {
@@ -91,9 +103,20 @@ describe('createMmfInitTransaction', () => {
 
     test('includes ConfidentialTransferMint init when enableConfidentialBalances is true', async () => {
         const mintAuthority = createMockSigner();
-        const tx = await createMmfInitTransaction(rpc, 'MMF', 'MMF', 6, 'uri', mintAuthority, mint, feePayer, undefined, {
-            enableConfidentialBalances: true,
-        });
+        const tx = await createMmfInitTransaction(
+            rpc,
+            'MMF',
+            'MMF',
+            6,
+            'uri',
+            mintAuthority,
+            mint,
+            feePayer,
+            undefined,
+            {
+                enableConfidentialBalances: true,
+            },
+        );
 
         const hasConfidential = tx.instructions.some(
             i =>

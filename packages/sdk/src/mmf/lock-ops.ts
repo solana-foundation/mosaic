@@ -14,7 +14,6 @@ import {
     TOKEN_2022_PROGRAM_ADDRESS,
     getBurnCheckedInstruction,
     getCloseAccountInstruction,
-    getCreateAssociatedTokenIdempotentInstruction,
     getFreezeAccountInstruction,
     getMintToCheckedInstruction,
     getThawAccountInstruction,
@@ -28,6 +27,19 @@ interface LockOpCommon {
     mint: Address;
     holder: Address;
     decimalAmount: number;
+    permanentDelegate: TransactionSigner<string>;
+    freezeAuthority: TransactionSigner<string>;
+    feePayer: TransactionSigner<string>;
+}
+
+/**
+ * Inputs for settle/cancel operations. These drain the entire lock account balance
+ * and close the account, so they don't take an explicit amount: any partial-amount
+ * call would leave a non-zero balance and CloseAccount would fail.
+ */
+interface LockSettleCancelInput {
+    mint: Address;
+    holder: Address;
     permanentDelegate: TransactionSigner<string>;
     freezeAuthority: TransactionSigner<string>;
     feePayer: TransactionSigner<string>;
@@ -73,6 +85,24 @@ const resolveLockAccount = async (
 ): Promise<Address> => {
     const { address } = await deriveLockAccountAddress({ lockType, permanentDelegate, mint, holder });
     return address;
+};
+
+/**
+ * Fetches the lock account's raw balance via getAccountInfo(jsonParsed). Throws if the
+ * account does not exist or is not a parsable Token-2022 account, since settle/cancel
+ * cannot run against a non-existent lock.
+ */
+const getLockAccountRawBalance = async (rpc: Rpc<SolanaRpcApi>, lockAccount: Address): Promise<bigint> => {
+    const info = await rpc.getAccountInfo(lockAccount, { encoding: 'jsonParsed' }).send();
+    if (!info.value) {
+        throw new Error(`Lock account ${lockAccount} does not exist`);
+    }
+    const data = info.value.data as { parsed?: { info?: { tokenAmount?: { amount?: string } } } };
+    const amount = data?.parsed?.info?.tokenAmount?.amount;
+    if (amount == null) {
+        throw new Error(`Lock account ${lockAccount} is not a parsable token account`);
+    }
+    return BigInt(amount);
 };
 
 /**
@@ -134,28 +164,28 @@ export const createBurnLockTransaction = async (
 };
 
 /**
- * Settles a mint-lock by transferring it to the holder's ATA: thaw -> transfer (PD authority) -> close.
- * Permanent delegate + freeze authority sign. The lock account is closed; rent flows to feePayer.
- * Holder ATA is created idempotently if missing.
+ * Settles a mint-lock by transferring the full lock balance to the holder's ATA:
+ * thaw -> transfer (PD authority) -> close. Permanent delegate + freeze authority sign.
+ * Rent flows to feePayer.
+ *
+ * Preconditions (caller-enforced; not validated here):
+ *   - The lock account exists (created via createInitLockAccountTransaction).
+ *   - The holder's ATA exists AND is thawed. With DefaultAccountState=Frozen, a fresh
+ *     ATA is frozen and Token-2022 TransferChecked rejects transfers to a frozen account
+ *     even when the PermanentDelegate is the authority. Issuers typically thaw via
+ *     SRFC-37 allowlist or an out-of-band whitelist step.
  */
 export const createSettleMintLockTransaction = async (
     rpc: Rpc<SolanaRpcApi>,
-    input: LockOpCommon,
+    input: LockSettleCancelInput,
 ): Promise<FullTransaction> => {
-    const { mint, holder, decimalAmount, permanentDelegate, freezeAuthority, feePayer } = input;
+    const { mint, holder, permanentDelegate, freezeAuthority, feePayer } = input;
     const lockAccount = await resolveLockAccount('mint-lock', permanentDelegate.address, mint, holder);
     const { decimals } = await getMintDetails(rpc, mint);
     const { tokenAccount: holderAta } = await resolveTokenAccount(rpc, holder, mint);
-    const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
+    const rawAmount = await getLockAccountRawBalance(rpc, lockAccount);
 
     const instructions: Instruction[] = [
-        getCreateAssociatedTokenIdempotentInstruction({
-            payer: feePayer,
-            ata: holderAta,
-            owner: holder,
-            mint,
-            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
-        }),
         thawIx(lockAccount, mint, freezeAuthority),
         getTransferCheckedInstruction(
             {
@@ -175,17 +205,17 @@ export const createSettleMintLockTransaction = async (
 };
 
 /**
- * Cancels a mint-lock by burning the locked tokens: thaw -> burn (PD authority) -> close.
- * Permanent delegate + freeze authority sign.
+ * Cancels a mint-lock by burning the full lock balance: thaw -> burn (PD authority) -> close.
+ * Permanent delegate + freeze authority sign. Rent flows to feePayer.
  */
 export const createCancelMintLockTransaction = async (
     rpc: Rpc<SolanaRpcApi>,
-    input: LockOpCommon,
+    input: LockSettleCancelInput,
 ): Promise<FullTransaction> => {
-    const { mint, holder, decimalAmount, permanentDelegate, freezeAuthority, feePayer } = input;
+    const { mint, holder, permanentDelegate, freezeAuthority, feePayer } = input;
     const lockAccount = await resolveLockAccount('mint-lock', permanentDelegate.address, mint, holder);
     const { decimals } = await getMintDetails(rpc, mint);
-    const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
+    const rawAmount = await getLockAccountRawBalance(rpc, lockAccount);
 
     const instructions: Instruction[] = [
         thawIx(lockAccount, mint, freezeAuthority),
@@ -200,17 +230,17 @@ export const createCancelMintLockTransaction = async (
 };
 
 /**
- * Settles a burn-lock by burning the locked tokens: thaw -> burn (PD authority) -> close.
- * Permanent delegate + freeze authority sign.
+ * Settles a burn-lock by burning the full lock balance: thaw -> burn (PD authority) -> close.
+ * Permanent delegate + freeze authority sign. Rent flows to feePayer.
  */
 export const createSettleBurnLockTransaction = async (
     rpc: Rpc<SolanaRpcApi>,
-    input: LockOpCommon,
+    input: LockSettleCancelInput,
 ): Promise<FullTransaction> => {
-    const { mint, holder, decimalAmount, permanentDelegate, freezeAuthority, feePayer } = input;
+    const { mint, holder, permanentDelegate, freezeAuthority, feePayer } = input;
     const lockAccount = await resolveLockAccount('burn-lock', permanentDelegate.address, mint, holder);
     const { decimals } = await getMintDetails(rpc, mint);
-    const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
+    const rawAmount = await getLockAccountRawBalance(rpc, lockAccount);
 
     const instructions: Instruction[] = [
         thawIx(lockAccount, mint, freezeAuthority),
@@ -225,27 +255,25 @@ export const createSettleBurnLockTransaction = async (
 };
 
 /**
- * Cancels a burn-lock by returning tokens to the holder's ATA: thaw -> transfer (PD authority) -> close.
- * Permanent delegate + freeze authority sign. Holder ATA is created idempotently if missing.
+ * Cancels a burn-lock by returning the full lock balance to the holder's ATA:
+ * thaw -> transfer (PD authority) -> close. Permanent delegate + freeze authority sign.
+ * Rent flows to feePayer.
+ *
+ * Preconditions (caller-enforced; not validated here):
+ *   - The lock account exists.
+ *   - The holder's ATA exists AND is thawed (see createSettleMintLockTransaction notes).
  */
 export const createCancelBurnLockTransaction = async (
     rpc: Rpc<SolanaRpcApi>,
-    input: LockOpCommon,
+    input: LockSettleCancelInput,
 ): Promise<FullTransaction> => {
-    const { mint, holder, decimalAmount, permanentDelegate, freezeAuthority, feePayer } = input;
+    const { mint, holder, permanentDelegate, freezeAuthority, feePayer } = input;
     const lockAccount = await resolveLockAccount('burn-lock', permanentDelegate.address, mint, holder);
     const { decimals } = await getMintDetails(rpc, mint);
     const { tokenAccount: holderAta } = await resolveTokenAccount(rpc, holder, mint);
-    const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
+    const rawAmount = await getLockAccountRawBalance(rpc, lockAccount);
 
     const instructions: Instruction[] = [
-        getCreateAssociatedTokenIdempotentInstruction({
-            payer: feePayer,
-            ata: holderAta,
-            owner: holder,
-            mint,
-            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
-        }),
         thawIx(lockAccount, mint, freezeAuthority),
         getTransferCheckedInstruction(
             {
