@@ -98,6 +98,30 @@ result with `index`, `programAddress`, `accounts`, `rawData`, and
 Use `result.token2022Instructions` if you only care about T2022, or filter
 `result.instructions` yourself by `programLabel`.
 
+### Anchor event CPIs
+
+Programs built on Anchor often record events by self‑CPI'ing into themselves
+with a special data prefix (the `emit_cpi!` macro). Those CPIs land in
+`meta.innerInstructions` like any other inner ix. We detect them by checking
+for the `Anchor:Event` discriminator (`[228, 69, 165, 46, 81, 203, 154, 29]`)
+at the start of the data and tag them so indexers can route events to a
+separate decoder pipeline:
+
+```ts
+for (const ix of parsed.flatInnerInstructions) {
+    if (ix.isEvent) {
+        // ix.category === 'event'
+        // ix.rawData.slice(0, 8)  → Anchor:Event discriminator
+        // ix.rawData.slice(8, 16) → per-event discriminator (program-specific)
+        // ix.rawData.slice(16)    → borsh-encoded event body
+        routeToEventDecoder(ix.programAddress, ix.rawData!);
+    }
+}
+```
+
+We don't decode the event body itself — that requires the program's IDL.
+Detection is best-effort and based purely on the data prefix.
+
 ## Recommendations for indexers
 
 1. **Index both outer and inner instructions, but preserve `stackHeight`.**

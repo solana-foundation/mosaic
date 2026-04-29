@@ -260,4 +260,59 @@ describe('parseTokenTransaction', () => {
         expect(Object.keys(result.signatures)).toContain(FEE_PAYER as Address as string);
         expect(result.signatures[FEE_PAYER as Address as string]).toBeNull();
     });
+
+    it('flags Anchor emit_cpi! events with isEvent and category=event', () => {
+        // SHA256("anchor:event")[..8] — what `emit_cpi!` prefixes to event data.
+        const ANCHOR_EVENT_DISC = [228, 69, 165, 46, 81, 203, 154, 29];
+        const SOME_PROGRAM = addrFromTag(99);
+        const eventData = new Uint8Array([
+            ...ANCHOR_EVENT_DISC,
+            // Per-event discriminator + payload (opaque to us).
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            42,
+            0,
+            0,
+            0,
+        ]);
+        // A non-event ix to the same program (data starts with something else)
+        // shouldn't get tagged.
+        const nonEventData = new Uint8Array([7, 7, 7, 7, 7, 7, 7, 7, 1, 2, 3]);
+
+        const eventIx: Instruction = {
+            programAddress: SOME_PROGRAM,
+            accounts: [],
+            data: eventData,
+        };
+        const regularIx: Instruction = {
+            programAddress: SOME_PROGRAM,
+            accounts: [],
+            data: nonEventData,
+        };
+
+        const result = parseTokenTransaction(buildBytes([regularIx, eventIx]));
+
+        expect(result.instructions).toHaveLength(2);
+        const [regular, event] = result.instructions;
+
+        expect(regular.isEvent).toBeUndefined();
+        expect(regular.category).toBe('other');
+
+        expect(event.isEvent).toBe(true);
+        expect(event.category).toBe('event');
+        expect(event.programLabel).toBe('unknown');
+        // The full event payload sits in rawData; first 8 bytes are the
+        // Anchor:Event discriminator, the rest is the per-event body.
+        expect(event.rawData).toBeDefined();
+        expect(Array.from(event.rawData!.slice(0, 8))).toEqual(ANCHOR_EVENT_DISC);
+
+        expect(result.summary.event).toBe(1);
+        expect(result.summary.other).toBe(1);
+    });
 });

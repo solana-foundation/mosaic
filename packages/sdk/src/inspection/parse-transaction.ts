@@ -67,6 +67,7 @@ export type TokenInstructionCategory =
     | 'fee-harvest'
     | 'confidential-config'
     | 'metadata-emit'
+    | 'event'
     | 'other-token2022'
     | 'other';
 
@@ -91,6 +92,14 @@ interface ParsedInstructionBase {
      * parseConfirmedTransaction from the cluster's reported `stackHeight`.
      */
     stackHeight?: number;
+    /**
+     * True when the instruction's data starts with the Anchor `emit_cpi!`
+     * event discriminator. These are typically self-CPIs that exist purely to
+     * record an event in `meta.innerInstructions`. The full event payload is
+     * not decoded (that requires the program's IDL); use `rawData.slice(8)` to
+     * access the per-event discriminator + borsh-encoded body.
+     */
+    isEvent?: boolean;
 }
 
 export interface ParsedToken2022InstructionEntry extends ParsedInstructionBase {
@@ -297,9 +306,25 @@ function emptySummary(): Record<TokenInstructionCategory, number> {
         'fee-harvest': 0,
         'confidential-config': 0,
         'metadata-emit': 0,
+        event: 0,
         'other-token2022': 0,
         other: 0,
     };
+}
+
+/**
+ * The 8-byte discriminator Anchor's `emit_cpi!` macro prefixes to every event
+ * CPI's data: SHA256("anchor:event")[..8]. Detection lets indexers route
+ * events to a separate decoder pipeline without re-checking each ix.
+ */
+const ANCHOR_EVENT_DISCRIMINATOR = Object.freeze([228, 69, 165, 46, 81, 203, 154, 29] as const);
+
+function isAnchorEventData(data: ReadonlyUint8Array | undefined): boolean {
+    if (!data || data.length < 8) return false;
+    for (let i = 0; i < 8; i += 1) {
+        if (data[i] !== ANCHOR_EVENT_DISCRIMINATOR[i]) return false;
+    }
+    return true;
 }
 
 function normalizeInput(input: RawTransactionInput): Uint8Array {
@@ -328,6 +353,19 @@ function hasData(ix: Instruction): ix is DataInstruction {
 }
 
 function classifyInstruction(ix: Instruction, index: number): ParsedTransactionInstruction {
+    const entry = classifyByProgram(ix, index);
+    // Anchor's emit_cpi! events: a self-CPI whose data starts with the
+    // Anchor:Event discriminator. Tag and override category so indexers can
+    // route events to a separate decoder pipeline. Identification is best-
+    // effort — we do not decode the borsh payload (that needs the program IDL).
+    if (isAnchorEventData(ix.data)) {
+        entry.isEvent = true;
+        entry.category = 'event';
+    }
+    return entry;
+}
+
+function classifyByProgram(ix: Instruction, index: number): ParsedTransactionInstruction {
     const programAddress = ix.programAddress;
     const accounts = ix.accounts ?? [];
     const base = { index, programAddress, accounts, rawData: ix.data } as const;
