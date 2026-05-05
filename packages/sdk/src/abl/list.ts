@@ -20,7 +20,7 @@ import {
     getCreateListInstruction,
     getListConfigDecoder,
     Mode,
-} from '@token-acl/abl-sdk';
+} from '@solana/token-acl-gate-sdk';
 
 /**
  * Generates instructions for creating a new allowlist/blocklist configuration.
@@ -35,6 +35,7 @@ import {
  */
 export const getCreateListInstructions = async (input: {
     authority: TransactionSigner<string>;
+    payer?: TransactionSigner<string>;
     mint: Address;
     mode?: Mode;
 }): Promise<{ instructions: Instruction<string>[]; listConfig: Address }> => {
@@ -46,6 +47,7 @@ export const getCreateListInstructions = async (input: {
     const createListInstruction = getCreateListInstruction(
         {
             authority: input.authority,
+            payer: input.payer ?? input.authority,
             listConfig: listConfigPda[0],
             mode: input.mode || Mode.Allow,
             seed: input.mint,

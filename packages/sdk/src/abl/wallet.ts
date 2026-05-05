@@ -12,7 +12,7 @@ import {
 } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import { ABL_PROGRAM_ID } from './utils';
-import { findWalletEntryPda, getAddWalletInstruction, getRemoveWalletInstruction } from '@token-acl/abl-sdk';
+import { findWalletEntryPda, getAddWalletInstruction, getRemoveWalletInstruction } from '@solana/token-acl-gate-sdk';
 
 /**
  * Generates instructions for adding a wallet to an allowlist or blocklist.
@@ -29,17 +29,19 @@ import { findWalletEntryPda, getAddWalletInstruction, getRemoveWalletInstruction
  */
 export const getAddWalletInstructions = async (input: {
     authority: TransactionSigner<string>;
+    payer?: TransactionSigner<string>;
     list: Address;
     wallet: Address;
 }): Promise<Instruction<string>[]> => {
     const abWallet = await findWalletEntryPda(
-        { walletAddress: input.wallet, listConfig: input.list },
+        { wallet: input.wallet, listConfig: input.list },
         { programAddress: ABL_PROGRAM_ID },
     );
 
     const addWalletToListInstruction = getAddWalletInstruction(
         {
             authority: input.authority,
+            payer: input.payer ?? input.authority,
             listConfig: input.list,
             wallet: input.wallet,
             walletEntry: abWallet[0],
@@ -101,7 +103,7 @@ export const getRemoveWalletInstructions = async (input: {
     wallet: Address;
 }): Promise<Instruction<string>[]> => {
     const abWallet = await findWalletEntryPda(
-        { walletAddress: input.wallet, listConfig: input.list },
+        { wallet: input.wallet, listConfig: input.list },
         { programAddress: ABL_PROGRAM_ID },
     );
 

@@ -16,7 +16,7 @@ import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
 import { getCreateListInstructions } from '../abl/list';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
-import { Mode } from '@token-acl/abl-sdk';
+import { Mode } from '@solana/token-acl-gate-sdk';
 
 /**
  * Creates a transaction to initialize a new arcade token mint on Solana with common arcade token features.

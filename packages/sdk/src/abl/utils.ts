@@ -1,4 +1,4 @@
-import { findListConfigPda } from '@token-acl/abl-sdk';
+import { findListConfigPda } from '@solana/token-acl-gate-sdk';
 import type { Address } from '@solana/kit';
 
 /**

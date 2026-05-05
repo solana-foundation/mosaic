@@ -1,6 +1,6 @@
 {
     "name": "@solana/mosaic-sdk",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "description": "SDK for Mosaic with helper functions for issuance and management of any token",
     "repository": {
         "type": "git",
@@ -37,7 +37,7 @@
         "@solana-program/system": "^0.10.0",
         "@solana-program/token-2022": "^0.6.1",
         "@solana/sysvars": "^5.0.0",
-        "@token-acl/abl-sdk": "^0.2.0",
+        "@solana/token-acl-gate-sdk": "^0.2.0",
         "@token-acl/sdk": "^0.2.7"
     },
     "_dependencyNotes": {

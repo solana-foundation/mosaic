@@ -17,7 +17,7 @@ import {
     getThawAccountInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
-import { findListConfigPda, Mode } from '@token-acl/abl-sdk';
+import { findListConfigPda, Mode } from '@solana/token-acl-gate-sdk';
 import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util';
 import { ABL_PROGRAM_ID, getAddWalletInstructions, getList, getRemoveWalletInstructions } from '../abl';
 import { getFreezeInstructions } from '../token-acl/freeze';
