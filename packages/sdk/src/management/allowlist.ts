@@ -20,7 +20,7 @@ import {
     getListConfigPda,
     getRemoveWalletInstructions,
 } from '../abl';
-import { findListConfigPda, Mode } from '@token-acl/abl-sdk';
+import { findListConfigPda, Mode } from '@solana/token-acl-gate-sdk';
 import { getFreezeInstructions } from '../token-acl/freeze';
 import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless';
 import {
