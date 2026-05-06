@@ -20,6 +20,7 @@ import {
     getCreateListInstruction,
     getListConfigDecoder,
     Mode,
+    type WalletEntry,
 } from '@solana/token-acl-gate-sdk';
 
 /**
@@ -187,7 +188,7 @@ export const getList = async (input: { rpc: Rpc<SolanaRpcApi>; listConfig: Addre
 
     const list = accounts.map(account => {
         const data = new Uint8Array(Buffer.from(account.account.data[0], 'base64'));
-        const abWallet = getWalletEntryDecoder().decode(data);
+        const abWallet: WalletEntry = getWalletEntryDecoder().decode(data);
         return abWallet.walletAddress;
     });
 
