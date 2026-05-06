@@ -85,6 +85,7 @@ export const getCreateListTransaction = async (input: {
 }> => {
     const { instructions, listConfig } = await getCreateListInstructions({
         authority: input.authority,
+        payer: input.payer,
         mint: input.mint,
     });
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
