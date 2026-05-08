@@ -70,6 +70,8 @@ export const createTokenizedSecurityInitTransaction = async (
             additionalMetadata: new Map(),
         })
         .withPausable(pausableAuthority)
+        // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
+        // default frozen and the permissionless-thaw path against the blocklist fires.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
         .withConfidentialBalances(confidentialBalancesAuthority)
         .withPermanentDelegate(permanentDelegateAuthority);
