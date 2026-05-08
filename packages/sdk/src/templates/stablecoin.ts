@@ -76,7 +76,7 @@ export const createStablecoinInitTransaction = async (
             additionalMetadata: new Map(),
         })
         .withPausable(pausableAuthority || mintAuthorityAddress)
-        .withDefaultAccountState(!useSrfc37)
+        .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
         .withConfidentialBalances(confidentialBalancesAuthority || mintAuthorityAddress)
         .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
         .buildInstructions({

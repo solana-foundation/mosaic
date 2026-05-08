@@ -70,7 +70,7 @@ export const createTokenizedSecurityInitTransaction = async (
             additionalMetadata: new Map(),
         })
         .withPausable(pausableAuthority)
-        .withDefaultAccountState(!useSrfc37)
+        .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
         .withConfidentialBalances(confidentialBalancesAuthority)
         .withPermanentDelegate(permanentDelegateAuthority);
 

@@ -28,10 +28,11 @@ const getFreezeInstructionForMint = async (input: {
     tokenAccount: Address;
     mintDetails: MintFreezeDetails;
 }): Promise<Instruction<string>> => {
-    const { freezeAuthority, programAddress } = input.mintDetails;
+    const { usesTokenAcl, programAddress } = input.mintDetails;
 
-    // Check if freeze authority is the Token ACL program
-    if (freezeAuthority === TOKEN_ACL_PROGRAM_ID) {
+    // Token ACL transfers freeze authority to a mintConfig PDA owned by the
+    // Token ACL program, so detect via account owner rather than literal program ID.
+    if (usesTokenAcl) {
         // Use Token ACL instruction
         const mintConfigPda = await findMintConfigPda({ mint: input.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
 
@@ -137,7 +138,7 @@ export const getFreezeWalletInstructions = async (input: {
 }): Promise<Instruction[]> => {
     const { tokenAccount, isInitialized } = await resolveTokenAccount(input.rpc, input.wallet, input.mint);
     const mintDetails = await getMintDetails(input.rpc, input.mint);
-    const usesTokenAcl = mintDetails.usesTokenAcl === true || mintDetails.freezeAuthority === TOKEN_ACL_PROGRAM_ID;
+    const usesTokenAcl = mintDetails.usesTokenAcl === true;
     const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(mintDetails.extensions ?? []);
     const instructions: Instruction[] = [];
 

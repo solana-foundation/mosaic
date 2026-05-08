@@ -121,6 +121,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
                 decimals: 6,
                 freezeAuthority: TOKEN_ACL_PROGRAM_ID,
                 extensions: [{ __kind: 'DefaultAccountState', state: 'frozen' }],
+                usesTokenAcl: true,
                 programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
