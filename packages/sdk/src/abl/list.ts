@@ -20,7 +20,8 @@ import {
     getCreateListInstruction,
     getListConfigDecoder,
     Mode,
-} from '@token-acl/abl-sdk';
+    type WalletEntry,
+} from '@solana/token-acl-gate-sdk';
 
 /**
  * Generates instructions for creating a new allowlist/blocklist configuration.
@@ -35,6 +36,7 @@ import {
  */
 export const getCreateListInstructions = async (input: {
     authority: TransactionSigner<string>;
+    payer?: TransactionSigner<string>;
     mint: Address;
     mode?: Mode;
 }): Promise<{ instructions: Instruction<string>[]; listConfig: Address }> => {
@@ -46,6 +48,7 @@ export const getCreateListInstructions = async (input: {
     const createListInstruction = getCreateListInstruction(
         {
             authority: input.authority,
+            payer: input.payer ?? input.authority,
             listConfig: listConfigPda[0],
             mode: input.mode || Mode.Allow,
             seed: input.mint,
@@ -83,6 +86,7 @@ export const getCreateListTransaction = async (input: {
 }> => {
     const { instructions, listConfig } = await getCreateListInstructions({
         authority: input.authority,
+        payer: input.payer,
         mint: input.mint,
     });
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
@@ -184,7 +188,7 @@ export const getList = async (input: { rpc: Rpc<SolanaRpcApi>; listConfig: Addre
 
     const list = accounts.map(account => {
         const data = new Uint8Array(Buffer.from(account.account.data[0], 'base64'));
-        const abWallet = getWalletEntryDecoder().decode(data);
+        const abWallet: WalletEntry = getWalletEntryDecoder().decode(data);
         return abWallet.walletAddress;
     });
 

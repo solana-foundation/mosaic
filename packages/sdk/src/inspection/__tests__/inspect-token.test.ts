@@ -28,8 +28,10 @@ jest.mock('@solana-program/token-2022', () => ({
 
 import { fetchEncodedAccount } from '@solana/kit';
 import { decodeMint } from '@solana-program/token-2022';
+import { createMockRpc } from '../../__tests__/test-utils';
 const mockMintAddress = address('AqQw6rR2Qw2LRp5MNDoAuCEiBzKBdZx2drF6DCJx4w5H');
 const mockAuthority = address('FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT');
+const mockRpc = createMockRpc();
 
 describe('inspectToken', () => {
     beforeEach(() => {
@@ -88,7 +90,7 @@ describe('inspectToken', () => {
             (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
             (decodeMint as jest.Mock).mockReturnValue(mockDecodedMint);
 
-            const result = await inspectToken({} as any, mockMintAddress);
+            const result = await inspectToken(mockRpc, mockMintAddress);
 
             expect(result.address).toEqual(mockMintAddress);
             expect(result.programId).toEqual(TOKEN_2022_PROGRAM_ADDRESS);
@@ -142,7 +144,7 @@ describe('inspectToken', () => {
             (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
             (decodeMint as jest.Mock).mockReturnValue(mockDecodedMint);
 
-            const result = await inspectToken({} as any, mockMintAddress);
+            const result = await inspectToken(mockRpc, mockMintAddress);
 
             expect(result.metadata?.name).toEqual('Game Token');
             expect(result.metadata?.symbol).toEqual('GAME');
@@ -172,7 +174,7 @@ describe('inspectToken', () => {
             (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
             (decodeMint as jest.Mock).mockReturnValue(mockDecodedMint);
 
-            const result = await inspectToken({} as any, mockMintAddress);
+            const result = await inspectToken(mockRpc, mockMintAddress);
 
             expect(result.extensions).toHaveLength(0);
             expect(result.detectedPatterns).toEqual(['unknown']);
@@ -191,13 +193,13 @@ describe('inspectToken', () => {
 
             (fetchEncodedAccount as jest.Mock).mockResolvedValueOnce(mockEncodedAccount);
 
-            await expect(inspectToken({} as any, mockMintAddress)).rejects.toThrow('Invalid mint account');
+            await expect(inspectToken(mockRpc, mockMintAddress)).rejects.toThrow('Invalid mint account');
         });
 
         it('should throw error if mint account does not exist', async () => {
             (fetchEncodedAccount as jest.Mock).mockResolvedValue({ exists: false });
 
-            await expect(inspectToken({} as any, mockMintAddress)).rejects.toThrow('Mint account not found');
+            await expect(inspectToken(mockRpc, mockMintAddress)).rejects.toThrow('Mint account not found');
         });
 
         it('should throw error if account is not a valid mint', async () => {
@@ -209,7 +211,7 @@ describe('inspectToken', () => {
 
             (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
 
-            await expect(inspectToken({} as any, mockMintAddress)).rejects.toThrow('Invalid mint account');
+            await expect(inspectToken(mockRpc, mockMintAddress)).rejects.toThrow('Invalid mint account');
         });
     });
 });
@@ -252,7 +254,7 @@ describe('Helper functions', () => {
             (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
             (decodeMint as jest.Mock).mockReturnValue(mockDecodedMint);
 
-            const metadata = await getTokenMetadata({} as any, mockMintAddress);
+            const metadata = await getTokenMetadata(mockRpc, mockMintAddress);
 
             expect(metadata).toEqual({
                 name: 'Test Token',
@@ -283,7 +285,7 @@ describe('Helper functions', () => {
             (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
             (decodeMint as jest.Mock).mockReturnValue(mockDecodedMint);
 
-            const metadata = await getTokenMetadata({} as any, mockMintAddress);
+            const metadata = await getTokenMetadata(mockRpc, mockMintAddress);
 
             expect(metadata).toBeNull();
         });
@@ -326,7 +328,7 @@ describe('Helper functions', () => {
             (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
             (decodeMint as jest.Mock).mockReturnValue(mockDecodedMint);
 
-            const extensions = await getTokenExtensionsDetailed({} as any, mockMintAddress);
+            const extensions = await getTokenExtensionsDetailed(mockRpc, mockMintAddress);
 
             expect(extensions).toHaveLength(2); // 2 extensions
             expect(extensions[0].name).toEqual('DefaultAccountState');
@@ -451,7 +453,7 @@ describe('Helper functions', () => {
             (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
             (decodeMint as jest.Mock).mockReturnValue(mockDecodedMint);
 
-            const dashboardData = await getTokenDashboardData({} as any, mockMintAddress);
+            const dashboardData = await getTokenDashboardData(mockRpc, mockMintAddress);
 
             expect(dashboardData.name).toEqual('Dashboard Token');
             expect(dashboardData.symbol).toEqual('DASH');

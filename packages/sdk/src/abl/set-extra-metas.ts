@@ -12,7 +12,7 @@ import {
 } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import { ABL_PROGRAM_ID } from './utils';
-import { getSetupExtraMetasInstruction } from '@token-acl/abl-sdk';
+import { getSetupExtraMetasInstruction } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda, findThawExtraMetasAccountPda } from '@token-acl/sdk';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 
@@ -31,6 +31,7 @@ import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
  */
 export const getSetExtraMetasInstructions = async (input: {
     authority: TransactionSigner<string>;
+    payer?: TransactionSigner<string>;
     mint: Address;
     lists: Address[];
 }): Promise<Instruction<string>[]> => {
@@ -40,6 +41,7 @@ export const getSetExtraMetasInstructions = async (input: {
     const createListInstruction = getSetupExtraMetasInstruction(
         {
             authority: input.authority,
+            payer: input.payer ?? input.authority,
             mint: input.mint,
             tokenAclMintConfig: mintConfigPda[0],
             extraMetas: extraMetasThaw[0],

@@ -251,7 +251,12 @@ export async function inspectToken(
             }
         }
 
-        enableSrfc37 = authorities.freezeAuthority === TOKEN_ACL_PROGRAM_ID;
+        if (authorities.freezeAuthority) {
+            // Token ACL transfers freeze authority to a mintConfig PDA owned by the
+            // Token ACL program, so detect via account owner rather than literal program ID.
+            const freezeAuthorityAccount = await rpc.getAccountInfo(authorities.freezeAuthority, { commitment }).send();
+            enableSrfc37 = freezeAuthorityAccount.value?.owner === TOKEN_ACL_PROGRAM_ID;
+        }
     }
 
     const detectedPatterns = detectTokenPatterns(extensions);
