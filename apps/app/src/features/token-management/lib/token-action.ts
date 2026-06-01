@@ -187,16 +187,19 @@ export async function executeMultiTransactionAction(input: {
     };
 
     const runCleanupSteps = async (): Promise<string | undefined> => {
+        const cleanupErrors: string[] = [];
+
         for (const cleanupStep of cleanupSteps) {
             try {
                 signatures.push(await executeStep(cleanupStep));
             } catch (error) {
                 const message = error instanceof Error ? error.message : 'Unknown error occurred';
                 reportStepFailure(cleanupStep, message);
-                return message;
+                cleanupErrors.push(`${cleanupStep.step.label}: ${message}`);
             }
         }
-        return undefined;
+
+        return cleanupErrors.length > 0 ? cleanupErrors.join('; ') : undefined;
     };
 
     for (const indexedStep of indexedSteps) {
@@ -209,7 +212,7 @@ export async function executeMultiTransactionAction(input: {
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error occurred';
             reportStepFailure(indexedStep, message);
-            if (indexedStep.step.phase === 'main' && input.plan.cleanupPolicy === 'attempt-after-main') {
+            if (input.plan.cleanupPolicy === 'attempt-after-main') {
                 const cleanupError = await runCleanupSteps();
                 if (cleanupError) {
                     throw new Error(`${message}. Cleanup failed: ${cleanupError}`);

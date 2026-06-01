@@ -104,7 +104,7 @@ export async function createConfidentialTransferPlan(input: {
             transferAmountAuditorCiphertextHi: proofs.transferAmountAuditorCiphertextHi,
         }),
     ]);
-    const cleanupTransaction = await createTransaction(input.rpc, input.feePayer, [
+    const cleanupInstructions = [
         getCloseContextStateInstruction({
             contextState: contextStateAccounts.equality.address,
             destination: input.feePayer.address,
@@ -120,7 +120,11 @@ export async function createConfidentialTransferPlan(input: {
             destination: input.feePayer.address,
             authority: input.authority,
         }),
-    ]);
+    ];
+    const cleanupTransactions = await Promise.all(
+        cleanupInstructions.map(instruction => createTransaction(input.rpc, input.feePayer, [instruction])),
+    );
+    const cleanupTransaction = await createTransaction(input.rpc, input.feePayer, cleanupInstructions);
 
     return {
         sourceTokenAccount,
@@ -132,6 +136,7 @@ export async function createConfidentialTransferPlan(input: {
         },
         setupTransactions,
         transferTransaction,
+        cleanupTransactions,
         cleanupTransaction,
     };
 }

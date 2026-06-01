@@ -210,6 +210,46 @@ describe('confidential transfer SDK helpers', () => {
         expect(operationPlan.steps[2]!.transaction).toBe(transaction);
     });
 
+    it('uses granular cleanup transactions when a transfer plan provides them', async () => {
+        const authority = await generateKeyPairSigner();
+        const source = await generateKeyPairSigner();
+        const transaction = await createHarvestConfidentialTransferFeesTransaction({
+            rpc,
+            mint,
+            sources: [source.address],
+            feePayer: authority,
+        });
+        const transferPlan: ConfidentialTransferPlan = {
+            sourceTokenAccount: tokenAccount,
+            destinationTokenAccount: source.address,
+            contextStateAccounts: {
+                equality: source.address,
+                ciphertextValidity: source.address,
+                range: source.address,
+            },
+            setupTransactions: [transaction, transaction],
+            transferTransaction: transaction,
+            cleanupTransactions: [transaction, transaction, transaction],
+            cleanupTransaction: transaction,
+        };
+
+        const operationPlan = createConfidentialTransferOperationPlan(transferPlan);
+
+        expect(operationPlan.steps.map(step => step.phase)).toEqual([
+            'setup',
+            'setup',
+            'main',
+            'cleanup',
+            'cleanup',
+            'cleanup',
+        ]);
+        expect(operationPlan.steps.slice(3).map(step => step.label)).toEqual([
+            'Proof cleanup 1',
+            'Proof cleanup 2',
+            'Proof cleanup 3',
+        ]);
+    });
+
     it('refreshes planned transaction blockhashes before execution', async () => {
         const authority = await generateKeyPairSigner();
         const transaction = await createHarvestConfidentialTransferFeesTransaction({

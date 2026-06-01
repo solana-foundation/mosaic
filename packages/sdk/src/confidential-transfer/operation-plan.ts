@@ -77,6 +77,8 @@ export function createSingleTransactionConfidentialOperationPlan(input: {
 export function createConfidentialTransferOperationPlan(
     plan: ConfidentialTransferPlan | ConfidentialTransferWithFeePlan,
 ): ConfidentialOperationPlan {
+    const cleanupTransactions = plan.cleanupTransactions ?? [plan.cleanupTransaction];
+
     return createConfidentialOperationPlan({
         cleanupPolicy: 'attempt-after-main',
         steps: [
@@ -90,11 +92,11 @@ export function createConfidentialTransferOperationPlan(
                 phase: 'main' as const,
                 transaction: plan.transferTransaction,
             },
-            {
-                label: 'Proof cleanup',
+            ...cleanupTransactions.map((transaction, index) => ({
+                label: cleanupTransactions.length === 1 ? 'Proof cleanup' : `Proof cleanup ${index + 1}`,
                 phase: 'cleanup' as const,
-                transaction: plan.cleanupTransaction,
-            },
+                transaction,
+            })),
         ],
     });
 }
@@ -102,6 +104,8 @@ export function createConfidentialTransferOperationPlan(
 export function createConfidentialFeeWithdrawOperationPlan(
     plan: ConfidentialTransferFeeWithdrawPlan,
 ): ConfidentialOperationPlan {
+    const cleanupTransactions = plan.cleanupTransactions ?? [plan.cleanupTransaction];
+
     return createConfidentialOperationPlan({
         cleanupPolicy: 'attempt-after-main',
         steps: [
@@ -115,11 +119,11 @@ export function createConfidentialFeeWithdrawOperationPlan(
                 phase: 'main' as const,
                 transaction: plan.withdrawTransaction,
             },
-            {
-                label: 'Proof cleanup',
+            ...cleanupTransactions.map((transaction, index) => ({
+                label: cleanupTransactions.length === 1 ? 'Proof cleanup' : `Proof cleanup ${index + 1}`,
                 phase: 'cleanup' as const,
-                transaction: plan.cleanupTransaction,
-            },
+                transaction,
+            })),
         ],
     });
 }

@@ -170,14 +170,18 @@ async function executeOperationPlan(input: {
     };
 
     const runCleanupSteps = async (): Promise<string | undefined> => {
+        const cleanupErrors: string[] = [];
+
         for (const cleanupStep of cleanupSteps) {
             try {
                 signatures.push(await executeStep(cleanupStep));
             } catch (error) {
-                return error instanceof Error ? error.message : String(error);
+                const message = error instanceof Error ? error.message : String(error);
+                cleanupErrors.push(`${cleanupStep.step.label}: ${message}`);
             }
         }
-        return undefined;
+
+        return cleanupErrors.length > 0 ? cleanupErrors.join('; ') : undefined;
     };
 
     for (const indexedStep of indexedSteps) {
@@ -189,7 +193,7 @@ async function executeOperationPlan(input: {
             signatures.push(await executeStep(indexedStep));
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            if (indexedStep.step.phase === 'main' && input.plan.cleanupPolicy === 'attempt-after-main') {
+            if (input.plan.cleanupPolicy === 'attempt-after-main') {
                 const cleanupError = await runCleanupSteps();
                 if (cleanupError) {
                     throw new Error(`${message}. Cleanup failed: ${cleanupError}`);

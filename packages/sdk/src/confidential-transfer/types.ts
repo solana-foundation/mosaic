@@ -30,6 +30,7 @@ export type ConfidentialTransferPlan = {
     };
     setupTransactions: FullTransaction[];
     transferTransaction: FullTransaction;
+    cleanupTransactions?: FullTransaction[];
     cleanupTransaction: FullTransaction;
 };
 
@@ -45,6 +46,7 @@ export type ConfidentialTransferWithFeePlan = {
     };
     setupTransactions: FullTransaction[];
     transferTransaction: FullTransaction;
+    cleanupTransactions?: FullTransaction[];
     cleanupTransaction: FullTransaction;
     feeAmount: bigint;
     netAmount: bigint;
@@ -55,6 +57,7 @@ export type ConfidentialTransferFeeWithdrawPlan = {
     contextStateAccount: Address;
     setupTransactions: FullTransaction[];
     withdrawTransaction: FullTransaction;
+    cleanupTransactions?: FullTransaction[];
     cleanupTransaction: FullTransaction;
 };
 
