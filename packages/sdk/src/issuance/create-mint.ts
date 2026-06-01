@@ -23,6 +23,12 @@ import {
 } from '@solana-program/token-2022';
 import { createUpdateFieldInstruction } from './create-update-field-instruction';
 
+export type ConfidentialBalancesConfig = {
+    authority: Address;
+    autoApproveNewAccounts?: boolean;
+    auditorElgamalPubkey?: Address | null;
+};
+
 export class Token {
     private extensions: Extension[] = [];
     private confidentialTransferFeeConfig?: {
@@ -84,11 +90,17 @@ export class Token {
         return this;
     }
 
-    withConfidentialBalances(authority: Address): Token {
+    withConfidentialBalances(configOrAuthority: Address | ConfidentialBalancesConfig): Token {
+        const config =
+            typeof configOrAuthority === 'string'
+                ? {
+                      authority: configOrAuthority,
+                  }
+                : configOrAuthority;
         const confidentialBalancesExtension = extension('ConfidentialTransferMint', {
-            authority: some(authority),
-            autoApproveNewAccounts: false,
-            auditorElgamalPubkey: null,
+            authority: some(config.authority),
+            autoApproveNewAccounts: config.autoApproveNewAccounts ?? false,
+            auditorElgamalPubkey: config.auditorElgamalPubkey ?? null,
         });
         this.extensions.push(confidentialBalancesExtension as Extension);
         return this;

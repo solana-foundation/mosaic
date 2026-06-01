@@ -17,3 +17,10 @@ export function maybeOutputRawTx(rawTxOption: string | undefined, transaction: T
     outputRawTransaction(rawTxOption, transaction);
     return true;
 }
+
+export function outputRawTransactions(encoding: string, transactions: Array<{ label: string; transaction: Tx }>): void {
+    transactions.forEach(({ label, transaction }, index) => {
+        console.log(`Transaction ${index + 1}/${transactions.length}: ${label}`);
+        outputRawTransaction(encoding, transaction);
+    });
+}

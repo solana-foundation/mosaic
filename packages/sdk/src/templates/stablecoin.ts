@@ -54,6 +54,8 @@ export const createStablecoinInitTransaction = async (
     permanentDelegateAuthority?: Address,
     enableSrfc37?: boolean,
     freezeAuthority?: Address,
+    confidentialBalancesAutoApproveNewAccounts?: boolean,
+    confidentialBalancesAuditorElgamalPubkey?: Address | null,
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
@@ -79,7 +81,11 @@ export const createStablecoinInitTransaction = async (
         // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
         // default frozen and the permissionless-thaw path against the blocklist fires.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
-        .withConfidentialBalances(confidentialBalancesAuthority || mintAuthorityAddress)
+        .withConfidentialBalances({
+            authority: confidentialBalancesAuthority || mintAuthorityAddress,
+            autoApproveNewAccounts: confidentialBalancesAutoApproveNewAccounts,
+            auditorElgamalPubkey: confidentialBalancesAuditorElgamalPubkey,
+        })
         .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
         .buildInstructions({
             rpc,

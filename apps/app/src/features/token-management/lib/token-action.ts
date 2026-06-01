@@ -13,6 +13,11 @@ import {
     type TransactionMessageWithBlockhashLifetime,
     assertIsTransactionWithBlockhashLifetime,
 } from '@solana/kit';
+import type {
+    ConfidentialOperationPlan,
+    ConfidentialOperationPlanStep,
+    ConfidentialOperationPlanStepPhase,
+} from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 import type { FullTransaction } from '@/lib/solana/types';
 
@@ -59,6 +64,18 @@ export interface TokenActionConfig<TOptions extends BaseOptions, TResult extends
         options: TOptions,
         signerAddress: Address,
     ) => Omit<TResult, 'success' | 'transactionSignature'>;
+}
+
+export type MultiTransactionStep = ConfidentialOperationPlanStep;
+
+export interface MultiTransactionProgress {
+    index: number;
+    total: number;
+    label: string;
+    phase: ConfidentialOperationPlanStepPhase;
+    status: 'signing' | 'sending' | 'confirmed' | 'failed';
+    signature?: string;
+    error?: string;
 }
 
 /**
@@ -120,4 +137,48 @@ export async function executeTokenAction<TOptions extends BaseOptions, TResult e
             error: error instanceof Error ? error.message : 'Unknown error occurred',
         } as unknown as TResult;
     }
+}
+
+export async function executeMultiTransactionAction(input: {
+    plan: ConfidentialOperationPlan;
+    rpcUrl?: string;
+    onProgress?: (progress: MultiTransactionProgress) => void;
+}): Promise<{ signatures: string[]; cleanupError?: string }> {
+    const rpcUrl = getRpcUrl(input.rpcUrl);
+    const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
+    const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
+    const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
+    const signatures: string[] = [];
+    const steps = input.plan.steps;
+
+    for (const [stepIndex, step] of steps.entries()) {
+        const progressBase = {
+            index: stepIndex + 1,
+            total: steps.length,
+            label: step.label,
+            phase: step.phase,
+        };
+
+        try {
+            input.onProgress?.({ ...progressBase, status: 'signing' });
+            const signedTransaction = await signTransactionMessageWithSigners(step.transaction);
+            input.onProgress?.({ ...progressBase, status: 'sending' });
+            assertIsTransactionWithBlockhashLifetime(signedTransaction);
+            await sendAndConfirmTransaction(signedTransaction, {
+                commitment: getCommitment(),
+            });
+            const signature = getSignatureFromTransaction(signedTransaction);
+            signatures.push(signature);
+            input.onProgress?.({ ...progressBase, status: 'confirmed', signature });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error occurred';
+            input.onProgress?.({ ...progressBase, status: 'failed', error: message });
+            if (step.phase === 'cleanup' && input.plan.cleanupPolicy === 'attempt-after-main') {
+                return { signatures, cleanupError: message };
+            }
+            throw error;
+        }
+    }
+
+    return { signatures };
 }

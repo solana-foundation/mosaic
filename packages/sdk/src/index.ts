@@ -14,4 +14,5 @@ export * from './abl';
 export * from './token-acl';
 export * from './token';
 export * from './transfer';
+export * from './confidential-transfer';
 export * from './inspection';

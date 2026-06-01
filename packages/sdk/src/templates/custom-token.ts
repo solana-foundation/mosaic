@@ -67,6 +67,8 @@ export const createCustomTokenInitTransaction = async (
         pausableAuthority?: Address;
         permanentDelegateAuthority?: Address;
         confidentialBalancesAuthority?: Address;
+        confidentialBalancesAutoApproveNewAccounts?: boolean;
+        confidentialBalancesAuditorElgamalPubkey?: Address | null;
         scaledUiAmountAuthority?: Address;
 
         // Scaled UI Amount configuration
@@ -152,7 +154,11 @@ export const createCustomTokenInitTransaction = async (
 
     // Add Confidential Balances extension
     if (options?.enableConfidentialBalances) {
-        tokenBuilder = tokenBuilder.withConfidentialBalances(confidentialBalancesAuthority);
+        tokenBuilder = tokenBuilder.withConfidentialBalances({
+            authority: confidentialBalancesAuthority,
+            autoApproveNewAccounts: options.confidentialBalancesAutoApproveNewAccounts,
+            auditorElgamalPubkey: options.confidentialBalancesAuditorElgamalPubkey,
+        });
     }
 
     // Add Scaled UI Amount extension

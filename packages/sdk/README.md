@@ -7,6 +7,7 @@ TypeScript SDK for building and operating Token-2022 mints with modern extension
 - **Templates**: One-call mint initialization for Stablecoin, Arcade Token, and Tokenized Security
 - **Access control**: Create and manage allowlists/blocklists (ABL, SRFC-37 compliant)
 - **Operations**: Mint, force-transfer (via permanent delegate), freeze/thaw, permissionless thaw (Token ACL)
+- **Confidential transfers**: Configure Token-2022 confidential accounts, deposit/apply/withdraw encrypted balances, and build private transfer transaction plans
 - **Authorities**: Update mint, freeze, metadata, and other authorities
 - **Utilities**: Resolve ATAs, decimal math, transaction B64/B58 encoding
 
@@ -156,6 +157,77 @@ const tx = await createForceTransferTransaction(
     feePayer,
 );
 ```
+
+### Confidential transfers
+
+Confidential transfers require the account owner to sign derivation messages for the Token-2022 ElGamal and AES keys. Use a signer that supports both `signTransactions` and `signMessages`, such as a Kit `KeyPairSigner` or a compatible wallet signer.
+
+```ts
+import {
+    createConfigureConfidentialTransferAccountTransaction,
+    createConfidentialDepositTransaction,
+    createApplyConfidentialPendingBalanceTransaction,
+    createConfidentialTransferPlan,
+    createConfidentialWithdrawTransaction,
+} from '@solana/mosaic-sdk';
+
+// One-time per token account: reallocates the ATA and configures confidential keys.
+const {
+    transaction: configureTx,
+    tokenAccount,
+    elgamalPubkey,
+} = await createConfigureConfidentialTransferAccountTransaction({
+    rpc,
+    mint: 'MintPubkey...',
+    owner: owner.address,
+    authority: owner,
+    feePayer,
+});
+
+// Move public balance into pending encrypted balance, then apply it to available balance.
+const depositTx = await createConfidentialDepositTransaction({
+    rpc,
+    mint: 'MintPubkey...',
+    owner: owner.address,
+    authority: owner,
+    feePayer,
+    amount: '10.5',
+    tokenAccount,
+});
+const applyPendingTx = await createApplyConfidentialPendingBalanceTransaction({
+    rpc,
+    mint: 'MintPubkey...',
+    owner: owner.address,
+    authority: owner,
+    feePayer,
+    tokenAccount,
+});
+
+// Private transfers need proof-context setup transactions before the transfer.
+const plan = await createConfidentialTransferPlan({
+    rpc,
+    mint: 'MintPubkey...',
+    from: owner.address,
+    to: recipient.address,
+    authority: owner,
+    feePayer,
+    amount: '1.25',
+});
+// Send in order: ...plan.setupTransactions, plan.transferTransaction, plan.cleanupTransaction.
+
+// Convert encrypted available balance back to public SPL balance.
+const withdrawTx = await createConfidentialWithdrawTransaction({
+    rpc,
+    mint: 'MintPubkey...',
+    owner: owner.address,
+    authority: owner,
+    feePayer,
+    amount: '2',
+    tokenAccount,
+});
+```
+
+The private transfer helper currently supports confidential transfers without transfer fees. Use `getConfidentialTransferFeeCapability()` to inspect the current fee surface. Fee harvesting is supported, while transfer-with-fee and confidential withheld-fee withdrawal remain guarded until the upstream ZK SDK exposes the required proof/key-derivation primitives.
 
 ## Access lists (ABL, SRFC-37)
 

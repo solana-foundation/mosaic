@@ -119,6 +119,23 @@ describe('Token', () => {
             expect(extension.autoApproveNewAccounts).toBe(false);
             expect(extension.auditorElgamalPubkey).toBe(null);
         });
+
+        it('should add confidential balances extension with auto approval and auditor key', () => {
+            const auditor = generateMockAddress() as Address;
+            const result = token.withConfidentialBalances({
+                authority: TEST_AUTHORITY,
+                autoApproveNewAccounts: true,
+                auditorElgamalPubkey: auditor,
+            });
+
+            expect(result).toBe(token);
+            expect(token.getExtensions()).toHaveLength(1);
+
+            const extension: any = token.getExtensions()[0];
+            expect(extension.__kind).toBe('ConfidentialTransferMint');
+            expect(extension.autoApproveNewAccounts).toBe(true);
+            expect(extension.auditorElgamalPubkey).toBe(auditor);
+        });
     });
 
     describe('withConfidentialTransferFee', () => {

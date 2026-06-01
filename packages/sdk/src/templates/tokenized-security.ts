@@ -37,6 +37,8 @@ export const createTokenizedSecurityInitTransaction = async (
         metadataAuthority?: Address;
         pausableAuthority?: Address;
         confidentialBalancesAuthority?: Address;
+        confidentialBalancesAutoApproveNewAccounts?: boolean;
+        confidentialBalancesAuditorElgamalPubkey?: Address | null;
         permanentDelegateAuthority?: Address;
         enableSrfc37?: boolean;
         scaledUiAmount?: {
@@ -73,7 +75,11 @@ export const createTokenizedSecurityInitTransaction = async (
         // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
         // default frozen and the permissionless-thaw path against the blocklist fires.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
-        .withConfidentialBalances(confidentialBalancesAuthority)
+        .withConfidentialBalances({
+            authority: confidentialBalancesAuthority,
+            autoApproveNewAccounts: options?.confidentialBalancesAutoApproveNewAccounts,
+            auditorElgamalPubkey: options?.confidentialBalancesAuditorElgamalPubkey,
+        })
         .withPermanentDelegate(permanentDelegateAuthority);
 
     // Add Scaled UI Amount extension

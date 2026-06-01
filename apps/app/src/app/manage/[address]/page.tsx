@@ -26,6 +26,7 @@ import { useTokenExtensionStore, usePauseState } from '@/stores/token-extension-
 import { TokenOverview } from '@/features/token-management/components/token-overview';
 import { TokenAuthorities } from '@/features/token-management/components/token-authorities';
 import { TokenExtensions } from '@/features/token-management/components/token-extensions';
+import { ConfidentialTransferPanel } from '@/features/token-management/components/confidential-transfer-panel';
 import { TransferRestrictions } from '@/features/token-management/components/transfer-restrictions';
 import { AddressModal } from '@/features/token-management/components/modals/address-modal';
 import { MintModalContent } from '@/features/token-management/components/modals/mint-modal-refactored';
@@ -408,6 +409,11 @@ function ManageTokenConnected({ address }: { address: string }) {
         );
     }
 
+    const hasConfidentialTransfers =
+        token.extensions?.some(extension =>
+            ['ConfidentialTransferMint', 'Confidential Balances'].includes(extension),
+        ) ?? false;
+
     return (
         <div className="flex-1 p-8">
             <div className="max-w-6xl mx-auto space-y-8">
@@ -751,6 +757,14 @@ function ManageTokenConnected({ address }: { address: string }) {
                                 >
                                     Extensions
                                 </TabsTrigger>
+                                {hasConfidentialTransfers && (
+                                    <TabsTrigger
+                                        value="confidential"
+                                        className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
+                                    >
+                                        Confidential
+                                    </TabsTrigger>
+                                )}
                             </TabsList>
                         </div>
 
@@ -772,6 +786,11 @@ function ManageTokenConnected({ address }: { address: string }) {
                             <TabsContent value="extensions">
                                 <TokenExtensions token={token} />
                             </TabsContent>
+                            {hasConfidentialTransfers && (
+                                <TabsContent value="confidential">
+                                    <ConfidentialTransferPanel token={token} />
+                                </TabsContent>
+                            )}
                         </div>
                     </Tabs>
                 </div>

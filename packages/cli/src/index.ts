@@ -16,6 +16,7 @@ import { removeCommand as removeFromBlocklistCommand } from './commands/blocklis
 import { addCommand as addToAllowlistCommand } from './commands/allowlist/add';
 import { removeCommand as removeFromAllowlistCommand } from './commands/allowlist/remove';
 import { controlCommand } from './commands/control/index';
+import { confidentialCommand } from './commands/confidential/index';
 
 const program = new Command();
 
@@ -46,6 +47,7 @@ program.addCommand(forceTransferCommand);
 program.addCommand(forceBurnCommand);
 program.addCommand(controlCommand);
 program.addCommand(inspectMintCommand);
+program.addCommand(confidentialCommand);
 program.addCommand(tokenAclCommand);
 program.addCommand(ablCommand);
 
