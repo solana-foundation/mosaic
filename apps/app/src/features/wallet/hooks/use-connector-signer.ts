@@ -42,14 +42,19 @@ export function useConnectorConfidentialTransferSigner(): {
 
         return {
             ...transactionSigner,
-            signMessages: async (messages: readonly SignableMessage[]): Promise<readonly SignatureDictionary[]> =>
-                Promise.all(
-                    messages.map(async message => ({
+            signMessages: async (messages: readonly SignableMessage[]): Promise<readonly SignatureDictionary[]> => {
+                const signatures: SignatureDictionary[] = [];
+
+                for (const message of messages) {
+                    signatures.push({
                         [transactionSigner.address as Address]: (await walletSigner.signMessage!(
                             message.content,
                         )) as SignatureBytes,
-                    })),
-                ),
+                    });
+                }
+
+                return signatures;
+            },
         } as ConnectorConfidentialTransferSigner;
     }, [canSignMessages, transactionSigner, walletSigner]);
 
