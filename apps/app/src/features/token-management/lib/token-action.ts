@@ -150,33 +150,77 @@ export async function executeMultiTransactionAction(input: {
     const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
     const signatures: string[] = [];
     const steps = input.plan.steps;
+    const indexedSteps = steps.map((step, index) => ({ step, index }));
+    const cleanupSteps = indexedSteps.filter(({ step }) => step.phase === 'cleanup');
 
-    for (const [stepIndex, step] of steps.entries()) {
+    const reportStepFailure = (indexedStep: (typeof indexedSteps)[number], message: string) => {
+        input.onProgress?.({
+            index: indexedStep.index + 1,
+            total: steps.length,
+            label: indexedStep.step.label,
+            phase: indexedStep.step.phase,
+            status: 'failed',
+            error: message,
+        });
+    };
+
+    const executeStep = async ({ step, index }: (typeof indexedSteps)[number]): Promise<string> => {
         const progressBase = {
-            index: stepIndex + 1,
+            index: index + 1,
             total: steps.length,
             label: step.label,
             phase: step.phase,
         };
 
+        input.onProgress?.({ ...progressBase, status: 'signing' });
+        const signedTransaction = await signTransactionMessageWithSigners(step.transaction);
+        input.onProgress?.({ ...progressBase, status: 'sending' });
+        assertIsTransactionWithBlockhashLifetime(signedTransaction);
+        await sendAndConfirmTransaction(signedTransaction, {
+            commitment: getCommitment(),
+        });
+        const signature = getSignatureFromTransaction(signedTransaction);
+        input.onProgress?.({ ...progressBase, status: 'confirmed', signature });
+        return signature;
+    };
+
+    const runCleanupSteps = async (): Promise<string | undefined> => {
+        for (const cleanupStep of cleanupSteps) {
+            try {
+                signatures.push(await executeStep(cleanupStep));
+            } catch (error) {
+                const message = error instanceof Error ? error.message : 'Unknown error occurred';
+                reportStepFailure(cleanupStep, message);
+                return message;
+            }
+        }
+        return undefined;
+    };
+
+    for (const indexedStep of indexedSteps) {
+        if (indexedStep.step.phase === 'cleanup') {
+            continue;
+        }
+
         try {
-            input.onProgress?.({ ...progressBase, status: 'signing' });
-            const signedTransaction = await signTransactionMessageWithSigners(step.transaction);
-            input.onProgress?.({ ...progressBase, status: 'sending' });
-            assertIsTransactionWithBlockhashLifetime(signedTransaction);
-            await sendAndConfirmTransaction(signedTransaction, {
-                commitment: getCommitment(),
-            });
-            const signature = getSignatureFromTransaction(signedTransaction);
-            signatures.push(signature);
-            input.onProgress?.({ ...progressBase, status: 'confirmed', signature });
+            signatures.push(await executeStep(indexedStep));
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Unknown error occurred';
-            input.onProgress?.({ ...progressBase, status: 'failed', error: message });
-            if (step.phase === 'cleanup' && input.plan.cleanupPolicy === 'attempt-after-main') {
-                return { signatures, cleanupError: message };
+            reportStepFailure(indexedStep, message);
+            if (indexedStep.step.phase === 'main' && input.plan.cleanupPolicy === 'attempt-after-main') {
+                const cleanupError = await runCleanupSteps();
+                if (cleanupError) {
+                    throw new Error(`${message}. Cleanup failed: ${cleanupError}`);
+                }
             }
             throw error;
+        }
+    }
+
+    if (input.plan.cleanupPolicy === 'attempt-after-main') {
+        const cleanupError = await runCleanupSteps();
+        if (cleanupError) {
+            return { signatures, cleanupError };
         }
     }
 

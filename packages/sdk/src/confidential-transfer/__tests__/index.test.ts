@@ -18,6 +18,7 @@ import {
     type ConfidentialTransferPlan,
     ZK_ELGAMAL_PROOF_PROGRAM_ADDRESS,
 } from '../index';
+import { parseDecimalAmount } from '../accounts';
 
 describe('confidential transfer SDK helpers', () => {
     let rpc: Rpc<SolanaRpcApi>;
@@ -89,6 +90,12 @@ describe('confidential transfer SDK helpers', () => {
         expect(transaction.instructions[0]!.programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
         expect(transaction.instructions[0]!.data![0]).toBe(27); // Confidential transfer instruction wrapper
         expect(transaction.instructions[0]!.data![1]).toBe(5); // Deposit
+    });
+
+    it('parses confidential decimal amounts without floating-point precision loss', () => {
+        expect(parseDecimalAmount('9007199.254740991', 9)).toBe(9007199254740991n);
+        expect(parseDecimalAmount('0.000000001', 9)).toBe(1n);
+        expect(() => parseDecimalAmount('1.0000000001', 9)).toThrow('more fractional digits');
     });
 
     it('builds credit toggle transactions', async () => {

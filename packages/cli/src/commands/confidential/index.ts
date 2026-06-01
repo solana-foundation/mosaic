@@ -144,25 +144,57 @@ async function executeOperationPlan(input: {
     }
 
     const signatures: string[] = [];
-    for (const [index, step] of steps.entries()) {
+    const indexedSteps = steps.map((step, index) => ({ step, index }));
+    const cleanupSteps = indexedSteps.filter(({ step }) => step.phase === 'cleanup');
+
+    const executeStep = async ({ step, index }: (typeof indexedSteps)[number]): Promise<string> => {
+        console.log(chalk.cyan(`Transaction ${index + 1}/${steps.length}: ${step.label}`));
+        const signed = await signTransactionMessageWithSigners(step.transaction);
+        assertIsTransactionWithBlockhashLifetime(signed);
+        await input.sendAndConfirmTransaction(signed as SendableTx, {
+            commitment: 'confirmed',
+            skipPreflight: true,
+        });
+        return getSignatureFromTransaction(signed);
+    };
+
+    const runCleanupSteps = async (): Promise<string | undefined> => {
+        for (const cleanupStep of cleanupSteps) {
+            try {
+                signatures.push(await executeStep(cleanupStep));
+            } catch (error) {
+                return error instanceof Error ? error.message : String(error);
+            }
+        }
+        return undefined;
+    };
+
+    for (const indexedStep of indexedSteps) {
+        if (indexedStep.step.phase === 'cleanup') {
+            continue;
+        }
+
         try {
-            console.log(chalk.cyan(`Transaction ${index + 1}/${steps.length}: ${step.label}`));
-            const signed = await signTransactionMessageWithSigners(step.transaction);
-            assertIsTransactionWithBlockhashLifetime(signed);
-            await input.sendAndConfirmTransaction(signed as SendableTx, {
-                commitment: 'confirmed',
-                skipPreflight: true,
-            });
-            signatures.push(getSignatureFromTransaction(signed));
+            signatures.push(await executeStep(indexedStep));
         } catch (error) {
-            if (step.phase === 'cleanup' && input.plan.cleanupPolicy === 'attempt-after-main') {
-                const message = error instanceof Error ? error.message : String(error);
-                console.warn(chalk.yellow(`Cleanup failed after the main confidential action: ${message}`));
-                return signatures;
+            const message = error instanceof Error ? error.message : String(error);
+            if (indexedStep.step.phase === 'main' && input.plan.cleanupPolicy === 'attempt-after-main') {
+                const cleanupError = await runCleanupSteps();
+                if (cleanupError) {
+                    throw new Error(`${message}. Cleanup failed: ${cleanupError}`);
+                }
             }
             throw error;
         }
     }
+
+    if (input.plan.cleanupPolicy === 'attempt-after-main') {
+        const cleanupError = await runCleanupSteps();
+        if (cleanupError) {
+            console.warn(chalk.yellow(`Cleanup failed after the main confidential action: ${cleanupError}`));
+        }
+    }
+
     return signatures;
 }
 

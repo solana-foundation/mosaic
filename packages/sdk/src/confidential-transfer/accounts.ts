@@ -1,6 +1,6 @@
 import { type Address, fetchEncodedAccount, type Rpc, type SolanaRpcApi } from '@solana/kit';
 import { decodeMint, decodeToken, TOKEN_2022_PROGRAM_ADDRESS, type Extension } from '@solana-program/token-2022';
-import { decimalAmountToRaw, resolveTokenAccount } from '../transaction-util';
+import { resolveTokenAccount } from '../transaction-util';
 import { U64_MAX } from './constants';
 
 export function getExtensions(data: { extensions: { __option: string; value?: Extension[] } }): Extension[] {
@@ -71,11 +71,26 @@ export async function fetchDecodedMint(rpc: Rpc<SolanaRpcApi>, mint: Address) {
 }
 
 export function parseDecimalAmount(amount: string, decimals: number): bigint {
-    const decimalAmount = Number(amount);
-    if (!Number.isFinite(decimalAmount) || decimalAmount <= 0) {
+    if (!Number.isInteger(decimals) || decimals < 0) {
+        throw new Error('Mint decimals must be a non-negative integer');
+    }
+
+    const trimmedAmount = amount.trim();
+    if (!/^\d+(\.\d+)?$/.test(trimmedAmount)) {
         throw new Error('Amount must be a positive number');
     }
-    const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
+    const [wholePart, fractionalPart = ''] = trimmedAmount.split('.');
+    if (fractionalPart.length > decimals) {
+        throw new Error(`Amount has more fractional digits than the mint supports (${decimals})`);
+    }
+
+    const multiplier = 10n ** BigInt(decimals);
+    const wholeAmount = BigInt(wholePart ?? '0') * multiplier;
+    const fractionalAmount = fractionalPart ? BigInt(fractionalPart.padEnd(decimals, '0')) : 0n;
+    const rawAmount = wholeAmount + fractionalAmount;
+    if (rawAmount <= 0n) {
+        throw new Error('Amount must be a positive number');
+    }
     if (rawAmount > U64_MAX) {
         throw new Error('Amount exceeds the u64 token amount limit');
     }
