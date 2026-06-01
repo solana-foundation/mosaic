@@ -31,11 +31,13 @@ export async function buildConfidentialTransferProofs(input: {
     destinationTokenAccount: Address;
     authority: ConfidentialTransferAuthoritySigner<string>;
     amount: bigint;
+    auditorElgamalPubkey?: Address | null;
 }) {
     const zk = await loadZkSdk();
-    const decodedMint = await fetchDecodedMint(input.rpc, input.mint);
-    const mintExtensions = getExtensions(decodedMint.data);
-    const confidentialMint = getConfidentialTransferMintExtension(mintExtensions);
+    const auditorElgamalPubkeyAddress =
+        input.auditorElgamalPubkey === undefined
+            ? await getAuditorElgamalPubkey(input.rpc, input.mint)
+            : input.auditorElgamalPubkey;
 
     const sourceToken = await fetchDecodedTokenAccount(input.rpc, input.sourceTokenAccount);
     const destinationToken = await fetchDecodedTokenAccount(input.rpc, input.destinationTokenAccount);
@@ -58,7 +60,7 @@ export async function buildConfidentialTransferProofs(input: {
     const newAvailableBalance = currentAvailableBalance - input.amount;
 
     const destinationElgamalPubkey = addressToElgamalPubkey(zk, destinationConfidentialAccount.elgamalPubkey);
-    const auditorElgamalPubkey = addressToElgamalPubkey(zk, unwrapAddressOption(confidentialMint.auditorElgamalPubkey));
+    const auditorElgamalPubkey = addressToElgamalPubkey(zk, auditorElgamalPubkeyAddress);
 
     const lowAmountMask = (1n << TRANSFER_AMOUNT_LO_BITS) - 1n;
     const amountLow = input.amount & lowAmountMask;
@@ -144,4 +146,10 @@ export async function buildConfidentialTransferProofs(input: {
         ciphertextValidityProof,
         rangeProof,
     };
+}
+
+async function getAuditorElgamalPubkey(rpc: Rpc<SolanaRpcApi>, mint: Address): Promise<Address | null> {
+    const decodedMint = await fetchDecodedMint(rpc, mint);
+    const confidentialMint = getConfidentialTransferMintExtension(getExtensions(decodedMint.data));
+    return unwrapAddressOption(confidentialMint.auditorElgamalPubkey);
 }

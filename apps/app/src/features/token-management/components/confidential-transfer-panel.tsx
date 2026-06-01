@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,7 +29,11 @@ import {
     createUpdateConfidentialTransferMintTransaction,
     createWithdrawConfidentialTransferFeesFromAccountsPlan,
     createWithdrawConfidentialTransferFeesFromMintPlan,
+    getConfidentialTransferFeeCapability,
     getConfidentialTransferAccountSnapshot,
+    parseConfidentialTransferAddress,
+    parseConfidentialTransferSourceAccounts,
+    parseOptionalConfidentialTransferAddress,
     type ConfidentialOperationPlan,
     type ConfidentialTransferAccountSnapshot,
     type FullTransaction,
@@ -45,14 +49,6 @@ import { Ban, CheckCircle2, Eye, RotateCw, Send, Settings2, ShieldCheck, WalletC
 function hasExtension(token: TokenDisplay, ...names: string[]): boolean {
     const extensions = token.extensions ?? [];
     return names.some(name => extensions.includes(name));
-}
-
-function parseSources(value: string): Address[] {
-    return value
-        .split(',')
-        .map(source => source.trim())
-        .filter(Boolean)
-        .map(source => source as Address);
 }
 
 function progressText(progress: MultiTransactionProgress): string {
@@ -88,6 +84,14 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
         (hasExtension(token, 'ConfidentialTransferMint') && hasExtension(token, 'TransferFeeConfig'));
     const status = snapshot?.status ?? null;
     const balances = snapshot?.balances ?? null;
+    const actions = snapshot?.availableActions ?? null;
+    const feeCapability = useMemo(() => getConfidentialTransferFeeCapability(), []);
+    const transferWithFeeSupported = feeCapability.transferWithFee.supported;
+    const sourceAccountsEntered = sources.trim().length > 0;
+    const hasTokenAccountTarget = Boolean(tokenAccount.trim() || status?.tokenAccount);
+    const feeWithdrawSupported = sourceAccountsEntered
+        ? feeCapability.withdrawWithheldFeesFromAccounts.supported
+        : feeCapability.withdrawWithheldFeesFromMint.supported;
 
     const rpc = useMemo<Rpc<SolanaRpcApi> | null>(() => {
         if (!cluster?.url) return null;
@@ -143,6 +147,20 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
         return signer;
     };
 
+    const isActionAvailable = (action: keyof ConfidentialTransferAccountSnapshot['availableActions']) =>
+        Boolean(actions?.[action]);
+
+    const getTokenAccountInput = () =>
+        parseOptionalConfidentialTransferAddress(tokenAccount, 'token account') ?? status?.tokenAccount ?? undefined;
+
+    const requireTokenAccountInput = () => {
+        const resolvedTokenAccount = getTokenAccountInput();
+        if (!resolvedTokenAccount) {
+            throw new Error('Token account is required');
+        }
+        return resolvedTokenAccount;
+    };
+
     const buildSinglePlan = (label: string, transaction: FullTransaction): ConfidentialOperationPlan =>
         createSingleTransactionConfidentialOperationPlan({ label, transaction });
 
@@ -154,13 +172,46 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 rpc: context.rpc,
                 mint,
                 owner: context.owner,
-                tokenAccount: tokenAccount ? (tokenAccount as Address) : undefined,
+                tokenAccount: parseOptionalConfidentialTransferAddress(tokenAccount, 'token account'),
             });
             setSnapshot(nextSnapshot);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unable to read account status');
         }
     };
+
+    useEffect(() => {
+        if (!rpc || !owner || tokenAccount.trim()) {
+            return;
+        }
+
+        let cancelled = false;
+        const loadDefaultAccountStatus = async () => {
+            try {
+                const nextSnapshot = await getConfidentialTransferAccountSnapshot({
+                    rpc,
+                    mint,
+                    owner,
+                });
+                if (!cancelled) {
+                    setSnapshot(nextSnapshot);
+                }
+            } catch {
+                if (!cancelled) {
+                    setSnapshot(null);
+                }
+            }
+        };
+
+        void loadDefaultAccountStatus();
+        return () => {
+            cancelled = true;
+        };
+    }, [mint, owner, rpc, tokenAccount]);
+
+    useEffect(() => {
+        setSnapshot(null);
+    }, [mint, owner, tokenAccount]);
 
     const refreshBalances = async () => {
         resetRunState();
@@ -172,7 +223,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 mint,
                 owner: context.owner,
                 authority: confidentialSigner,
-                tokenAccount: tokenAccount ? (tokenAccount as Address) : undefined,
+                tokenAccount: parseOptionalConfidentialTransferAddress(tokenAccount, 'token account'),
             });
             setSnapshot(nextSnapshot);
         } catch (err) {
@@ -190,7 +241,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 owner: context.owner,
                 authority: confidentialSigner,
                 feePayer: confidentialSigner,
-                tokenAccount: tokenAccount ? (tokenAccount as Address) : undefined,
+                tokenAccount: getTokenAccountInput(),
             });
             return buildSinglePlan('Configure account', result.transaction);
         });
@@ -202,7 +253,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
             const transaction = await createApproveConfidentialTransferAccountTransaction({
                 rpc: context.rpc,
                 mint,
-                tokenAccount: tokenAccount as Address,
+                tokenAccount: requireTokenAccountInput(),
                 authority: transactionSigner,
                 feePayer: transactionSigner,
             });
@@ -220,7 +271,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 authority: transactionSigner,
                 feePayer: transactionSigner,
                 amount,
-                tokenAccount: tokenAccount ? (tokenAccount as Address) : undefined,
+                tokenAccount: getTokenAccountInput(),
             });
             return buildSinglePlan('Deposit', transaction);
         });
@@ -235,7 +286,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 owner: context.owner,
                 authority: confidentialSigner,
                 feePayer: confidentialSigner,
-                tokenAccount: tokenAccount ? (tokenAccount as Address) : undefined,
+                tokenAccount: getTokenAccountInput(),
             });
             return buildSinglePlan('Apply pending', transaction);
         });
@@ -251,7 +302,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 authority: confidentialSigner,
                 feePayer: confidentialSigner,
                 amount,
-                tokenAccount: tokenAccount ? (tokenAccount as Address) : undefined,
+                tokenAccount: getTokenAccountInput(),
             });
             return buildSinglePlan('Withdraw', transaction);
         });
@@ -264,12 +315,15 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 rpc: context.rpc,
                 mint,
                 from: context.owner,
-                to: recipient as Address,
+                to: parseConfidentialTransferAddress(recipient, 'recipient'),
                 authority: confidentialSigner,
                 feePayer: confidentialSigner,
                 amount,
-                sourceTokenAccount: tokenAccount ? (tokenAccount as Address) : undefined,
+                sourceTokenAccount: getTokenAccountInput(),
             };
+            if (useFeePlan && !feeCapability.transferWithFee.supported) {
+                throw new Error(feeCapability.transferWithFee.reason);
+            }
             const plan = useFeePlan
                 ? await createConfidentialTransferWithFeePlan(input)
                 : await createConfidentialTransferPlan(input);
@@ -286,7 +340,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 owner: context.owner,
                 authority: confidentialSigner,
                 feePayer: confidentialSigner,
-                tokenAccount: tokenAccount ? (tokenAccount as Address) : undefined,
+                tokenAccount: getTokenAccountInput(),
             });
             return buildSinglePlan('Empty account', transaction);
         });
@@ -299,14 +353,14 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 kind === 'confidential'
                     ? await createSetConfidentialCreditsTransaction({
                           rpc: context.rpc,
-                          tokenAccount: tokenAccount as Address,
+                          tokenAccount: requireTokenAccountInput(),
                           authority: transactionSigner,
                           feePayer: transactionSigner,
                           enabled,
                       })
                     : await createSetNonConfidentialCreditsTransaction({
                           rpc: context.rpc,
-                          tokenAccount: tokenAccount as Address,
+                          tokenAccount: requireTokenAccountInput(),
                           authority: transactionSigner,
                           feePayer: transactionSigner,
                           enabled,
@@ -324,7 +378,8 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 authority: transactionSigner,
                 feePayer: transactionSigner,
                 autoApproveNewAccounts: autoApprove,
-                auditorElgamalPubkey: auditorElgamalPubkey ? (auditorElgamalPubkey as Address) : null,
+                auditorElgamalPubkey:
+                    parseOptionalConfidentialTransferAddress(auditorElgamalPubkey, 'auditor ElGamal pubkey') ?? null,
             });
             return buildSinglePlan('Update mint', transaction);
         });
@@ -336,7 +391,10 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
             const transaction = await createHarvestConfidentialTransferFeesTransaction({
                 rpc: context.rpc,
                 mint,
-                sources: parseSources(sources),
+                sources: parseConfidentialTransferSourceAccounts(sources, {
+                    required: true,
+                    name: 'source token account',
+                }),
                 feePayer: transactionSigner,
             });
             return buildSinglePlan('Harvest fees', transaction);
@@ -346,14 +404,22 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
         run(async () => {
             const context = requireRpcOwner();
             const confidentialSigner = requireConfidentialSigner();
-            const sourceAccounts = parseSources(sources);
+            const sourceAccounts = parseConfidentialTransferSourceAccounts(sources, {
+                name: 'source token account',
+            });
             const input = {
                 rpc: context.rpc,
                 mint,
-                destinationTokenAccount: tokenAccount as Address,
+                destinationTokenAccount: requireTokenAccountInput(),
                 authority: confidentialSigner,
                 feePayer: confidentialSigner,
             };
+            if (sourceAccounts.length > 0 && !feeCapability.withdrawWithheldFeesFromAccounts.supported) {
+                throw new Error(feeCapability.withdrawWithheldFeesFromAccounts.reason);
+            }
+            if (sourceAccounts.length === 0 && !feeCapability.withdrawWithheldFeesFromMint.supported) {
+                throw new Error(feeCapability.withdrawWithheldFeesFromMint.reason);
+            }
             const plan =
                 sourceAccounts.length > 0
                     ? await createWithdrawConfidentialTransferFeesFromAccountsPlan({
@@ -411,7 +477,11 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Button size="sm" onClick={runConfigure} disabled={busy || !signer}>
+                        <Button
+                            size="sm"
+                            onClick={runConfigure}
+                            disabled={busy || !signer || !isActionAvailable('configureAccount')}
+                        >
                             <ShieldCheck className="h-4 w-4 mr-2" />
                             Configure
                         </Button>
@@ -419,12 +489,17 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                             size="sm"
                             variant="secondary"
                             onClick={runApprove}
-                            disabled={busy || !transactionSigner || !tokenAccount}
+                            disabled={busy || !transactionSigner || !isActionAvailable('approveAccount')}
                         >
                             <CheckCircle2 className="h-4 w-4 mr-2" />
                             Approve
                         </Button>
-                        <Button size="sm" variant="outline" onClick={runEmptyAccount} disabled={busy || !signer}>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={runEmptyAccount}
+                            disabled={busy || !signer || !isActionAvailable('emptyAccount')}
+                        >
                             Empty
                         </Button>
                     </div>
@@ -456,14 +531,19 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="secondary" onClick={runApplyPending} disabled={busy || !signer}>
+                        <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={runApplyPending}
+                            disabled={busy || !signer || !isActionAvailable('applyPendingBalance')}
+                        >
                             Apply Pending
                         </Button>
                         <Button
                             size="sm"
                             variant="outline"
                             onClick={() => runSetCredits('confidential', true)}
-                            disabled={busy || !transactionSigner || !tokenAccount}
+                            disabled={busy || !transactionSigner || !isActionAvailable('setConfidentialCredits')}
                         >
                             Confidential On
                         </Button>
@@ -471,7 +551,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                             size="sm"
                             variant="outline"
                             onClick={() => runSetCredits('non-confidential', true)}
-                            disabled={busy || !transactionSigner || !tokenAccount}
+                            disabled={busy || !transactionSigner || !isActionAvailable('setNonConfidentialCredits')}
                         >
                             Public On
                         </Button>
@@ -509,20 +589,51 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 </div>
                 {hasConfidentialFees && (
                     <label className="flex items-center gap-2 text-sm">
-                        <Switch checked={useFeePlan} onCheckedChange={setUseFeePlan} />
+                        <Switch
+                            checked={useFeePlan && transferWithFeeSupported}
+                            disabled={!transferWithFeeSupported}
+                            onCheckedChange={checked => {
+                                if (checked && !feeCapability.transferWithFee.supported) {
+                                    setError(feeCapability.transferWithFee.reason);
+                                    setUseFeePlan(false);
+                                    return;
+                                }
+                                setUseFeePlan(checked);
+                            }}
+                        />
                         Confidential transfer with fee
                     </label>
                 )}
                 <div className="flex flex-wrap gap-2">
-                    <Button size="sm" onClick={runDeposit} disabled={busy || !transactionSigner || !amount}>
+                    <Button
+                        size="sm"
+                        onClick={runDeposit}
+                        disabled={busy || !transactionSigner || !amount || !isActionAvailable('deposit')}
+                    >
                         <WalletCards className="h-4 w-4 mr-2" />
                         Deposit
                     </Button>
-                    <Button size="sm" onClick={runTransfer} disabled={busy || !signer || !amount || !recipient}>
+                    <Button
+                        size="sm"
+                        onClick={runTransfer}
+                        disabled={
+                            busy ||
+                            !signer ||
+                            !amount ||
+                            !recipient ||
+                            !isActionAvailable('transfer') ||
+                            (useFeePlan && !transferWithFeeSupported)
+                        }
+                    >
                         <Send className="h-4 w-4 mr-2" />
                         Transfer
                     </Button>
-                    <Button size="sm" variant="secondary" onClick={runWithdraw} disabled={busy || !signer || !amount}>
+                    <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={runWithdraw}
+                        disabled={busy || !signer || !amount || !isActionAvailable('withdraw')}
+                    >
                         Withdraw
                     </Button>
                 </div>
@@ -572,11 +683,15 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                             size="sm"
                             variant="secondary"
                             onClick={runHarvestFees}
-                            disabled={busy || !transactionSigner}
+                            disabled={busy || !transactionSigner || !sources.trim()}
                         >
                             Harvest Fees
                         </Button>
-                        <Button size="sm" onClick={runWithdrawFees} disabled={busy || !signer || !tokenAccount}>
+                        <Button
+                            size="sm"
+                            onClick={runWithdrawFees}
+                            disabled={busy || !signer || !hasTokenAccountTarget || !feeWithdrawSupported}
+                        >
                             Withdraw Fees
                         </Button>
                     </div>

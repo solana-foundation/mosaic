@@ -1,19 +1,11 @@
+export type ConfidentialSupportedCapability = { supported: true };
+export type ConfidentialUnsupportedCapability = { supported: false; reason: string };
+
 export type ConfidentialTransferFeeCapability = {
-    harvestWithheldFeesToMint: {
-        supported: true;
-    };
-    transferWithFee: {
-        supported: false;
-        reason: string;
-    };
-    withdrawWithheldFeesFromMint: {
-        supported: false;
-        reason: string;
-    };
-    withdrawWithheldFeesFromAccounts: {
-        supported: false;
-        reason: string;
-    };
+    harvestWithheldFeesToMint: ConfidentialSupportedCapability;
+    transferWithFee: ConfidentialUnsupportedCapability;
+    withdrawWithheldFeesFromMint: ConfidentialUnsupportedCapability;
+    withdrawWithheldFeesFromAccounts: ConfidentialUnsupportedCapability;
 };
 
 const TRANSFER_WITH_FEE_REASON =

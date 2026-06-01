@@ -31,6 +31,18 @@ export {
     createConfidentialTransferOperationPlan,
     createSingleTransactionConfidentialOperationPlan,
 } from './operation-plan';
+export type {
+    ConfidentialOperationExecutionProgress,
+    ConfidentialOperationExecutionProgressStatus,
+    ConfidentialOperationExecutionResult,
+    ConfidentialOperationExecutionStep,
+} from './operation-executor';
+export { executeConfidentialOperationPlan } from './operation-executor';
+export {
+    parseConfidentialTransferAddress,
+    parseConfidentialTransferSourceAccounts,
+    parseOptionalConfidentialTransferAddress,
+} from './address-parsing';
 export { refreshTransactionBlockhash } from './transactions';
 export {
     createApplyConfidentialPendingBalanceTransaction,

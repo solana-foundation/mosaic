@@ -1,6 +1,6 @@
 import { type Address, generateKeyPairSigner, type Rpc, type SolanaRpcApi, type TransactionSigner } from '@solana/kit';
-import { getMintDetails, resolveTokenAccount } from '../transaction-util';
-import { fetchDecodedMint, getExtensions, getTransferFeeConfigExtension, parseDecimalAmount } from './accounts';
+import { resolveTokenAccount } from '../transaction-util';
+import { parseDecimalAmount, unwrapAddressOption } from './accounts';
 import { ZK_PROOF_INSTRUCTION } from './constants';
 import {
     CONFIDENTIAL_TRANSFER_PROOF_ACCOUNT_SIZES,
@@ -8,6 +8,7 @@ import {
     getConfidentialTransferCompatInstruction,
     getCreateProofContextInstructions,
 } from './instructions';
+import { fetchConfidentialTransferMintContext } from './mint-context';
 import { buildConfidentialTransferProofs } from './proofs';
 import { createTransaction } from './transactions';
 import type {
@@ -28,15 +29,14 @@ export async function createConfidentialTransferPlan(input: {
     destinationTokenAccount?: Address;
     contextStateAccounts?: ConfidentialTransferContextStateAccounts;
 }): Promise<ConfidentialTransferPlan> {
-    const decodedMint = await fetchDecodedMint(input.rpc, input.mint);
-    if (getTransferFeeConfigExtension(getExtensions(decodedMint.data))) {
+    const mintContext = await fetchConfidentialTransferMintContext(input);
+    if (mintContext.transferFeeConfig) {
         throw new Error(
             'Mint has TransferFeeConfig; use createConfidentialTransferWithFeePlan for confidential transfers with fees',
         );
     }
 
-    const { decimals } = await getMintDetails(input.rpc, input.mint);
-    const rawAmount = parseDecimalAmount(input.amount, decimals);
+    const rawAmount = parseDecimalAmount(input.amount, mintContext.decimals);
     const sourceTokenAccount =
         input.sourceTokenAccount ?? (await resolveTokenAccount(input.rpc, input.from, input.mint)).tokenAccount;
     const destinationTokenAccount =
@@ -49,6 +49,7 @@ export async function createConfidentialTransferPlan(input: {
         destinationTokenAccount,
         authority: input.authority,
         amount: rawAmount,
+        auditorElgamalPubkey: unwrapAddressOption(mintContext.confidentialTransferMint.auditorElgamalPubkey),
     });
 
     const contextStateAccounts = input.contextStateAccounts ?? {

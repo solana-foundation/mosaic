@@ -4,16 +4,7 @@ import {
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
 import type { FullTransaction } from '../transaction-util';
-import { getMintDetails } from '../transaction-util';
-import {
-    fetchDecodedMint,
-    fetchDecodedTokenAccount,
-    getConfidentialTransferFeeMintExtension,
-    getConfidentialTransferMintExtension,
-    getExtensions,
-    getTransferFeeConfigExtension,
-    parseDecimalAmount,
-} from './accounts';
+import { fetchDecodedTokenAccount, parseDecimalAmount } from './accounts';
 import {
     assertConfidentialTransferWithFeeProofSupport,
     assertWithdrawConfidentialTransferFeesFromAccountsSupport,
@@ -21,6 +12,7 @@ import {
     calculateTransferFee,
 } from './fee-capability';
 import { createTransaction } from './transactions';
+import { fetchConfidentialTransferMintContext, requireConfidentialTransferFeeMintExtension } from './mint-context';
 import type {
     ConfidentialTransferAuthoritySigner,
     ConfidentialTransferFeeWithdrawContextStateAccounts,
@@ -41,18 +33,14 @@ export async function createConfidentialTransferWithFeePlan(input: {
     destinationTokenAccount?: Address;
     contextStateAccounts?: ConfidentialTransferWithFeeContextStateAccounts;
 }): Promise<ConfidentialTransferWithFeePlan> {
-    const decodedMint = await fetchDecodedMint(input.rpc, input.mint);
-    const mintExtensions = getExtensions(decodedMint.data);
-    const transferFeeConfig = getTransferFeeConfigExtension(mintExtensions);
-    if (!transferFeeConfig) {
+    const mintContext = await fetchConfidentialTransferMintContext(input);
+    if (!mintContext.transferFeeConfig) {
         throw new Error('Mint does not have the TransferFeeConfig extension; use createConfidentialTransferPlan');
     }
-    getConfidentialTransferMintExtension(mintExtensions);
-    getConfidentialTransferFeeMintExtension(mintExtensions);
+    requireConfidentialTransferFeeMintExtension(mintContext);
 
-    const { decimals } = await getMintDetails(input.rpc, input.mint);
-    const rawAmount = parseDecimalAmount(input.amount, decimals);
-    const feeConfig = transferFeeConfig.newerTransferFee;
+    const rawAmount = parseDecimalAmount(input.amount, mintContext.decimals);
+    const feeConfig = mintContext.transferFeeConfig.newerTransferFee;
     const { feeAmount, netAmount } = calculateTransferFee(
         rawAmount,
         feeConfig.transferFeeBasisPoints,
@@ -68,6 +56,10 @@ export async function createHarvestConfidentialTransferFeesTransaction(input: {
     sources: Address[];
     feePayer: TransactionSigner<string>;
 }): Promise<FullTransaction> {
+    if (input.sources.length === 0) {
+        throw new Error('At least one source token account is required to harvest withheld confidential fees');
+    }
+
     return createTransaction(input.rpc, input.feePayer, [
         getHarvestWithheldTokensToMintForConfidentialTransferFeeInstruction(
             {
@@ -87,7 +79,7 @@ export async function createWithdrawConfidentialTransferFeesFromMintPlan(input: 
     feePayer: TransactionSigner<string>;
     contextStateAccounts?: ConfidentialTransferFeeWithdrawContextStateAccounts;
 }): Promise<ConfidentialTransferFeeWithdrawPlan> {
-    await fetchDecodedMint(input.rpc, input.mint);
+    await fetchConfidentialTransferMintContext(input);
     await fetchDecodedTokenAccount(input.rpc, input.destinationTokenAccount);
     assertWithdrawConfidentialTransferFeesFromMintSupport();
 }
@@ -101,7 +93,7 @@ export async function createWithdrawConfidentialTransferFeesFromAccountsPlan(inp
     feePayer: TransactionSigner<string>;
     contextStateAccounts?: ConfidentialTransferFeeWithdrawContextStateAccounts;
 }): Promise<ConfidentialTransferFeeWithdrawPlan> {
-    await fetchDecodedMint(input.rpc, input.mint);
+    await fetchConfidentialTransferMintContext(input);
     await fetchDecodedTokenAccount(input.rpc, input.destinationTokenAccount);
     if (input.sources.length === 0) {
         throw new Error('At least one source token account is required to withdraw withheld confidential fees');

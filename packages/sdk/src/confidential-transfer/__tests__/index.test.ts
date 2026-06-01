@@ -10,11 +10,14 @@ import {
     createConfidentialDepositTransaction,
     createConfidentialTransferAccountSnapshot,
     createConfidentialTransferOperationPlan,
+    executeConfidentialOperationPlan,
     createHarvestConfidentialTransferFeesTransaction,
     createSetConfidentialCreditsTransaction,
     createSingleTransactionConfidentialOperationPlan,
     createUpdateConfidentialTransferMintTransaction,
     getConfidentialTransferFeeCapability,
+    parseConfidentialTransferAddress,
+    parseConfidentialTransferSourceAccounts,
     refreshTransactionBlockhash,
     type ConfidentialTransferPlan,
     ZK_ELGAMAL_PROOF_PROGRAM_ADDRESS,
@@ -151,6 +154,36 @@ describe('confidential transfer SDK helpers', () => {
         expect(transaction.instructions[0]!.data![1]).toBe(3); // HarvestWithheldTokensToMint
     });
 
+    it('requires at least one source account when harvesting confidential fees', async () => {
+        const authority = await generateKeyPairSigner();
+
+        await expect(
+            createHarvestConfidentialTransferFeesTransaction({
+                rpc,
+                mint,
+                sources: [],
+                feePayer: authority,
+            }),
+        ).rejects.toThrow('At least one source token account is required');
+    });
+
+    it('parses and validates confidential transfer address inputs', async () => {
+        const sourceA = await generateKeyPairSigner();
+        const sourceB = await generateKeyPairSigner();
+
+        expect(parseConfidentialTransferAddress(sourceA.address, 'source')).toBe(sourceA.address);
+        expect(parseConfidentialTransferSourceAccounts(`${sourceA.address}, ${sourceB.address}`)).toEqual([
+            sourceA.address,
+            sourceB.address,
+        ]);
+        expect(() => parseConfidentialTransferSourceAccounts('not-an-address')).toThrow(
+            'source 1 must be a valid Solana address',
+        );
+        expect(() => parseConfidentialTransferSourceAccounts('', { required: true })).toThrow(
+            'At least one source token account is required',
+        );
+    });
+
     it('creates a single-transaction operation plan', async () => {
         const authority = await generateKeyPairSigner();
         const source = await generateKeyPairSigner();
@@ -248,6 +281,43 @@ describe('confidential transfer SDK helpers', () => {
             'Proof cleanup 2',
             'Proof cleanup 3',
         ]);
+    });
+
+    it('executes operation plans through the shared setup/main/cleanup policy', async () => {
+        const authority = await generateKeyPairSigner();
+        const source = await generateKeyPairSigner();
+        const transaction = await createHarvestConfidentialTransferFeesTransaction({
+            rpc,
+            mint,
+            sources: [source.address],
+            feePayer: authority,
+        });
+        const transferPlan: ConfidentialTransferPlan = {
+            sourceTokenAccount: tokenAccount,
+            destinationTokenAccount: source.address,
+            contextStateAccounts: {
+                equality: source.address,
+                ciphertextValidity: source.address,
+                range: source.address,
+            },
+            setupTransactions: [transaction],
+            transferTransaction: transaction,
+            cleanupTransactions: [transaction],
+            cleanupTransaction: transaction,
+        };
+        const progress: string[] = [];
+
+        const result = await executeConfidentialOperationPlan({
+            plan: createConfidentialTransferOperationPlan(transferPlan),
+            signTransaction: async (_transaction, executionStep) => executionStep.step.label,
+            sendTransaction: async () => {},
+            getSignature: signedTransaction => signedTransaction,
+            onProgress: item => progress.push(`${item.status}:${item.label}`),
+        });
+
+        expect(result.signatures).toEqual(['Proof setup 1', 'Private transfer', 'Proof cleanup']);
+        expect(progress).toContain('signing:Proof setup 1');
+        expect(progress).toContain('confirmed:Proof cleanup');
     });
 
     it('refreshes planned transaction blockhashes before execution', async () => {

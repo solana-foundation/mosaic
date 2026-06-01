@@ -14,10 +14,10 @@ import {
     assertIsTransactionWithBlockhashLifetime,
 } from '@solana/kit';
 import {
+    executeConfidentialOperationPlan,
     refreshTransactionBlockhash,
+    type ConfidentialOperationExecutionProgress,
     type ConfidentialOperationPlan,
-    type ConfidentialOperationPlanStep,
-    type ConfidentialOperationPlanStepPhase,
 } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 import type { FullTransaction } from '@/lib/solana/types';
@@ -67,17 +67,7 @@ export interface TokenActionConfig<TOptions extends BaseOptions, TResult extends
     ) => Omit<TResult, 'success' | 'transactionSignature'>;
 }
 
-export type MultiTransactionStep = ConfidentialOperationPlanStep;
-
-export interface MultiTransactionProgress {
-    index: number;
-    total: number;
-    label: string;
-    phase: ConfidentialOperationPlanStepPhase;
-    status: 'signing' | 'sending' | 'confirmed' | 'failed';
-    signature?: string;
-    error?: string;
-}
+export type MultiTransactionProgress = ConfidentialOperationExecutionProgress;
 
 /**
  * Generic helper for executing token actions with common boilerplate:
@@ -149,85 +139,20 @@ export async function executeMultiTransactionAction(input: {
     const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
     const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
     const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
-    const signatures: string[] = [];
-    const steps = input.plan.steps;
-    const indexedSteps = steps.map((step, index) => ({ step, index }));
-    const cleanupSteps = indexedSteps.filter(({ step }) => step.phase === 'cleanup');
-
-    const reportStepFailure = (indexedStep: (typeof indexedSteps)[number], message: string) => {
-        input.onProgress?.({
-            index: indexedStep.index + 1,
-            total: steps.length,
-            label: indexedStep.step.label,
-            phase: indexedStep.step.phase,
-            status: 'failed',
-            error: message,
-        });
-    };
-
-    const executeStep = async ({ step, index }: (typeof indexedSteps)[number]): Promise<string> => {
-        const progressBase = {
-            index: index + 1,
-            total: steps.length,
-            label: step.label,
-            phase: step.phase,
-        };
-
-        const transaction = await refreshTransactionBlockhash(rpc, step.transaction);
-        input.onProgress?.({ ...progressBase, status: 'signing' });
-        const signedTransaction = await signTransactionMessageWithSigners(transaction);
-        input.onProgress?.({ ...progressBase, status: 'sending' });
-        assertIsTransactionWithBlockhashLifetime(signedTransaction);
-        await sendAndConfirmTransaction(signedTransaction, {
-            commitment: getCommitment(),
-        });
-        const signature = getSignatureFromTransaction(signedTransaction);
-        input.onProgress?.({ ...progressBase, status: 'confirmed', signature });
-        return signature;
-    };
-
-    const runCleanupSteps = async (): Promise<string | undefined> => {
-        const cleanupErrors: string[] = [];
-
-        for (const cleanupStep of cleanupSteps) {
-            try {
-                signatures.push(await executeStep(cleanupStep));
-            } catch (error) {
-                const message = error instanceof Error ? error.message : 'Unknown error occurred';
-                reportStepFailure(cleanupStep, message);
-                cleanupErrors.push(`${cleanupStep.step.label}: ${message}`);
-            }
-        }
-
-        return cleanupErrors.length > 0 ? cleanupErrors.join('; ') : undefined;
-    };
-
-    for (const indexedStep of indexedSteps) {
-        if (indexedStep.step.phase === 'cleanup') {
-            continue;
-        }
-
-        try {
-            signatures.push(await executeStep(indexedStep));
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unknown error occurred';
-            reportStepFailure(indexedStep, message);
-            if (input.plan.cleanupPolicy === 'attempt-after-main') {
-                const cleanupError = await runCleanupSteps();
-                if (cleanupError) {
-                    throw new Error(`${message}. Cleanup failed: ${cleanupError}`);
-                }
-            }
-            throw error;
-        }
-    }
-
-    if (input.plan.cleanupPolicy === 'attempt-after-main') {
-        const cleanupError = await runCleanupSteps();
-        if (cleanupError) {
-            return { signatures, cleanupError };
-        }
-    }
-
-    return { signatures };
+    return executeConfidentialOperationPlan({
+        plan: input.plan,
+        prepareTransaction: transaction => refreshTransactionBlockhash(rpc, transaction),
+        signTransaction: async transaction => {
+            const signedTransaction = await signTransactionMessageWithSigners(transaction);
+            assertIsTransactionWithBlockhashLifetime(signedTransaction);
+            return signedTransaction;
+        },
+        sendTransaction: async signedTransaction => {
+            await sendAndConfirmTransaction(signedTransaction, {
+                commitment: getCommitment(),
+            });
+        },
+        getSignature: signedTransaction => getSignatureFromTransaction(signedTransaction),
+        onProgress: input.onProgress,
+    });
 }
