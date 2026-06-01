@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useConnector, useCluster } from '@solana/connector/react';
 import { type Address, createSolanaRpc } from '@solana/kit';
+import { getRpcUrl } from '@/lib/solana/rpc';
 
 export function useWalletBalance() {
     const { selectedAccount } = useConnector();
@@ -12,7 +13,7 @@ export function useWalletBalance() {
     // Create RPC client from current cluster URL
     const rpc = useMemo(() => {
         if (!cluster?.url) return null;
-        return createSolanaRpc(cluster.url);
+        return createSolanaRpc(getRpcUrl(cluster.url));
     }, [cluster?.url]);
 
     useEffect(() => {

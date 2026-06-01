@@ -1,5 +1,6 @@
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
+import { SYSVAR_INSTRUCTIONS_ADDRESS } from '@solana/sysvars';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { createMockRpc, seedMintDetails } from '../../__tests__/test-utils';
 import {
@@ -52,6 +53,15 @@ describe('confidential transfer SDK helpers', () => {
         expect(result.instructions[1].programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
         expect(result.instructions[2].programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
         expect(result.instructions[3].programAddress).toBe(ZK_ELGAMAL_PROOF_PROGRAM_ADDRESS);
+        expect(result.instructions[2]!.accounts).toHaveLength(4);
+        expect(result.instructions[2]!.accounts!.map(account => account.address)).toEqual([
+            result.tokenAccount,
+            mint,
+            SYSVAR_INSTRUCTIONS_ADDRESS,
+            owner.address,
+        ]);
+        expect(result.instructions[2]!.data![0]).toBe(27); // Confidential transfer instruction wrapper
+        expect(result.instructions[2]!.data![1]).toBe(2); // ConfigureAccount
         expect(result.instructions[3]!.data![0]).toBe(4); // VerifyPubkeyValidity
     });
 

@@ -17,6 +17,10 @@ import { fetchEncodedAccount } from '@solana/accounts';
  * Valid values: 'processed', 'confirmed', 'finalized'
  */
 const DEFAULT_COMMITMENT: Commitment = 'confirmed';
+const DEFAULT_DEVNET_RPC_URL = 'https://api.devnet.solana.com';
+const DEFAULT_MAINNET_RPC_URL = 'https://api.mainnet-beta.solana.com';
+const DEFAULT_TESTNET_RPC_URL = 'https://api.testnet.solana.com';
+type RpcNetwork = 'mainnet-beta' | 'devnet' | 'testnet';
 
 /**
  * Gets the Solana commitment level from environment variable or returns the default.
@@ -43,6 +47,21 @@ export interface TokenAuthorities {
     scaledUiAmountAuthority?: string;
 }
 
+function getRpcNetwork(url?: string): RpcNetwork | undefined {
+    if (!url) return undefined;
+
+    const normalizedUrl = url.toLowerCase();
+    if (normalizedUrl.includes('devnet')) return 'devnet';
+    if (normalizedUrl.includes('testnet')) return 'testnet';
+    if (normalizedUrl.includes('mainnet')) return 'mainnet-beta';
+
+    return undefined;
+}
+
+function isDefaultSolanaRpcUrl(url: string): boolean {
+    return [DEFAULT_DEVNET_RPC_URL, DEFAULT_MAINNET_RPC_URL, DEFAULT_TESTNET_RPC_URL].includes(url.replace(/\/$/, ''));
+}
+
 /**
  * Gets the Solana RPC URL from environment variable or returns a default fallback.
  * Reads from NEXT_PUBLIC_SOLANA_RPC_URL environment variable.
@@ -52,10 +71,20 @@ export interface TokenAuthorities {
  * @returns RPC URL string
  */
 export function getRpcUrl(overrideUrl?: string): string {
+    const envRpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+
     if (overrideUrl) {
+        const envNetwork = getRpcNetwork(envRpcUrl);
+        const overrideNetwork = getRpcNetwork(overrideUrl);
+
+        if (envRpcUrl && envNetwork && envNetwork === overrideNetwork && isDefaultSolanaRpcUrl(overrideUrl)) {
+            return envRpcUrl;
+        }
+
         return overrideUrl;
     }
-    return process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+
+    return envRpcUrl || DEFAULT_DEVNET_RPC_URL;
 }
 
 /**

@@ -4,7 +4,6 @@ import {
     ExtensionType,
     getApplyConfidentialPendingBalanceInstruction,
     getApproveConfidentialTransferAccountInstruction,
-    getConfigureConfidentialTransferAccountInstruction,
     getConfidentialDepositInstruction,
     getConfidentialWithdrawInstruction,
     getCreateAssociatedTokenIdempotentInstruction,
@@ -28,7 +27,7 @@ import {
 } from './accounts';
 import { aeCiphertextFromBytes, ciphertextFromBytes, subtractPublicAmountFromCiphertext } from './ciphertext';
 import { REMAINING_BALANCE_BIT_LENGTH, TRANSFER_AMOUNT_LO_BITS, ZK_PROOF_INSTRUCTION } from './constants';
-import { getVerifyProofInstruction } from './instructions';
+import { getConfigureConfidentialTransferAccountCompatInstruction, getVerifyProofInstruction } from './instructions';
 import { deriveConfidentialTransferKeys, elgamalPubkeyToAddress } from './key-derivation';
 import { createTransaction } from './transactions';
 import type { ConfidentialTransferAuthoritySigner } from './types';
@@ -91,17 +90,14 @@ export async function createConfigureConfidentialTransferAccountInstructions(inp
             },
             { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
         ),
-        getConfigureConfidentialTransferAccountInstruction(
-            {
-                token: tokenAccount,
-                mint: input.mint,
-                authority: input.authority,
-                decryptableZeroBalance: aesKey.encrypt(0n).toBytes(),
-                maximumPendingBalanceCreditCounter: input.maximumPendingBalanceCreditCounter ?? 65_536n,
-                proofInstructionOffset: 1,
-            },
-            { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
-        ),
+        getConfigureConfidentialTransferAccountCompatInstruction({
+            token: tokenAccount,
+            mint: input.mint,
+            authority: input.authority,
+            decryptableZeroBalance: aesKey.encrypt(0n).toBytes(),
+            maximumPendingBalanceCreditCounter: input.maximumPendingBalanceCreditCounter ?? 65_536n,
+            proofInstructionOffset: 1,
+        }),
         getVerifyProofInstruction({
             discriminator: ZK_PROOF_INSTRUCTION.verifyPubkeyValidity,
             proofData: pubkeyValidityProof.toBytes(),

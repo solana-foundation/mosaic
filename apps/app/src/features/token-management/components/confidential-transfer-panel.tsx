@@ -10,6 +10,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { TokenDisplay } from '@/types/token';
 import { useConnector } from '@solana/connector/react';
 import { type Address, createSolanaRpc, type Rpc, type SolanaRpcApi } from '@solana/kit';
+import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
     CONFIDENTIAL_TRANSFER_UNSUPPORTED_WALLET_MESSAGE,
     createApplyConfidentialPendingBalanceTransaction,
@@ -42,9 +43,10 @@ import {
     executeMultiTransactionAction,
     type MultiTransactionProgress,
 } from '@/features/token-management/lib/token-action';
+import { getRpcUrl } from '@/lib/solana/rpc';
 import { useConnectorConfidentialTransferSigner } from '@/features/wallet/hooks/use-connector-signer';
 import { Badge } from '@/components/ui/badge';
-import { Ban, CheckCircle2, Eye, RotateCw, Send, Settings2, ShieldCheck, WalletCards } from 'lucide-react';
+import { Ban, CheckCircle2, Eye, Info, RotateCw, Send, Settings2, ShieldCheck, WalletCards } from 'lucide-react';
 
 function hasExtension(token: TokenDisplay, ...names: string[]): boolean {
     const extensions = token.extensions ?? [];
@@ -61,10 +63,28 @@ function progressText(progress: MultiTransactionProgress): string {
     return progress.status === 'signing' ? 'Signing' : 'Sending';
 }
 
+function formatTokenAmount(rawAmount: bigint | null | undefined, decimals?: number): string {
+    if (rawAmount === null || rawAmount === undefined) {
+        return '-';
+    }
+
+    const tokenDecimals = Number.isInteger(decimals) && decimals !== undefined && decimals > 0 ? decimals : 0;
+    if (tokenDecimals === 0) {
+        return rawAmount.toLocaleString('en-US');
+    }
+
+    const divisor = 10n ** BigInt(tokenDecimals);
+    const whole = rawAmount / divisor;
+    const fraction = rawAmount % divisor;
+    const fractionText = fraction.toString().padStart(tokenDecimals, '0').replace(/0+$/, '');
+
+    return fractionText ? `${whole.toLocaleString('en-US')}.${fractionText}` : whole.toLocaleString('en-US');
+}
+
 export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
     const { selectedAccount, cluster } = useConnector();
     const { signer, transactionSigner, canSignMessages } = useConnectorConfidentialTransferSigner();
-    const [tokenAccount, setTokenAccount] = useState('');
+    const [tokenAccountOverride, setTokenAccountOverride] = useState('');
     const [recipient, setRecipient] = useState('');
     const [amount, setAmount] = useState('');
     const [sources, setSources] = useState('');
@@ -76,6 +96,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
     const [error, setError] = useState('');
     const [cleanupError, setCleanupError] = useState('');
     const [busy, setBusy] = useState(false);
+    const [derivedTokenAccount, setDerivedTokenAccount] = useState<Address | null>(null);
 
     const mint = token.address as Address;
     const owner = selectedAccount as Address | undefined;
@@ -84,19 +105,26 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
         (hasExtension(token, 'ConfidentialTransferMint') && hasExtension(token, 'TransferFeeConfig'));
     const status = snapshot?.status ?? null;
     const balances = snapshot?.balances ?? null;
+    const publicBalance = balances?.publicBalance ?? status?.publicBalance ?? null;
     const actions = snapshot?.availableActions ?? null;
     const feeCapability = useMemo(() => getConfidentialTransferFeeCapability(), []);
     const transferWithFeeSupported = feeCapability.transferWithFee.supported;
     const sourceAccountsEntered = sources.trim().length > 0;
-    const hasTokenAccountTarget = Boolean(tokenAccount.trim() || status?.tokenAccount);
+    const tokenAccountOverrideText = tokenAccountOverride.trim();
+    const hasCustomTokenAccountOverride = Boolean(tokenAccountOverrideText && tokenAccountOverrideText !== owner);
+    const hasTokenAccountTarget = Boolean(hasCustomTokenAccountOverride || status?.tokenAccount || derivedTokenAccount);
     const feeWithdrawSupported = sourceAccountsEntered
         ? feeCapability.withdrawWithheldFeesFromAccounts.supported
         : feeCapability.withdrawWithheldFeesFromMint.supported;
+    const activeRpcUrl = useMemo(() => (cluster?.url ? getRpcUrl(cluster.url) : undefined), [cluster?.url]);
+    const displayedTokenAccount = hasCustomTokenAccountOverride
+        ? tokenAccountOverrideText
+        : status?.tokenAccount || derivedTokenAccount;
 
     const rpc = useMemo<Rpc<SolanaRpcApi> | null>(() => {
-        if (!cluster?.url) return null;
-        return createSolanaRpc(cluster.url) as Rpc<SolanaRpcApi>;
-    }, [cluster?.url]);
+        if (!activeRpcUrl) return null;
+        return createSolanaRpc(activeRpcUrl) as Rpc<SolanaRpcApi>;
+    }, [activeRpcUrl]);
 
     const resetRunState = () => {
         setError('');
@@ -104,8 +132,29 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
         setProgress([]);
     };
 
+    const readSnapshot = async (input?: { includeBalances?: boolean }) => {
+        const context = requireRpcOwner();
+        return getConfidentialTransferAccountSnapshot({
+            rpc: context.rpc,
+            mint,
+            owner: context.owner,
+            authority: input?.includeBalances ? requireConfidentialSigner() : undefined,
+            tokenAccount: getTokenAccountOverrideInput(),
+        });
+    };
+
+    const refreshSnapshotAfterAction = async () => {
+        try {
+            setSnapshot(await readSnapshot({ includeBalances: Boolean(signer) }));
+        } catch (err) {
+            setError(
+                err instanceof Error ? `Action confirmed, but refresh failed: ${err.message}` : 'Action confirmed',
+            );
+        }
+    };
+
     const run = async (buildPlan: () => Promise<ConfidentialOperationPlan>) => {
-        if (!cluster?.url) {
+        if (!activeRpcUrl) {
             setError('RPC unavailable');
             return;
         }
@@ -116,7 +165,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
             const plan = await buildPlan();
             const result = await executeMultiTransactionAction({
                 plan,
-                rpcUrl: cluster.url,
+                rpcUrl: activeRpcUrl,
                 onProgress: next => {
                     setProgress(previous => {
                         const copy = [...previous];
@@ -126,6 +175,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 },
             });
             setCleanupError(result.cleanupError ?? '');
+            await refreshSnapshotAfterAction();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Action failed');
         } finally {
@@ -150,8 +200,16 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
     const isActionAvailable = (action: keyof ConfidentialTransferAccountSnapshot['availableActions']) =>
         Boolean(actions?.[action]);
 
+    const getTokenAccountOverrideInput = () => {
+        const parsedTokenAccount = parseOptionalConfidentialTransferAddress(
+            tokenAccountOverride,
+            'token account override',
+        );
+        return parsedTokenAccount === owner ? undefined : parsedTokenAccount;
+    };
+
     const getTokenAccountInput = () =>
-        parseOptionalConfidentialTransferAddress(tokenAccount, 'token account') ?? status?.tokenAccount ?? undefined;
+        getTokenAccountOverrideInput() ?? status?.tokenAccount ?? derivedTokenAccount ?? undefined;
 
     const requireTokenAccountInput = () => {
         const resolvedTokenAccount = getTokenAccountInput();
@@ -167,21 +225,39 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
     const refreshStatus = async () => {
         resetRunState();
         try {
-            const context = requireRpcOwner();
-            const nextSnapshot = await getConfidentialTransferAccountSnapshot({
-                rpc: context.rpc,
-                mint,
-                owner: context.owner,
-                tokenAccount: parseOptionalConfidentialTransferAddress(tokenAccount, 'token account'),
-            });
-            setSnapshot(nextSnapshot);
+            setSnapshot(await readSnapshot());
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unable to read account status');
         }
     };
 
     useEffect(() => {
-        if (!rpc || !owner || tokenAccount.trim()) {
+        if (!owner) {
+            setDerivedTokenAccount(null);
+            return;
+        }
+
+        setDerivedTokenAccount(null);
+        let cancelled = false;
+        const deriveTokenAccount = async () => {
+            const [tokenAccount] = await findAssociatedTokenPda({
+                owner,
+                mint,
+                tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+            });
+            if (!cancelled) {
+                setDerivedTokenAccount(tokenAccount);
+            }
+        };
+
+        void deriveTokenAccount();
+        return () => {
+            cancelled = true;
+        };
+    }, [mint, owner]);
+
+    useEffect(() => {
+        if (!rpc || !owner || tokenAccountOverride.trim()) {
             return;
         }
 
@@ -207,25 +283,16 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
         return () => {
             cancelled = true;
         };
-    }, [mint, owner, rpc, tokenAccount]);
+    }, [mint, owner, rpc, tokenAccountOverride]);
 
     useEffect(() => {
         setSnapshot(null);
-    }, [mint, owner, tokenAccount]);
+    }, [mint, owner, tokenAccountOverride]);
 
     const refreshBalances = async () => {
         resetRunState();
         try {
-            const context = requireRpcOwner();
-            const confidentialSigner = requireConfidentialSigner();
-            const nextSnapshot = await getConfidentialTransferAccountSnapshot({
-                rpc: context.rpc,
-                mint,
-                owner: context.owner,
-                authority: confidentialSigner,
-                tokenAccount: parseOptionalConfidentialTransferAddress(tokenAccount, 'token account'),
-            });
-            setSnapshot(nextSnapshot);
+            setSnapshot(await readSnapshot({ includeBalances: true }));
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unable to read balances');
         }
@@ -241,7 +308,7 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                 owner: context.owner,
                 authority: confidentialSigner,
                 feePayer: confidentialSigner,
-                tokenAccount: getTokenAccountInput(),
+                tokenAccount: getTokenAccountOverrideInput(),
             });
             return buildSinglePlan('Configure account', result.transaction);
         });
@@ -442,26 +509,50 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                     <AlertDescription>{CONFIDENTIAL_TRANSFER_UNSUPPORTED_WALLET_MESSAGE}</AlertDescription>
                 </Alert>
             )}
+            {error && (
+                <Alert variant="destructive">
+                    <Ban className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            )}
+            {cleanupError && (
+                <Alert variant="warning">
+                    <Ban className="h-4 w-4" />
+                    <AlertDescription>Cleanup failed: {cleanupError}</AlertDescription>
+                </Alert>
+            )}
 
             <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
                 <section className="rounded-lg border bg-card p-4 space-y-4">
                     <div className="flex items-center justify-between">
                         <div>
                             <h3 className="text-base font-semibold">Account</h3>
-                            <p className="text-sm text-muted-foreground">{status?.tokenAccount ?? 'Default ATA'}</p>
+                            <p className="text-sm text-muted-foreground">
+                                {hasCustomTokenAccountOverride ? 'Custom token account' : 'Derived ATA'}
+                            </p>
                         </div>
                         <Button variant="outline" size="sm" onClick={refreshStatus} disabled={busy}>
                             <RotateCw className="h-4 w-4 mr-2" />
                             Refresh
                         </Button>
                     </div>
+                    <div className="grid gap-2 text-sm md:grid-cols-2">
+                        <div className="rounded-md bg-muted p-3">
+                            <div className="text-muted-foreground">Wallet</div>
+                            <div className="font-mono text-xs break-all">{owner ?? '-'}</div>
+                        </div>
+                        <div className="rounded-md bg-muted p-3">
+                            <div className="text-muted-foreground">Token account</div>
+                            <div className="font-mono text-xs break-all">{displayedTokenAccount ?? '-'}</div>
+                        </div>
+                    </div>
                     <div className="space-y-2">
-                        <Label htmlFor="confidential-token-account">Token account</Label>
+                        <Label htmlFor="confidential-token-account-override">Token account override</Label>
                         <Input
-                            id="confidential-token-account"
-                            value={tokenAccount}
-                            onChange={event => setTokenAccount(event.target.value)}
-                            placeholder="Associated token account"
+                            id="confidential-token-account-override"
+                            value={tokenAccountOverride}
+                            onChange={event => setTokenAccountOverride(event.target.value)}
+                            placeholder="Optional custom token account"
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
@@ -519,15 +610,19 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                     <div className="grid grid-cols-3 gap-2 text-sm">
                         <div className="rounded-md bg-muted p-3">
                             <div className="text-muted-foreground">Public</div>
-                            <div className="font-medium">{balances?.publicBalance?.toString() ?? '-'}</div>
+                            <div className="font-medium">{formatTokenAmount(publicBalance, token.decimals)}</div>
                         </div>
                         <div className="rounded-md bg-muted p-3">
                             <div className="text-muted-foreground">Pending</div>
-                            <div className="font-medium">{balances?.pendingBalance?.toString() ?? '-'}</div>
+                            <div className="font-medium">
+                                {formatTokenAmount(balances?.pendingBalance, token.decimals)}
+                            </div>
                         </div>
                         <div className="rounded-md bg-muted p-3">
                             <div className="text-muted-foreground">Available</div>
-                            <div className="font-medium">{balances?.availableBalance?.toString() ?? '-'}</div>
+                            <div className="font-medium">
+                                {formatTokenAmount(balances?.availableBalance, token.decimals)}
+                            </div>
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -556,6 +651,13 @@ export function ConfidentialTransferPanel({ token }: { token: TokenDisplay }) {
                             Public On
                         </Button>
                     </div>
+                    <p className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>
+                            Message signatures derive confidential keys and are cached in this tab. On-chain actions
+                            still require transaction signatures.
+                        </span>
+                    </p>
                 </section>
             </div>
 

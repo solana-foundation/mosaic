@@ -9,6 +9,7 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
+import { SYSVAR_INSTRUCTIONS_ADDRESS } from '@solana/sysvars';
 import { getCreateAccountInstruction } from '@solana-program/system';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
@@ -53,6 +54,19 @@ function encodeI8(value: number): number {
         throw new Error(`Proof instruction offset ${value} is outside the i8 range`);
     }
     return value < 0 ? value + 256 : value;
+}
+
+function encodeU64(value: number | bigint, name: string): Uint8Array {
+    const bigintValue = typeof value === 'bigint' ? value : BigInt(value);
+    if (bigintValue < 0n || bigintValue > 0xffff_ffff_ffff_ffffn) {
+        throw new Error(`${name} ${value} is outside the u64 range`);
+    }
+
+    const bytes = new Uint8Array(8);
+    for (let index = 0; index < bytes.length; index += 1) {
+        bytes[index] = Number((bigintValue >> BigInt(index * 8)) & 0xffn);
+    }
+    return bytes;
 }
 
 function encodeConfidentialTransferData(input: {
@@ -134,6 +148,39 @@ export function getConfidentialTransferCompatInstruction(input: {
             transferAmountCiphertextValidityProofInstructionOffset: 0,
             rangeProofInstructionOffset: 0,
         }),
+        programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+    });
+}
+
+export function getConfigureConfidentialTransferAccountCompatInstruction(input: {
+    token: Address;
+    mint: Address;
+    instructionsSysvarOrContextState?: Address;
+    authority: TransactionSigner<string>;
+    decryptableZeroBalance: Uint8Array;
+    maximumPendingBalanceCreditCounter: number | bigint;
+    proofInstructionOffset: number;
+}): Instruction {
+    assertFixedLength('decryptableZeroBalance', input.decryptableZeroBalance, DECRYPTABLE_BALANCE_LENGTH);
+
+    const data = new Uint8Array(2 + DECRYPTABLE_BALANCE_LENGTH + 8 + 1);
+    let offset = 0;
+    data[offset++] = 27;
+    data[offset++] = 2;
+    data.set(input.decryptableZeroBalance, offset);
+    offset += DECRYPTABLE_BALANCE_LENGTH;
+    data.set(encodeU64(input.maximumPendingBalanceCreditCounter, 'maximumPendingBalanceCreditCounter'), offset);
+    offset += 8;
+    data[offset] = encodeI8(input.proofInstructionOffset);
+
+    return Object.freeze({
+        accounts: [
+            writableMeta(input.token),
+            readonlyMeta(input.mint),
+            readonlyMeta(input.instructionsSysvarOrContextState ?? SYSVAR_INSTRUCTIONS_ADDRESS),
+            signerMeta(input.authority, AccountRole.READONLY),
+        ],
+        data,
         programAddress: TOKEN_2022_PROGRAM_ADDRESS,
     });
 }

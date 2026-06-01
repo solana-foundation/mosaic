@@ -6,32 +6,63 @@ import { getDefaultConfig, getDefaultMobileConfig } from '@solana/connector/head
 import { ThemeProvider } from '@/components/theme-provider';
 import { useRpcStore } from '@/stores/rpc-store';
 
+function getEnvRpcNetwork(url?: string): 'mainnet-beta' | 'devnet' | 'testnet' | undefined {
+    if (!url) return undefined;
+
+    const normalizedUrl = url.toLowerCase();
+    if (normalizedUrl.includes('devnet')) return 'devnet';
+    if (normalizedUrl.includes('testnet')) return 'testnet';
+    if (normalizedUrl.includes('mainnet')) return 'mainnet-beta';
+
+    return undefined;
+}
+
+function getClusterStorageKey(
+    envRpcUrl?: string,
+    envRpcNetwork?: 'mainnet-beta' | 'devnet' | 'testnet',
+): string | undefined {
+    if (!envRpcUrl || !envRpcNetwork) return undefined;
+
+    try {
+        return `mosaic_rpc_cluster_${envRpcNetwork}_${new URL(envRpcUrl).host}`;
+    } catch {
+        return `mosaic_rpc_cluster_${envRpcNetwork}`;
+    }
+}
+
 export function Providers({ children }: { children: ReactNode }) {
     const customRpcs = useRpcStore(state => state.customRpcs);
 
     const connectorConfig = useMemo(() => {
         // Get custom RPC URL from environment variable
         const envRpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+        const envRpcNetwork = getEnvRpcNetwork(envRpcUrl) ?? 'mainnet-beta';
+
+        const getClusterUrl = (network: 'mainnet-beta' | 'devnet' | 'testnet', fallbackUrl: string) =>
+            envRpcUrl && envRpcNetwork === network ? envRpcUrl : fallbackUrl;
+
+        const getClusterLabel = (network: 'mainnet-beta' | 'devnet' | 'testnet', label: string) =>
+            envRpcUrl && envRpcNetwork === network ? `${label} (Env RPC)` : label;
 
         // Base clusters - always available
         const baseClusters = [
             {
                 id: 'solana:mainnet' as const,
-                label: envRpcUrl ? 'Mainnet (Env RPC)' : 'Mainnet',
+                label: getClusterLabel('mainnet-beta', 'Mainnet'),
                 name: 'mainnet-beta' as const,
-                url: envRpcUrl || 'https://api.mainnet-beta.solana.com',
+                url: getClusterUrl('mainnet-beta', 'https://api.mainnet-beta.solana.com'),
             },
             {
                 id: 'solana:devnet' as const,
-                label: 'Devnet',
+                label: getClusterLabel('devnet', 'Devnet'),
                 name: 'devnet' as const,
-                url: 'https://api.devnet.solana.com',
+                url: getClusterUrl('devnet', 'https://api.devnet.solana.com'),
             },
             {
                 id: 'solana:testnet' as const,
-                label: 'Testnet',
+                label: getClusterLabel('testnet', 'Testnet'),
                 name: 'testnet' as const,
-                url: 'https://api.testnet.solana.com',
+                url: getClusterUrl('testnet', 'https://api.testnet.solana.com'),
             },
         ];
 
@@ -50,6 +81,8 @@ export function Providers({ children }: { children: ReactNode }) {
             appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
             autoConnect: true,
             enableMobile: true,
+            network: envRpcNetwork,
+            clusterStorageKey: getClusterStorageKey(envRpcUrl, envRpcNetwork),
             clusters,
         });
     }, [customRpcs]);
@@ -62,6 +95,7 @@ export function Providers({ children }: { children: ReactNode }) {
                     process.env.NEXT_PUBLIC_MOBILE_APP_URL ||
                     process.env.NEXT_PUBLIC_APP_URL ||
                     'http://localhost:3000',
+                network: getEnvRpcNetwork(process.env.NEXT_PUBLIC_SOLANA_RPC_URL),
             }),
         [],
     );
