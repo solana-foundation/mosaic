@@ -13,10 +13,11 @@ import {
     type TransactionMessageWithBlockhashLifetime,
     assertIsTransactionWithBlockhashLifetime,
 } from '@solana/kit';
-import type {
-    ConfidentialOperationPlan,
-    ConfidentialOperationPlanStep,
-    ConfidentialOperationPlanStepPhase,
+import {
+    refreshTransactionBlockhash,
+    type ConfidentialOperationPlan,
+    type ConfidentialOperationPlanStep,
+    type ConfidentialOperationPlanStepPhase,
 } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
 import type { FullTransaction } from '@/lib/solana/types';
@@ -172,8 +173,9 @@ export async function executeMultiTransactionAction(input: {
             phase: step.phase,
         };
 
+        const transaction = await refreshTransactionBlockhash(rpc, step.transaction);
         input.onProgress?.({ ...progressBase, status: 'signing' });
-        const signedTransaction = await signTransactionMessageWithSigners(step.transaction);
+        const signedTransaction = await signTransactionMessageWithSigners(transaction);
         input.onProgress?.({ ...progressBase, status: 'sending' });
         assertIsTransactionWithBlockhashLifetime(signedTransaction);
         await sendAndConfirmTransaction(signedTransaction, {

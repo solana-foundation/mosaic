@@ -31,6 +31,7 @@ export {
     createConfidentialTransferOperationPlan,
     createSingleTransactionConfidentialOperationPlan,
 } from './operation-plan';
+export { refreshTransactionBlockhash } from './transactions';
 export {
     createApplyConfidentialPendingBalanceTransaction,
     createApproveConfidentialTransferAccountTransaction,

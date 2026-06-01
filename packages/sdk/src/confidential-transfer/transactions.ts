@@ -25,3 +25,11 @@ export async function createTransaction(
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;
 }
+
+export async function refreshTransactionBlockhash(
+    rpc: Rpc<SolanaRpcApi>,
+    transaction: FullTransaction,
+): Promise<FullTransaction> {
+    const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
+    return setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, transaction) as FullTransaction;
+}

@@ -35,6 +35,7 @@ import {
     createWithdrawConfidentialTransferFeesFromAccountsPlan,
     createWithdrawConfidentialTransferFeesFromMintPlan,
     getConfidentialTransferAccountSnapshot,
+    refreshTransactionBlockhash,
     type ConfidentialTransferAuthoritySigner,
     type ConfidentialOperationPlan,
     type FullTransaction,
@@ -134,12 +135,21 @@ function singleTransactionPlan(label: string, transaction: FullTransaction): Con
 
 async function executeOperationPlan(input: {
     plan: ConfidentialOperationPlan;
+    rpc: ReturnType<typeof createRpcClient>;
     rawTx?: string;
     sendAndConfirmTransaction: SendAndConfirmFn;
 }): Promise<string[]> {
     const steps = input.plan.steps;
     if (input.rawTx) {
-        outputRawTransactions(input.rawTx, steps);
+        outputRawTransactions(
+            input.rawTx,
+            await Promise.all(
+                steps.map(async step => ({
+                    label: step.label,
+                    transaction: await refreshTransactionBlockhash(input.rpc, step.transaction),
+                })),
+            ),
+        );
         return [];
     }
 
@@ -149,7 +159,8 @@ async function executeOperationPlan(input: {
 
     const executeStep = async ({ step, index }: (typeof indexedSteps)[number]): Promise<string> => {
         console.log(chalk.cyan(`Transaction ${index + 1}/${steps.length}: ${step.label}`));
-        const signed = await signTransactionMessageWithSigners(step.transaction);
+        const transaction = await refreshTransactionBlockhash(input.rpc, step.transaction);
+        const signed = await signTransactionMessageWithSigners(transaction);
         assertIsTransactionWithBlockhashLifetime(signed);
         await input.sendAndConfirmTransaction(signed as SendableTx, {
             commitment: 'confirmed',
@@ -256,6 +267,7 @@ confidentialCommand
             spinner.stop();
             const signatures = await executeOperationPlan({
                 plan: singleTransactionPlan('configure confidential account', result.transaction),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });
@@ -290,6 +302,7 @@ confidentialCommand
             spinner.stop();
             const signatures = await executeOperationPlan({
                 plan: singleTransactionPlan('approve confidential account', transaction),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });
@@ -325,6 +338,7 @@ confidentialCommand
             spinner.stop();
             const signatures = await executeOperationPlan({
                 plan: singleTransactionPlan('confidential deposit', transaction),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });
@@ -358,6 +372,7 @@ confidentialCommand
             spinner.stop();
             const signatures = await executeOperationPlan({
                 plan: singleTransactionPlan('apply pending balance', transaction),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });
@@ -405,6 +420,7 @@ confidentialCommand
             }
             const signatures = await executeOperationPlan({
                 plan: createConfidentialTransferOperationPlan(plan),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });
@@ -440,6 +456,7 @@ confidentialCommand
             spinner.stop();
             const signatures = await executeOperationPlan({
                 plan: singleTransactionPlan('confidential withdraw', transaction),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });
@@ -473,6 +490,7 @@ confidentialCommand
             spinner.stop();
             const signatures = await executeOperationPlan({
                 plan: singleTransactionPlan('empty confidential account', transaction),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });
@@ -544,6 +562,7 @@ confidentialCommand
             spinner.stop();
             const signatures = await executeOperationPlan({
                 plan: singleTransactionPlan('set confidential credits', transaction),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });
@@ -575,6 +594,7 @@ confidentialCommand
             spinner.stop();
             const signatures = await executeOperationPlan({
                 plan: singleTransactionPlan('set non-confidential credits', transaction),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });
@@ -608,6 +628,7 @@ confidentialCommand
             spinner.stop();
             const signatures = await executeOperationPlan({
                 plan: singleTransactionPlan('update confidential mint', transaction),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });
@@ -638,6 +659,7 @@ confidentialCommand
             spinner.stop();
             const signatures = await executeOperationPlan({
                 plan: singleTransactionPlan('harvest confidential fees', transaction),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });
@@ -675,6 +697,7 @@ confidentialCommand
             spinner.stop();
             const signatures = await executeOperationPlan({
                 plan: createConfidentialFeeWithdrawOperationPlan(plan),
+                rpc: context.rpc,
                 rawTx: context.rawTx,
                 sendAndConfirmTransaction: context.sendAndConfirmTransaction,
             });

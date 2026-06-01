@@ -15,6 +15,7 @@ import {
     createSingleTransactionConfidentialOperationPlan,
     createUpdateConfidentialTransferMintTransaction,
     getConfidentialTransferFeeCapability,
+    refreshTransactionBlockhash,
     type ConfidentialTransferPlan,
     ZK_ELGAMAL_PROOF_PROGRAM_ADDRESS,
 } from '../index';
@@ -207,6 +208,36 @@ describe('confidential transfer SDK helpers', () => {
             'Proof cleanup',
         ]);
         expect(operationPlan.steps[2]!.transaction).toBe(transaction);
+    });
+
+    it('refreshes planned transaction blockhashes before execution', async () => {
+        const authority = await generateKeyPairSigner();
+        const transaction = await createHarvestConfidentialTransferFeesTransaction({
+            rpc,
+            mint,
+            sources: [tokenAccount],
+            feePayer: authority,
+        });
+        const latestBlockhash = '4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY';
+        const freshRpc = {
+            ...rpc,
+            getLatestBlockhash: () => ({
+                send: async () => ({
+                    context: {
+                        slot: 1n,
+                    },
+                    value: {
+                        blockhash: latestBlockhash,
+                        lastValidBlockHeight: 12345679n,
+                    },
+                }),
+            }),
+        } as unknown as Rpc<SolanaRpcApi>;
+
+        const refreshed = await refreshTransactionBlockhash(freshRpc, transaction);
+
+        expect(refreshed.lifetimeConstraint.blockhash).toBe(latestBlockhash);
+        expect(transaction.lifetimeConstraint.blockhash).not.toBe(latestBlockhash);
     });
 
     it('creates an account snapshot with lifecycle, key-derivation state, and available actions', () => {
