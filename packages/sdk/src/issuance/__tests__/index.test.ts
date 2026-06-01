@@ -174,7 +174,20 @@ describe('Token', () => {
                 });
 
             expect(result).toBe(token);
-            expect(token.getExtensions()).toHaveLength(2); // ConfidentialTransferMint + TransferFeeConfig
+            expect(token.getExtensions()).toHaveLength(3); // ConfidentialTransferMint + TransferFeeConfig + ConfidentialTransferFee
+            expect(token.getExtensions().map(ext => ext.__kind)).toEqual([
+                'ConfidentialTransferMint',
+                'TransferFeeConfig',
+                'ConfidentialTransferFee',
+            ]);
+
+            const confidentialFeeExtension: any = token.getExtensions()[2];
+            expect(confidentialFeeExtension.authority).toEqual({
+                __option: 'Some',
+                value: TEST_AUTHORITY,
+            });
+            expect(confidentialFeeExtension.elgamalPubkey).toBe(elGamalPubkey);
+            expect(confidentialFeeExtension.withheldAmount).toHaveLength(64);
         });
 
         it('should include confidential transfer fee instruction in buildInstructions', async () => {
