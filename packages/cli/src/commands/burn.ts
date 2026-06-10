@@ -62,6 +62,13 @@ export const burnCommand = new Command('burn')
                 const configuredBurnAuthority = await getPermissionedBurnAuthority(rpc, options.mintAddress as Address);
                 if (configuredBurnAuthority === owner.address) {
                     permissionedBurnAuthority = owner;
+                } else if (configuredBurnAuthority && !rawTx) {
+                    // Without the co-signer the transaction would only fail at send time
+                    // with a generic signature verification error. Raw mode is exempt
+                    // since the co-signature can be added externally.
+                    throw new Error(
+                        `Mint has permissioned burn enabled with authority ${configuredBurnAuthority}, which differs from the signer. Pass --permissioned-burn-keypair to co-sign the burn.`,
+                    );
                 }
             }
 
