@@ -1,6 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createForceBurnTransaction, validatePermanentDelegateForBurn } from '@solana/mosaic-sdk';
+import {
+    createForceBurnTransaction,
+    getPermissionedBurnAuthority,
+    validatePermanentDelegateForBurn,
+} from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
@@ -66,6 +70,18 @@ export const forceBurnCommand = new Command('force-burn')
             const permissionedBurnAuthority = options.permissionedBurnKeypair
                 ? await loadKeypair(options.permissionedBurnKeypair)
                 : undefined;
+
+            if (!permissionedBurnAuthority && !rawTx) {
+                // Without the co-signer the transaction would only fail at send time
+                // with a generic signature verification error. Raw mode is exempt
+                // since the co-signature can be added externally.
+                const configuredBurnAuthority = await getPermissionedBurnAuthority(rpc, options.mintAddress as Address);
+                if (configuredBurnAuthority && configuredBurnAuthority !== authority.address) {
+                    throw new Error(
+                        `Mint has permissioned burn enabled with authority ${configuredBurnAuthority}, which differs from the permanent delegate. Pass --permissioned-burn-keypair to co-sign the burn.`,
+                    );
+                }
+            }
 
             // Create force burn transaction
             const transaction = await createForceBurnTransaction(
