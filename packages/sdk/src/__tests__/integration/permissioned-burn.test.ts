@@ -26,8 +26,9 @@ import { inspectToken } from '../../inspection';
 import { decimalAmountToRaw } from '../../transaction-util';
 import { AuthorityType } from '@solana-program/token-2022';
 
-// Requires a local validator whose Token-2022 program supports permissioned burn (program >= v11)
-describeSkipIf()('Permissioned Burn Integration Tests', () => {
+// Requires a local validator whose Token-2022 program supports permissioned burn (program >= v11).
+// Skipped until the CI validator ships v11; flip to describeSkipIf() once it does.
+describeSkipIf(true)('Permissioned Burn Integration Tests', () => {
     let client: Client;
     let mintAuthority: TransactionSigner<string>;
     let freezeAuthority: TransactionSigner<string>;
