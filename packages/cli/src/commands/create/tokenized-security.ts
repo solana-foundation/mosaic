@@ -27,6 +27,7 @@ interface TokenizedSecuritiesOptions {
     pausableAuthority?: string;
     confidentialBalancesAuthority?: string;
     permanentDelegateAuthority?: string;
+    permissionedBurnAuthority?: string;
     multiplier?: string; // scaled UI amount multiplier
     scaledUiAmountAuthority?: string;
     enableSrfc37?: boolean;
@@ -50,6 +51,10 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
     .option(
         '--permanent-delegate-authority <address>',
         'Permanent delegate authority address (defaults to mint authority)',
+    )
+    .option(
+        '--permissioned-burn-authority <address>',
+        'Permissioned burn authority address (defaults to mint authority)',
     )
     .option('--multiplier <number>', 'Scaled UI amount multiplier', '1')
     .option('--mint-keypair <path>', 'Path to mint keypair file (generates new one if not provided)')
@@ -97,6 +102,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
             const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
             const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
+            const permissionedBurnAuthority = (options.permissionedBurnAuthority || mintAuthority) as Address;
             const scaledUiAmountAuthority = (options.scaledUiAmountAuthority || mintAuthority) as Address;
             spinner.text = 'Building transaction...';
 
@@ -116,6 +122,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
                     pausableAuthority,
                     confidentialBalancesAuthority,
                     permanentDelegateAuthority,
+                    permissionedBurnAuthority,
                     scaledUiAmount: {
                         authority: scaledUiAmountAuthority,
                         multiplier,
@@ -164,6 +171,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             console.log(`   ${chalk.bold('Pausable Authority:')} ${pausableAuthority}`);
             console.log(`   ${chalk.bold('Confidential Balances Authority:')} ${confidentialBalancesAuthority}`);
             console.log(`   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`);
+            console.log(`   ${chalk.bold('Permissioned Burn Authority:')} ${permissionedBurnAuthority}`);
 
             console.log(chalk.cyan('🧩 Token Extensions:'));
             console.log(`   ${chalk.green('✓')} Metadata`);
@@ -171,6 +179,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             console.log(`   ${chalk.green('✓')} Default Account State (Blocklist)`);
             console.log(`   ${chalk.green('✓')} Confidential Balances`);
             console.log(`   ${chalk.green('✓')} Permanent Delegate`);
+            console.log(`   ${chalk.green('✓')} Permissioned Burn`);
             console.log(`   ${chalk.green('✓')} Scaled UI Amount (multiplier=${multiplier})`);
 
             if (options.uri) {

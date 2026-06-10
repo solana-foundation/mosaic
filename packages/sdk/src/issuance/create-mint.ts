@@ -76,6 +76,14 @@ export class Token {
         return this;
     }
 
+    withPermissionedBurn(authority: Address): Token {
+        const permissionedBurnExtension = extension('PermissionedBurn', {
+            authority: some(authority),
+        });
+        this.extensions.push(permissionedBurnExtension as Extension);
+        return this;
+    }
+
     withDefaultAccountState(initialStateInitialized: boolean): Token {
         const defaultAccountStateExtension = extension('DefaultAccountState', {
             state: initialStateInitialized ? AccountState.Initialized : AccountState.Frozen,
@@ -274,9 +282,8 @@ export class Token {
                     {
                         mint: mint.address,
                         authority: some(this.confidentialTransferFeeConfig.authority),
-                        withdrawWithheldAuthorityElGamalPubkey: some(
+                        withdrawWithheldAuthorityElGamalPubkey:
                             this.confidentialTransferFeeConfig.withdrawWithheldAuthorityElGamalPubkey,
-                        ),
                     },
                     {
                         programAddress: TOKEN_2022_PROGRAM_ADDRESS,

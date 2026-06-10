@@ -6,3 +6,4 @@ export * from './force-burn';
 export * from './force-transfer';
 export * from './mint';
 export * from './pause';
+export * from './permissioned-burn';

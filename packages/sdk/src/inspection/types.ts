@@ -19,6 +19,7 @@ export interface TokenAuthorities {
     pausableAuthority?: Address | null;
     confidentialBalancesAuthority?: Address | null;
     scaledUiAmountAuthority?: Address | null;
+    permissionedBurnAuthority?: Address | null;
 }
 
 export interface TokenSupplyInfo {
@@ -90,6 +91,7 @@ export interface TokenDashboardData {
     confidentialBalancesAuthority?: string;
     permanentDelegateAuthority?: string;
     scaledUiAmountAuthority?: string;
+    permissionedBurnAuthority?: string;
     freezeAuthority?: string;
 
     // Extensions list
