@@ -65,15 +65,23 @@ export const createBurnTransaction = async (
     // authority must co-sign a permissioned burn instruction instead.
     const configuredBurnAuthority = await getPermissionedBurnAuthority(rpc, mint);
 
+    // Reuse ownerSigner for the burn-authority slot when the configured authority
+    // matches the owner, so a self-burn doesn't pair a real signer with a noop signer
+    // for the same address.
+    const permissionedBurnAuthoritySigner = permissionedBurnAuthority
+        ? typeof permissionedBurnAuthority === 'string'
+            ? createNoopSigner(permissionedBurnAuthority)
+            : permissionedBurnAuthority
+        : configuredBurnAuthority === ownerSigner.address
+          ? ownerSigner
+          : createNoopSigner(configuredBurnAuthority ?? ownerSigner.address);
+
     const burnInstruction = configuredBurnAuthority
         ? getPermissionedBurnCheckedInstruction(
               {
                   account: tokenAccount,
                   mint,
-                  permissionedBurnAuthority:
-                      permissionedBurnAuthority === undefined || typeof permissionedBurnAuthority === 'string'
-                          ? createNoopSigner(permissionedBurnAuthority ?? configuredBurnAuthority)
-                          : permissionedBurnAuthority,
+                  permissionedBurnAuthority: permissionedBurnAuthoritySigner,
                   authority: ownerSigner,
                   amount: rawAmount,
                   decimals,
