@@ -5,7 +5,7 @@ import {
     createNoopSigner,
     pipe,
     createTransactionMessage,
-    setTransactionMessageFeePayer,
+    setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
     none,
@@ -29,6 +29,10 @@ import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
  * Transfer restrictions are enforced via pause + freeze rather than a transfer hook program.
  * The TransferHook extension is initialized so the mint can adopt a hook program later
  * without re-creating the mint.
+ *
+ * Accounts default to frozen, so a freeze authority is mandatory: if `freezeAuthority` is
+ * omitted it defaults to TOKEN_ACL_PROGRAM_ID when SRFC-37 is enabled, otherwise to the
+ * mint authority. This prevents minting a mint whose accounts can never be thawed.
  */
 export const createMmfInitTransaction = async (
     rpc: Rpc<SolanaRpcApi>,
@@ -85,6 +89,11 @@ export const createMmfInitTransaction = async (
             : transferHookAuthorityInput.address;
     const enableConfidential = options?.enableConfidentialBalances ?? false;
 
+    // MMF accounts default to frozen, so a freeze authority is required to ever thaw them.
+    // SRFC-37 supplies TOKEN_ACL_PROGRAM_ID as the freeze authority; otherwise fall back to the
+    // mint authority so the mint isn't left permanently unusable.
+    const resolvedFreezeAuthority = freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : mintAuthorityAddress);
+
     let tokenBuilder = new Token()
         .withMetadata({
             mintAddress: mintSigner.address,
@@ -111,7 +120,7 @@ export const createMmfInitTransaction = async (
         rpc,
         decimals,
         mintAuthority,
-        freezeAuthority: freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
+        freezeAuthority: resolvedFreezeAuthority,
         mint: mintSigner,
         feePayer: feePayerSigner,
     });
@@ -134,7 +143,7 @@ export const createMmfInitTransaction = async (
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
         return pipe(
             createTransactionMessage({ version: 0 }),
-            m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
+            m => setTransactionMessageFeePayerSigner(feePayerSigner, m),
             m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
             m => appendTransactionMessageInstructions(instructions, m),
         ) as FullTransaction;
@@ -178,7 +187,7 @@ export const createMmfInitTransaction = async (
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
     return pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
+        m => setTransactionMessageFeePayerSigner(feePayerSigner, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;

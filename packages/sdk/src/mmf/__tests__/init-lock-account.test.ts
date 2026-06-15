@@ -1,6 +1,11 @@
 import type { Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
 import { address } from '@solana/kit';
-import { createMockRpc, createMockSigner, seedMintDetails } from '../../__tests__/test-utils';
+import {
+    createMockRpc,
+    createMockSigner,
+    seedMintDetails,
+    MOCK_RENT_EXEMPT_LAMPORTS,
+} from '../../__tests__/test-utils';
 import {
     AuthorityType,
     TOKEN_2022_PROGRAM_ADDRESS,
@@ -77,7 +82,7 @@ describe('createInitLockAccountTransaction', () => {
             baseAccount: pd,
             base: pd.address,
             seed,
-            amount: 2039280n,
+            amount: MOCK_RENT_EXEMPT_LAMPORTS,
             space: expectedSpace,
             programAddress: TOKEN_2022_PROGRAM_ADDRESS,
         });

@@ -12,6 +12,10 @@ const SEED_PREFIX: Record<LockType, string> = {
  * Computes a 32-byte UTF-8 seed string for the lock account.
  * Hash inputs: prefix bytes || mint address bytes || holder address bytes.
  * Output: hex of the first 16 bytes of SHA-256 (32 ASCII chars, the System program seed limit).
+ *
+ * Requires the WebCrypto API (`globalThis.crypto.subtle`), available in Node 18+ and modern
+ * browsers. This matches @solana/kit's own runtime requirement, so no extra polyfill is needed
+ * in supported environments.
  */
 export const computeLockSeed = async (lockType: LockType, mint: Address, holder: Address): Promise<string> => {
     const encoder = getAddressEncoder();
