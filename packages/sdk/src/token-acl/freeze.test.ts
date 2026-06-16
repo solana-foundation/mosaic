@@ -65,7 +65,7 @@ describe('freeze wallet instructions', () => {
     });
 
     test('only creates a missing ATA when SRFC-37 default account state will freeze it', async () => {
-        mockTransactionUtil({ isInitialized: false, tokenAclFreezeAuthority: true, defaultFrozen: true });
+        mockTransactionUtil({ isInitialized: false, usesTokenAcl: true, defaultFrozen: true });
 
         const { getFreezeWalletInstructions } = await import('./freeze');
         const instructions = await getFreezeWalletInstructions({

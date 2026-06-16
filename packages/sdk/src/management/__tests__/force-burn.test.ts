@@ -80,6 +80,7 @@ describe('force-burn', () => {
                             state: { delegate: permDel.address },
                         },
                     ],
+                    usesTokenAcl: true,
                     programAddress: TOKEN_2022_PROGRAM_ADDRESS,
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
@@ -420,6 +421,7 @@ describe('force-burn', () => {
                             state: { delegate: permDel.address },
                         },
                     ],
+                    usesTokenAcl: true,
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
             }));

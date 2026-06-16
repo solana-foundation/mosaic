@@ -651,19 +651,15 @@ export interface ParsedConfirmedTransaction extends ParsedTokenTransaction {
  * the static accounts; readonlys come last.
  */
 /**
- * The legacy/v0 compiled message variants. Kit's decoder return type also
- * includes the v1 variant, which carries `instructionHeaders`/`instructionPayloads`
- * instead of `instructions` and is not supported by `decompileTransactionMessage`.
- * The cluster never returns v1 today, so we narrow it out at decode time.
+ * The legacy/v0 compiled message variants supported by `decompileTransactionMessage`.
+ * The `instructions` narrowing keeps this forward compatible with kit message unions
+ * that also carry non-`instructions` variants.
  */
 type DecodedCompiledMessage = Extract<CompiledTransactionMessage, { instructions: unknown }> &
     CompiledTransactionMessageWithLifetime;
 
 function decodeCompiledMessage(messageBytes: ReadonlyUint8Array): DecodedCompiledMessage {
     const compiled = getCompiledTransactionMessageDecoder().decode(messageBytes);
-    if (compiled.version === 1) {
-        throw new Error('v1 transaction messages are not supported by the parser');
-    }
     return compiled as DecodedCompiledMessage;
 }
 

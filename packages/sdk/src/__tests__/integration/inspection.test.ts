@@ -1008,9 +1008,15 @@ describeSkipIf()('Inspection Integration Tests', () => {
         );
 
         it(
-            'should detect SRFC-37 enabled',
+            'should not flag SRFC-37 when freezeAuthority is the literal Token-ACL program ID',
             async () => {
-                // Given: A token with Token ACL as freeze authority
+                // Real sRFC-37 mints have freezeAuthority set to a mintConfig PDA owned by
+                // the Token-ACL program (via createConfig). Detecting sRFC-37 from the
+                // literal program ID alone is a false positive: a mint built with the
+                // program ID as freezeAuthority — without running createConfig — is not a
+                // working sRFC-37 setup. The Token-ACL program isn't deployed on the test
+                // validator and `@token-acl/sdk` is mocked, so we can't exercise the full
+                // sRFC-37 flow here; this test pins the bug-fix invariant instead.
                 const tokenBuilder = new Token()
                     .withMetadata({
                         mintAddress: mint.address,
@@ -1035,12 +1041,10 @@ describeSkipIf()('Inspection Integration Tests', () => {
 
                 await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-                // When: Inspecting token
                 const inspection = await inspectToken(client.rpc, mint.address, DEFAULT_COMMITMENT);
 
-                // Then: SRFC-37 is enabled
-                expect(inspection.enableSrfc37).toBe(true);
                 expect(inspection.authorities.freezeAuthority).toBe(TOKEN_ACL_PROGRAM_ID);
+                expect(inspection.enableSrfc37).toBe(false);
             },
             DEFAULT_TIMEOUT,
         );
