@@ -6,6 +6,8 @@ import {
     getBase64Encoder,
     getCompiledTransactionMessageDecoder,
     getTransactionDecoder,
+    type CompiledTransactionMessage,
+    type CompiledTransactionMessageWithLifetime,
     type AccountLookupMeta,
     type AccountMeta,
     type Address,
@@ -17,6 +19,7 @@ import {
     type ReadonlyUint8Array,
     type Rpc,
     type SolanaRpcApi,
+    type TransactionVersion,
 } from '@solana/kit';
 import {
     ASSOCIATED_TOKEN_PROGRAM_ADDRESS,
@@ -46,6 +49,11 @@ import {
     type ParsedTransferSolInstruction,
 } from '@solana-program/system';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
+
+// Hoisted to module scope so CPI-heavy transactions don't re-create a codec per
+// instruction when normalizing inner-instruction data.
+const base58Encoder = getBase58Encoder();
+const base64Encoder = getBase64Encoder();
 
 /**
  * Input form for raw transaction bytes. A bare Uint8Array is treated as the
@@ -138,6 +146,8 @@ export interface ParsedSystemInstructionEntry extends ParsedInstructionBase {
         instructionType: SystemInstruction;
         /** Populated only for the subset of system instructions we parse. */
         parsed?: ParsedSystemPayload;
+        /** Set when codec decoding failed; identification still succeeded. */
+        parseError?: string;
     };
 }
 
@@ -152,7 +162,7 @@ export type ParsedTransactionInstruction =
     | UnparsedInstructionEntry;
 
 export interface ParsedTokenTransaction {
-    version: 'legacy' | 0;
+    version: TransactionVersion;
     feePayer: Address;
     /** Address-keyed map of signatures (null when not yet signed). */
     signatures: Record<string, Uint8Array | null>;
@@ -340,7 +350,7 @@ function normalizeInput(input: RawTransactionInput): Uint8Array {
     if (typeof input.data !== 'string') {
         throw new Error(`RawTransactionInput format '${input.format}' requires string data`);
     }
-    const encoder = input.format === 'base64' ? getBase64Encoder() : getBase58Encoder();
+    const encoder = input.format === 'base64' ? base64Encoder : base58Encoder;
     return new Uint8Array(encoder.encode(input.data));
 }
 
@@ -429,45 +439,60 @@ function classifyByProgram(ix: Instruction, index: number): ParsedTransactionIns
 
     if (programAddress === SYSTEM_PROGRAM_ADDRESS) {
         if (!hasData(ix)) {
-            return { ...base, programLabel: 'unknown', category: 'other' };
+            // Keep programLabel 'system' (consistent with the Token-2022 no-data
+            // path) so callers filtering by programLabel don't silently drop it.
+            return {
+                ...base,
+                programLabel: 'system',
+                category: 'other',
+                system: { name: 'Unknown', instructionType: -1 as SystemInstruction },
+            };
         }
         // System parsers require concrete AccountMeta accounts (no lookup metas).
-        // System-program calls never reference LUT-loaded accounts, so the cast is
-        // safe in practice; @solana-program/system just doesn't model the union.
+        // AccountLookupMeta is structurally compatible with the address/role fields
+        // the system parsers read, so the cast is safe even if a v0 message sources
+        // a system instruction's accounts from a lookup table.
         const sysIx = ix as Instruction &
             InstructionWithAccounts<readonly AccountMeta[]> &
             InstructionWithData<ReadonlyUint8Array>;
         const instructionType = identifySystemInstruction(sysIx.data);
         let parsed: ParsedSystemPayload | undefined;
+        let parseError: string | undefined;
         let category: TokenInstructionCategory = 'other';
-        switch (instructionType) {
-            case SystemInstruction.CreateAccount:
-                parsed = parseCreateAccountInstruction(sysIx);
-                category = 'account-init';
-                break;
-            case SystemInstruction.CreateAccountWithSeed:
-                parsed = parseCreateAccountWithSeedInstruction(sysIx);
-                category = 'account-init';
-                break;
-            case SystemInstruction.Allocate:
-                parsed = parseAllocateInstruction(sysIx);
-                category = 'account-init';
-                break;
-            case SystemInstruction.AllocateWithSeed:
-                parsed = parseAllocateWithSeedInstruction(sysIx);
-                category = 'account-init';
-                break;
-            case SystemInstruction.TransferSol:
-                parsed = parseTransferSolInstruction(sysIx);
-                break;
-            default:
-                break;
+        // Mirror the Token-2022/ATA paths: surface decode failures per-instruction
+        // rather than letting a malformed system ix abort the whole parse.
+        try {
+            switch (instructionType) {
+                case SystemInstruction.CreateAccount:
+                    parsed = parseCreateAccountInstruction(sysIx);
+                    category = 'account-init';
+                    break;
+                case SystemInstruction.CreateAccountWithSeed:
+                    parsed = parseCreateAccountWithSeedInstruction(sysIx);
+                    category = 'account-init';
+                    break;
+                case SystemInstruction.Allocate:
+                    parsed = parseAllocateInstruction(sysIx);
+                    category = 'account-init';
+                    break;
+                case SystemInstruction.AllocateWithSeed:
+                    parsed = parseAllocateWithSeedInstruction(sysIx);
+                    category = 'account-init';
+                    break;
+                case SystemInstruction.TransferSol:
+                    parsed = parseTransferSolInstruction(sysIx);
+                    break;
+                default:
+                    break;
+            }
+        } catch (e) {
+            parseError = e instanceof Error ? e.message : String(e);
         }
         return {
             ...base,
             programLabel: 'system',
             category,
-            system: { name: SystemInstruction[instructionType], instructionType, parsed },
+            system: { name: SystemInstruction[instructionType], instructionType, parsed, parseError },
         };
     }
 
@@ -479,9 +504,9 @@ function classifyByProgram(ix: Instruction, index: number): ParsedTransactionIns
 }
 
 function buildResult(
-    decompiled: { instructions: ReadonlyArray<Instruction>; feePayer: { address: Address }; version: 'legacy' | 0 },
+    decompiled: { instructions: ReadonlyArray<Instruction>; feePayer: { address: Address } },
     signatures: Record<string, ReadonlyUint8Array | Uint8Array | null>,
-    version: 'legacy' | 0,
+    version: TransactionVersion,
 ): ParsedTokenTransaction {
     const summary = emptySummary();
     const instructions: ParsedTransactionInstruction[] = decompiled.instructions.map((ix, i) => {
@@ -526,12 +551,12 @@ export function parseTokenTransaction(
 ): ParsedTokenTransaction {
     const bytes = normalizeInput(input);
     const tx = getTransactionDecoder().decode(bytes);
-    const compiled = getCompiledTransactionMessageDecoder().decode(tx.messageBytes);
+    const compiled = decodeCompiledMessage(tx.messageBytes);
     const decompiled = decompileTransactionMessage(compiled, {
         addressesByLookupTableAddress: opts.addressesByLookupTableAddress,
     });
     return buildResult(
-        { instructions: decompiled.instructions ?? [], feePayer: decompiled.feePayer, version: compiled.version },
+        { instructions: decompiled.instructions ?? [], feePayer: decompiled.feePayer },
         tx.signatures,
         compiled.version,
     );
@@ -548,10 +573,10 @@ export async function parseTokenTransactionWithLookups(
 ): Promise<ParsedTokenTransaction> {
     const bytes = normalizeInput(input);
     const tx = getTransactionDecoder().decode(bytes);
-    const compiled = getCompiledTransactionMessageDecoder().decode(tx.messageBytes);
+    const compiled = decodeCompiledMessage(tx.messageBytes);
     const decompiled = await decompileTransactionMessageFetchingLookupTables(compiled, rpc);
     return buildResult(
-        { instructions: decompiled.instructions ?? [], feePayer: decompiled.feePayer, version: compiled.version },
+        { instructions: decompiled.instructions ?? [], feePayer: decompiled.feePayer },
         tx.signatures,
         compiled.version,
     );
@@ -591,11 +616,12 @@ export interface ConfirmedTransactionInput {
         /**
          * For v0 transactions, the cluster reports the addresses loaded from each
          * LUT (readonly + writable). Pass these so we can resolve LUT-referenced
-         * accounts without a second RPC round trip.
+         * accounts without a second RPC round trip. Accepts plain base58 strings
+         * (as JSON-RPC returns them) as well as branded {@link Address} values.
          */
         loadedAddresses?: {
-            readonly: readonly Address[];
-            writable: readonly Address[];
+            readonly: readonly (Address | string)[];
+            writable: readonly (Address | string)[];
         } | null;
         /** Set when the transaction failed. We surface it on the result. */
         err?: unknown;
@@ -611,6 +637,12 @@ export interface ParsedConfirmedTransaction extends ParsedTokenTransaction {
      * each outer instruction's `innerInstructions` field.
      */
     flatInnerInstructions: ParsedTransactionInstruction[];
+    /**
+     * Note: unlike {@link parseTokenTransaction}, whose `summary` counts only
+     * outer instructions, the confirmed-tx `summary` counts both outer
+     * instructions and every CPI in `flatInnerInstructions`.
+     */
+    summary: Record<TokenInstructionCategory, number>;
 }
 
 /**
@@ -618,13 +650,26 @@ export interface ParsedConfirmedTransaction extends ParsedTokenTransaction {
  * documented on the message header. v0 LUT-loaded writables come right after
  * the static accounts; readonlys come last.
  */
+/**
+ * The legacy/v0 compiled message variants. Kit's decoder return type also
+ * includes the v1 variant, which carries `instructionHeaders`/`instructionPayloads`
+ * instead of `instructions` and is not supported by `decompileTransactionMessage`.
+ * The cluster never returns v1 today, so we narrow it out at decode time.
+ */
+type DecodedCompiledMessage = Extract<CompiledTransactionMessage, { instructions: unknown }> &
+    CompiledTransactionMessageWithLifetime;
+
+function decodeCompiledMessage(messageBytes: ReadonlyUint8Array): DecodedCompiledMessage {
+    const compiled = getCompiledTransactionMessageDecoder().decode(messageBytes);
+    if (compiled.version === 1) {
+        throw new Error('v1 transaction messages are not supported by the parser');
+    }
+    return compiled as DecodedCompiledMessage;
+}
+
 function buildResolvedAccountMetas(
-    compiled: ReturnType<typeof getCompiledTransactionMessageDecoder>['decode'] extends (
-        b: ReadonlyUint8Array,
-    ) => infer R
-        ? R
-        : never,
-    loadedAddresses?: { writable: readonly Address[]; readonly: readonly Address[] } | null,
+    compiled: DecodedCompiledMessage,
+    loadedAddresses?: { writable: readonly (Address | string)[]; readonly: readonly (Address | string)[] } | null,
 ): AccountMeta[] {
     const { numSignerAccounts, numReadonlySignerAccounts, numReadonlyNonSignerAccounts } = compiled.header;
     const staticCount = compiled.staticAccounts.length;
@@ -645,10 +690,10 @@ function buildResolvedAccountMetas(
     }
     if (loadedAddresses && compiled.version === 0) {
         for (const addr of loadedAddresses.writable) {
-            metas.push({ address: addr, role: AccountRole.WRITABLE });
+            metas.push({ address: addr as Address, role: AccountRole.WRITABLE });
         }
         for (const addr of loadedAddresses.readonly) {
-            metas.push({ address: addr, role: AccountRole.READONLY });
+            metas.push({ address: addr as Address, role: AccountRole.READONLY });
         }
     }
     return metas;
@@ -687,7 +732,7 @@ function innerToInstruction(inner: ConfirmedInnerInstruction, accountMetas: Acco
     return {
         programAddress: programMeta.address,
         accounts,
-        data: getBase58Encoder().encode(inner.data) as ReadonlyUint8Array,
+        data: base58Encoder.encode(inner.data) as ReadonlyUint8Array,
     };
 }
 
@@ -705,9 +750,9 @@ export function parseConfirmedTransaction(input: ConfirmedTransactionInput): Par
     const wireBytes =
         input.transaction instanceof Uint8Array
             ? input.transaction
-            : new Uint8Array(getBase64Encoder().encode(input.transaction[0]));
+            : new Uint8Array(base64Encoder.encode(input.transaction[0]));
     const tx = getTransactionDecoder().decode(wireBytes);
-    const compiled = getCompiledTransactionMessageDecoder().decode(tx.messageBytes);
+    const compiled = decodeCompiledMessage(tx.messageBytes);
     const accountMetas = buildResolvedAccountMetas(compiled, input.meta?.loadedAddresses);
 
     const summary = emptySummary();

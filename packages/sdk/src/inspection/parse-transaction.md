@@ -150,6 +150,11 @@ Detection is best-effort and based purely on the data prefix.
    transactions with unresolved LUTs.** Either pass
    `addressesByLookupTableAddress` or use the async lookup-fetching variant.
    Wrap calls in try/catch in any pipeline that ingests untrusted bytes.
+7. **`index` is not globally unique in the confirmed path.** Each `index` is
+   the instruction's position within its enclosing list, so an inner ix and an
+   outer ix can share the same `index`. Don't key rows on `index` alone across
+   `flatInnerInstructions`; combine it with the parent outer index (or use
+   `stackHeight` plus ordering) when you need a globally-unique key.
 
 ## Regenerating on-chain test fixtures
 

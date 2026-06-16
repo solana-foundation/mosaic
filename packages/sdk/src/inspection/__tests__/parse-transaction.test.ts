@@ -1,6 +1,7 @@
 import {
     appendTransactionMessageInstructions,
     compileTransaction,
+    compressTransactionMessageUsingAddressLookupTables,
     createNoopSigner,
     createTransactionMessage,
     getAddressDecoder,
@@ -34,7 +35,7 @@ import {
 } from '@solana-program/token-2022';
 import { getCreateAccountInstruction, SystemInstruction, SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { getAddMemoInstruction, MEMO_PROGRAM_ADDRESS } from '@solana-program/memo';
-import { parseTokenTransaction } from '../parse-transaction';
+import { parseTokenTransaction, parseTokenTransactionWithLookups } from '../parse-transaction';
 
 // Build deterministic but valid Address values from a tag byte. We can't use
 // random keypairs here because we need synchronous, stable test fixtures; the
@@ -225,6 +226,21 @@ describe('parseTokenTransaction', () => {
         expect(result.summary.other).toBe(1);
     });
 
+    it('labels a data-less system instruction as system, not unknown', () => {
+        const ix: Instruction = {
+            programAddress: SYSTEM_PROGRAM_ADDRESS,
+            accounts: [],
+            data: new Uint8Array(),
+        };
+        const result = parseTokenTransaction(buildBytes([ix]));
+
+        const [entry] = result.instructions;
+        expect(entry.programLabel).toBe('system');
+        expect(entry.category).toBe('other');
+        if (entry.programLabel !== 'system') throw new Error('expected system');
+        expect(entry.system.name).toBe('Unknown');
+    });
+
     it('accepts base58, base64, and Uint8Array forms equivalently', () => {
         const ix = getMintToInstruction({
             mint: MINT,
@@ -314,5 +330,57 @@ describe('parseTokenTransaction', () => {
 
         expect(result.summary.event).toBe(1);
         expect(result.summary.other).toBe(1);
+    });
+});
+
+describe('parseTokenTransactionWithLookups', () => {
+    const LUT = addrFromTag(50);
+
+    // Build a v0 tx whose TransferChecked sources `DEST_ATA` from a lookup table,
+    // so the wire bytes carry an addressTableLookup that must be resolved via RPC.
+    const buildLutBytes = (): Uint8Array => {
+        const ix = getTransferCheckedInstruction({
+            source: SOURCE_ATA,
+            mint: MINT,
+            destination: DEST_ATA,
+            authority: AUTHORITY,
+            amount: 5n,
+            decimals: 6,
+        });
+        const message = pipe(
+            createTransactionMessage({ version: 0 }),
+            m => setTransactionMessageFeePayer(FEE_PAYER, m),
+            m =>
+                setTransactionMessageLifetimeUsingBlockhash({ blockhash: FAKE_BLOCKHASH, lastValidBlockHeight: 0n }, m),
+            m => appendTransactionMessageInstructions([ix], m),
+            m => compressTransactionMessageUsingAddressLookupTables(m, { [LUT]: [DEST_ATA] }),
+        );
+        return new Uint8Array(getTransactionEncoder().encode(compileTransaction(message)));
+    };
+
+    it('resolves LUT-loaded accounts by fetching the lookup table over RPC', async () => {
+        const bytes = buildLutBytes();
+        const send = jest.fn().mockResolvedValue({
+            value: [{ data: { parsed: { info: { addresses: [DEST_ATA] }, type: 'lookupTable' } } }],
+        });
+        const getMultipleAccounts = jest.fn().mockReturnValue({ send });
+        // Only getMultipleAccounts is exercised by the LUT-resolution path.
+        const rpc = { getMultipleAccounts } as never;
+
+        const result = await parseTokenTransactionWithLookups(bytes, rpc);
+
+        expect(getMultipleAccounts).toHaveBeenCalledTimes(1);
+        expect(getMultipleAccounts.mock.calls[0][0]).toEqual([LUT]);
+
+        const [entry] = result.instructions;
+        if (entry.programLabel !== 'token-2022') throw new Error('expected token-2022');
+        expect(entry.category).toBe('transfer');
+        const parsed = entry.token2022.parsed;
+        if (!parsed || parsed.instructionType !== Token2022Instruction.TransferChecked) {
+            throw new Error('expected TransferChecked parsed payload');
+        }
+        // The destination came from the LUT and must resolve to the real address.
+        expect(parsed.accounts.destination.address).toBe(DEST_ATA);
+        expect(result.summary.transfer).toBe(1);
     });
 });
