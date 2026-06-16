@@ -19,7 +19,7 @@ import {
     getMintDetails,
     isDefaultAccountStateSetFrozen,
 } from '../transaction-util';
-import { TOKEN_ACL_PROGRAM_ID, getThawPermissionlessInstructions } from '../token-acl';
+import { getThawPermissionlessInstructions } from '../token-acl';
 
 /**
  * Creates a transaction to force transfer tokens using the permanent delegate extension.
@@ -48,8 +48,8 @@ export const createForceTransferTransaction = async (
         typeof permanentDelegate === 'string' ? createNoopSigner(permanentDelegate) : permanentDelegate;
 
     // Get mint info to determine decimals
-    const { decimals, freezeAuthority, extensions } = await getMintDetails(rpc, mint);
-    const enableSrfc37 = freezeAuthority === TOKEN_ACL_PROGRAM_ID && isDefaultAccountStateSetFrozen(extensions);
+    const { decimals, extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
+    const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
     // Convert decimal amount to raw amount
     const rawAmount = decimalAmountToRaw(decimalAmount, decimals);

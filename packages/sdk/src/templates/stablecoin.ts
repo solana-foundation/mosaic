@@ -9,7 +9,7 @@ import {
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
 } from '@solana/kit';
-import { Mode } from '@token-acl/abl-sdk';
+import { Mode } from '@solana/token-acl-gate-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
 import { getCreateConfigInstructions } from '../token-acl/create-config';
@@ -76,7 +76,9 @@ export const createStablecoinInitTransaction = async (
             additionalMetadata: new Map(),
         })
         .withPausable(pausableAuthority || mintAuthorityAddress)
-        .withDefaultAccountState(!useSrfc37)
+        // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
+        // default frozen and the permissionless-thaw path against the blocklist fires.
+        .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
         .withConfidentialBalances(confidentialBalancesAuthority || mintAuthorityAddress)
         .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
         .buildInstructions({

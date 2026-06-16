@@ -25,10 +25,12 @@ export async function fetchListConfig(
 }
 
 // Very lightweight decoders used by list.ts
-export function getABWalletDecoder() {
+export function getWalletEntryDecoder() {
     return {
         decode: (_data: Uint8Array) => ({
-            wallet: 'WalletMock11111111111111111111111111111111' as Address,
+            discriminator: 2,
+            walletAddress: 'WalletMock11111111111111111111111111111111' as Address,
+            listConfig: 'ListCfgMock1111111111111111111111111111111' as Address,
         }),
     };
 }

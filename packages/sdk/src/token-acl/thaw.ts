@@ -60,10 +60,11 @@ export const getThawInstructions = async (input: {
     };
 
     // Get mint details to determine if this token uses Token ACL
-    const { freezeAuthority, programAddress } = await getMintDetails(input.rpc, token.mint);
+    const { usesTokenAcl, programAddress } = await getMintDetails(input.rpc, token.mint);
 
-    // Check if freeze authority is the Token ACL program
-    if (freezeAuthority === TOKEN_ACL_PROGRAM_ID) {
+    // Token ACL transfers freeze authority to a mintConfig PDA owned by the
+    // Token ACL program, so detect via account owner rather than literal program ID.
+    if (usesTokenAcl) {
         // Use Token ACL instruction
         const mintConfigPda = await findMintConfigPda({ mint: token.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
 

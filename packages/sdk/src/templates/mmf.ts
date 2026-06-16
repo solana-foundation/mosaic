@@ -11,7 +11,7 @@ import {
     none,
 } from '@solana/kit';
 import { getUpdateTransferHookInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-import { Mode } from '@token-acl/abl-sdk';
+import { Mode } from '@solana/token-acl-gate-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
 import { getCreateConfigInstructions } from '../token-acl/create-config';

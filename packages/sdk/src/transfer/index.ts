@@ -23,7 +23,7 @@ import {
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
 import { getAddMemoInstruction } from '@solana-program/memo';
-import { getThawPermissionlessInstructions, TOKEN_ACL_PROGRAM_ID } from '../token-acl';
+import { getThawPermissionlessInstructions } from '../token-acl';
 
 /**
  * Creates a list of instructions to transfer SPL tokens (Token-2022) from one account to another.
@@ -65,8 +65,8 @@ export const createTransferInstructions = async (input: {
     }
 
     // Get mint info to determine decimals
-    const { decimals, freezeAuthority, extensions } = await getMintDetails(rpc, mint);
-    const enableSrfc37 = freezeAuthority === TOKEN_ACL_PROGRAM_ID && isDefaultAccountStateSetFrozen(extensions);
+    const { decimals, extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
+    const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
     // Convert decimal amount to raw amount
     const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
