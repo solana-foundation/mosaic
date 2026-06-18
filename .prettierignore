@@ -15,6 +15,7 @@ node_modules/
 
 # Generated files
 pnpm-lock.yaml
+next-env.d.ts
 
 # Git
 .git/ 
