@@ -36,6 +36,14 @@ interface LockOpCommon {
  * Inputs for settle/cancel operations. These drain the entire lock account balance
  * and close the account, so they don't take an explicit amount: any partial-amount
  * call would leave a non-zero balance and CloseAccount would fail.
+ *
+ * TOCTOU caveat: the balance is read off-chain (see {@link getLockAccountRawBalance})
+ * and baked into a fixed-amount transfer/burn. If a lock-funding op
+ * (e.g. {@link createMintLockTransaction}) confirms between that read and this
+ * transaction landing, the on-chain balance will exceed the encoded amount, the
+ * final CloseAccount will fail on the residual, and the lock account is left thawed.
+ * Recovery is to re-freeze and retry settle/cancel. Callers should serialize lock
+ * ops per account (or keep the mint globally paused) to avoid this window.
  */
 interface LockSettleCancelInput {
     mint: Address;
@@ -91,9 +99,14 @@ const resolveLockAccount = async (
  * Fetches the lock account's raw balance via getAccountInfo(jsonParsed). Throws if the
  * account does not exist or is not a parsable Token-2022 account, since settle/cancel
  * cannot run against a non-existent lock.
+ *
+ * This is a time-of-check read: the returned value is a snapshot used to build a
+ * fixed-amount settle/cancel transaction. See the TOCTOU caveat on
+ * {@link LockSettleCancelInput} — a concurrent lock-funding op between this read and
+ * the transaction landing will make the trailing CloseAccount fail on the residual.
  */
 const getLockAccountRawBalance = async (rpc: Rpc<SolanaRpcApi>, lockAccount: Address): Promise<bigint> => {
-    const info = await rpc.getAccountInfo(lockAccount, { encoding: 'jsonParsed' }).send();
+    const info = await rpc.getAccountInfo(lockAccount, { encoding: 'jsonParsed', commitment: 'confirmed' }).send();
     if (!info.value) {
         throw new Error(`Lock account ${lockAccount} does not exist`);
     }

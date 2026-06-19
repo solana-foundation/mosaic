@@ -8,6 +8,14 @@ import {
     identifyToken2022Instruction,
 } from '@solana-program/token-2022';
 import { createPausedActionTransaction } from '../paused-action';
+import { getTokenPauseState, MINT_NOT_PAUSED_ERROR } from '../../management/pause';
+
+jest.mock('../../management/pause', () => ({
+    ...jest.requireActual('../../management/pause'),
+    getTokenPauseState: jest.fn(),
+}));
+
+const mockGetTokenPauseState = getTokenPauseState as jest.MockedFunction<typeof getTokenPauseState>;
 
 const MINT = address('HA3KcFsXNjRJsRZq1P1Y8qPAeSZnZsFyauCDEsSSGqTj');
 const TARGET = address('FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT');
@@ -20,6 +28,8 @@ describe('createPausedActionTransaction', () => {
 
     beforeEach(() => {
         rpc = createMockRpc();
+        mockGetTokenPauseState.mockReset();
+        mockGetTokenPauseState.mockResolvedValue(true);
     });
 
     test('produces [resume, ...mid, pause]', async () => {
@@ -69,5 +79,18 @@ describe('createPausedActionTransaction', () => {
         expect(identifyToken2022Instruction(tx.instructions[3].data ?? new Uint8Array())).toBe(
             Token2022Instruction.Pause,
         );
+    });
+
+    test('throws when the mint is not currently paused', async () => {
+        mockGetTokenPauseState.mockResolvedValue(false);
+        const mid: Instruction[] = [
+            getMintToCheckedInstruction(
+                { mint: MINT, mintAuthority, token: TARGET, amount: 1n, decimals: 6 },
+                { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
+            ),
+        ];
+        await expect(
+            createPausedActionTransaction(rpc, { mint: MINT, pauseAuthority, feePayer, instructions: mid }),
+        ).rejects.toThrow(MINT_NOT_PAUSED_ERROR);
     });
 });

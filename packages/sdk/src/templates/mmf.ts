@@ -33,6 +33,14 @@ import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
  * Accounts default to frozen, so a freeze authority is mandatory: if `freezeAuthority` is
  * omitted it defaults to TOKEN_ACL_PROGRAM_ID when SRFC-37 is enabled, otherwise to the
  * mint authority. This prevents minting a mint whose accounts can never be thawed.
+ *
+ * Transaction size: when `enableSrfc37` is true, the returned transaction appends the full
+ * SRFC-37 setup (createConfig, setGatingProgram, enablePermissionlessThaw, createList,
+ * setExtraMetas) on top of mint initialization. Combined with the extension set — especially
+ * when `enableConfidentialBalances` is also true — this may exceed Solana's 1232-byte
+ * serialized transaction limit. There is no pre-flight size check here; if the transaction
+ * is rejected as too large, split the SRFC-37 setup into a follow-up transaction by calling
+ * this with `enableSrfc37: false` and configuring SRFC-37 separately.
  */
 export const createMmfInitTransaction = async (
     rpc: Rpc<SolanaRpcApi>,
