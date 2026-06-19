@@ -2,6 +2,13 @@ import type { Address, Rpc, TransactionSigner } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
 /**
+ * Fixed rent-exemption lamports returned by the mock RPC, independent of account space.
+ * Tests should reference this rather than hard-coding the literal so assertions stay in sync
+ * with the mock.
+ */
+export const MOCK_RENT_EXEMPT_LAMPORTS = 2039280n;
+
+/**
  * Creates a mock RPC client for testing
  */
 export function createMockRpc(): Rpc<any> {
@@ -11,7 +18,7 @@ export function createMockRpc(): Rpc<any> {
     const rpc: any = {
         __registry: { accountInfoRegistry, programAccountsRegistry },
         getMinimumBalanceForRentExemption: (_space: bigint) => ({
-            send: () => Promise.resolve(2039280n),
+            send: () => Promise.resolve(MOCK_RENT_EXEMPT_LAMPORTS),
         }),
         getLatestBlockhash: () => ({
             send: () =>
