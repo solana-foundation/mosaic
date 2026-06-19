@@ -58,6 +58,20 @@ export const burnCommand = new Command('burn')
             let permissionedBurnAuthority: TransactionSigner<string> | undefined;
             if (options.permissionedBurnKeypair) {
                 permissionedBurnAuthority = await loadKeypair(options.permissionedBurnKeypair);
+                if (!rawTx) {
+                    // A keypair that doesn't match the mint's configured authority would
+                    // only fail at send time with a generic signature error, so reject it
+                    // up front. Raw mode is exempt since signers can be swapped externally.
+                    const configuredBurnAuthority = await getPermissionedBurnAuthority(
+                        rpc,
+                        options.mintAddress as Address,
+                    );
+                    if (configuredBurnAuthority && configuredBurnAuthority !== permissionedBurnAuthority.address) {
+                        throw new Error(
+                            `Mint has permissioned burn enabled with authority ${configuredBurnAuthority}, which differs from the provided --permissioned-burn-keypair (${permissionedBurnAuthority.address}).`,
+                        );
+                    }
+                }
             } else {
                 const configuredBurnAuthority = await getPermissionedBurnAuthority(rpc, options.mintAddress as Address);
                 if (configuredBurnAuthority === owner.address) {

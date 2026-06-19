@@ -206,7 +206,7 @@ export async function inspectToken(
                     });
                     break;
 
-                case 'PermissionedBurn':
+                case 'PermissionedBurn': {
                     const permissionedBurnAuthority = ext.authority?.__option === 'Some' ? ext.authority.value : null;
 
                     authorities.permissionedBurnAuthority = permissionedBurnAuthority;
@@ -217,6 +217,7 @@ export async function inspectToken(
                         details: extensionDetails,
                     });
                     break;
+                }
 
                 case 'ScaledUiAmountConfig':
                     extensionDetails.authority = ext.authority ? ext.authority : null;

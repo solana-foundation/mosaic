@@ -71,14 +71,19 @@ export const forceBurnCommand = new Command('force-burn')
                 ? await loadKeypair(options.permissionedBurnKeypair)
                 : undefined;
 
-            if (!permissionedBurnAuthority && !rawTx) {
-                // Without the co-signer the transaction would only fail at send time
-                // with a generic signature verification error. Raw mode is exempt
-                // since the co-signature can be added externally.
+            if (!rawTx) {
+                // The burn authority configured on the mint must co-sign. Without a matching
+                // signer the transaction would only fail at send time with a generic signature
+                // verification error, so validate up front. Raw mode is exempt since the
+                // co-signature can be added externally. When a keypair is supplied it must match
+                // the configured authority; otherwise the permanent delegate must double as it.
+                const expectedBurnAuthority = permissionedBurnAuthority?.address ?? authority.address;
                 const configuredBurnAuthority = await getPermissionedBurnAuthority(rpc, options.mintAddress as Address);
-                if (configuredBurnAuthority && configuredBurnAuthority !== authority.address) {
+                if (configuredBurnAuthority && configuredBurnAuthority !== expectedBurnAuthority) {
                     throw new Error(
-                        `Mint has permissioned burn enabled with authority ${configuredBurnAuthority}, which differs from the permanent delegate. Pass --permissioned-burn-keypair to co-sign the burn.`,
+                        permissionedBurnAuthority
+                            ? `Mint has permissioned burn enabled with authority ${configuredBurnAuthority}, which differs from the provided --permissioned-burn-keypair (${expectedBurnAuthority}).`
+                            : `Mint has permissioned burn enabled with authority ${configuredBurnAuthority}, which differs from the permanent delegate. Pass --permissioned-burn-keypair to co-sign the burn.`,
                     );
                 }
             }
