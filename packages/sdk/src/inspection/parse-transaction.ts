@@ -65,8 +65,19 @@ export type RawTransactionInput = Uint8Array | { format: 'base64' | 'base58' | '
 export type TokenInstructionCategory =
     | 'mint-init'
     | 'mint-config-update'
+    /**
+     * Covers both Pause and Resume — this bucket says the pause state was
+     * touched, not which direction. Read `token2022.instructionType` to tell
+     * a pause from a resume (e.g. before treating `summary.pause > 0` as "paused").
+     */
     | 'pause'
     | 'supply'
+    /**
+     * Covers both FreezeAccount and ThawAccount — this bucket says an account's
+     * freeze state was touched, not which direction. Read
+     * `token2022.instructionType` to tell a freeze from a thaw (e.g. before
+     * treating `summary.freeze > 0` as "locked").
+     */
     | 'freeze'
     | 'transfer'
     | 'delegation'
@@ -223,6 +234,7 @@ const TOKEN_2022_CATEGORY: Record<Token2022Instruction, TokenInstructionCategory
     [Token2022Instruction.UpdateTokenGroupMaxSize]: 'mint-config-update',
     [Token2022Instruction.UpdateTokenGroupUpdateAuthority]: 'mint-config-update',
 
+    // Both directions map to 'pause'; distinguish via token2022.instructionType.
     [Token2022Instruction.Pause]: 'pause',
     [Token2022Instruction.Resume]: 'pause',
 
@@ -233,6 +245,7 @@ const TOKEN_2022_CATEGORY: Record<Token2022Instruction, TokenInstructionCategory
     [Token2022Instruction.PermissionedBurn]: 'supply',
     [Token2022Instruction.PermissionedBurnChecked]: 'supply',
 
+    // Both directions map to 'freeze'; distinguish via token2022.instructionType.
     [Token2022Instruction.FreezeAccount]: 'freeze',
     [Token2022Instruction.ThawAccount]: 'freeze',
 
@@ -643,6 +656,24 @@ export interface ParsedConfirmedTransaction extends ParsedTokenTransaction {
      * instructions and every CPI in `flatInnerInstructions`.
      */
     summary: Record<TokenInstructionCategory, number>;
+    /**
+     * Note: unlike {@link parseTokenTransaction}, this includes inner CPIs from
+     * `flatInnerInstructions` in addition to outer instructions, so its length
+     * will not match `instructions.length`.
+     */
+    token2022Instructions: ParsedToken2022InstructionEntry[];
+    /**
+     * Note: unlike {@link parseTokenTransaction}, this includes inner CPIs from
+     * `flatInnerInstructions` in addition to outer instructions, so its length
+     * will not match `instructions.length`.
+     */
+    transferInstructions: ParsedTransactionInstruction[];
+    /**
+     * Note: unlike {@link parseTokenTransaction}, this includes inner CPIs from
+     * `flatInnerInstructions` in addition to outer instructions, so its length
+     * will not match `instructions.length`.
+     */
+    adminInstructions: ParsedTransactionInstruction[];
 }
 
 /**
@@ -778,7 +809,10 @@ export function parseConfirmedTransaction(input: ConfirmedTransactionInput): Par
                 flatInners.push(entry);
                 return entry;
             });
-            target.innerInstructions = parsed;
+            // The spec emits at most one group per outer index, but merge rather
+            // than overwrite so a malformed/future response with duplicate indices
+            // stays consistent with flatInners instead of dropping earlier CPIs.
+            target.innerInstructions = [...(target.innerInstructions ?? []), ...parsed];
         }
     }
 
