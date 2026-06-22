@@ -81,7 +81,7 @@ mosaic create arcade-token \
   [--permanent-delegate-authority <address>] \
   [--mint-keypair <path>]
 
-# Tokenized Security (stablecoin set + Scaled UI Amount)
+# Tokenized Security (stablecoin set + Permissioned Burn + Scaled UI Amount)
 mosaic create tokenized-security \
   --name <name> \
   --symbol <symbol> \
@@ -93,6 +93,7 @@ mosaic create tokenized-security \
   [--pausable-authority <address>] \
   [--confidential-balances-authority <address>] \
   [--permanent-delegate-authority <address>] \
+  [--permissioned-burn-authority <address>] \
   [--multiplier <number=1>] \
   [--scaled-ui-amount-authority <address>] \
   [--mint-keypair <path>]
@@ -120,6 +121,20 @@ mosaic force-transfer \
   --from-account <wallet_or_ata> \
   --recipient <wallet_or_ata> \
   --amount <decimal>
+
+# Burn tokens from the signer wallet. On permissioned burn mints the burn
+# authority must co-sign; pass its keypair if it differs from the signer.
+mosaic burn \
+  --mint-address <mint> \
+  --amount <decimal> \
+  [--permissioned-burn-keypair <path>]
+
+# Force burn using permanent delegate authority
+mosaic force-burn \
+  --mint-address <mint> \
+  --from-account <wallet_or_ata> \
+  --amount <decimal> \
+  [--permissioned-burn-keypair <path>]
 
 # Inspect a mint and list extensions
 mosaic inspect-mint --mint-address <mint>

@@ -130,6 +130,7 @@ Token-2022 Extension:
 - **Confidential Balances** - Balance encryption for token accounts and transfers
 - **Pausable** - Disable all interactions with the token
 - **Permanent Delegate** - Burn or transfer funds from any address
+- **Permissioned Burn** - Burning requires approval from a designated burn authority
 - **Scaled UI Amount** - Updatable multiplier for dividend distribution, stock splits, reverse stock splits
 
 ## 🔧 Development

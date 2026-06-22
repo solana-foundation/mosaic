@@ -38,6 +38,7 @@ export const createTokenizedSecurityInitTransaction = async (
         pausableAuthority?: Address;
         confidentialBalancesAuthority?: Address;
         permanentDelegateAuthority?: Address;
+        permissionedBurnAuthority?: Address;
         enableSrfc37?: boolean;
         scaledUiAmount?: {
             authority?: Address;
@@ -57,6 +58,7 @@ export const createTokenizedSecurityInitTransaction = async (
     const pausableAuthority = options?.pausableAuthority || mintAuthorityAddress;
     const confidentialBalancesAuthority = options?.confidentialBalancesAuthority || mintAuthorityAddress;
     const permanentDelegateAuthority = options?.permanentDelegateAuthority || mintAuthorityAddress;
+    const permissionedBurnAuthority = options?.permissionedBurnAuthority || mintAuthorityAddress;
 
     let tokenBuilder = new Token()
         .withMetadata({
@@ -74,7 +76,8 @@ export const createTokenizedSecurityInitTransaction = async (
         // default frozen and the permissionless-thaw path against the blocklist fires.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
         .withConfidentialBalances(confidentialBalancesAuthority)
-        .withPermanentDelegate(permanentDelegateAuthority);
+        .withPermanentDelegate(permanentDelegateAuthority)
+        .withPermissionedBurn(permissionedBurnAuthority);
 
     // Add Scaled UI Amount extension
     tokenBuilder = tokenBuilder.withScaledUiAmount(
