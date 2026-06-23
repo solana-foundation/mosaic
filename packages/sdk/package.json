@@ -32,12 +32,14 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@solana/kit": "^5.0.0",
         "@solana-program/memo": "^0.10.0",
         "@solana-program/system": "^0.10.0",
         "@solana-program/token-2022": "^0.8.0",
+        "@solana-program/zk-elgamal-proof": "0.1.0",
+        "@solana/kit": "^5.0.0",
         "@solana/sysvars": "^5.0.0",
         "@solana/token-acl-gate-sdk": "^0.2.0",
+        "@solana/zk-sdk": "0.4.2",
         "@token-acl/sdk": "^0.2.7"
     },
     "_dependencyNotes": {
