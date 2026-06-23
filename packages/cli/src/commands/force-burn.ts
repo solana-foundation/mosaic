@@ -1,6 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createForceBurnTransaction, validatePermanentDelegateForBurn } from '@solana/mosaic-sdk';
+import {
+    createForceBurnTransaction,
+    getPermissionedBurnAuthority,
+    validatePermanentDelegateForBurn,
+} from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
@@ -10,6 +14,7 @@ interface ForceBurnOptions {
     mintAddress: string;
     fromAccount: string;
     amount: string;
+    permissionedBurnKeypair?: string;
 }
 
 export const forceBurnCommand = new Command('force-burn')
@@ -20,6 +25,10 @@ export const forceBurnCommand = new Command('force-burn')
         'The account to burn tokens from (wallet address or ATA address)',
     )
     .requiredOption('-a, --amount <amount>', 'The decimal amount to burn (e.g., 1.5)')
+    .option(
+        '--permissioned-burn-keypair <path>',
+        'Keypair for the permissioned burn authority (only needed when it differs from the signer on permissioned burn mints)',
+    )
     .showHelpAfterError()
     .action(async (options: ForceBurnOptions, command) => {
         const parentOpts = getGlobalOpts(command);
@@ -58,14 +67,36 @@ export const forceBurnCommand = new Command('force-burn')
 
             spinner.text = 'Building force burn transaction...';
 
+            const permissionedBurnAuthority = options.permissionedBurnKeypair
+                ? await loadKeypair(options.permissionedBurnKeypair)
+                : undefined;
+
+            if (!rawTx) {
+                // The burn authority configured on the mint must co-sign. Without a matching
+                // signer the transaction would only fail at send time with a generic signature
+                // verification error, so validate up front. Raw mode is exempt since the
+                // co-signature can be added externally. When a keypair is supplied it must match
+                // the configured authority; otherwise the permanent delegate must double as it.
+                const expectedBurnAuthority = permissionedBurnAuthority?.address ?? authority.address;
+                const configuredBurnAuthority = await getPermissionedBurnAuthority(rpc, options.mintAddress as Address);
+                if (configuredBurnAuthority && configuredBurnAuthority !== expectedBurnAuthority) {
+                    throw new Error(
+                        permissionedBurnAuthority
+                            ? `Mint has permissioned burn enabled with authority ${configuredBurnAuthority}, which differs from the provided --permissioned-burn-keypair (${expectedBurnAuthority}).`
+                            : `Mint has permissioned burn enabled with authority ${configuredBurnAuthority}, which differs from the permanent delegate. Pass --permissioned-burn-keypair to co-sign the burn.`,
+                    );
+                }
+            }
+
             // Create force burn transaction
             const transaction = await createForceBurnTransaction(
                 rpc,
                 options.mintAddress as Address,
                 options.fromAccount as Address,
                 decimalAmount,
-                authority.address,
-                payer.address,
+                authority,
+                payer,
+                permissionedBurnAuthority,
             );
 
             const { raw, signature } = await sendOrOutputTransaction(

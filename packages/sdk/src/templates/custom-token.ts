@@ -49,6 +49,7 @@ export const createCustomTokenInitTransaction = async (
         enableMetadata?: boolean;
         enablePausable?: boolean;
         enablePermanentDelegate?: boolean;
+        enablePermissionedBurn?: boolean;
         enableDefaultAccountState?: boolean;
         enableConfidentialBalances?: boolean;
         enableScaledUiAmount?: boolean;
@@ -66,6 +67,7 @@ export const createCustomTokenInitTransaction = async (
         metadataAuthority?: Address;
         pausableAuthority?: Address;
         permanentDelegateAuthority?: Address;
+        permissionedBurnAuthority?: Address;
         confidentialBalancesAuthority?: Address;
         scaledUiAmountAuthority?: Address;
 
@@ -110,6 +112,7 @@ export const createCustomTokenInitTransaction = async (
     const metadataAuthority = options?.metadataAuthority || mintAuthorityAddress;
     const pausableAuthority = options?.pausableAuthority || mintAuthorityAddress;
     const permanentDelegateAuthority = options?.permanentDelegateAuthority || mintAuthorityAddress;
+    const permissionedBurnAuthority = options?.permissionedBurnAuthority || mintAuthorityAddress;
     const confidentialBalancesAuthority = options?.confidentialBalancesAuthority || mintAuthorityAddress;
     const scaledUiAmountAuthority = options?.scaledUiAmountAuthority || mintAuthorityAddress;
 
@@ -139,6 +142,11 @@ export const createCustomTokenInitTransaction = async (
     // Add Permanent Delegate extension
     if (options?.enablePermanentDelegate) {
         tokenBuilder = tokenBuilder.withPermanentDelegate(permanentDelegateAuthority);
+    }
+
+    // Add Permissioned Burn extension
+    if (options?.enablePermissionedBurn) {
+        tokenBuilder = tokenBuilder.withPermissionedBurn(permissionedBurnAuthority);
     }
 
     // Add Default Account State extension

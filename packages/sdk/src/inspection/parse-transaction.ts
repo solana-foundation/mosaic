@@ -208,6 +208,7 @@ const TOKEN_2022_CATEGORY: Record<Token2022Instruction, TokenInstructionCategory
     [Token2022Instruction.InitializeTransferFeeConfig]: 'mint-init',
     [Token2022Instruction.InitializeConfidentialTransferMint]: 'mint-init',
     [Token2022Instruction.InitializeConfidentialTransferFee]: 'mint-init',
+    [Token2022Instruction.InitializeConfidentialMintBurn]: 'mint-init',
     [Token2022Instruction.InitializeTransferHook]: 'mint-init',
     [Token2022Instruction.InitializePermissionedBurn]: 'mint-init',
     [Token2022Instruction.InitializeInterestBearingMint]: 'mint-init',
@@ -228,6 +229,8 @@ const TOKEN_2022_CATEGORY: Record<Token2022Instruction, TokenInstructionCategory
     [Token2022Instruction.UpdateRateInterestBearingMint]: 'mint-config-update',
     [Token2022Instruction.SetTransferFee]: 'mint-config-update',
     [Token2022Instruction.UpdateConfidentialTransferMint]: 'mint-config-update',
+    [Token2022Instruction.RotateSupplyElgamalPubkey]: 'mint-config-update',
+    [Token2022Instruction.UpdateConfidentialMintBurnDecryptableSupply]: 'mint-config-update',
     [Token2022Instruction.UpdateTransferHook]: 'mint-config-update',
     [Token2022Instruction.UpdateGroupPointer]: 'mint-config-update',
     [Token2022Instruction.UpdateGroupMemberPointer]: 'mint-config-update',
@@ -244,6 +247,10 @@ const TOKEN_2022_CATEGORY: Record<Token2022Instruction, TokenInstructionCategory
     [Token2022Instruction.BurnChecked]: 'supply',
     [Token2022Instruction.PermissionedBurn]: 'supply',
     [Token2022Instruction.PermissionedBurnChecked]: 'supply',
+    [Token2022Instruction.ConfidentialMint]: 'supply',
+    [Token2022Instruction.ConfidentialBurn]: 'supply',
+    [Token2022Instruction.ApplyConfidentialPendingBurn]: 'supply',
+    [Token2022Instruction.PermissionedConfidentialBurn]: 'supply',
 
     // Both directions map to 'freeze'; distinguish via token2022.instructionType.
     [Token2022Instruction.FreezeAccount]: 'freeze',
@@ -284,6 +291,7 @@ const TOKEN_2022_CATEGORY: Record<Token2022Instruction, TokenInstructionCategory
     [Token2022Instruction.DisableHarvestToMint]: 'fee-harvest',
 
     [Token2022Instruction.ConfigureConfidentialTransferAccount]: 'confidential-config',
+    [Token2022Instruction.ConfigureConfidentialTransferAccountWithRegistry]: 'confidential-config',
     [Token2022Instruction.ApproveConfidentialTransferAccount]: 'confidential-config',
     [Token2022Instruction.EmptyConfidentialTransferAccount]: 'confidential-config',
     [Token2022Instruction.ApplyConfidentialPendingBalance]: 'confidential-config',
@@ -301,6 +309,7 @@ const TOKEN_2022_CATEGORY: Record<Token2022Instruction, TokenInstructionCategory
     [Token2022Instruction.AmountToUiAmount]: 'other-token2022',
     [Token2022Instruction.UiAmountToAmount]: 'other-token2022',
     [Token2022Instruction.GetAccountDataSize]: 'other-token2022',
+    [Token2022Instruction.Batch]: 'other-token2022',
 };
 
 const TRANSFER_CATEGORIES: ReadonlySet<TokenInstructionCategory> = new Set(['transfer']);

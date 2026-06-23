@@ -497,6 +497,12 @@ describeSkipIf(true)('Templates Integration Tests', () => {
                                         delegate: payer.address,
                                     },
                                 },
+                                {
+                                    name: 'PermissionedBurn',
+                                    details: {
+                                        authority: payer.address,
+                                    },
+                                },
                             ],
                         },
                         DEFAULT_COMMITMENT,

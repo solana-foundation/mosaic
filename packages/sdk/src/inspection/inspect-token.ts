@@ -206,6 +206,19 @@ export async function inspectToken(
                     });
                     break;
 
+                case 'PermissionedBurn': {
+                    const permissionedBurnAuthority = ext.authority?.__option === 'Some' ? ext.authority.value : null;
+
+                    authorities.permissionedBurnAuthority = permissionedBurnAuthority;
+                    extensionDetails.authority = permissionedBurnAuthority;
+
+                    extensions.push({
+                        name: 'PermissionedBurn',
+                        details: extensionDetails,
+                    });
+                    break;
+                }
+
                 case 'ScaledUiAmountConfig':
                     extensionDetails.authority = ext.authority ? ext.authority : null;
                     extensionDetails.multiplier = ext.multiplier;
@@ -330,6 +343,7 @@ export function inspectionResultToDashboardData(inspection: TokenInspectionResul
         confidentialBalancesAuthority: authorities.confidentialBalancesAuthority?.toString(),
         permanentDelegateAuthority: authorities.permanentDelegateAuthority?.toString(),
         scaledUiAmountAuthority: authorities.scaledUiAmountAuthority?.toString(),
+        permissionedBurnAuthority: authorities.permissionedBurnAuthority?.toString(),
         freezeAuthority: authorities.freezeAuthority?.toString(),
 
         // Extensions list

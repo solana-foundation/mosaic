@@ -8,7 +8,11 @@ import {
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
 } from '@solana/kit';
-import { getBurnCheckedInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+    getBurnCheckedInstruction,
+    getPermissionedBurnCheckedInstruction,
+    TOKEN_2022_PROGRAM_ADDRESS,
+} from '@solana-program/token-2022';
 import {
     resolveTokenAccount,
     decimalAmountToRaw,
@@ -16,10 +20,15 @@ import {
     isDefaultAccountStateSetFrozen,
 } from '../transaction-util';
 import { getThawPermissionlessInstructions } from '../token-acl';
+import { getPermissionedBurnAuthority } from './permissioned-burn';
 
 /**
  * Creates a transaction to force burn tokens using the permanent delegate extension.
  * This allows the permanent delegate to burn tokens from any account regardless of approval.
+ *
+ * If the mint has the permissioned burn extension, the configured burn authority must
+ * co-sign. When the burn authority matches the permanent delegate (the template default),
+ * the delegate signer covers both roles; otherwise pass permissionedBurnAuthority.
  *
  * @param rpc - The Solana RPC client instance
  * @param mint - The mint address
@@ -27,6 +36,7 @@ import { getThawPermissionlessInstructions } from '../token-acl';
  * @param decimalAmount - The decimal amount to burn (e.g., 1.5)
  * @param permanentDelegate - The permanent delegate authority signer
  * @param feePayer - The fee payer signer
+ * @param permissionedBurnAuthority - Burn authority signer for permissioned burn mints
  * @returns A promise that resolves to a FullTransaction object for force burning tokens
  */
 export const createForceBurnTransaction = async (
@@ -36,6 +46,7 @@ export const createForceBurnTransaction = async (
     decimalAmount: number,
     permanentDelegate: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
+    permissionedBurnAuthority?: Address | TransactionSigner<string>,
 ): Promise<FullTransaction> => {
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
     const permanentDelegateSigner =
@@ -66,21 +77,48 @@ export const createForceBurnTransaction = async (
     }
 
     // Add force burn instruction using permanent delegate authority
-    // The permanent delegate can burn tokens without approval from the owner
-    instructions.push(
-        getBurnCheckedInstruction(
-            {
-                account: sourceTokenAccount,
-                mint,
-                authority: permanentDelegateSigner,
-                amount: rawAmount,
-                decimals,
-            },
-            {
-                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-            },
-        ),
-    );
+    // The permanent delegate can burn tokens without approval from the owner.
+    // Permissioned burn mints reject regular burns, so the burn authority co-signs there.
+    const configuredBurnAuthority = await getPermissionedBurnAuthority(rpc, mint);
+    if (configuredBurnAuthority) {
+        const permissionedBurnAuthoritySigner = permissionedBurnAuthority
+            ? typeof permissionedBurnAuthority === 'string'
+                ? createNoopSigner(permissionedBurnAuthority)
+                : permissionedBurnAuthority
+            : configuredBurnAuthority === permanentDelegateSigner.address
+              ? permanentDelegateSigner
+              : createNoopSigner(configuredBurnAuthority);
+        instructions.push(
+            getPermissionedBurnCheckedInstruction(
+                {
+                    account: sourceTokenAccount,
+                    mint,
+                    permissionedBurnAuthority: permissionedBurnAuthoritySigner,
+                    authority: permanentDelegateSigner,
+                    amount: rawAmount,
+                    decimals,
+                },
+                {
+                    programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+                },
+            ),
+        );
+    } else {
+        instructions.push(
+            getBurnCheckedInstruction(
+                {
+                    account: sourceTokenAccount,
+                    mint,
+                    authority: permanentDelegateSigner,
+                    amount: rawAmount,
+                    decimals,
+                },
+                {
+                    programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+                },
+            ),
+        );
+    }
 
     // Get latest blockhash for transaction
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
