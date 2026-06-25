@@ -20,3 +20,8 @@ export type {
     AclMode,
     ScaledUiAmountInfo,
 } from './types';
+export {
+    inspectConfidentialAccount,
+    type ConfidentialAccountInfo,
+    type InspectConfidentialAccountOptions,
+} from './inspect-confidential-account';
