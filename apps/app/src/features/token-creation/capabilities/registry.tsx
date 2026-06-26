@@ -6,6 +6,7 @@ export type CapabilityKey =
     | 'closedLoopAllowlistOnly'
     | 'pausable'
     | 'permanentDelegate'
+    | 'permissionedBurn'
     | 'confidentialBalances'
     | 'confidentialMintBurn'
     | 'scaledUIAmount'
@@ -18,6 +19,7 @@ export type ExtensionKey =
     | 'extDefaultAccountStateAllowOrBlock'
     | 'extDefaultAccountStateAllow'
     | 'extPermanentDelegate'
+    | 'extPermissionedBurn'
     | 'extConfidentialBalances'
     | 'extScaledUIAmount';
 
@@ -72,6 +74,12 @@ export const capabilityNodes: Record<CapabilityKey, ReactNode> = {
         <>
             <strong>Permanent delegate</strong>: Authority to transfer or burn any token from any account. Useful for
             compliance and managed UX flows.
+        </>
+    ),
+    permissionedBurn: (
+        <>
+            <strong>Permissioned burn</strong>: Burning requires approval from a designated burn authority, so tokens
+            cannot be destroyed without issuer consent.
         </>
     ),
     confidentialBalances: (
@@ -158,6 +166,15 @@ export const extensionNodes: Record<ExtensionKey, ReactNode> = {
             rel="noopener noreferrer"
         >
             Permanent Delegate
+        </a>
+    ),
+    extPermissionedBurn: (
+        <a
+            href="https://www.solana-program.com/docs/token-2022/extensions#permissioned-burn"
+            target="_blank"
+            rel="noopener noreferrer"
+        >
+            Permissioned Burn
         </a>
     ),
     extConfidentialBalances: (

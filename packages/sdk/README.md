@@ -99,7 +99,7 @@ await createArcadeTokenInitTransaction(
     feePayer,
 );
 
-// Tokenized security (stablecoin extensions + Scaled UI Amount)
+// Tokenized security (stablecoin extensions + Permissioned Burn + Scaled UI Amount)
 await createTokenizedSecurityInitTransaction(
     rpc,
     'Acme Series A',
@@ -156,6 +156,36 @@ const tx = await createForceTransferTransaction(
     feePayer,
 );
 ```
+
+### Burn and Permissioned Burn
+
+Mints with the permissioned burn extension reject regular burns: the configured burn authority must co-sign. `createBurnTransaction` and `createForceBurnTransaction` detect the extension automatically and route to the permissioned burn instruction, defaulting the co-signer to the authority configured on the mint.
+
+```ts
+import {
+    createBurnTransaction,
+    createPermissionedBurnTransaction,
+    getPermissionedBurnAuthority,
+} from '@solana/mosaic-sdk';
+
+// Self-burn (auto-detects permissioned burn; pass the authority signer if it isn't the owner)
+const tx = await createBurnTransaction(rpc, 'MintPubkey...', owner, 1.25, feePayer, burnAuthoritySigner);
+
+// Explicit permissioned burn from any account (owner + burn authority co-sign)
+const tx2 = await createPermissionedBurnTransaction(
+    rpc,
+    'MintPubkey...',
+    'FromWalletOrAta...',
+    1.25,
+    burnAuthoritySigner,
+    feePayer,
+);
+
+// Read the configured burn authority (null if the extension is absent or cleared)
+const authority = await getPermissionedBurnAuthority(rpc, 'MintPubkey...');
+```
+
+The burn authority can be rotated or removed with `getUpdateAuthorityTransaction` / `getRemoveAuthorityTransaction` using `AuthorityType.PermissionedBurn`; removing it re-enables regular burns.
 
 ## Access lists (ABL, SRFC-37)
 
