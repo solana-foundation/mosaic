@@ -103,6 +103,7 @@ export const createCustomTokenInitTransaction = async (
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
+    const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
 
     const useSrfc37 = options?.enableSrfc37 ?? false;
@@ -273,8 +274,8 @@ export const createCustomTokenInitTransaction = async (
         feePayer: feePayerSigner,
     });
 
-    // If SRFC-37 is not enabled or mint authority is not the fee payer, return simple transaction
-    if (mintAuthorityAddress !== feePayerSigner.address || !useSrfc37) {
+    // If SRFC-37 is not enabled, return a simple transaction (skip Token-ACL/ABL setup)
+    if (!useSrfc37) {
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
         return pipe(
             createTransactionMessage({ version: 0 }),
@@ -284,35 +285,42 @@ export const createCustomTokenInitTransaction = async (
         );
     }
 
-    // SRFC-37 setup: Create Token ACL configuration
+    // SRFC-37 setup: Create Token ACL configuration.
+    // The on-chain authority stays the mint authority so the derived config/list PDAs
+    // are keyed off custody and later custody-signed mutations (addToList, thaw)
+    // succeed. Account creation is funded by the fee payer via `payer`, allowing a
+    // sponsored (e.g. Kora) deploy where feePayer !== mintAuthority.
     const { instructions: createConfigInstructions } = await getCreateConfigInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
+        payer: feePayerSigner,
         mint: mintSigner.address,
         gatingProgram: ABL_PROGRAM_ID,
     });
 
     const setGatingProgramInstructions = await getSetGatingProgramInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
         mint: mintSigner.address,
         gatingProgram: ABL_PROGRAM_ID,
     });
 
     // Enable permissionless thaw
     const enablePermissionlessThawInstructions = await getEnablePermissionlessThawInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
         mint: mintSigner.address,
     });
 
     // Create list (allowlist or blocklist)
     const { instructions: createListInstructions, listConfig } = await getCreateListInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
+        payer: feePayerSigner,
         mint: mintSigner.address,
         mode: aclMode === 'allowlist' ? Mode.Allow : Mode.Block,
     });
 
     // Set extra metas
     const setExtraMetasInstructions = await getSetExtraMetasInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
+        payer: feePayerSigner,
         mint: mintSigner.address,
         lists: [listConfig],
     });
