@@ -57,6 +57,7 @@ export const createStablecoinInitTransaction = async (
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
+    const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
 
     aclMode = aclMode || 'blocklist';
     const useSrfc37 = enableSrfc37 ?? false;
@@ -91,7 +92,7 @@ export const createStablecoinInitTransaction = async (
         });
 
     // 2. create mintConfig (Token ACL) - only if SRFC-37 is enabled
-    if (mintAuthorityAddress !== feePayerSigner.address || !useSrfc37) {
+    if (!useSrfc37) {
         // Get latest blockhash for transaction
         const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
 
@@ -103,34 +104,41 @@ export const createStablecoinInitTransaction = async (
         ) as FullTransaction;
     }
 
+    // The on-chain authority for Token-ACL/ABL setup stays the mint authority so the
+    // derived config/list PDAs are keyed off custody and later custody-signed
+    // mutations (addToList, thaw) succeed. Account creation is funded by the fee
+    // payer via `payer`, allowing a sponsored (e.g. Kora) deploy where feePayer !== mintAuthority.
     const { instructions: createConfigInstructions } = await getCreateConfigInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
+        payer: feePayerSigner,
         mint: mintSigner.address,
         gatingProgram: ABL_PROGRAM_ID,
     });
 
     const setGatingProgramInstructions = await getSetGatingProgramInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
         mint: mintSigner.address,
         gatingProgram: ABL_PROGRAM_ID,
     });
 
     // 3. enable permissionless thaw (Token ACL)
     const enablePermissionlessThawInstructions = await getEnablePermissionlessThawInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
         mint: mintSigner.address,
     });
 
     // 4. create list (abl)
     const { instructions: createListInstructions, listConfig } = await getCreateListInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
+        payer: feePayerSigner,
         mint: mintSigner.address,
         mode: aclMode === 'allowlist' ? Mode.Allow : Mode.Block,
     });
 
     // 5. set extra metas (abl): this is how we can change the list associated with a given mint
     const setExtraMetasInstructions = await getSetExtraMetasInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
+        payer: feePayerSigner,
         mint: mintSigner.address,
         lists: [listConfig],
     });
