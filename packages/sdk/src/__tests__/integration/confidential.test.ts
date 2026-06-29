@@ -148,7 +148,10 @@ async function signSendConfirm(rpc: Rpc<SolanaRpcApi>, baseMessage: unknown): Pr
     for (let attempt = 0; attempt < 6; attempt++) {
         try {
             const { value: bh } = await withBackoff('getLatestBlockhash', () => rpc.getLatestBlockhash().send());
-            const message = setTransactionMessageLifetimeUsingBlockhash(bh, baseMessage as Parameters<typeof setTransactionMessageLifetimeUsingBlockhash>[1]);
+            const message = setTransactionMessageLifetimeUsingBlockhash(
+                bh,
+                baseMessage as Parameters<typeof setTransactionMessageLifetimeUsingBlockhash>[1],
+            );
             const signed = await signTransactionMessageWithSigners(message as FullTransaction);
             const signature = getSignatureFromTransaction(signed);
             const wire = getBase64EncodedWireTransaction(signed);
@@ -281,7 +284,10 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
         const txLog: Array<{ step: string; signature: string }> = [];
         const record = (step: string, signatures: Signature[]) =>
             signatures.forEach((signature, i) =>
-                txLog.push({ step: signatures.length > 1 ? `${step} [${i + 1}/${signatures.length}]` : step, signature }),
+                txLog.push({
+                    step: signatures.length > 1 ? `${step} [${i + 1}/${signatures.length}]` : step,
+                    signature,
+                }),
             );
         const step = async (label: string, feePayer: TransactionSigner, plan: InstructionPlan) =>
             record(label, await runPlan(client, feePayer, plan));

@@ -150,10 +150,7 @@ export function decryptConfidentialBalances(
     keys: ConfidentialKeys,
     options: { decryptPendingBalance?: boolean } = {},
 ): ConfidentialDecryptedBalances {
-    const availableBalance = decryptAesBalance(
-        keys.aes,
-        new Uint8Array(state.ciphertexts.decryptableAvailableBalance),
-    );
+    const availableBalance = decryptAesBalance(keys.aes, new Uint8Array(state.ciphertexts.decryptableAvailableBalance));
 
     const decrypted: ConfidentialDecryptedBalances = { availableBalance };
 

@@ -3,7 +3,11 @@ import { fetchEncodedAccount } from '@solana/kit';
 import { decodeToken, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { ElGamalKeypair, AeKey } from '@solana/zk-sdk/node';
 import { createMockRpc } from '../../__tests__/test-utils';
-import { fetchConfidentialAccountState, decryptConfidentialBalances, type ConfidentialAccountState } from '../account-state';
+import {
+    fetchConfidentialAccountState,
+    decryptConfidentialBalances,
+    type ConfidentialAccountState,
+} from '../account-state';
 import type { ConfidentialKeys } from '../keys';
 
 jest.mock('@solana/kit', () => ({
