@@ -21,6 +21,11 @@ export type {
     ScaledUiAmountInfo,
 } from './types';
 export {
+    inspectConfidentialAccount,
+    type ConfidentialAccountInfo,
+    type InspectConfidentialAccountOptions,
+} from './inspect-confidential-account';
+export {
     parseTokenTransaction,
     parseTokenTransactionWithLookups,
     parseConfirmedTransaction,
