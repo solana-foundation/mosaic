@@ -32,9 +32,9 @@ import {
     createEmptyConfidentialAccountInstructionPlan,
     deriveConfidentialKeysForOwnerMint,
     freeConfidentialKeys,
+    inspectConfidentialAccount,
     planConfidentialInstructions,
 } from '../../confidential';
-import { inspectConfidentialAccount } from '../../inspection';
 import type { FullTransaction } from '../../transaction-util';
 import type { Client } from './setup';
 import { airdropAndWait } from './chain-helpers';

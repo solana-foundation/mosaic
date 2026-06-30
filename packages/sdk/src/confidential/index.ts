@@ -59,3 +59,12 @@ export {
     type ConfidentialDecryptedBalances,
     type FetchConfidentialAccountStateOptions,
 } from './account-state';
+
+// Account-level inspector (counterpart to root `inspectToken`). Surfaced from
+// this WASM-bearing subpath rather than the root inspection barrel so root
+// imports stay free of the `@solana/zk-sdk` dependency.
+export {
+    inspectConfidentialAccount,
+    type ConfidentialAccountInfo,
+    type InspectConfidentialAccountOptions,
+} from '../inspection/inspect-confidential-account';
