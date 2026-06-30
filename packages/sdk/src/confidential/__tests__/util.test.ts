@@ -34,6 +34,23 @@ describe('tokenAmountToRaw', () => {
         });
     });
 
+    describe('rejects over-precision decimals instead of truncating', () => {
+        it('throws when the fractional part is longer than the mint decimals', () => {
+            // Would otherwise truncate to 1.999999 and build a different amount.
+            expect(() => tokenAmountToRaw('1.9999999', 6)).toThrow('Amount cannot have more than 6 decimal places');
+            expect(() => tokenAmountToRaw('1.1', 0)).toThrow('Amount cannot have more than 0 decimal places');
+        });
+
+        it('accepts a fractional part exactly at the decimals limit', () => {
+            expect(tokenAmountToRaw('1.999999', 6)).toBe(1_999_999n);
+            expect(tokenAmountToRaw('0.000001', 6)).toBe(1n);
+        });
+
+        it('accepts trailing-zero precision up to the limit', () => {
+            expect(tokenAmountToRaw('1.500000', 6)).toBe(1_500_000n);
+        });
+    });
+
     describe('u64 upper bound', () => {
         it('rejects a decimal string one above the u64 max', () => {
             expect(() => tokenAmountToRaw('18446744073.709551616', 9)).toThrow(
