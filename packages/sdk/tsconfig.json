@@ -5,7 +5,10 @@
         "rootDir": "./src",
         "noEmit": false,
         "moduleResolution": "bundler",
-        "composite": true
+        "composite": true,
+        "paths": {
+            "@solana/mosaic-sdk/_zk": ["./src/confidential/_zk.node.ts"]
+        }
     },
     "include": ["src/**/*"],
     "exclude": ["node_modules", "dist"]

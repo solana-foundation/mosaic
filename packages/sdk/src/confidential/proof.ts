@@ -4,7 +4,7 @@ import {
     PubkeyValidityProofData,
     ZeroCiphertextProofData,
     type ElGamalKeypair,
-} from '@solana/zk-sdk/node';
+} from '@solana/mosaic-sdk/_zk';
 import {
     verifyPubkeyValidity,
     verifyZeroCiphertext,

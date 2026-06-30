@@ -12,7 +12,14 @@ const mockWithdrawPlan = { kind: 'withdrawPlan' } as const;
 const mockTransferPlan = { kind: 'transferPlan' } as const;
 const mockApplyIx = { tag: 'applyIx' } as const;
 const mockSourceToken = { data: { kind: 'sourceTokenData' } };
-const mockDestToken = { data: { kind: 'destTokenData' } };
+const mockDestToken = {
+    data: {
+        kind: 'destTokenData',
+        // Destination must carry the ConfidentialTransferAccount extension or the
+        // transfer builder fails fast.
+        extensions: { __option: 'Some', value: [{ __kind: 'ConfidentialTransferAccount' }] },
+    },
+};
 const mockTokenByAddr: Record<string, unknown> = {};
 let mockMintExtensions: { __option: 'None' } | { __option: 'Some'; value: unknown[] } = { __option: 'None' };
 
@@ -23,7 +30,7 @@ jest.mock('@solana-program/token-2022', () => ({
     getConfidentialTransferInstructionPlan: jest.fn(async () => mockTransferPlan),
     getApplyConfidentialPendingBalanceInstructionFromToken: jest.fn(() => mockApplyIx),
     fetchToken: jest.fn(async (_rpc: unknown, addr: string) => mockTokenByAddr[addr]),
-    fetchMint: jest.fn(async () => ({ data: { extensions: mockMintExtensions } })),
+    fetchMint: jest.fn(async () => ({ data: { decimals: 6, extensions: mockMintExtensions } })),
 }));
 
 // Mock the bespoke proof + account-state plumbing used by empty-account.

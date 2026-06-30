@@ -24,6 +24,10 @@ export default {
     ],
     moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
+        // The confidential modules import the internal `@solana/mosaic-sdk/_zk`
+        // indirection (resolved via package `exports` conditions in real builds);
+        // under jest, resolve it to the node shim directly.
+        '^@solana/mosaic-sdk/_zk$': '<rootDir>/src/confidential/_zk.node.ts',
         // token-2022's CJS build imports the ESM+wasm bundler entry; use the CJS node build under jest
         '^@solana/zk-sdk/bundler$': '@solana/zk-sdk/node',
         '^@token-acl/sdk$': '<rootDir>/src/__mocks__/@mosaic/token-acl.ts',

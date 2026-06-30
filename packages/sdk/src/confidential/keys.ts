@@ -1,6 +1,6 @@
 import { type Address, type MessagePartialSigner, getAddressEncoder, signBytes } from '@solana/kit';
 import { deriveAeKeyForOwnerMint, deriveElGamalKeypairForOwnerMint } from '@solana-program/token-2022';
-import { ElGamalKeypair, AeKey, ElGamalSecretKey, ElGamalCiphertext, AeCiphertext } from '@solana/zk-sdk/node';
+import { ElGamalKeypair, AeKey, ElGamalSecretKey, ElGamalCiphertext, AeCiphertext } from '@solana/mosaic-sdk/_zk';
 
 /**
  * Confidential Transfer key derivation.

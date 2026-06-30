@@ -13,10 +13,46 @@ export function toAuthoritySigner(authority: Address | TransactionSigner): Trans
 /** An amount expressed either as a decimal string (e.g. `"1.5"`) or raw `bigint`. */
 export type TokenAmount = string | bigint;
 
+/** Largest token amount representable on-chain (`2^64 - 1`). */
+const U64_MAX = 18446744073709551615n;
+
 /**
- * Resolves a {@link TokenAmount} to a raw `bigint` using the mint's decimals.
- * `bigint` inputs are treated as already-raw; decimal strings are validated and
- * scaled by the mint decimals. Returns the resolved raw amount and the decimals.
+ * Validates and scales a {@link TokenAmount} to a raw `bigint` for a known
+ * number of mint `decimals` — without any RPC. `bigint` inputs are treated as
+ * already-raw; decimal strings are scaled by `decimals`.
+ *
+ * Decimal strings are scaled via {@link decimalAmountToRaw} on the raw string
+ * (no `parseFloat`): `parseFloat` accepts leading-numeric junk (`"1abc"`,
+ * `"1,5"`, `"1.2.3"`) and loses precision on large/u64-scale amounts, either of
+ * which would silently execute a different on-chain amount than the caller
+ * supplied. The result is bounds-checked to `(0, U64_MAX]`.
+ */
+export function tokenAmountToRaw(amount: TokenAmount, decimals: number): bigint {
+    let rawAmount: bigint;
+    if (typeof amount === 'bigint') {
+        rawAmount = amount;
+    } else {
+        const trimmed = amount.trim();
+        // Require a strict, fully-numeric decimal string; reject anything else.
+        if (!/^\d+(\.\d+)?$/.test(trimmed)) {
+            throw new Error('Amount must be a positive number');
+        }
+        rawAmount = decimalAmountToRaw(trimmed, decimals);
+    }
+    if (rawAmount <= 0n) {
+        throw new Error('Amount must be a positive number');
+    }
+    if (rawAmount > U64_MAX) {
+        throw new Error('Amount exceeds the maximum u64 token amount');
+    }
+    return rawAmount;
+}
+
+/**
+ * Resolves a {@link TokenAmount} to a raw `bigint`, fetching the mint to read
+ * its decimals. Returns the resolved raw amount and the decimals. When the mint
+ * has already been fetched, prefer {@link tokenAmountToRaw} to avoid a second
+ * RPC.
  */
 export async function resolveRawAmount(
     rpc: Rpc<SolanaRpcApi>,
@@ -24,15 +60,5 @@ export async function resolveRawAmount(
     amount: TokenAmount,
 ): Promise<{ rawAmount: bigint; decimals: number }> {
     const { decimals } = await getMintDetails(rpc, mint);
-    if (typeof amount === 'bigint') {
-        if (amount <= 0n) {
-            throw new Error('Amount must be a positive number');
-        }
-        return { rawAmount: amount, decimals };
-    }
-    const decimalAmount = parseFloat(amount);
-    if (isNaN(decimalAmount) || decimalAmount <= 0) {
-        throw new Error('Amount must be a positive number');
-    }
-    return { rawAmount: decimalAmountToRaw(decimalAmount, decimals), decimals };
+    return { rawAmount: tokenAmountToRaw(amount, decimals), decimals };
 }

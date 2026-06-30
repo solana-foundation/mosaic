@@ -15,5 +15,7 @@ export * from './token-acl';
 export * from './token';
 export * from './transfer';
 export * from './inspection';
-export * from './confidential';
+// NOTE: confidential transfers are intentionally NOT re-exported here. They pull
+// in the `@solana/zk-sdk` WASM crypto dependency, which has no isomorphic build.
+// Import them from the dedicated subpath instead: `@solana/mosaic-sdk/confidential`.
 export * from './mmf';

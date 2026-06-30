@@ -14,6 +14,16 @@
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
+        },
+        "./confidential": {
+            "types": "./dist/confidential/index.d.ts",
+            "import": "./dist/confidential/index.js"
+        },
+        "./_zk": {
+            "types": "./dist/confidential/_zk.node.d.ts",
+            "browser": "./dist/confidential/_zk.browser.js",
+            "node": "./dist/confidential/_zk.node.js",
+            "default": "./dist/confidential/_zk.node.js"
         }
     },
     "files": [

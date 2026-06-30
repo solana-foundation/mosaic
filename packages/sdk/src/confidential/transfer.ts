@@ -8,26 +8,37 @@ import {
 } from '@solana/kit';
 import { fetchMint, fetchToken, getConfidentialTransferInstructionPlan } from '@solana-program/token-2022';
 import type { ConfidentialKeys } from './keys';
-import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util';
+import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
+
+type DecodedMint = Awaited<ReturnType<typeof fetchMint>>;
+type DecodedToken = Awaited<ReturnType<typeof fetchToken>>;
 
 /**
  * Reads the auditor ElGamal pubkey configured on the mint's
  * `ConfidentialTransferMint` extension (or `undefined` if none). When a mint has
  * an auditor, every confidential transfer must encrypt the amount to it, so this
- * is folded into the transfer automatically.
+ * is folded into the transfer automatically. Takes an already-decoded mint to
+ * avoid a redundant fetch.
  */
-async function getMintAuditorElgamalPubkey(rpc: Rpc<SolanaRpcApi>, mint: Address): Promise<Address | undefined> {
-    const decoded = await fetchMint(rpc, mint);
-    if (decoded.data.extensions.__option !== 'Some') {
+function getMintAuditorElgamalPubkey(mint: DecodedMint): Address | undefined {
+    if (mint.data.extensions.__option !== 'Some') {
         return undefined;
     }
-    const ext = decoded.data.extensions.value.find(
+    const ext = mint.data.extensions.value.find(
         (e): e is Extract<typeof e, { __kind: 'ConfidentialTransferMint' }> => e.__kind === 'ConfidentialTransferMint',
     );
     if (!ext || ext.auditorElgamalPubkey.__option !== 'Some') {
         return undefined;
     }
     return ext.auditorElgamalPubkey.value;
+}
+
+/** Whether a decoded token account carries the `ConfidentialTransferAccount` extension. */
+function isConfidentialTransferAccount(token: DecodedToken): boolean {
+    return (
+        token.data.extensions.__option === 'Some' &&
+        token.data.extensions.value.some((e) => e.__kind === 'ConfidentialTransferAccount')
+    );
 }
 
 /**
@@ -65,13 +76,24 @@ export async function createConfidentialTransferInstructionPlan(input: {
     /** Override the auditor pubkey; defaults to the mint's configured auditor. */
     auditorElgamalPubkey?: Address;
 }): Promise<InstructionPlan> {
-    const { rawAmount } = await resolveRawAmount(input.rpc, input.mint, input.amount);
-    const [sourceDecoded, destinationDecoded] = await Promise.all([
+    const [mintDecoded, sourceDecoded, destinationDecoded] = await Promise.all([
+        fetchMint(input.rpc, input.mint),
         fetchToken(input.rpc, input.sourceToken),
         fetchToken(input.rpc, input.destinationToken),
     ]);
-    const auditorElgamalPubkey =
-        input.auditorElgamalPubkey ?? (await getMintAuditorElgamalPubkey(input.rpc, input.mint));
+
+    // Fail fast with an actionable message rather than letting the upstream
+    // extension extraction throw deep in the stack.
+    if (!isConfidentialTransferAccount(destinationDecoded)) {
+        throw new Error(
+            `Destination token account ${input.destinationToken} is not configured for confidential transfers. ` +
+                `Configure it first with createConfigureConfidentialAccountInstructionPlan.`,
+        );
+    }
+
+    // Single mint fetch above feeds both the amount scaling and the auditor.
+    const rawAmount = tokenAmountToRaw(input.amount, mintDecoded.data.decimals);
+    const auditorElgamalPubkey = input.auditorElgamalPubkey ?? getMintAuditorElgamalPubkey(mintDecoded);
 
     return getConfidentialTransferInstructionPlan({
         rpc: input.rpc,

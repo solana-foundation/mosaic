@@ -63,5 +63,8 @@ export async function createEmptyConfidentialAccountInstructionPlan(input: {
         proofInstructionOffset: -1,
     });
 
-    return nonDivisibleSequentialInstructionPlan([...proof.setup, emptyIx]);
+    // `cleanup` is empty in sibling mode (the path used here), but thread it
+    // through anyway so the context-account rent is never leaked if a
+    // context-state proof ever flows through `buildZeroCiphertextProofIxs`.
+    return nonDivisibleSequentialInstructionPlan([...proof.setup, emptyIx, ...proof.cleanup]);
 }
