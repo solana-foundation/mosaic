@@ -37,7 +37,13 @@ export async function createConfigureConfidentialAccountInstructionPlan(input: {
     keys: ConfidentialKeys;
     /** Explicit token account address; defaults to the owner's ATA. */
     token?: Address;
-    /** Authority for the configure instruction; defaults to the owner. */
+    /**
+     * Authority for the configure instruction. **Must resolve to the same
+     * address as `owner`**: the upstream Token-2022 ATA helper asserts
+     * `authority === owner` and throws otherwise. Defaults to `owner`; pass this
+     * only to supply the owner's `TransactionSigner` when `owner` was given as a
+     * bare `Address`.
+     */
     authority?: Address | TransactionSigner;
     /** Max pending credits before `ApplyPendingBalance` must be run. */
     maximumPendingBalanceCreditCounter?: number | bigint;
