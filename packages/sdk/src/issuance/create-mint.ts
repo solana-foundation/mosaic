@@ -29,7 +29,11 @@ import { createUpdateFieldInstruction } from './create-update-field-instruction'
  *     (`autoApproveNewAccounts = true`).
  *   - `'whitelist'` — a holder's account must be approved by the confidential
  *     authority before use (`autoApproveNewAccounts = false`).
- *   - `'disabled'` — the extension is not added to the mint at all.
+ *   - `'disabled'` — the extension is still added (so confidential transfers can
+ *     be enabled later) but left in the gated, not-yet-enabled state
+ *     (`autoApproveNewAccounts = false`, identical on-chain to `'whitelist'`).
+ *     The extension cannot be added after mint creation, so this preserves the
+ *     option to enable it later rather than skipping it entirely.
  */
 export type ConfidentialApprovePolicy = 'opt-in' | 'whitelist' | 'disabled';
 
@@ -123,7 +127,10 @@ export class Token {
      *     for confidential transfers (`autoApproveNewAccounts = true`).
      *   - `'whitelist'` (the default): a holder's account must be approved by the
      *     confidential authority before it can be used (`autoApproveNewAccounts = false`).
-     *   - `'disabled'`: the extension is not added at all (this method is a no-op).
+     *   - `'disabled'`: the extension is still added, but left unenabled — gated
+     *     exactly like `'whitelist'` (`autoApproveNewAccounts = false`). Because
+     *     the extension can't be added after the mint exists, this keeps the door
+     *     open to enabling confidential transfers later instead of skipping it.
      *
      * An optional **auditor** ElGamal public key lets a designated party decode
      * every confidential transfer amount for compliance.
@@ -139,11 +146,9 @@ export class Token {
             typeof authorityOrOptions === 'string' ? { authority: authorityOrOptions } : authorityOrOptions;
         const { authority, policy = 'whitelist', auditorElgamalPubkey = null } = options;
 
-        // 'disabled' → do not add the extension.
-        if (policy === 'disabled') {
-            return this;
-        }
-
+        // The extension is always added (it can't be added post-creation). Only
+        // `'opt-in'` auto-approves new accounts; `'whitelist'` and `'disabled'`
+        // leave it gated (unenabled), to be enabled later by the authority.
         const confidentialBalancesExtension = extension('ConfidentialTransferMint', {
             authority: some(authority),
             autoApproveNewAccounts: policy === 'opt-in',
