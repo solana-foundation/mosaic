@@ -278,6 +278,24 @@ describe('confidential operation builders', () => {
                 expect.objectContaining({ auditorElgamalPubkey: AUDITOR }),
             );
         });
+
+        it('fails fast when the destination is not configured for confidential transfers', async () => {
+            // A plain ATA with no ConfidentialTransferAccount extension.
+            mockTokenByAddr[DEST_TOKEN] = { data: { kind: 'plainAta', extensions: { __option: 'None' } } };
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    mint: MINT,
+                    sourceToken: SOURCE_TOKEN,
+                    destinationToken: DEST_TOKEN,
+                    authority: AUTHORITY,
+                    amount: '3',
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(/not configured for confidential transfers/);
+            expect(getConfidentialTransferInstructionPlan).not.toHaveBeenCalled();
+        });
     });
 
     describe('empty-account', () => {
