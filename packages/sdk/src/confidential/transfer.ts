@@ -37,7 +37,7 @@ function getMintAuditorElgamalPubkey(mint: DecodedMint): Address | undefined {
 function isConfidentialTransferAccount(token: DecodedToken): boolean {
     return (
         token.data.extensions.__option === 'Some' &&
-        token.data.extensions.value.some((e) => e.__kind === 'ConfidentialTransferAccount')
+        token.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferAccount')
     );
 }
 

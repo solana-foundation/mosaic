@@ -23,7 +23,7 @@ describe('tokenAmountToRaw', () => {
     describe('rejects malformed decimal strings', () => {
         it.each(['1abc', '1,5', '1.2.3', '1.', '.5', '-1', '', '   ', 'abc', '1e5'])(
             'throws on %p instead of silently truncating',
-            (bad) => {
+            bad => {
                 expect(() => tokenAmountToRaw(bad, 6)).toThrow('Amount must be a positive number');
             },
         );
