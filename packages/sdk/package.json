@@ -23,7 +23,7 @@
             "types": "./dist/confidential/_zk.node.d.ts",
             "browser": "./dist/confidential/_zk.browser.js",
             "node": "./dist/confidential/_zk.node.js",
-            "default": "./dist/confidential/_zk.node.js"
+            "default": "./dist/confidential/_zk.browser.js"
         }
     },
     "files": [
