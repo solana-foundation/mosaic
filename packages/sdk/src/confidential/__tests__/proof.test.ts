@@ -22,6 +22,7 @@ jest.mock('@solana-program/zk-elgamal-proof', () => ({
     closeContextStateProof: jest.fn(() => ({ tag: 'close' })),
 }));
 
+import { ElGamalCiphertext } from '@solana/zk-sdk/node';
 import {
     verifyPubkeyValidity,
     verifyCiphertextCommitmentEquality,
@@ -97,6 +98,18 @@ describe('proof instruction builders', () => {
             expect(tag(result.setup)).toEqual(['verifyZero']);
             expect(mockZeroProof.free).toHaveBeenCalledTimes(1);
             expect(mockCiphertext.free).toHaveBeenCalledTimes(1);
+        });
+
+        it('throws on a malformed ciphertext', async () => {
+            (ElGamalCiphertext.fromBytes as jest.Mock).mockReturnValueOnce(null);
+            await expect(
+                buildZeroCiphertextProofIxs({
+                    rpc,
+                    payer,
+                    elgamal: {} as never,
+                    ciphertext: new Uint8Array(8),
+                }),
+            ).rejects.toThrow(/ElGamal ciphertext/);
         });
     });
 

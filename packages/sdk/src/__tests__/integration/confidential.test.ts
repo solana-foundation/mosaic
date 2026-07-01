@@ -449,6 +449,12 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
                     keys: recipientKeys,
                 }),
             );
+
+            // The account still exists (empty zeroes the balance, it doesn't
+            // close the account) and its available balance decrypts to zero.
+            const recipientAfterEmpty = await inspectConfidentialAccount(rpc, recipientAta, recipientKeys);
+            expect(recipientAfterEmpty).not.toBeNull();
+            expect(recipientAfterEmpty?.decrypted?.availableBalance).toBe(0n);
         } finally {
             freeConfidentialKeys(senderKeys);
             freeConfidentialKeys(recipientKeys);

@@ -124,4 +124,10 @@ describe('balance decryption round-trips', () => {
         expect(() => decryptAesBalance(aes, new Uint8Array(8))).toThrow(/AES ciphertext/);
         aes.free();
     });
+
+    it('decryptElGamalBalance throws on a malformed ciphertext', () => {
+        const elgamal = ElGamalKeypair.fromSeed(new Uint8Array(32).fill(10));
+        expect(() => decryptElGamalBalance(elgamal, new Uint8Array(8))).toThrow(/ElGamal ciphertext/);
+        elgamal.free();
+    });
 });

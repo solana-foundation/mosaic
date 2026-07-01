@@ -73,8 +73,11 @@ const AUDITOR = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' as Address;
 
 // A structural stand-in for ConfidentialKeys (the helpers are mocked, so the
 // real WASM objects are never used — apply just needs `elgamal.secret()`).
+// `secret()` returns a single memoized object so tests can assert its WASM
+// `free()` was called (cleared each test via `jest.clearAllMocks()`).
+const fakeElgamalSecret = { free: jest.fn() };
 const fakeKeys = {
-    elgamal: { secret: () => ({ free: jest.fn() }) },
+    elgamal: { secret: () => fakeElgamalSecret },
     aes: { tag: 'aes' },
 } as unknown as ConfidentialKeys;
 
@@ -190,6 +193,8 @@ describe('confidential operation builders', () => {
                     aesKey: fakeKeys.aes,
                 }),
             );
+            // The `finally` block frees the ElGamal secret's WASM memory.
+            expect(fakeElgamalSecret.free).toHaveBeenCalled();
         });
     });
 

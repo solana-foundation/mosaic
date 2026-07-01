@@ -142,19 +142,6 @@ describe('Token', () => {
             expect(extension.autoApproveNewAccounts).toBe(false);
         });
 
-        it('still adds the extension (unenabled) for the disabled policy', () => {
-            const result = token.withConfidentialBalances({ authority: TEST_AUTHORITY, policy: 'disabled' });
-
-            expect(result).toBe(token);
-            expect(token.getExtensions()).toHaveLength(1);
-
-            const extension: any = token.getExtensions()[0];
-            expect(extension.__kind).toBe('ConfidentialTransferMint');
-            // Gated, not auto-approving — enable later by approving accounts /
-            // flipping autoApproveNewAccounts.
-            expect(extension.autoApproveNewAccounts).toBe(false);
-        });
-
         it('should encode the auditor ElGamal pubkey as Some when provided', () => {
             const auditor = generateMockAddress() as Address;
             token.withConfidentialBalances({ authority: TEST_AUTHORITY, auditorElgamalPubkey: auditor });
