@@ -34,8 +34,10 @@ export async function createConfidentialWithdrawInstructionPlan(input: {
     /** ElGamal keypair + AES key for this account. */
     keys: ConfidentialKeys;
 }): Promise<InstructionPlan> {
-    const { rawAmount, decimals } = await resolveRawAmount(input.rpc, input.mint, input.amount);
-    const decoded = await fetchToken(input.rpc, input.tokenAccount);
+    const [{ rawAmount, decimals }, decoded] = await Promise.all([
+        resolveRawAmount(input.rpc, input.mint, input.amount),
+        fetchToken(input.rpc, input.tokenAccount),
+    ]);
 
     return getConfidentialWithdrawInstructionPlan({
         rpc: input.rpc,

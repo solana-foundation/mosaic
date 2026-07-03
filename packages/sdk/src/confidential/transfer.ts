@@ -41,6 +41,26 @@ function isConfidentialTransferAccount(token: DecodedToken): boolean {
     );
 }
 
+/** Whether a decoded mint carries the `ConfidentialTransferMint` extension. */
+function isConfidentialTransferMint(mint: DecodedMint): boolean {
+    return (
+        mint.data.extensions.__option === 'Some' &&
+        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferMint')
+    );
+}
+
+/**
+ * Whether a decoded mint carries the `ConfidentialTransferFee` extension. Such
+ * mints require the fee-aware confidential transfer variant, which this helper
+ * does not yet build.
+ */
+function mintHasConfidentialTransferFee(mint: DecodedMint): boolean {
+    return (
+        mint.data.extensions.__option === 'Some' &&
+        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferFee')
+    );
+}
+
 /**
  * Confidentially transfers tokens from one account to another. Wraps the
  * official `getConfidentialTransferInstructionPlan`, which splits the amount into
@@ -82,8 +102,27 @@ export async function createConfidentialTransferInstructionPlan(input: {
         fetchToken(input.rpc, input.destinationToken),
     ]);
 
-    // Fail fast with an actionable message rather than letting the upstream
-    // extension extraction throw deep in the stack.
+    // Fail fast with actionable messages rather than letting the upstream
+    // helpers throw deep in the stack. The mint must be confidential-transfer
+    // configured...
+    if (!isConfidentialTransferMint(mintDecoded)) {
+        throw new Error(
+            `Mint ${input.mint} is not configured for confidential transfers ` +
+                `(missing the ConfidentialTransferMint extension).`,
+        );
+    }
+
+    // ...and this helper only builds the standard (no-fee) confidential
+    // transfer. A mint carrying `ConfidentialTransferFee` needs the fee-aware
+    // variant, so fail fast rather than silently building a rejected plan.
+    if (mintHasConfidentialTransferFee(mintDecoded)) {
+        throw new Error(
+            `Mint ${input.mint} is configured with confidential transfer fees; ` +
+                `the fee-aware confidential transfer variant is not yet supported.`,
+        );
+    }
+
+    // The destination must be able to receive a confidential balance.
     if (!isConfidentialTransferAccount(destinationDecoded)) {
         throw new Error(
             `Destination token account ${input.destinationToken} is not configured for confidential transfers. ` +

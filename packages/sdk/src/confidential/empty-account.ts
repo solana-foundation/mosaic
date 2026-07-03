@@ -4,17 +4,14 @@ import {
     type Rpc,
     type SolanaRpcApi,
     type TransactionSigner,
-    address,
     nonDivisibleSequentialInstructionPlan,
 } from '@solana/kit';
 import { getEmptyConfidentialTransferAccountInstruction } from '@solana-program/token-2022';
+import { SYSVAR_INSTRUCTIONS_ADDRESS } from '@solana/sysvars';
 import type { ConfidentialKeys } from './keys';
 import { fetchConfidentialAccountState } from './account-state';
 import { buildZeroCiphertextProofIxs } from './proof';
 import { toAuthoritySigner } from './util';
-
-/** The Instructions sysvar — referenced by sibling-mode proof verification. */
-const SYSVAR_INSTRUCTIONS_ADDRESS = address('Sysvar1nstructions1111111111111111111111111');
 
 /**
  * Empties a confidential token account's **available** balance so it can be
