@@ -87,7 +87,12 @@ describe('confidential operation builders', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockMintExtensions = { __option: 'None' };
+        // Default to a valid confidential-transfer mint with no auditor; tests
+        // that exercise the auditor path override this.
+        mockMintExtensions = {
+            __option: 'Some',
+            value: [{ __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } }],
+        };
         mockTokenByAddr[SOURCE_TOKEN] = mockSourceToken;
         mockTokenByAddr[DEST_TOKEN] = mockDestToken;
         rpc = createMockRpc();
