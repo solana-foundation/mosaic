@@ -23,6 +23,31 @@ import {
 } from '@solana-program/token-2022';
 import { createUpdateFieldInstruction } from './create-update-field-instruction';
 
+/**
+ * The issuer's "how is the confidential-transfer extension enabled" setting:
+ *   - `'opt-in'` — any holder can permissionlessly configure their own account
+ *     (`autoApproveNewAccounts = true`).
+ *   - `'whitelist'` — a holder's account must be approved by the confidential
+ *     authority before use (`autoApproveNewAccounts = false`).
+ *
+ * To not enable confidential transfers at all, simply omit
+ * {@link Token.withConfidentialBalances} (the extension can't be added after
+ * mint creation).
+ */
+export type ConfidentialApprovePolicy = 'opt-in' | 'whitelist';
+
+export interface ConfidentialBalancesOptions {
+    /** Authority allowed to update the config and approve accounts. */
+    authority: Address;
+    /** Enable setting. Defaults to `'whitelist'`. */
+    policy?: ConfidentialApprovePolicy;
+    /**
+     * Optional auditor ElGamal public key allowed to decode every confidential
+     * transfer amount (compliance). Defaults to none.
+     */
+    auditorElgamalPubkey?: Address | null;
+}
+
 export class Token {
     private extensions: Extension[] = [];
     private confidentialTransferFeeConfig?: {
@@ -92,11 +117,36 @@ export class Token {
         return this;
     }
 
-    withConfidentialBalances(authority: Address): Token {
+    /**
+     * Adds the ConfidentialTransferMint extension to the mint, enabling
+     * confidential (encrypted) balances and transfers.
+     *
+     * The **policy** is the issuer-facing enable setting:
+     *   - `'opt-in'`: any holder can permissionlessly configure their own account
+     *     for confidential transfers (`autoApproveNewAccounts = true`).
+     *   - `'whitelist'` (the default): a holder's account must be approved by the
+     *     confidential authority before it can be used (`autoApproveNewAccounts = false`).
+     *
+     * An optional **auditor** ElGamal public key lets a designated party decode
+     * every confidential transfer amount for compliance.
+     *
+     * Backwards-compatible: pass a bare `Address` to set the authority with the
+     * default (`'whitelist'`, no auditor) policy.
+     *
+     * @param authorityOrOptions - the confidential authority address, or an
+     *   options object `{ authority, policy?, auditorElgamalPubkey? }`.
+     */
+    withConfidentialBalances(authorityOrOptions: Address | ConfidentialBalancesOptions): Token {
+        const options: ConfidentialBalancesOptions =
+            typeof authorityOrOptions === 'string' ? { authority: authorityOrOptions } : authorityOrOptions;
+        const { authority, policy = 'whitelist', auditorElgamalPubkey = null } = options;
+
+        // Only `'opt-in'` auto-approves new accounts; `'whitelist'` leaves the
+        // extension gated, to be enabled later by the authority.
         const confidentialBalancesExtension = extension('ConfidentialTransferMint', {
             authority: some(authority),
-            autoApproveNewAccounts: false,
-            auditorElgamalPubkey: null,
+            autoApproveNewAccounts: policy === 'opt-in',
+            auditorElgamalPubkey: auditorElgamalPubkey ? some(auditorElgamalPubkey) : null,
         });
         this.extensions.push(confidentialBalancesExtension as Extension);
         return this;

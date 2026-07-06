@@ -76,6 +76,7 @@ describe('inspectToken', () => {
                                 __kind: 'ConfidentialTransferMint',
                                 authority: { __option: 'Some', value: mockAuthority },
                                 autoApproveNewAccounts: true,
+                                auditorElgamalPubkey: { __option: 'Some', value: mockAuthority },
                             },
                             {
                                 __kind: 'PausableConfig',
@@ -102,6 +103,10 @@ describe('inspectToken', () => {
             expect(result.isPausable).toBe(true);
             expect(result.aclMode).toEqual('blocklist');
             expect(result.extensions).toHaveLength(5); // 5 extensions
+
+            const confidentialExt = result.extensions.find(e => e.name === 'ConfidentialTransferMint');
+            expect(confidentialExt?.details?.autoApproveNewAccounts).toBe(true);
+            expect(confidentialExt?.details?.auditorElgamalPubkey).toEqual(mockAuthority);
         });
 
         it('should correctly parse an arcade token', async () => {

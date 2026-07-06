@@ -54,17 +54,22 @@ export const transactionToB64 = (transaction: FullTransaction): string => {
 /**
  * Converts a decimal amount to raw token amount based on mint decimals
  *
- * @param decimalAmount - The decimal amount (e.g., 1.5)
+ * Prefer passing a `string`: a `number` is stringified first, which loses
+ * precision for large (u64-scale) amounts and renders values >= 1e21 in
+ * exponential form. A `string` is scaled digit-by-digit with no float round-trip.
+ *
+ * @param decimalAmount - The decimal amount (e.g., `1.5` or `"1.5"`)
  * @param decimals - The number of decimals the token has
  * @returns The raw token amount as bigint
  */
-export function decimalAmountToRaw(decimalAmount: number, decimals: number): bigint {
+export function decimalAmountToRaw(decimalAmount: number | string, decimals: number): bigint {
     if (decimals < 0 || decimals > 9) {
         throw new Error('Decimals must be between 0 and 9');
     }
 
-    // Convert to string to avoid floating-point precision issues
-    const amountStr = decimalAmount.toString();
+    // Use the string form directly when given one (no float precision loss);
+    // otherwise stringify the number.
+    const amountStr = typeof decimalAmount === 'string' ? decimalAmount : decimalAmount.toString();
 
     // Reject negative amounts
     if (amountStr.startsWith('-')) {

@@ -14,6 +14,16 @@
         ".": {
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js"
+        },
+        "./confidential": {
+            "types": "./dist/confidential/index.d.ts",
+            "import": "./dist/confidential/index.js"
+        },
+        "./_zk": {
+            "types": "./dist/confidential/_zk.node.d.ts",
+            "browser": "./dist/confidential/_zk.browser.js",
+            "node": "./dist/confidential/_zk.node.js",
+            "default": "./dist/confidential/_zk.browser.js"
         }
     },
     "files": [
@@ -32,10 +42,11 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@solana/kit": "^5.0.0",
         "@solana-program/memo": "^0.10.0",
         "@solana-program/system": "^0.10.0",
         "@solana-program/token-2022": "^0.10.0",
+        "@solana-program/zk-elgamal-proof": "0.1.0",
+        "@solana/kit": "^5.0.0",
         "@solana/sysvars": "^5.0.0",
         "@solana/zk-sdk": "^0.4.2",
         "@solana/token-acl-gate-sdk": "^0.2.0",

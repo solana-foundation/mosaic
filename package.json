@@ -48,6 +48,7 @@
     },
     "packageManager": "pnpm@10.24.0",
     "pnpm": {
+        "_dependencyNotes": "These overrides pin the whole workspace onto the Solana Kit v5 ecosystem. @solana-program/token-2022@0.10.0 declares a Kit v6 peer range but is verified to run against v5, so every @solana/* package is forced to ^5.0.0 for a single consistent resolution. The @solana-program/* pins (compute-budget, system, and zk-elgamal-proof's transitive system dep) keep the program libraries on their Kit-v5-compatible releases. See packages/sdk/package.json `_dependencyNotes`.",
         "overrides": {
             "@solana/accounts": "^5.0.0",
             "@solana/addresses": "^5.0.0",
@@ -59,7 +60,8 @@
             "@solana/keys": "^5.0.0",
             "@solana/codecs": "^5.0.0",
             "@solana-program/compute-budget": "^0.11.0",
-            "@solana-program/system": "^0.10.0"
+            "@solana-program/system": "^0.10.0",
+            "@solana-program/zk-elgamal-proof>@solana-program/system": "0.10.0"
         }
     }
 }

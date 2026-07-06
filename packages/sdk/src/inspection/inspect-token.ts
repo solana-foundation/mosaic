@@ -185,6 +185,8 @@ export async function inspectToken(
                     authorities.confidentialBalancesAuthority = confidentialAuthority;
                     extensionDetails.authority = confidentialAuthority;
                     extensionDetails.autoApproveNewAccounts = ext.autoApproveNewAccounts;
+                    extensionDetails.auditorElgamalPubkey =
+                        ext.auditorElgamalPubkey?.__option === 'Some' ? ext.auditorElgamalPubkey.value : null;
 
                     extensions.push({
                         name: 'ConfidentialTransferMint',
