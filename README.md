@@ -68,7 +68,7 @@ See the [sdk readme](packages/sdk/README.md) for detailed docs
 
 ```typescript
 import { createStablecoinInitTransaction, createArcadeTokenInitTransaction } from '@solana/mosaic-sdk';
-import { createSolanaRpc, generateKeyPairSigner } from 'gill';
+import { createSolanaRpc, generateKeyPairSigner } from '@solana/kit';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
 const authority = await generateKeyPairSigner();

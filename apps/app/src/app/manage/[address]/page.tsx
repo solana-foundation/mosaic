@@ -145,7 +145,7 @@ function ManageTokenConnected({ address }: { address: string }) {
         }, 600);
     };
 
-    // Use the connector signer hook which provides a gill-compatible transaction signer
+    // Use the connector signer hook which provides a kit-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
 
     useEffect(() => {

@@ -222,7 +222,7 @@ pnpm lint && pnpm lint:fix
 
 ## Notes
 
-- This CLI uses `gill` under the hood for RPC and SPL helpers.
+- This CLI uses `@solana/kit` for RPC and `@solana-program/token-2022` for SPL Token-2022 helpers.
 - Command output includes addresses and signatures suitable for copy/paste.
 
 ## License

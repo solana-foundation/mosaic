@@ -135,7 +135,7 @@ export async function getTokenAuthorities(mintAddress: string, rpcUrl?: string):
         throw new Error(`Not a Token-2022 mint (owner: ${encodedAccount.programAddress})`);
     }
 
-    // Decode mint data using gill's decodeMint
+    // Decode mint data using `@solana-program/token-2022`'s `decodeMint`
     const decodedMint = decodeMint(encodedAccount);
 
     // Extract basic authorities
