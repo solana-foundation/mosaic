@@ -198,7 +198,7 @@ import {
     getRemoveWalletTransaction,
     getList,
 } from '@solana/mosaic-sdk';
-import { generateKeyPairSigner } from 'gill';
+import { generateKeyPairSigner } from '@solana/kit';
 
 const authority = await generateKeyPairSigner();
 const payer = authority;
@@ -300,7 +300,7 @@ await getThawPermissionlessTransaction({
 
 ```ts
 import { getUpdateAuthorityTransaction } from '@solana/mosaic-sdk';
-import { AuthorityType } from 'gill/programs/token';
+import { AuthorityType } from '@solana-program/token-2022';
 
 // Transfer freeze authority to a new address
 await getUpdateAuthorityTransaction({
