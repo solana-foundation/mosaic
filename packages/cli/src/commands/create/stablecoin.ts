@@ -1,6 +1,11 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { ABL_PROGRAM_ID, createStablecoinInitTransaction, TOKEN_ACL_PROGRAM_ID } from '@solana/mosaic-sdk';
+import {
+    ABL_PROGRAM_ID,
+    createStablecoinInitTransaction,
+    TOKEN_ACL_PROGRAM_ID,
+    type ConfidentialApprovePolicy,
+} from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
@@ -25,6 +30,8 @@ interface StablecoinOptions {
     pausableAuthority?: string;
     aclMode?: 'allowlist' | 'blocklist';
     confidentialBalancesAuthority?: string;
+    confidentialPolicy?: string;
+    auditorElgamalPubkey?: string;
     permanentDelegateAuthority?: string;
     enableSrfc37?: boolean;
     mintKeypair?: string;
@@ -44,6 +51,12 @@ export const createStablecoinCommand = new Command('stablecoin')
         '--confidential-balances-authority <address>',
         'Confidential balances authority address (defaults to mint authority)',
     )
+    .option(
+        '--confidential-policy <opt-in|whitelist>',
+        'Confidential-transfer enable policy (defaults to whitelist)',
+        'whitelist',
+    )
+    .option('--auditor-elgamal-pubkey <address>', 'Auditor ElGamal public key for confidential transfers (optional)')
     .option(
         '--permanent-delegate-authority <address>',
         'Permanent delegate authority address (defaults to mint authority)',
@@ -94,6 +107,11 @@ export const createStablecoinCommand = new Command('stablecoin')
             const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
             const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
             const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
+            const confidentialPolicy = (options.confidentialPolicy || 'whitelist') as ConfidentialApprovePolicy;
+            if (confidentialPolicy !== 'opt-in' && confidentialPolicy !== 'whitelist') {
+                throw new Error("--confidential-policy must be 'opt-in' or 'whitelist'");
+            }
+            const auditorElgamalPubkey = options.auditorElgamalPubkey as Address | undefined;
             const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
 
             spinner.text = 'Building transaction...';
@@ -114,6 +132,9 @@ export const createStablecoinCommand = new Command('stablecoin')
                 confidentialBalancesAuthority,
                 permanentDelegateAuthority,
                 options.enableSrfc37,
+                undefined, // freezeAuthority
+                confidentialPolicy,
+                auditorElgamalPubkey,
             );
 
             if (rawTx) {
@@ -161,6 +182,10 @@ export const createStablecoinCommand = new Command('stablecoin')
             console.log(`   ${chalk.bold('Metadata Authority:')} ${metadataAuthority}`);
             console.log(`   ${chalk.bold('Pausable Authority:')} ${pausableAuthority}`);
             console.log(`   ${chalk.bold('Confidential Balances Authority:')} ${confidentialBalancesAuthority}`);
+            console.log(`   ${chalk.bold('Confidential Policy:')} ${confidentialPolicy}`);
+            if (auditorElgamalPubkey) {
+                console.log(`   ${chalk.bold('Auditor ElGamal Pubkey:')} ${auditorElgamalPubkey}`);
+            }
             console.log(`   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`);
 
             console.log(chalk.cyan('🛡️ Token Extensions:'));

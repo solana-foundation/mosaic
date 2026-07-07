@@ -1,6 +1,11 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { ABL_PROGRAM_ID, TOKEN_ACL_PROGRAM_ID, createTokenizedSecurityInitTransaction } from '@solana/mosaic-sdk';
+import {
+    ABL_PROGRAM_ID,
+    TOKEN_ACL_PROGRAM_ID,
+    createTokenizedSecurityInitTransaction,
+    type ConfidentialApprovePolicy,
+} from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
@@ -26,6 +31,8 @@ interface TokenizedSecuritiesOptions {
     metadataAuthority?: string;
     pausableAuthority?: string;
     confidentialBalancesAuthority?: string;
+    confidentialPolicy?: string;
+    auditorElgamalPubkey?: string;
     permanentDelegateAuthority?: string;
     permissionedBurnAuthority?: string;
     multiplier?: string; // scaled UI amount multiplier
@@ -48,6 +55,12 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
         '--confidential-balances-authority <address>',
         'Confidential balances authority address (defaults to mint authority)',
     )
+    .option(
+        '--confidential-policy <opt-in|whitelist>',
+        'Confidential-transfer enable policy (defaults to whitelist)',
+        'whitelist',
+    )
+    .option('--auditor-elgamal-pubkey <address>', 'Auditor ElGamal public key for confidential transfers (optional)')
     .option(
         '--permanent-delegate-authority <address>',
         'Permanent delegate authority address (defaults to mint authority)',
@@ -101,6 +114,11 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
             const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
             const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
+            const confidentialPolicy = (options.confidentialPolicy || 'whitelist') as ConfidentialApprovePolicy;
+            if (confidentialPolicy !== 'opt-in' && confidentialPolicy !== 'whitelist') {
+                throw new Error("--confidential-policy must be 'opt-in' or 'whitelist'");
+            }
+            const auditorElgamalPubkey = options.auditorElgamalPubkey as Address | undefined;
             const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
             const permissionedBurnAuthority = (options.permissionedBurnAuthority || mintAuthority) as Address;
             const scaledUiAmountAuthority = (options.scaledUiAmountAuthority || mintAuthority) as Address;
@@ -121,6 +139,8 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
                     metadataAuthority,
                     pausableAuthority,
                     confidentialBalancesAuthority,
+                    confidentialPolicy,
+                    auditorElgamalPubkey,
                     permanentDelegateAuthority,
                     permissionedBurnAuthority,
                     scaledUiAmount: {
@@ -170,6 +190,10 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             console.log(`   ${chalk.bold('Metadata Authority:')} ${metadataAuthority}`);
             console.log(`   ${chalk.bold('Pausable Authority:')} ${pausableAuthority}`);
             console.log(`   ${chalk.bold('Confidential Balances Authority:')} ${confidentialBalancesAuthority}`);
+            console.log(`   ${chalk.bold('Confidential Policy:')} ${confidentialPolicy}`);
+            if (auditorElgamalPubkey) {
+                console.log(`   ${chalk.bold('Auditor ElGamal Pubkey:')} ${auditorElgamalPubkey}`);
+            }
             console.log(`   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`);
             console.log(`   ${chalk.bold('Permissioned Burn Authority:')} ${permissionedBurnAuthority}`);
 

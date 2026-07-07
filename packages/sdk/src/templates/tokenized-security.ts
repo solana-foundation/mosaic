@@ -1,4 +1,5 @@
 import { Token } from '../issuance';
+import type { ConfidentialApprovePolicy } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -37,6 +38,8 @@ export const createTokenizedSecurityInitTransaction = async (
         metadataAuthority?: Address;
         pausableAuthority?: Address;
         confidentialBalancesAuthority?: Address;
+        confidentialPolicy?: ConfidentialApprovePolicy;
+        auditorElgamalPubkey?: Address;
         permanentDelegateAuthority?: Address;
         permissionedBurnAuthority?: Address;
         enableSrfc37?: boolean;
@@ -75,7 +78,11 @@ export const createTokenizedSecurityInitTransaction = async (
         // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
         // default frozen and the permissionless-thaw path against the blocklist fires.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
-        .withConfidentialBalances(confidentialBalancesAuthority)
+        .withConfidentialBalances({
+            authority: confidentialBalancesAuthority,
+            policy: options?.confidentialPolicy,
+            auditorElgamalPubkey: options?.auditorElgamalPubkey,
+        })
         .withPermanentDelegate(permanentDelegateAuthority)
         .withPermissionedBurn(permissionedBurnAuthority);
 

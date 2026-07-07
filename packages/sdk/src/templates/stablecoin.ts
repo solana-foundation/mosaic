@@ -1,4 +1,5 @@
 import { Token } from '../issuance';
+import type { ConfidentialApprovePolicy } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -54,6 +55,8 @@ export const createStablecoinInitTransaction = async (
     permanentDelegateAuthority?: Address,
     enableSrfc37?: boolean,
     freezeAuthority?: Address,
+    confidentialPolicy?: ConfidentialApprovePolicy,
+    auditorElgamalPubkey?: Address,
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
@@ -79,7 +82,11 @@ export const createStablecoinInitTransaction = async (
         // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
         // default frozen and the permissionless-thaw path against the blocklist fires.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
-        .withConfidentialBalances(confidentialBalancesAuthority || mintAuthorityAddress)
+        .withConfidentialBalances({
+            authority: confidentialBalancesAuthority || mintAuthorityAddress,
+            policy: confidentialPolicy,
+            auditorElgamalPubkey,
+        })
         .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
         .buildInstructions({
             rpc,
