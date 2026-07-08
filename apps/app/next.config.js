@@ -10,11 +10,6 @@ const nextConfig = {
     // build production with webpack (`next build --webpack`) and split the two
     // compilations — see below. See HOO-628.
     webpack: (config, { isServer }) => {
-        config.experiments = {
-            ...config.experiments,
-            asyncWebAssembly: true,
-        };
-
         if (isServer) {
             // The browser `bundler` wasm build cannot be emitted/resolved in
             // Next's server bundle (webpack emits it inside `.next/server` but
@@ -35,9 +30,14 @@ const nextConfig = {
                 ...(Array.isArray(previous) ? previous : previous ? [previous] : []),
             ];
         } else {
-            // Client: emit the wasm as a hashed `.wasm` asset under
-            // `_next/static/wasm/` so Vercel's CDN serves it with the correct
-            // `application/wasm` MIME type.
+            // Client: enable async wasm bundling and emit the wasm as a hashed
+            // `.wasm` asset under `_next/static/wasm/` so Vercel's CDN serves it
+            // with the correct `application/wasm` MIME type. Only the client
+            // actually bundles the wasm — the server externalizes it above.
+            config.experiments = {
+                ...config.experiments,
+                asyncWebAssembly: true,
+            };
             config.output.webassemblyModuleFilename = 'static/wasm/[modulehash].wasm';
         }
 
