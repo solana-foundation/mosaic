@@ -1,4 +1,4 @@
-import type { Address, Instruction, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
+import type { Address, Instruction, ReadonlyUint8Array, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
     pipe,
@@ -47,6 +47,26 @@ export interface ConfidentialBalancesOptions {
      */
     auditorElgamalPubkey?: Address | null;
 }
+
+export interface ConfidentialMintBurnOptions {
+    /**
+     * The mint authority's **supply** ElGamal public key — the encrypted total
+     * supply is maintained under it, and it backs the mint/burn equality proof.
+     * Distinct from any per-account ElGamal key. Derive it alongside
+     * {@link getConfidentialMintBurnInit} in `@solana/mosaic-sdk/confidential`.
+     */
+    supplyElgamalPubkey: Address;
+    /**
+     * The initial (zero) supply encrypted under the supply **AES** key — the
+     * cheap-to-decrypt "decryptable supply". Must be produced by the same supply
+     * keys as {@link supplyElgamalPubkey} (see `getConfidentialMintBurnInit`).
+     * 36-byte AES ciphertext.
+     */
+    decryptableSupply: ReadonlyUint8Array;
+}
+
+/** Placeholder ciphertexts for extension sizing; the real values are set on-chain by init. */
+const EMPTY_ENCRYPTED_BALANCE = new Uint8Array(64);
 
 export class Token {
     private extensions: Extension[] = [];
@@ -149,6 +169,41 @@ export class Token {
             auditorElgamalPubkey: auditorElgamalPubkey ? some(auditorElgamalPubkey) : null,
         });
         this.extensions.push(confidentialBalancesExtension as Extension);
+        return this;
+    }
+
+    /**
+     * Adds the ConfidentialMintBurn extension to the mint, enabling tokens to be
+     * minted directly into — and burned from — a confidential balance (the
+     * amounts stay encrypted, unlike a plaintext deposit/withdraw).
+     *
+     * This is a **separate** extension from `ConfidentialTransferMint`, but a
+     * mint-burn mint needs **both**: accounts must be confidential-transfer
+     * configured to hold the minted balance, so pair this with
+     * {@link Token.withConfidentialBalances}.
+     *
+     * The total supply is maintained as an encrypted (ElGamal) value plus a
+     * cheap-to-decrypt AES "decryptable supply", both under the mint authority's
+     * dedicated **supply keys**. Derive those keys and compute the two init
+     * values with `getConfidentialMintBurnInit` from
+     * `@solana/mosaic-sdk/confidential` (kept out of this WASM-free module).
+     *
+     * @param options - `{ supplyElgamalPubkey, decryptableSupply }` for the
+     *   initial (zero) supply.
+     */
+    withConfidentialMintBurn(options: ConfidentialMintBurnOptions): Token {
+        const confidentialMintBurnExtension = {
+            __kind: 'ConfidentialMintBurn' as const,
+            // Only `supplyElgamalPubkey` + `decryptableSupply` are sent on-chain
+            // (via the init instruction); the ciphertext fields below are the
+            // program's own state, zero-filled here purely so the extension
+            // encodes to the correct on-chain size.
+            confidentialSupply: EMPTY_ENCRYPTED_BALANCE,
+            decryptableSupply: options.decryptableSupply,
+            supplyElgamalPubkey: options.supplyElgamalPubkey,
+            pendingBurn: EMPTY_ENCRYPTED_BALANCE,
+        };
+        this.extensions.push(confidentialMintBurnExtension as unknown as Extension);
         return this;
     }
 

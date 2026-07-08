@@ -1,4 +1,11 @@
-import { type Address, type MessagePartialSigner, getAddressEncoder, signBytes } from '@solana/kit';
+import {
+    type Address,
+    type MessagePartialSigner,
+    type ReadonlyUint8Array,
+    getAddressDecoder,
+    getAddressEncoder,
+    signBytes,
+} from '@solana/kit';
 import { deriveAeKeyForOwnerMint, deriveElGamalKeypairForOwnerMint } from '@solana-program/token-2022';
 import { ElGamalKeypair, AeKey, ElGamalSecretKey, ElGamalCiphertext, AeCiphertext } from '@solana/mosaic-sdk/_zk';
 
@@ -132,6 +139,62 @@ export async function deriveConfidentialKeysForOwnerMint(
     const aes = AeKey.fromBytes(new Uint8Array(aesBytes));
 
     return { elgamal, aes };
+}
+
+export interface DeriveConfidentialSupplyKeysInput {
+    /**
+     * The **mint authority** — signs the canonical derivation messages. The
+     * supply keys are bound to `(mintAuthority, mint)`, so the same authority
+     * always re-derives the same supply keys.
+     */
+    signer: MessagePartialSigner;
+    /** The mint the supply keys are bound to. */
+    mint: Address;
+}
+
+/**
+ * Derives the **supply** ElGamal keypair + AES key for a `ConfidentialMintBurn`
+ * mint. These are the mint authority's keys for the encrypted total supply
+ * (distinct from any per-account keys): the supply AES key encrypts the
+ * decryptable supply, and the supply ElGamal keypair backs the mint/burn
+ * equality proof.
+ *
+ * Bound to `(mintAuthority, mint)` via the same `(owner, mint)` derivation as
+ * {@link deriveConfidentialKeysForOwnerMint} (with `owner = signer.address`), so
+ * the keys are stable and need no storage.
+ *
+ * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
+ */
+export async function deriveConfidentialSupplyKeys(input: DeriveConfidentialSupplyKeysInput): Promise<ConfidentialKeys> {
+    return deriveConfidentialKeysForOwnerMint({ signer: input.signer, owner: input.signer.address, mint: input.mint });
+}
+
+/** The two init values a `ConfidentialMintBurn` mint needs for its initial (zero) supply. */
+export interface ConfidentialMintBurnInit {
+    /** The supply ElGamal public key, as a kit `Address` (for `Token.withConfidentialMintBurn`). */
+    supplyElgamalPubkey: Address;
+    /** The initial (zero) supply encrypted under the supply AES key — 36-byte ciphertext. */
+    decryptableSupply: ReadonlyUint8Array;
+}
+
+/**
+ * Computes the `{ supplyElgamalPubkey, decryptableSupply }` pair that
+ * {@link Token.withConfidentialMintBurn} needs, from derived supply keys. The
+ * decryptable supply is the supply AES key's encryption of the initial supply
+ * (`0`). Does not free `keys` (the caller owns them).
+ */
+export function getConfidentialMintBurnInit(keys: ConfidentialKeys): ConfidentialMintBurnInit {
+    const pubkey = keys.elgamal.pubkey();
+    const decryptable = keys.aes.encrypt(0n);
+    try {
+        return {
+            supplyElgamalPubkey: getAddressDecoder().decode(pubkey.toBytes()),
+            decryptableSupply: decryptable.toBytes(),
+        };
+    } finally {
+        pubkey.free?.();
+        decryptable.free?.();
+    }
 }
 
 /**

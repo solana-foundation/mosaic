@@ -10,6 +10,7 @@ import {
     verifyZeroCiphertext,
     verifyCiphertextCommitmentEquality,
     verifyBatchedRangeProofU64,
+    verifyBatchedRangeProofU128,
     verifyCiphertextCiphertextEquality,
     verifyBatchedGroupedCiphertext3HandlesValidity,
     closeContextStateProof,
@@ -258,6 +259,50 @@ export async function buildTransferProofIxs(input: {
             rpc: input.rpc,
             payer: input.payer,
             verify: verifyBatchedRangeProofU64,
+            proofData: input.range.proofData,
+            mode: input.range.mode,
+        }),
+    ]);
+}
+
+/**
+ * `mint` / `burn` proofs: `CiphertextCommitmentEquality`,
+ * `BatchedGroupedCiphertext3HandlesValidity`, and `BatchedRangeProofU128`,
+ * emitted in that order. Like transfer, three proofs do not fit in one
+ * transaction, so callers use context-state mode for each. The proof data is
+ * built by the mint/burn operation (see `mint-burn-proof.ts`).
+ *
+ * Differs from {@link buildTransferProofIxs} in two ways the on-chain program
+ * requires: the equality proof is a *ciphertext-commitment* equality (not
+ * ciphertext-ciphertext), and the range proof is the **U128** variant (mint/burn
+ * range-check a 64-bit supply/balance plus the lo/hi amount split).
+ */
+export async function buildMintBurnProofIxs(input: {
+    rpc: Rpc<SolanaRpcApi>;
+    payer: TransactionSigner;
+    equality: ProofWithMode;
+    ciphertextValidity: ProofWithMode;
+    range: ProofWithMode;
+}): Promise<ProofInstructions> {
+    return concatProofInstructions([
+        await buildProofVerificationIxs({
+            rpc: input.rpc,
+            payer: input.payer,
+            verify: verifyCiphertextCommitmentEquality,
+            proofData: input.equality.proofData,
+            mode: input.equality.mode,
+        }),
+        await buildProofVerificationIxs({
+            rpc: input.rpc,
+            payer: input.payer,
+            verify: verifyBatchedGroupedCiphertext3HandlesValidity,
+            proofData: input.ciphertextValidity.proofData,
+            mode: input.ciphertextValidity.mode,
+        }),
+        await buildProofVerificationIxs({
+            rpc: input.rpc,
+            payer: input.payer,
+            verify: verifyBatchedRangeProofU128,
             proofData: input.range.proofData,
             mode: input.range.mode,
         }),

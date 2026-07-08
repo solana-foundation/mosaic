@@ -151,6 +151,56 @@ describe('Token', () => {
         });
     });
 
+    describe('withConfidentialMintBurn', () => {
+        const SUPPLY_PK = generateMockAddress() as Address;
+        const DECRYPTABLE_SUPPLY = new Uint8Array(36).fill(3);
+
+        it('adds the ConfidentialMintBurn extension with the supply pubkey + decryptable supply', () => {
+            const result = token.withConfidentialMintBurn({
+                supplyElgamalPubkey: SUPPLY_PK,
+                decryptableSupply: DECRYPTABLE_SUPPLY,
+            });
+
+            expect(result).toBe(token);
+            const extension: any = token.getExtensions()[0];
+            expect(extension.__kind).toBe('ConfidentialMintBurn');
+            expect(extension.supplyElgamalPubkey).toBe(SUPPLY_PK);
+            expect(extension.decryptableSupply).toBe(DECRYPTABLE_SUPPLY);
+            // Placeholder ciphertexts sized for on-chain encoding (set by init).
+            expect(extension.confidentialSupply).toHaveLength(64);
+            expect(extension.pendingBurn).toHaveLength(64);
+        });
+
+        it('composes with withConfidentialBalances (both extensions on the mint)', () => {
+            token
+                .withConfidentialBalances(TEST_AUTHORITY)
+                .withConfidentialMintBurn({ supplyElgamalPubkey: SUPPLY_PK, decryptableSupply: DECRYPTABLE_SUPPLY });
+
+            const kinds = token.getExtensions().map((e: any) => e.__kind);
+            expect(kinds).toEqual(['ConfidentialTransferMint', 'ConfidentialMintBurn']);
+        });
+
+        it('emits the InitializeConfidentialMintBurn instruction in buildInstructions', async () => {
+            token
+                .withConfidentialBalances(TEST_AUTHORITY)
+                .withConfidentialMintBurn({ supplyElgamalPubkey: SUPPLY_PK, decryptableSupply: DECRYPTABLE_SUPPLY });
+
+            const instructions = await token.buildInstructions({
+                rpc: mockRpc,
+                decimals: 6,
+                mint: mockMint,
+                feePayer: mockFeePayer,
+            });
+
+            // The InitializeConfidentialMintBurn instruction touches only the mint
+            // account (single account) and targets the Token-2022 program.
+            const hasInit = instructions.some(
+                ix => ix.programAddress === TOKEN_2022_PROGRAM_ADDRESS && ix.accounts?.length === 1,
+            );
+            expect(hasInit).toBe(true);
+        });
+    });
+
     describe('withConfidentialTransferFee', () => {
         it('should throw error if ConfidentialTransferMint is not enabled', () => {
             expect(() => {

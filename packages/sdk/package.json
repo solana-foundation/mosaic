@@ -42,6 +42,7 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
+        "@noble/curves": "^1.9.7",
         "@solana-program/memo": "^0.10.0",
         "@solana-program/system": "^0.10.0",
         "@solana-program/token-2022": "^0.10.0",
