@@ -194,6 +194,18 @@ export async function inspectToken(
                     });
                     break;
 
+                case 'ConfidentialMintBurn':
+                    // Separate extension from ConfidentialTransferMint: enables
+                    // minting into / burning from a confidential balance. The
+                    // supply is tracked under the mint authority's supply keys.
+                    extensionDetails.supplyElgamalPubkey = ext.supplyElgamalPubkey;
+                    extensionDetails.decryptableSupply = ext.decryptableSupply;
+                    extensions.push({
+                        name: 'ConfidentialMintBurn',
+                        details: extensionDetails,
+                    });
+                    break;
+
                 case 'PausableConfig':
                     const pausableAuthority = ext.authority?.__option === 'Some' ? ext.authority.value : null;
 
