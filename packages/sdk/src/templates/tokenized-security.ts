@@ -1,5 +1,5 @@
 import { Token } from '../issuance';
-import type { ConfidentialApprovePolicy } from '../issuance/create-mint';
+import type { ConfidentialApprovePolicy, ConfidentialMintBurnOptions } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -40,6 +40,7 @@ export const createTokenizedSecurityInitTransaction = async (
         confidentialBalancesAuthority?: Address;
         confidentialPolicy?: ConfidentialApprovePolicy;
         auditorElgamalPubkey?: Address;
+        confidentialMintBurn?: ConfidentialMintBurnOptions;
         permanentDelegateAuthority?: Address;
         permissionedBurnAuthority?: Address;
         enableSrfc37?: boolean;
@@ -86,6 +87,12 @@ export const createTokenizedSecurityInitTransaction = async (
         })
         .withPermanentDelegate(permanentDelegateAuthority)
         .withPermissionedBurn(permissionedBurnAuthority);
+
+    // ConfidentialMintBurn needs ConfidentialTransferMint (added above) to hold the
+    // minted balance; both extensions must be present on the mint.
+    if (options?.confidentialMintBurn) {
+        tokenBuilder = tokenBuilder.withConfidentialMintBurn(options.confidentialMintBurn);
+    }
 
     // Add Scaled UI Amount extension
     tokenBuilder = tokenBuilder.withScaledUiAmount(

@@ -1,5 +1,5 @@
 import { Token } from '../issuance';
-import type { ConfidentialApprovePolicy } from '../issuance/create-mint';
+import type { ConfidentialApprovePolicy, ConfidentialMintBurnOptions } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -57,6 +57,7 @@ export const createStablecoinInitTransaction = async (
     freezeAuthority?: Address,
     confidentialPolicy?: ConfidentialApprovePolicy,
     auditorElgamalPubkey?: Address,
+    confidentialMintBurn?: ConfidentialMintBurnOptions,
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
@@ -67,7 +68,7 @@ export const createStablecoinInitTransaction = async (
 
     // 1. create token
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
-    const instructions = await new Token()
+    let tokenBuilder = new Token()
         .withMetadata({
             mintAddress: mintSigner.address,
             authority: metadataAuthority || mintAuthorityAddress,
@@ -88,15 +89,22 @@ export const createStablecoinInitTransaction = async (
             policy: confidentialPolicy,
             auditorElgamalPubkey,
         })
-        .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
-        .buildInstructions({
-            rpc,
-            decimals,
-            mintAuthority,
-            freezeAuthority: freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
-            mint: mintSigner,
-            feePayer: feePayerSigner,
-        });
+        .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress);
+
+    // ConfidentialMintBurn needs ConfidentialTransferMint (added above) to hold the
+    // minted balance; both extensions must be present on the mint.
+    if (confidentialMintBurn) {
+        tokenBuilder = tokenBuilder.withConfidentialMintBurn(confidentialMintBurn);
+    }
+
+    const instructions = await tokenBuilder.buildInstructions({
+        rpc,
+        decimals,
+        mintAuthority,
+        freezeAuthority: freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
+        mint: mintSigner,
+        feePayer: feePayerSigner,
+    });
 
     // 2. create mintConfig (Token ACL) - only if SRFC-37 is enabled
     if (!useSrfc37) {

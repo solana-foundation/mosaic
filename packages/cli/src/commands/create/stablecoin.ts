@@ -5,6 +5,7 @@ import {
     createStablecoinInitTransaction,
     TOKEN_ACL_PROGRAM_ID,
     type ConfidentialApprovePolicy,
+    type ConfidentialMintBurnOptions,
 } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
@@ -32,6 +33,7 @@ interface StablecoinOptions {
     confidentialBalancesAuthority?: string;
     confidentialPolicy?: string;
     auditorElgamalPubkey?: string;
+    confidentialMintBurn?: boolean;
     permanentDelegateAuthority?: string;
     enableSrfc37?: boolean;
     mintKeypair?: string;
@@ -57,6 +59,10 @@ export const createStablecoinCommand = new Command('stablecoin')
         'whitelist',
     )
     .option('--auditor-elgamal-pubkey <address>', 'Auditor ElGamal public key for confidential transfers (optional)')
+    .option(
+        '--confidential-mint-burn',
+        'Enable the ConfidentialMintBurn extension (mint/burn directly into/from confidential balances)',
+    )
     .option(
         '--permanent-delegate-authority <address>',
         'Permanent delegate authority address (defaults to mint authority)',
@@ -114,6 +120,34 @@ export const createStablecoinCommand = new Command('stablecoin')
             const auditorElgamalPubkey = options.auditorElgamalPubkey as Address | undefined;
             const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
 
+            // ConfidentialMintBurn: derive the mint authority's supply keys and compute the
+            // initial (zero) supply init values. Supply keys are bound to (mintAuthority, mint),
+            // so this requires the mint authority's real keypair (no raw-tx, signer == authority).
+            let confidentialMintBurnInit: ConfidentialMintBurnOptions | undefined;
+            if (options.confidentialMintBurn) {
+                if (rawTx) {
+                    throw new Error(
+                        '--confidential-mint-burn derives supply keys and cannot run in --raw-tx mode. Run it with a real keypair (omit --raw-tx).',
+                    );
+                }
+                if (mintAuthority !== signerAddress) {
+                    throw new Error(
+                        '--confidential-mint-burn requires the signer to be the mint authority (supply keys are derived from the mint authority keypair). Omit --mint-authority or set it to the signer address.',
+                    );
+                }
+                const { deriveConfidentialSupplyKeys, getConfidentialMintBurnInit, freeConfidentialKeys } =
+                    await import('@solana/mosaic-sdk/confidential');
+                const supplyKeys = await deriveConfidentialSupplyKeys({
+                    signer: signerKeypair!,
+                    mint: mintKeypair.address,
+                });
+                try {
+                    confidentialMintBurnInit = getConfidentialMintBurnInit(supplyKeys);
+                } finally {
+                    freeConfidentialKeys(supplyKeys);
+                }
+            }
+
             spinner.text = 'Building transaction...';
 
             // Create stablecoin transaction
@@ -135,6 +169,7 @@ export const createStablecoinCommand = new Command('stablecoin')
                 undefined, // freezeAuthority
                 confidentialPolicy,
                 auditorElgamalPubkey,
+                confidentialMintBurnInit,
             );
 
             if (rawTx) {
@@ -186,6 +221,11 @@ export const createStablecoinCommand = new Command('stablecoin')
             if (auditorElgamalPubkey) {
                 console.log(`   ${chalk.bold('Auditor ElGamal Pubkey:')} ${auditorElgamalPubkey}`);
             }
+            if (confidentialMintBurnInit) {
+                console.log(
+                    `   ${chalk.bold('Confidential Supply ElGamal Pubkey:')} ${confidentialMintBurnInit.supplyElgamalPubkey}`,
+                );
+            }
             console.log(`   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`);
 
             console.log(chalk.cyan('🛡️ Token Extensions:'));
@@ -193,6 +233,9 @@ export const createStablecoinCommand = new Command('stablecoin')
             console.log(`   ${chalk.green('✓')} Pausable`);
             console.log(`   ${chalk.green('✓')} Default Account State (Blocklist)`);
             console.log(`   ${chalk.green('✓')} Confidential Balances`);
+            if (confidentialMintBurnInit) {
+                console.log(`   ${chalk.green('✓')} Confidential Mint/Burn`);
+            }
             console.log(`   ${chalk.green('✓')} Permanent Delegate`);
 
             if (options.uri) {
