@@ -24,10 +24,7 @@ const nextConfig = {
             // runtime, and keep it EXTERNAL so `__dirname` stays in node_modules
             // instead of being rewritten to a bundled chunk path.
             const externalizeZkSdkToNode = ({ request }, callback) => {
-                if (
-                    request === '@solana/zk-sdk/bundler' ||
-                    request === '@solana/zk-sdk'
-                ) {
+                if (request === '@solana/zk-sdk/bundler' || request === '@solana/zk-sdk') {
                     return callback(null, 'commonjs @solana/zk-sdk/node');
                 }
                 return callback();
@@ -35,18 +32,13 @@ const nextConfig = {
             const previous = config.externals;
             config.externals = [
                 externalizeZkSdkToNode,
-                ...(Array.isArray(previous)
-                    ? previous
-                    : previous
-                      ? [previous]
-                      : []),
+                ...(Array.isArray(previous) ? previous : previous ? [previous] : []),
             ];
         } else {
             // Client: emit the wasm as a hashed `.wasm` asset under
             // `_next/static/wasm/` so Vercel's CDN serves it with the correct
             // `application/wasm` MIME type.
-            config.output.webassemblyModuleFilename =
-                'static/wasm/[modulehash].wasm';
+            config.output.webassemblyModuleFilename = 'static/wasm/[modulehash].wasm';
         }
 
         return config;
