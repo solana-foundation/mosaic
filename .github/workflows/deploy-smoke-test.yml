@@ -24,7 +24,7 @@ permissions:
 
 jobs:
   smoke-test:
-    if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment_url != ''
+    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment_status.environment_url != '')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
