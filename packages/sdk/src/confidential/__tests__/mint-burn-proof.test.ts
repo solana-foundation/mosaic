@@ -147,6 +147,25 @@ describe('buildMintProofData (real WASM)', () => {
         supplyAes.free();
         destinationKeypair.free();
     });
+
+    it('rejects a mint amount above the 2^48 - 1 range-proof bound', () => {
+        const supplyKeypair = elgamalKeypair(21);
+        const supplyAes = AeKey.fromSeed(new Uint8Array(32).fill(22));
+        const destinationKeypair = elgamalKeypair(23);
+        expect(() =>
+            buildMintProofData({
+                currentSupplyCiphertext: encryptedBalance(supplyKeypair, 0n),
+                currentSupply: 0n,
+                mintAmount: 1n << 48n,
+                supplyElgamalKeypair: supplyKeypair,
+                supplyAesKey: supplyAes,
+                destinationElgamalPubkey: pubkeyAddress(destinationKeypair),
+            }),
+        ).toThrow(/maximum confidential mint\/burn amount/);
+        supplyKeypair.free();
+        supplyAes.free();
+        destinationKeypair.free();
+    });
 });
 
 describe('buildBurnProofData (real WASM)', () => {
@@ -217,6 +236,26 @@ describe('buildBurnProofData (real WASM)', () => {
                 supplyElgamalPubkey: pubkeyAddress(supplyKeypair),
             }),
         ).toThrow(/exceeds the available/);
+        sourceKeypair.free();
+        sourceAes.free();
+        supplyKeypair.free();
+    });
+
+    it('rejects a burn amount above the 2^48 - 1 range-proof bound', () => {
+        const sourceKeypair = elgamalKeypair(24);
+        const sourceAes = AeKey.fromSeed(new Uint8Array(32).fill(25));
+        const supplyKeypair = elgamalKeypair(26);
+        const overBound = 1n << 48n;
+        expect(() =>
+            buildBurnProofData({
+                currentAvailableBalanceCiphertext: encryptedBalance(sourceKeypair, overBound),
+                currentAvailableBalance: overBound,
+                burnAmount: overBound,
+                sourceElgamalKeypair: sourceKeypair,
+                sourceAesKey: sourceAes,
+                supplyElgamalPubkey: pubkeyAddress(supplyKeypair),
+            }),
+        ).toThrow(/maximum confidential mint\/burn amount/);
         sourceKeypair.free();
         sourceAes.free();
         supplyKeypair.free();

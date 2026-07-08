@@ -165,7 +165,9 @@ export interface DeriveConfidentialSupplyKeysInput {
  *
  * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
  */
-export async function deriveConfidentialSupplyKeys(input: DeriveConfidentialSupplyKeysInput): Promise<ConfidentialKeys> {
+export async function deriveConfidentialSupplyKeys(
+    input: DeriveConfidentialSupplyKeysInput,
+): Promise<ConfidentialKeys> {
     return deriveConfidentialKeysForOwnerMint({ signer: input.signer, owner: input.signer.address, mint: input.mint });
 }
 
@@ -189,7 +191,9 @@ export function getConfidentialMintBurnInit(keys: ConfidentialKeys): Confidentia
     try {
         return {
             supplyElgamalPubkey: getAddressDecoder().decode(pubkey.toBytes()),
-            decryptableSupply: decryptable.toBytes(),
+            // Copy out of WASM memory: `toBytes()` may return a view, and
+            // `decryptable` is freed in the `finally` below.
+            decryptableSupply: new Uint8Array(decryptable.toBytes()),
         };
     } finally {
         pubkey.free?.();

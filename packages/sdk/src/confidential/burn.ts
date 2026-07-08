@@ -7,7 +7,11 @@ import {
     type TransactionSigner,
     singleInstructionPlan,
 } from '@solana/kit';
-import { fetchMint, getApplyConfidentialPendingBurnInstruction, getConfidentialBurnInstruction } from '@solana-program/token-2022';
+import {
+    fetchMint,
+    getApplyConfidentialPendingBurnInstruction,
+    getConfidentialBurnInstruction,
+} from '@solana-program/token-2022';
 import type { ConfidentialKeys } from './keys';
 import { fetchConfidentialAccountState } from './account-state';
 import { buildBurnProofData } from './mint-burn-proof';

@@ -22,14 +22,18 @@ const mockDestinationToken = {
     data: {
         extensions: {
             __option: 'Some',
-            value: [{ __kind: 'ConfidentialTransferAccount', elgamalPubkey: 'DsT1111111111111111111111111111111111111111' }],
+            value: [
+                { __kind: 'ConfidentialTransferAccount', elgamalPubkey: 'DsT1111111111111111111111111111111111111111' },
+            ],
         },
     },
 };
 
 jest.mock('@solana-program/token-2022', () => ({
     ...jest.requireActual('@solana-program/token-2022'),
-    fetchMint: jest.fn(async () => ({ data: { decimals: 6, extensions: { __option: 'Some', value: mockMintExtensions } } })),
+    fetchMint: jest.fn(async () => ({
+        data: { decimals: 6, extensions: { __option: 'Some', value: mockMintExtensions } },
+    })),
     fetchToken: jest.fn(async () => mockDestinationToken),
 }));
 

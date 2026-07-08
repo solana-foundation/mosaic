@@ -76,7 +76,11 @@ export function extractCiphertextFromGroupedBytes(groupedCiphertext: Uint8Array,
  * single ciphertext: `lo + hi · 2^bitLength`, applied to both the commitment and
  * the handle.
  */
-export function combineLoHiCiphertexts(ciphertextLo: Uint8Array, ciphertextHi: Uint8Array, bitLength: bigint): Uint8Array {
+export function combineLoHiCiphertexts(
+    ciphertextLo: Uint8Array,
+    ciphertextHi: Uint8Array,
+    bitLength: bigint,
+): Uint8Array {
     const scale = 1n << bitLength;
     const lo = ciphertextToPoints(ciphertextLo);
     const hi = ciphertextToPoints(ciphertextHi);
