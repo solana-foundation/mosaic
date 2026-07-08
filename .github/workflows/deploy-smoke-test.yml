@@ -1,59 +1,128 @@
 name: Deploy Smoke Test
 
-# Runs a headless-browser smoke test against the *deployed* Vercel URL after a
-# successful deployment. A green build only proves the app compiles; this proves
-# it actually renders in a browser (no crashed chunks, no mis-served wasm, no
-# client-side exceptions).
+# Headless-browser smoke test against the *deployed* Vercel preview URL for a
+# pull request. A green `next build` only proves the app compiles; this proves
+# it actually renders in a real browser on Vercel — no crashed chunks, no
+# mis-served wasm (the confidential-transfer `.wasm` served as text/plain that
+# broke WebAssembly.instantiateStreaming — HOO-628 / PR #84), no client-side
+# exceptions.
 #
-# TEMPORARILY DISABLED: this needs the `VERCEL_AUTOMATION_BYPASS_SECRET` repo
-# secret to get past Vercel's preview-protection SSO gate (see the run step
-# below); without it the check can only ever skip. Until that secret is set up,
-# the automatic `deployment_status` trigger is commented out and the workflow is
-# manual-only (`workflow_dispatch`). To re-enable: add the secret, then restore
-# the `deployment_status` trigger and the `if:` guard below.
+# The Vercel preview deploys asynchronously, so the job first waits for the
+# GitHub "Preview" deployment of the PR's head commit to reach `success`, reads
+# its environment_url, then drives that URL.
+#
+# Org-owned Vercel projects gate preview URLs behind an SSO login. Add the
+# `VERCEL_AUTOMATION_BYPASS_SECRET` repo secret (Vercel dashboard → Project →
+# Settings → Deployment Protection → "Protection Bypass for Automation") to let
+# the test through. Without it, a protected preview is detected and the smoke
+# test is skipped (green) instead of run, so this check is safe to keep enabled.
 on:
+  pull_request:
+    branches: [main, develop]
   workflow_dispatch:
     inputs:
       url:
         description: 'Deployment URL to smoke test'
         required: true
-  # deployment_status:  # re-enable once VERCEL_AUTOMATION_BYPASS_SECRET is set
 
 permissions:
   contents: read
+  deployments: read
 
 jobs:
   smoke-test:
-    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment_status.environment_url != '')
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve Vercel preview URL
+        id: url
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_URL: ${{ inputs.url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Manual runs pass the URL directly.
+          if [ -n "${INPUT_URL:-}" ]; then
+            echo "Using manual input URL: $INPUT_URL"
+            echo "url=$INPUT_URL" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # PR runs wait for Vercel's async preview deploy of the head commit,
+          # then read the deployment status's environment_url (the real app URL;
+          # the Vercel *commit status* only links to the dashboard).
+          echo "Waiting for a successful Vercel Preview deployment for $HEAD_SHA ..."
+          deadline=$(( $(date +%s) + 600 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            for id in $(gh api "repos/$REPO/deployments?sha=$HEAD_SHA&environment=Preview" --jq '.[].id' 2>/dev/null || true); do
+              u=$(gh api "repos/$REPO/deployments/$id/statuses" \
+                --jq 'map(select(.state == "success"))[0].environment_url // empty' 2>/dev/null || true)
+              if [ -n "$u" ]; then
+                echo "Resolved preview URL: $u"
+                echo "url=$u" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+            sleep 15
+          done
+          echo "::warning::No successful Vercel Preview deployment found within 10m; skipping smoke test."
+          echo "url=" >> "$GITHUB_OUTPUT"
+
+      - name: Detect Vercel protection gate
+        id: gate
+        if: steps.url.outputs.url != ''
+        env:
+          URL: ${{ steps.url.outputs.url }}
+          BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -euo pipefail
+          # With a bypass secret the test can get past the SSO gate, so always run.
+          if [ -n "${BYPASS:-}" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # No secret: cheaply detect the protection gate up front and skip
+          # before the expensive Playwright install rather than have the test
+          # start up only to skip. Vercel's gate answers with a 401, or a 3xx
+          # redirect to its SSO login (vercel.com/sso-api).
+          out=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "${URL%/}/" || echo "000 ")
+          code=${out%% *}
+          loc=${out#* }
+          if [ "$code" = "401" ] || printf '%s' "$loc" | grep -q 'vercel.com/sso'; then
+            echo "::notice::Preview is behind Vercel protection and VERCEL_AUTOMATION_BYPASS_SECRET is not set; skipping smoke test."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout code
+        if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v4
 
       - name: Setup pnpm
+        if: steps.gate.outputs.run == 'true'
         uses: pnpm/action-setup@v2
         with:
           version: 10
 
       - name: Setup Node.js
+        if: steps.gate.outputs.run == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20.x
           cache: 'pnpm'
 
       - name: Install dependencies
+        if: steps.gate.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright Chromium
+        if: steps.gate.outputs.run == 'true'
         run: pnpm --filter @mosaic/app exec playwright install --with-deps chromium
 
       - name: Run smoke test
+        if: steps.gate.outputs.run == 'true'
         env:
-          # Manual runs use the `url` input; the deploy trigger uses the
-          # deployment URL once `deployment_status` is re-enabled above.
-          SMOKE_URL: ${{ inputs.url || github.event.deployment_status.environment_url }}
-          # Optional: lets the test past Vercel's preview-protection SSO gate.
-          # Vercel dashboard → Project → Settings → Deployment Protection →
-          # "Protection Bypass for Automation". Without it the test skips.
+          SMOKE_URL: ${{ steps.url.outputs.url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: pnpm --filter @mosaic/app exec node scripts/smoke-test.mjs
