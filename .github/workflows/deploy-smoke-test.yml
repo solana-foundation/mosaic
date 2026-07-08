@@ -1,0 +1,59 @@
+name: Deploy Smoke Test
+
+# Runs a headless-browser smoke test against the *deployed* Vercel URL after a
+# successful deployment. A green build only proves the app compiles; this proves
+# it actually renders in a browser (no crashed chunks, no mis-served wasm, no
+# client-side exceptions).
+#
+# TEMPORARILY DISABLED: this needs the `VERCEL_AUTOMATION_BYPASS_SECRET` repo
+# secret to get past Vercel's preview-protection SSO gate (see the run step
+# below); without it the check can only ever skip. Until that secret is set up,
+# the automatic `deployment_status` trigger is commented out and the workflow is
+# manual-only (`workflow_dispatch`). To re-enable: add the secret, then restore
+# the `deployment_status` trigger and the `if:` guard below.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Deployment URL to smoke test'
+        required: true
+  # deployment_status:  # re-enable once VERCEL_AUTOMATION_BYPASS_SECRET is set
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    # if: github.event.deployment_status.state == 'success' && github.event.deployment_status.environment_url != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright Chromium
+        run: pnpm --filter @mosaic/app exec playwright install --with-deps chromium
+
+      - name: Run smoke test
+        env:
+          # Manual runs use the `url` input; the deploy trigger uses the
+          # deployment URL once `deployment_status` is re-enabled above.
+          SMOKE_URL: ${{ inputs.url || github.event.deployment_status.environment_url }}
+          # Optional: lets the test past Vercel's preview-protection SSO gate.
+          # Vercel dashboard → Project → Settings → Deployment Protection →
+          # "Protection Bypass for Automation". Without it the test skips.
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: pnpm --filter @mosaic/app exec node scripts/smoke-test.mjs

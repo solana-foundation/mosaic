@@ -8,7 +8,8 @@
         "build": "next build --webpack",
         "start": "next start",
         "lint": "eslint src",
-        "type-check": "tsc --noEmit"
+        "type-check": "tsc --noEmit",
+        "smoke-test": "node scripts/smoke-test.mjs"
     },
     "dependencies": {
         "@radix-ui/react-accordion": "^1.2.14",
@@ -72,6 +73,7 @@
         "eslint-plugin-react": "^7.37.5",
         "eslint-plugin-react-hooks": "^7.1.1",
         "globals": "^16.5.0",
+        "playwright": "^1.49.0",
         "postcss": "^8.5.15",
         "tailwindcss": "^4.3.1",
         "typescript": "^5.9.3"
