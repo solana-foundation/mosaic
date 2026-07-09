@@ -199,16 +199,22 @@ export class Token {
      *   initial (zero) supply.
      */
     withConfidentialMintBurn(options: ConfidentialMintBurnOptions): Token {
+        if (options.decryptableSupply.length !== 36) {
+            throw new Error(
+                `decryptableSupply must be 36 bytes (got ${options.decryptableSupply.length}).`,
+            );
+        }
         const confidentialMintBurnExtension = {
             __kind: 'ConfidentialMintBurn' as const,
             // Only `supplyElgamalPubkey` + `decryptableSupply` are sent on-chain
             // (via the init instruction); the ciphertext fields below are the
             // program's own state, zero-filled here purely so the extension
-            // encodes to the correct on-chain size.
-            confidentialSupply: EMPTY_ENCRYPTED_BALANCE,
+            // encodes to the correct on-chain size. Clone the placeholder per
+            // field so the two arrays are not aliased across Token instances.
+            confidentialSupply: new Uint8Array(EMPTY_ENCRYPTED_BALANCE),
             decryptableSupply: options.decryptableSupply,
             supplyElgamalPubkey: options.supplyElgamalPubkey,
-            pendingBurn: EMPTY_ENCRYPTED_BALANCE,
+            pendingBurn: new Uint8Array(EMPTY_ENCRYPTED_BALANCE),
         };
         this.extensions.push(confidentialMintBurnExtension as unknown as Extension);
         return this;

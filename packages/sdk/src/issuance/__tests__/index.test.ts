@@ -171,6 +171,24 @@ describe('Token', () => {
             expect(extension.pendingBurn).toHaveLength(64);
         });
 
+        it('throws when decryptableSupply is not 36 bytes', () => {
+            expect(() =>
+                token.withConfidentialMintBurn({
+                    supplyElgamalPubkey: SUPPLY_PK,
+                    decryptableSupply: new Uint8Array(35).fill(3),
+                }),
+            ).toThrow('decryptableSupply must be 36 bytes (got 35).');
+        });
+
+        it('does not alias the confidentialSupply and pendingBurn placeholders', () => {
+            token.withConfidentialMintBurn({
+                supplyElgamalPubkey: SUPPLY_PK,
+                decryptableSupply: DECRYPTABLE_SUPPLY,
+            });
+            const extension: any = token.getExtensions()[0];
+            expect(extension.confidentialSupply).not.toBe(extension.pendingBurn);
+        });
+
         it('composes with withConfidentialBalances (both extensions on the mint)', () => {
             token
                 .withConfidentialBalances(TEST_AUTHORITY)
