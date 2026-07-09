@@ -33,15 +33,20 @@ on:
 
 permissions:
   contents: read
+  statuses: write
 
 jobs:
   smoke-test:
     # Manual dispatch always runs; deployment_status runs only for a successful
-    # deploy that actually exposes a URL.
+    # Preview deploy that actually exposes a URL. `deployment_status` fires for
+    # every environment, so without the environment check the test would also
+    # run on Production deploys. Matched with `startsWith` because Vercel names
+    # the environment `Preview – <project>` for monorepo projects.
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.deployment_status.state == 'success' &&
-       github.event.deployment_status.environment_url != '')
+       github.event.deployment_status.environment_url != '' &&
+       startsWith(github.event.deployment_status.environment, 'Preview'))
     runs-on: ubuntu-latest
     steps:
       - name: Resolve deployment URL
