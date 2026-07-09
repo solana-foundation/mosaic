@@ -200,9 +200,7 @@ export class Token {
      */
     withConfidentialMintBurn(options: ConfidentialMintBurnOptions): Token {
         if (options.decryptableSupply.length !== 36) {
-            throw new Error(
-                `decryptableSupply must be 36 bytes (got ${options.decryptableSupply.length}).`,
-            );
+            throw new Error(`decryptableSupply must be 36 bytes (got ${options.decryptableSupply.length}).`);
         }
         const confidentialMintBurnExtension = {
             __kind: 'ConfidentialMintBurn' as const,
