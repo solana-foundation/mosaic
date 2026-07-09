@@ -108,7 +108,7 @@ Token-2022 Extensions:
 
 - **Default Account State** - Required for the sRFC-37 blocklist/allowlist
 - **Metadata** - On-chain token metadata
-- **Confidential Balances** - Balance encryption for token accounts and transfers
+- **Confidential Balances** - Balance encryption for token accounts, plus confidential transfers and confidential mint/burn (see the [SDK confidential guide](packages/sdk/README.md#confidential-balances--transfers))
 - **Pausable** - Disable all interactions with the token
 - **Permanent Delegate** - Burn or transfer funds from any address
 
@@ -127,7 +127,7 @@ Token-2022 Extension:
 
 - **Default Account State** - Required for the sRFC-37 blocklist/allowlist
 - **Metadata** - On-chain token metadata
-- **Confidential Balances** - Balance encryption for token accounts and transfers
+- **Confidential Balances** - Balance encryption for token accounts, plus confidential transfers and confidential mint/burn (see the [SDK confidential guide](packages/sdk/README.md#confidential-balances--transfers))
 - **Pausable** - Disable all interactions with the token
 - **Permanent Delegate** - Burn or transfer funds from any address
 - **Permissioned Burn** - Burning requires approval from a designated burn authority
@@ -206,7 +206,7 @@ The monorepo uses Turbo for build orchestration and is organized with:
 
 - **Metadata**
 - **Default Account State**
-- **Confidential Balances**
+- **Confidential Balances** (incl. confidential transfers and mint/burn — see the [SDK confidential guide](packages/sdk/README.md#confidential-balances--transfers))
 - **Pausable**
 - **Permanent Delegate**
 - **Scaled UI Amount**
