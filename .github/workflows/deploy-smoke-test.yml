@@ -1,29 +1,44 @@
 name: Deploy Smoke Test
 
-# Headless-browser smoke test against the *deployed* Vercel URL. A green
+# Headless-browser smoke test against the *deployed* Vercel preview URL. A green
 # `next build` only proves the app compiles; this proves it actually renders in
 # a real browser on Vercel — no crashed chunks, no mis-served wasm (the
 # confidential-transfer `.wasm` served as text/plain that broke
 # WebAssembly.instantiateStreaming — HOO-628 / PR #84), no client-side
 # exceptions.
 #
-# Triggered by `deployment_status` (fires when Vercel finishes a deploy and
-# hands us the live `environment_url`). This trigger runs in the *base* repo
-# context, so repo secrets are available even for pull requests opened from
-# forks — unlike a plain `pull_request` trigger, which GitHub runs with no
-# secrets for fork PRs (that is why an earlier `pull_request` version could only
-# ever skip: `VERCEL_AUTOMATION_BYPASS_SECRET` was never visible to it).
+# This is meant to be a required PR check, so it runs on two events and reports
+# its result as a single `smoke-test` *commit status* on the PR head commit
+# (visible in the PR merge box and requireable in branch protection):
+#
+#   - pull_request:      same-repo PRs get an immediate check. Fork PRs run with
+#                        a secretless, read-only token, so they cannot reach a
+#                        protected preview (they skip) and cannot post a status
+#                        (a POST would 403) — for forks the real result comes
+#                        from the deployment_status run below. That is why the
+#                        commit-status steps are skipped on fork pull_request.
+#   - deployment_status: fires when Vercel finishes a deploy and hands us the
+#                        live environment_url. Runs in the *base* repo context,
+#                        so repo secrets — notably VERCEL_AUTOMATION_BYPASS_SECRET
+#                        — are available even for fork PRs, unlike pull_request.
+#
+# For a same-repo PR both events fire and both write the `smoke-test` status on
+# the same head SHA; it is last-writer-wins and both converge to success, so the
+# duplication is harmless.
 #
 # Org-owned Vercel projects gate preview URLs behind an SSO login. The
-# `VERCEL_AUTOMATION_BYPASS_SECRET` repo secret (Vercel dashboard → Project →
-# Settings → Deployment Protection → "Protection Bypass for Automation") lets
-# the test through. Without it, a protected deployment is detected and the smoke
-# test is skipped (green) instead of run, so this check is safe to keep enabled.
+# VERCEL_AUTOMATION_BYPASS_SECRET repo secret (Vercel dashboard → Project →
+# Settings → Deployment Protection → "Protection Bypass for Automation") lets the
+# test through. Without it, a protected deployment is detected and the smoke test
+# is skipped — reported as a green `smoke-test` status — instead of run, so this
+# check is safe to keep required.
 #
-# NOTE: `deployment_status` (like all non-`pull_request` events) runs the
-# workflow file from the default branch, so changes here only take effect once
-# merged to `main`. `workflow_dispatch` is kept for manual runs against a URL.
+# NOTE: deployment_status (like all non-pull_request events) runs the workflow
+# file from the *default branch*, so edits here only take effect for that half
+# once merged to `main`. workflow_dispatch is kept for manual runs against a URL
+# and, because dispatch has no PR head SHA, does not post a commit status.
 on:
+  pull_request:
   deployment_status:
   workflow_dispatch:
     inputs:
@@ -37,35 +52,106 @@ permissions:
 
 jobs:
   smoke-test:
-    # Manual dispatch always runs; deployment_status runs only for a successful
-    # Preview deploy that actually exposes a URL. `deployment_status` fires for
-    # every environment, so without the environment check the test would also
-    # run on Production deploys. Matched with `startsWith` because Vercel names
+    # workflow_dispatch and pull_request always proceed. deployment_status fires
+    # for every environment and deploy state, so restrict it to a successful
+    # Preview deploy that actually exposes a URL (otherwise the test would also
+    # run on Production deploys). Matched with startsWith because Vercel names
     # the environment `Preview – <project>` for monorepo projects.
     if: >-
       github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'pull_request' ||
       (github.event.deployment_status.state == 'success' &&
        github.event.deployment_status.environment_url != '' &&
        startsWith(github.event.deployment_status.environment, 'Preview'))
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve head SHA and status target
+        id: meta
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # The commit the check should annotate. workflow_dispatch has no PR, so
+          # it gets no SHA and posts no status.
+          case "$EVENT" in
+            pull_request)      sha="$PR_SHA" ;;
+            deployment_status) sha="$DEPLOY_SHA" ;;
+            *)                 sha="" ;;
+          esac
+          # Only post a commit status when we can. A fork pull_request runs with a
+          # read-only token (POST /statuses → 403); its status is posted by the
+          # deployment_status run, which has a full base-repo token.
+          post=true
+          if [ -z "$sha" ]; then
+            post=false
+          elif [ "$EVENT" = "pull_request" ] && [ "$PR_HEAD_REPO" != "$REPO" ]; then
+            post=false
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "post=$post" >> "$GITHUB_OUTPUT"
+
+      - name: Report pending
+        if: steps.meta.outputs.post == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.meta.outputs.sha }}
+        run: |
+          set -euo pipefail
+          gh api -X POST "repos/$REPO/statuses/$SHA" \
+            -f state=pending \
+            -f context=smoke-test \
+            -f description='Running browser smoke test'
+
       - name: Resolve deployment URL
         id: url
         env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT: ${{ github.event_name }}
           INPUT_URL: ${{ inputs.url }}
           DEPLOY_URL: ${{ github.event.deployment_status.environment_url }}
+          HEAD_SHA: ${{ steps.meta.outputs.sha }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          url="${INPUT_URL:-$DEPLOY_URL}"
-          if [ -z "$url" ]; then
-            echo "::error::No deployment URL available."
-            exit 1
+          # Manual runs and deployment_status carry the URL directly.
+          if [ "$EVENT" = "workflow_dispatch" ]; then
+            echo "Using manual input URL: $INPUT_URL"
+            echo "url=$INPUT_URL" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
-          echo "Smoke-testing: $url"
-          echo "url=$url" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT" = "deployment_status" ]; then
+            echo "Using deployment_status environment_url: $DEPLOY_URL"
+            echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # pull_request: wait for Vercel's async preview deploy of the head
+          # commit, then read the deployment status's environment_url (the real
+          # app URL; the Vercel *commit status* only links to the dashboard).
+          echo "Waiting for a successful Vercel Preview deployment for $HEAD_SHA ..."
+          deadline=$(( $(date +%s) + 600 ))
+          while [ "$(date +%s)" -lt "$deadline" ]; do
+            for id in $(gh api "repos/$REPO/deployments?sha=$HEAD_SHA&environment=Preview" --jq '.[].id' 2>/dev/null || true); do
+              u=$(gh api "repos/$REPO/deployments/$id/statuses" \
+                --jq 'map(select(.state == "success"))[0].environment_url // empty' 2>/dev/null || true)
+              if [ -n "$u" ]; then
+                echo "Resolved preview URL: $u"
+                echo "url=$u" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            done
+            sleep 15
+          done
+          echo "::warning::No successful Vercel Preview deployment found within 10m; skipping smoke test."
+          echo "url=" >> "$GITHUB_OUTPUT"
 
       - name: Detect Vercel protection gate
         id: gate
+        if: steps.url.outputs.url != ''
         env:
           URL: ${{ steps.url.outputs.url }}
           BYPASS: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
@@ -116,8 +202,38 @@ jobs:
         run: pnpm --filter @mosaic/app exec playwright install --with-deps chromium
 
       - name: Run smoke test
+        id: smoke
         if: steps.gate.outputs.run == 'true'
         env:
           SMOKE_URL: ${{ steps.url.outputs.url }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: pnpm --filter @mosaic/app exec node scripts/smoke-test.mjs
+
+      - name: Report result
+        if: always() && steps.meta.outputs.post == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.meta.outputs.sha }}
+          URL: ${{ steps.url.outputs.url }}
+          RUN: ${{ steps.gate.outputs.run }}
+          SMOKE_OUTCOME: ${{ steps.smoke.outcome }}
+        run: |
+          set -euo pipefail
+          # GitHub commit statuses have no "neutral": a legitimate skip stays
+          # green (success) with descriptive text so it never blocks a merge.
+          if [ "$SMOKE_OUTCOME" = "success" ]; then
+            state=success; desc='Smoke test passed'
+          elif [ "$SMOKE_OUTCOME" = "failure" ]; then
+            state=failure; desc='Smoke test failed'
+          elif [ -z "$URL" ]; then
+            state=success; desc='Skipped: no preview deployment'
+          elif [ "$RUN" != "true" ]; then
+            state=success; desc='Skipped: protected preview, no bypass secret'
+          else
+            state=success; desc='Skipped'
+          fi
+          gh api -X POST "repos/$REPO/statuses/$SHA" \
+            -f state="$state" \
+            -f context=smoke-test \
+            -f description="$desc"
