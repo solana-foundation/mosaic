@@ -156,13 +156,13 @@ describe('Token', () => {
         const DECRYPTABLE_SUPPLY = new Uint8Array(36).fill(3);
 
         it('adds the ConfidentialMintBurn extension with the supply pubkey + decryptable supply', () => {
-            const result = token.withConfidentialMintBurn({
+            const result = token.withConfidentialBalances(TEST_AUTHORITY).withConfidentialMintBurn({
                 supplyElgamalPubkey: SUPPLY_PK,
                 decryptableSupply: DECRYPTABLE_SUPPLY,
             });
 
             expect(result).toBe(token);
-            const extension: any = token.getExtensions()[0];
+            const extension: any = token.getExtensions()[1];
             expect(extension.__kind).toBe('ConfidentialMintBurn');
             expect(extension.supplyElgamalPubkey).toBe(SUPPLY_PK);
             expect(extension.decryptableSupply).toBe(DECRYPTABLE_SUPPLY);
@@ -171,9 +171,18 @@ describe('Token', () => {
             expect(extension.pendingBurn).toHaveLength(64);
         });
 
-        it('throws when decryptableSupply is not 36 bytes', () => {
+        it('throws when ConfidentialTransferMint is not enabled first', () => {
             expect(() =>
                 token.withConfidentialMintBurn({
+                    supplyElgamalPubkey: SUPPLY_PK,
+                    decryptableSupply: DECRYPTABLE_SUPPLY,
+                }),
+            ).toThrow('ConfidentialTransferMint extension must be enabled before adding ConfidentialMintBurn');
+        });
+
+        it('throws when decryptableSupply is not 36 bytes', () => {
+            expect(() =>
+                token.withConfidentialBalances(TEST_AUTHORITY).withConfidentialMintBurn({
                     supplyElgamalPubkey: SUPPLY_PK,
                     decryptableSupply: new Uint8Array(35).fill(3),
                 }),
@@ -181,11 +190,11 @@ describe('Token', () => {
         });
 
         it('does not alias the confidentialSupply and pendingBurn placeholders', () => {
-            token.withConfidentialMintBurn({
+            token.withConfidentialBalances(TEST_AUTHORITY).withConfidentialMintBurn({
                 supplyElgamalPubkey: SUPPLY_PK,
                 decryptableSupply: DECRYPTABLE_SUPPLY,
             });
-            const extension: any = token.getExtensions()[0];
+            const extension: any = token.getExtensions()[1];
             expect(extension.confidentialSupply).not.toBe(extension.pendingBurn);
         });
 

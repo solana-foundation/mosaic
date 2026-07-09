@@ -19,6 +19,7 @@ import {
     assembleConfidentialMintBurnPlan,
     getConfidentialMintBurnExtension,
     getMintAuditorElgamalPubkey,
+    isConfidentialTransferMint,
 } from './mint-burn-util';
 import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
 
@@ -60,7 +61,15 @@ export async function createConfidentialBurnInstructionPlan(input: {
         fetchConfidentialAccountState(input.rpc, input.tokenAccount, { keys: input.keys }),
     ]);
 
+    // Fail fast: the mint must be confidential-mint/burn configured, and (since
+    // the burned balance is confidential) also confidential-transfer configured.
     const mintBurnExt = getConfidentialMintBurnExtension(mintDecoded, input.mint);
+    if (!isConfidentialTransferMint(mintDecoded)) {
+        throw new Error(
+            `Mint ${input.mint} has ConfidentialMintBurn but not ConfidentialTransferMint; ` +
+                `both are required for confidential burn.`,
+        );
+    }
     if (!state) {
         throw new Error(
             `Token account ${input.tokenAccount} is not configured for confidential transfers ` +

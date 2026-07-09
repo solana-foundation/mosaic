@@ -199,6 +199,11 @@ export class Token {
      *   initial (zero) supply.
      */
     withConfidentialMintBurn(options: ConfidentialMintBurnOptions): Token {
+        // A mint-burn mint needs both extensions; require ConfidentialTransferMint
+        // to be enabled first (same prerequisite pattern as withConfidentialTransferFee).
+        if (!this.extensions.some(ext => ext.__kind === 'ConfidentialTransferMint')) {
+            throw new Error('ConfidentialTransferMint extension must be enabled before adding ConfidentialMintBurn');
+        }
         if (options.decryptableSupply.length !== 36) {
             throw new Error(`decryptableSupply must be 36 bytes (got ${options.decryptableSupply.length}).`);
         }
