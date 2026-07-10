@@ -60,6 +60,11 @@ const LO_BIT_LENGTH_BIGINT = BigInt(AMOUNT_LO_BIT_LENGTH);
 
 const U64_MAX = (1n << 64n) - 1n;
 
+// The mint/burn amount is range-proven as a 16-bit low half + 32-bit high half,
+// so it must fit in 48 bits (matching the Rust reference). A larger amount would
+// otherwise silently produce a range proof the on-chain verifier rejects.
+const MAX_MINT_BURN_AMOUNT = (1n << BigInt(AMOUNT_LO_BIT_LENGTH + AMOUNT_HI_BIT_LENGTH)) - 1n;
+
 /** Serialized proof data + ciphertexts for a confidential mint or burn instruction. */
 export interface MintBurnProofData {
     /** `CiphertextCommitmentEquality` proof bytes. */
@@ -135,6 +140,11 @@ export function buildMintProofData(input: BuildMintProofDataInput): MintBurnProo
     if (input.mintAmount <= 0n) {
         throw new Error('Mint amount must be positive.');
     }
+    if (input.mintAmount > MAX_MINT_BURN_AMOUNT) {
+        throw new Error(
+            `Mint amount exceeds the maximum confidential mint/burn amount (2^48 - 1 = ${MAX_MINT_BURN_AMOUNT}).`,
+        );
+    }
     const newSupply = input.currentSupply + input.mintAmount;
     if (newSupply > U64_MAX) {
         throw new Error('Mint would overflow the maximum u64 supply.');
@@ -156,10 +166,22 @@ export function buildMintProofData(input: BuildMintProofDataInput): MintBurnProo
 
         // Grouped handle order for MINT: [destination, supply, auditor].
         const groupedLo = track(
-            GroupedElGamalCiphertext3Handles.encryptWith(destinationPubkey, supplyPubkey, auditorPubkey, amountLo, openingLo),
+            GroupedElGamalCiphertext3Handles.encryptWith(
+                destinationPubkey,
+                supplyPubkey,
+                auditorPubkey,
+                amountLo,
+                openingLo,
+            ),
         );
         const groupedHi = track(
-            GroupedElGamalCiphertext3Handles.encryptWith(destinationPubkey, supplyPubkey, auditorPubkey, amountHi, openingHi),
+            GroupedElGamalCiphertext3Handles.encryptWith(
+                destinationPubkey,
+                supplyPubkey,
+                auditorPubkey,
+                amountHi,
+                openingHi,
+            ),
         );
         const groupedLoBytes = groupedLo.toBytes();
         const groupedHiBytes = groupedHi.toBytes();
@@ -256,6 +278,11 @@ export function buildBurnProofData(input: BuildBurnProofDataInput): MintBurnProo
     if (input.burnAmount <= 0n) {
         throw new Error('Burn amount must be positive.');
     }
+    if (input.burnAmount > MAX_MINT_BURN_AMOUNT) {
+        throw new Error(
+            `Burn amount exceeds the maximum confidential mint/burn amount (2^48 - 1 = ${MAX_MINT_BURN_AMOUNT}).`,
+        );
+    }
     if (input.burnAmount > input.currentAvailableBalance) {
         throw new Error('Burn amount exceeds the available confidential balance.');
     }
@@ -277,10 +304,22 @@ export function buildBurnProofData(input: BuildBurnProofDataInput): MintBurnProo
 
         // Grouped handle order for BURN: [source, supply, auditor].
         const groupedLo = track(
-            GroupedElGamalCiphertext3Handles.encryptWith(sourcePubkey, supplyPubkey, auditorPubkey, amountLo, openingLo),
+            GroupedElGamalCiphertext3Handles.encryptWith(
+                sourcePubkey,
+                supplyPubkey,
+                auditorPubkey,
+                amountLo,
+                openingLo,
+            ),
         );
         const groupedHi = track(
-            GroupedElGamalCiphertext3Handles.encryptWith(sourcePubkey, supplyPubkey, auditorPubkey, amountHi, openingHi),
+            GroupedElGamalCiphertext3Handles.encryptWith(
+                sourcePubkey,
+                supplyPubkey,
+                auditorPubkey,
+                amountHi,
+                openingHi,
+            ),
         );
         const groupedLoBytes = groupedLo.toBytes();
         const groupedHiBytes = groupedHi.toBytes();

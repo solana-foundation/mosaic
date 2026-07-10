@@ -1,7 +1,11 @@
 // Test imports - Jest globals are available automatically
 import type { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
-import { AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+    AccountState,
+    INITIALIZE_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR,
+    TOKEN_2022_PROGRAM_ADDRESS,
+} from '@solana-program/token-2022';
 import { Token, getCreateMintInstructions } from '../index';
 import {
     createMockRpc,
@@ -156,19 +160,49 @@ describe('Token', () => {
         const DECRYPTABLE_SUPPLY = new Uint8Array(36).fill(3);
 
         it('adds the ConfidentialMintBurn extension with the supply pubkey + decryptable supply', () => {
-            const result = token.withConfidentialMintBurn({
+            const result = token.withConfidentialBalances(TEST_AUTHORITY).withConfidentialMintBurn({
                 supplyElgamalPubkey: SUPPLY_PK,
                 decryptableSupply: DECRYPTABLE_SUPPLY,
             });
 
             expect(result).toBe(token);
-            const extension: any = token.getExtensions()[0];
+            const extension: any = token.getExtensions()[1];
             expect(extension.__kind).toBe('ConfidentialMintBurn');
             expect(extension.supplyElgamalPubkey).toBe(SUPPLY_PK);
-            expect(extension.decryptableSupply).toBe(DECRYPTABLE_SUPPLY);
+            // Stored as a defensive copy (not the caller's array) so later
+            // external mutation can't corrupt the extension bytes.
+            expect(extension.decryptableSupply).not.toBe(DECRYPTABLE_SUPPLY);
+            expect(extension.decryptableSupply).toEqual(DECRYPTABLE_SUPPLY);
             // Placeholder ciphertexts sized for on-chain encoding (set by init).
             expect(extension.confidentialSupply).toHaveLength(64);
             expect(extension.pendingBurn).toHaveLength(64);
+        });
+
+        it('throws when ConfidentialTransferMint is not enabled first', () => {
+            expect(() =>
+                token.withConfidentialMintBurn({
+                    supplyElgamalPubkey: SUPPLY_PK,
+                    decryptableSupply: DECRYPTABLE_SUPPLY,
+                }),
+            ).toThrow('ConfidentialTransferMint extension must be enabled before adding ConfidentialMintBurn');
+        });
+
+        it('throws when decryptableSupply is not 36 bytes', () => {
+            expect(() =>
+                token.withConfidentialBalances(TEST_AUTHORITY).withConfidentialMintBurn({
+                    supplyElgamalPubkey: SUPPLY_PK,
+                    decryptableSupply: new Uint8Array(35).fill(3),
+                }),
+            ).toThrow('decryptableSupply must be 36 bytes (got 35).');
+        });
+
+        it('does not alias the confidentialSupply and pendingBurn placeholders', () => {
+            token.withConfidentialBalances(TEST_AUTHORITY).withConfidentialMintBurn({
+                supplyElgamalPubkey: SUPPLY_PK,
+                decryptableSupply: DECRYPTABLE_SUPPLY,
+            });
+            const extension: any = token.getExtensions()[1];
+            expect(extension.confidentialSupply).not.toBe(extension.pendingBurn);
         });
 
         it('composes with withConfidentialBalances (both extensions on the mint)', () => {
@@ -192,12 +226,16 @@ describe('Token', () => {
                 feePayer: mockFeePayer,
             });
 
-            // The InitializeConfidentialMintBurn instruction touches only the mint
-            // account (single account) and targets the Token-2022 program.
-            const hasInit = instructions.some(
-                ix => ix.programAddress === TOKEN_2022_PROGRAM_ADDRESS && ix.accounts?.length === 1,
-            );
-            expect(hasInit).toBe(true);
+            // Identify the InitializeConfidentialMintBurn instruction by its
+            // Token-2022 discriminator (byte 0 of the data) rather than by account
+            // count — withConfidentialBalances also emits single-account init
+            // instructions, so a count-only check could false-pass without it.
+            const initCount = instructions.filter(
+                ix =>
+                    ix.programAddress === TOKEN_2022_PROGRAM_ADDRESS &&
+                    ix.data?.[0] === INITIALIZE_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR,
+            ).length;
+            expect(initCount).toBe(1);
         });
     });
 

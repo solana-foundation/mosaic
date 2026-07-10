@@ -127,7 +127,12 @@ describe('inspectToken', () => {
                     extensions: {
                         __option: 'Some',
                         value: [
-                            { __kind: 'ConfidentialTransferMint', autoApproveNewAccounts: false, auditorElgamalPubkey: { __option: 'None' }, authority: { __option: 'Some', value: mockAuthority } },
+                            {
+                                __kind: 'ConfidentialTransferMint',
+                                autoApproveNewAccounts: false,
+                                auditorElgamalPubkey: { __option: 'None' },
+                                authority: { __option: 'Some', value: mockAuthority },
+                            },
                             {
                                 __kind: 'ConfidentialMintBurn',
                                 confidentialSupply: new Uint8Array(64),

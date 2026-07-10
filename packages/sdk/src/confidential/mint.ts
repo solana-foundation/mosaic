@@ -36,6 +36,15 @@ import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
  * The current supply is read (and decrypted with the supply AES key) from the
  * mint's decryptable supply; the auditor is detected from the mint unless
  * overridden.
+ *
+ * ⚠️ The equality proof binds the decrypted decryptable supply to the on-chain
+ * ElGamal `confidentialSupply` ciphertext. `applyPendingBurn` updates the ElGamal
+ * ciphertext but cannot update the AES decryptable supply (the program has no
+ * access to the supply AES key), so the two drift after a burn is applied. Minting
+ * against a stale decryptable supply produces a proof the chain rejects with an
+ * opaque error. After any `applyPendingBurn`, re-sync first with
+ * {@link createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan} (from
+ * `@solana/mosaic-sdk/confidential`) before calling this.
  */
 export async function createConfidentialMintInstructionPlan(input: {
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;

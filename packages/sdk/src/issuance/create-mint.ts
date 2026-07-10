@@ -1,4 +1,11 @@
-import type { Address, Instruction, ReadonlyUint8Array, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
+import type {
+    Address,
+    Instruction,
+    ReadonlyUint8Array,
+    Rpc,
+    SolanaRpcApiMainnet,
+    TransactionSigner,
+} from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
     pipe,
@@ -52,8 +59,11 @@ export interface ConfidentialMintBurnOptions {
     /**
      * The mint authority's **supply** ElGamal public key — the encrypted total
      * supply is maintained under it, and it backs the mint/burn equality proof.
-     * Distinct from any per-account ElGamal key. Derive it alongside
-     * {@link getConfidentialMintBurnInit} in `@solana/mosaic-sdk/confidential`.
+     * Conceptually the supply key rather than an account balance key, though it
+     * shares the standard `(owner, mint)` derivation (with `owner = mintAuthority`)
+     * so it is not domain-separated from the authority's own account keys. Derive
+     * it alongside {@link getConfidentialMintBurnInit} in
+     * `@solana/mosaic-sdk/confidential`.
      */
     supplyElgamalPubkey: Address;
     /**
@@ -192,18 +202,29 @@ export class Token {
      *   initial (zero) supply.
      */
     withConfidentialMintBurn(options: ConfidentialMintBurnOptions): Token {
-        const confidentialMintBurnExtension = {
-            __kind: 'ConfidentialMintBurn' as const,
+        // A mint-burn mint needs both extensions; require ConfidentialTransferMint
+        // to be enabled first (same prerequisite pattern as withConfidentialTransferFee).
+        if (!this.extensions.some(ext => ext.__kind === 'ConfidentialTransferMint')) {
+            throw new Error('ConfidentialTransferMint extension must be enabled before adding ConfidentialMintBurn');
+        }
+        if (options.decryptableSupply.length !== 36) {
+            throw new Error(`decryptableSupply must be 36 bytes (got ${options.decryptableSupply.length}).`);
+        }
+        const confidentialMintBurnExtension: Extract<Extension, { __kind: 'ConfidentialMintBurn' }> = {
+            __kind: 'ConfidentialMintBurn',
             // Only `supplyElgamalPubkey` + `decryptableSupply` are sent on-chain
             // (via the init instruction); the ciphertext fields below are the
             // program's own state, zero-filled here purely so the extension
-            // encodes to the correct on-chain size.
-            confidentialSupply: EMPTY_ENCRYPTED_BALANCE,
-            decryptableSupply: options.decryptableSupply,
+            // encodes to the correct on-chain size. Clone the placeholder per
+            // field so the two arrays are not aliased across Token instances.
+            confidentialSupply: new Uint8Array(EMPTY_ENCRYPTED_BALANCE),
+            // Copy the caller's array so later external mutation can't silently
+            // corrupt the extension bytes (length already validated above).
+            decryptableSupply: new Uint8Array(options.decryptableSupply),
             supplyElgamalPubkey: options.supplyElgamalPubkey,
-            pendingBurn: EMPTY_ENCRYPTED_BALANCE,
+            pendingBurn: new Uint8Array(EMPTY_ENCRYPTED_BALANCE),
         };
-        this.extensions.push(confidentialMintBurnExtension as unknown as Extension);
+        this.extensions.push(confidentialMintBurnExtension);
         return this;
     }
 

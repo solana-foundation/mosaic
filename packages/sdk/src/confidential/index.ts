@@ -44,10 +44,7 @@ export { createEmptyConfidentialAccountInstructionPlan } from './empty-account';
 
 export { createConfidentialMintInstructionPlan } from './mint';
 
-export {
-    createConfidentialBurnInstructionPlan,
-    createApplyConfidentialPendingBurnInstructionPlan,
-} from './burn';
+export { createConfidentialBurnInstructionPlan, createApplyConfidentialPendingBurnInstructionPlan } from './burn';
 
 export { createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan } from './supply';
 

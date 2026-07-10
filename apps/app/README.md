@@ -41,6 +41,7 @@ Notes:
 
 - If fee payer equals mint authority, the app also sets up Token ACL config, gating program, ABL list, extra metas, and enables permissionless thaw.
 - Token entries are persisted in local storage (`TokenStorage`).
+- **Confidential Balances** is available in the dashboard as a token-creation capability (Stablecoin and Tokenized Security). Confidential **mint/burn** is marked "coming soon" in the UI. The full confidential runtime flow (deposit/apply/transfer/withdraw/mint/burn) currently lives in the SDK — see the [SDK confidential guide](../../packages/sdk/README.md#confidential-balances--transfers).
 
 ## Architecture
 

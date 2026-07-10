@@ -35,7 +35,10 @@ export function isConfidentialTransferMint(mint: DecodedMint): boolean {
  * Reads the mint's `ConfidentialMintBurn` extension, or throws with an
  * actionable message if the mint is not configured for confidential mint/burn.
  */
-export function getConfidentialMintBurnExtension(mint: DecodedMint, mintAddress: Address): ConfidentialMintBurnExtension {
+export function getConfidentialMintBurnExtension(
+    mint: DecodedMint,
+    mintAddress: Address,
+): ConfidentialMintBurnExtension {
     if (mint.data.extensions.__option === 'Some') {
         const ext = mint.data.extensions.value.find(
             (e): e is ConfidentialMintBurnExtension => e.__kind === 'ConfidentialMintBurn',
