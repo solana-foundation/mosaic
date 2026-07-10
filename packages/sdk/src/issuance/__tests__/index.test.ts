@@ -165,7 +165,10 @@ describe('Token', () => {
             const extension: any = token.getExtensions()[1];
             expect(extension.__kind).toBe('ConfidentialMintBurn');
             expect(extension.supplyElgamalPubkey).toBe(SUPPLY_PK);
-            expect(extension.decryptableSupply).toBe(DECRYPTABLE_SUPPLY);
+            // Stored as a defensive copy (not the caller's array) so later
+            // external mutation can't corrupt the extension bytes.
+            expect(extension.decryptableSupply).not.toBe(DECRYPTABLE_SUPPLY);
+            expect(extension.decryptableSupply).toEqual(DECRYPTABLE_SUPPLY);
             // Placeholder ciphertexts sized for on-chain encoding (set by init).
             expect(extension.confidentialSupply).toHaveLength(64);
             expect(extension.pendingBurn).toHaveLength(64);

@@ -215,7 +215,9 @@ export class Token {
             // encodes to the correct on-chain size. Clone the placeholder per
             // field so the two arrays are not aliased across Token instances.
             confidentialSupply: new Uint8Array(EMPTY_ENCRYPTED_BALANCE),
-            decryptableSupply: options.decryptableSupply,
+            // Copy the caller's array so later external mutation can't silently
+            // corrupt the extension bytes (length already validated above).
+            decryptableSupply: new Uint8Array(options.decryptableSupply),
             supplyElgamalPubkey: options.supplyElgamalPubkey,
             pendingBurn: new Uint8Array(EMPTY_ENCRYPTED_BALANCE),
         };
