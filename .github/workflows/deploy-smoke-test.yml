@@ -41,6 +41,13 @@ on:
         description: 'Deployment URL to smoke test'
         required: true
 
+# One in-flight smoke test per PR (or per ref for manual dispatch). A fresh push
+# supersedes any earlier run, so rapid pushes don't stack up 10-minute polling
+# loops and burn CI minutes.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   deployments: read
