@@ -32,6 +32,11 @@ export function createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan
     /** The true current supply to encode into the decryptable supply. */
     supply: bigint;
 }): InstructionPlan {
+    // Supply is a u64 on-chain; reject out-of-range values before handing them
+    // to the WASM AES encrypt (which would otherwise fail opaquely or wrap).
+    if (input.supply < 0n || input.supply > 0xffff_ffff_ffff_ffffn) {
+        throw new Error(`supply must be a u64 (0..2^64-1), got ${input.supply}.`);
+    }
     const ciphertext = input.supplyKeys.aes.encrypt(input.supply);
     let newDecryptableSupply: Uint8Array;
     try {

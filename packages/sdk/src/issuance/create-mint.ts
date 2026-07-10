@@ -59,8 +59,11 @@ export interface ConfidentialMintBurnOptions {
     /**
      * The mint authority's **supply** ElGamal public key — the encrypted total
      * supply is maintained under it, and it backs the mint/burn equality proof.
-     * Distinct from any per-account ElGamal key. Derive it alongside
-     * {@link getConfidentialMintBurnInit} in `@solana/mosaic-sdk/confidential`.
+     * Conceptually the supply key rather than an account balance key, though it
+     * shares the standard `(owner, mint)` derivation (with `owner = mintAuthority`)
+     * so it is not domain-separated from the authority's own account keys. Derive
+     * it alongside {@link getConfidentialMintBurnInit} in
+     * `@solana/mosaic-sdk/confidential`.
      */
     supplyElgamalPubkey: Address;
     /**
@@ -207,8 +210,8 @@ export class Token {
         if (options.decryptableSupply.length !== 36) {
             throw new Error(`decryptableSupply must be 36 bytes (got ${options.decryptableSupply.length}).`);
         }
-        const confidentialMintBurnExtension = {
-            __kind: 'ConfidentialMintBurn' as const,
+        const confidentialMintBurnExtension: Extract<Extension, { __kind: 'ConfidentialMintBurn' }> = {
+            __kind: 'ConfidentialMintBurn',
             // Only `supplyElgamalPubkey` + `decryptableSupply` are sent on-chain
             // (via the init instruction); the ciphertext fields below are the
             // program's own state, zero-filled here purely so the extension
@@ -221,7 +224,7 @@ export class Token {
             supplyElgamalPubkey: options.supplyElgamalPubkey,
             pendingBurn: new Uint8Array(EMPTY_ENCRYPTED_BALANCE),
         };
-        this.extensions.push(confidentialMintBurnExtension as unknown as Extension);
+        this.extensions.push(confidentialMintBurnExtension);
         return this;
     }
 

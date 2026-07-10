@@ -63,6 +63,22 @@ describe('createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan', () 
         expect(new Uint8Array(data.newDecryptableSupply).length).toBe(36);
     });
 
+    it('rejects out-of-range (negative or > u64) supply values', () => {
+        const call = (supply: bigint) =>
+            createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan({
+                mint: MINT,
+                authority: AUTHORITY,
+                supplyKeys: keys,
+                supply,
+            });
+
+        expect(() => call(-1n)).toThrow('supply must be a u64');
+        expect(() => call(2n ** 64n)).toThrow('supply must be a u64');
+        // Boundary values are accepted.
+        expect(() => call(0n)).not.toThrow();
+        expect(() => call(2n ** 64n - 1n)).not.toThrow();
+    });
+
     it('encodes the supply under the supply AES key (round-trips back to the amount)', () => {
         const plan: any = createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan({
             mint: MINT,

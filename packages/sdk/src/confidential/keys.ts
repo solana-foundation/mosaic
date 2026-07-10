@@ -155,13 +155,16 @@ export interface DeriveConfidentialSupplyKeysInput {
 /**
  * Derives the **supply** ElGamal keypair + AES key for a `ConfidentialMintBurn`
  * mint. These are the mint authority's keys for the encrypted total supply
- * (distinct from any per-account keys): the supply AES key encrypts the
- * decryptable supply, and the supply ElGamal keypair backs the mint/burn
- * equality proof.
+ * (conceptually separate from any account's balance keys): the supply AES key
+ * encrypts the decryptable supply, and the supply ElGamal keypair backs the
+ * mint/burn equality proof.
  *
  * Bound to `(mintAuthority, mint)` via the same `(owner, mint)` derivation as
  * {@link deriveConfidentialKeysForOwnerMint} (with `owner = signer.address`), so
- * the keys are stable and need no storage.
+ * the keys are stable and need no storage. Because the derivation is identical,
+ * the supply keys are not cryptographically domain-separated from account keys —
+ * if the mint authority also derives account keys for itself under the same
+ * mint, the material coincides.
  *
  * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
  */

@@ -1,7 +1,11 @@
 // Test imports - Jest globals are available automatically
 import type { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
-import { AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+    AccountState,
+    INITIALIZE_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR,
+    TOKEN_2022_PROGRAM_ADDRESS,
+} from '@solana-program/token-2022';
 import { Token, getCreateMintInstructions } from '../index';
 import {
     createMockRpc,
@@ -222,12 +226,16 @@ describe('Token', () => {
                 feePayer: mockFeePayer,
             });
 
-            // The InitializeConfidentialMintBurn instruction touches only the mint
-            // account (single account) and targets the Token-2022 program.
-            const hasInit = instructions.some(
-                ix => ix.programAddress === TOKEN_2022_PROGRAM_ADDRESS && ix.accounts?.length === 1,
-            );
-            expect(hasInit).toBe(true);
+            // Identify the InitializeConfidentialMintBurn instruction by its
+            // Token-2022 discriminator (byte 0 of the data) rather than by account
+            // count — withConfidentialBalances also emits single-account init
+            // instructions, so a count-only check could false-pass without it.
+            const initCount = instructions.filter(
+                ix =>
+                    ix.programAddress === TOKEN_2022_PROGRAM_ADDRESS &&
+                    ix.data?.[0] === INITIALIZE_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR,
+            ).length;
+            expect(initCount).toBe(1);
         });
     });
 
