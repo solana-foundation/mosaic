@@ -14,7 +14,7 @@ import {
 } from '@solana-program/token-2022';
 import type { ConfidentialKeys } from './keys';
 import { fetchConfidentialAccountState } from './account-state';
-import { buildBurnProofData } from './mint-burn-proof';
+import { buildBurnProofData, elGamalCiphertextEncrypts } from './mint-burn-proof';
 import {
     assembleConfidentialMintBurnPlan,
     getConfidentialMintBurnExtension,
@@ -80,10 +80,24 @@ export async function createConfidentialBurnInstructionPlan(input: {
     const rawAmount = tokenAmountToRaw(input.amount, mintDecoded.data.decimals);
     // `decrypted` is always populated because `keys` were passed to the fetch.
     const currentAvailableBalance = state.decrypted!.availableBalance;
+    const currentAvailableBalanceCiphertext = new Uint8Array(state.ciphertexts.availableBalance);
+
+    // The equality proof binds the AES-decrypted available balance to the account's
+    // ElGamal available-balance ciphertext; if they have drifted (e.g. a stale
+    // decryptable balance, or the wrong account keys), the chain would reject the
+    // proof with an opaque ZK error — fail fast with an actionable one instead.
+    if (!elGamalCiphertextEncrypts(input.keys.elgamal, currentAvailableBalanceCiphertext, currentAvailableBalance)) {
+        throw new Error(
+            `Token account ${input.tokenAccount}'s decryptable available balance is out of sync with its ` +
+                `on-chain ElGamal balance ciphertext (apply any pending balance first, or check the account keys) ` +
+                `before burning.`,
+        );
+    }
+
     const auditorElgamalPubkey = input.auditorElgamalPubkey ?? getMintAuditorElgamalPubkey(mintDecoded);
 
     const proof = buildBurnProofData({
-        currentAvailableBalanceCiphertext: new Uint8Array(state.ciphertexts.availableBalance),
+        currentAvailableBalanceCiphertext,
         currentAvailableBalance,
         burnAmount: rawAmount,
         sourceElgamalKeypair: input.keys.elgamal,

@@ -8,7 +8,7 @@ import {
 } from '@solana/kit';
 import { fetchMint, fetchToken, getConfidentialMintInstruction } from '@solana-program/token-2022';
 import { type ConfidentialKeys, decryptAesBalance } from './keys';
-import { buildMintProofData } from './mint-burn-proof';
+import { buildMintProofData, elGamalCiphertextEncrypts } from './mint-burn-proof';
 import {
     assembleConfidentialMintBurnPlan,
     getAccountElgamalPubkey,
@@ -80,11 +80,27 @@ export async function createConfidentialMintInstructionPlan(input: {
 
     const rawAmount = tokenAmountToRaw(input.amount, mintDecoded.data.decimals);
     const currentSupply = decryptAesBalance(input.supplyKeys.aes, new Uint8Array(mintBurnExt.decryptableSupply));
+    const currentSupplyCiphertext = new Uint8Array(mintBurnExt.confidentialSupply);
+
+    // The equality proof binds the AES-decrypted `currentSupply` to the on-chain
+    // ElGamal supply ciphertext; `applyPendingBurn` updates the ciphertext but not
+    // the AES decryptable supply, so they drift after a burn is applied. Minting
+    // against a stale decryptable supply would build a proof the chain rejects
+    // with an opaque ZK error — fail fast with an actionable one instead. (Also
+    // catches a mismatched `supplyKeys`.)
+    if (!elGamalCiphertextEncrypts(input.supplyKeys.elgamal, currentSupplyCiphertext, currentSupply)) {
+        throw new Error(
+            `Mint ${input.mint}'s decryptable supply is out of sync with its on-chain ElGamal supply ` +
+                `ciphertext (this happens after \`applyPendingBurn\`, or if the wrong supply keys were passed). ` +
+                `Re-sync it with createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan before minting.`,
+        );
+    }
+
     const destinationElgamalPubkey = getAccountElgamalPubkey(destinationDecoded, input.destinationToken);
     const auditorElgamalPubkey = input.auditorElgamalPubkey ?? getMintAuditorElgamalPubkey(mintDecoded);
 
     const proof = buildMintProofData({
-        currentSupplyCiphertext: new Uint8Array(mintBurnExt.confidentialSupply),
+        currentSupplyCiphertext,
         currentSupply,
         mintAmount: rawAmount,
         supplyElgamalKeypair: input.supplyKeys.elgamal,
