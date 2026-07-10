@@ -390,6 +390,48 @@ export function buildBurnProofData(input: BuildBurnProofDataInput): MintBurnProo
     }
 }
 
+/**
+ * Cheap consistency check: does `ciphertextBytes` (a 64-byte ElGamal supply or
+ * balance ciphertext under `keypair`'s public key) encrypt `expected`?
+ *
+ * The decryptable (AES) supply/balance and its ElGamal ciphertext are two
+ * encodings of the same value, but they can drift — most notably a mint's
+ * decryptable supply after `applyPendingBurn`, which updates the on-chain
+ * ElGamal supply ciphertext but cannot touch the AES form (the program has no
+ * access to the supply AES key). Building a mint/burn equality proof against a
+ * drifted value produces a proof the chain rejects with an opaque ZK error, so
+ * callers use this to fail fast with a clear message instead.
+ *
+ * Runs without a full discrete-log solve: encrypt `expected` under the same
+ * public key and homomorphically subtract it from `ciphertextBytes`. If the two
+ * agree the difference is an encryption of `0`, which decrypts instantly; any
+ * mismatch yields a large plaintext the bounded discrete-log solver rejects, so
+ * this returns quickly (never hangs) in both the match and mismatch cases.
+ */
+export function elGamalCiphertextEncrypts(
+    keypair: ElGamalKeypair,
+    ciphertextBytes: Uint8Array,
+    expected: bigint,
+): boolean {
+    const { track, freeAll } = makeWasmTracker();
+    try {
+        const pubkey = track(keypair.pubkey());
+        const expectedCt = track(pubkey.encryptU64(expected));
+        const diff = track(
+            requireCiphertext(subtractCiphertexts(ciphertextBytes, new Uint8Array(expectedCt.toBytes()))),
+        );
+        const secret = track(keypair.secret());
+        try {
+            return secret.decrypt(diff) === 0n;
+        } catch {
+            // Bounded discrete-log solve failed → the difference is non-zero.
+            return false;
+        }
+    } finally {
+        freeAll();
+    }
+}
+
 /** Decodes a 64-byte ElGamal ciphertext, throwing on malformed bytes. */
 function requireCiphertext(bytes: Uint8Array): ElGamalCiphertext {
     const ciphertext = ElGamalCiphertext.fromBytes(bytes);

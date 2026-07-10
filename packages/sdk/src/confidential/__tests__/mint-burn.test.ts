@@ -39,9 +39,14 @@ jest.mock('@solana-program/token-2022', () => ({
 
 const mockBuildMintProofData = jest.fn((_input: unknown): MintBurnProofData => fakeProof());
 const mockBuildBurnProofData = jest.fn((_input: unknown): MintBurnProofData => fakeProof());
+// The AES/ElGamal supply-consistency guard. Defaults to "in sync" (true) so the
+// plan-shape tests exercise the happy path; individual tests flip it to false to
+// assert the fail-fast behaviour.
+const mockElGamalCiphertextEncrypts = jest.fn((): boolean => true);
 jest.mock('../mint-burn-proof', () => ({
     buildMintProofData: (input: unknown) => mockBuildMintProofData(input),
     buildBurnProofData: (input: unknown) => mockBuildBurnProofData(input),
+    elGamalCiphertextEncrypts: () => mockElGamalCiphertextEncrypts(),
 }));
 
 // Fixed proof-instruction wiring so the plan shape is deterministic and the
@@ -213,6 +218,22 @@ describe('confidential mint', () => {
             }),
         ).rejects.toThrow(/ConfidentialTransferMint/);
     });
+
+    it('fails fast when the decryptable supply is out of sync with the ElGamal ciphertext', async () => {
+        mockElGamalCiphertextEncrypts.mockReturnValueOnce(false);
+        await expect(
+            createConfidentialMintInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                mint: MINT,
+                destinationToken: DEST_TOKEN,
+                authority: AUTHORITY,
+                amount: '2',
+                supplyKeys: fakeKeys,
+            }),
+        ).rejects.toThrow(/out of sync/);
+        expect(mockBuildMintProofData).not.toHaveBeenCalled();
+    });
 });
 
 describe('confidential burn', () => {
@@ -270,6 +291,22 @@ describe('confidential burn', () => {
                 keys: fakeKeys,
             }),
         ).rejects.toThrow(/ConfidentialMintBurn/);
+    });
+
+    it('fails fast when the decryptable balance is out of sync with the ElGamal ciphertext', async () => {
+        mockElGamalCiphertextEncrypts.mockReturnValueOnce(false);
+        await expect(
+            createConfidentialBurnInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                mint: MINT,
+                tokenAccount: SOURCE_TOKEN,
+                authority: AUTHORITY,
+                amount: '1',
+                keys: fakeKeys,
+            }),
+        ).rejects.toThrow(/out of sync/);
+        expect(mockBuildBurnProofData).not.toHaveBeenCalled();
     });
 });
 

@@ -6,7 +6,7 @@ import {
     CiphertextCommitmentEqualityProofData,
     ElGamalKeypair,
 } from '@solana/zk-sdk/node';
-import { buildBurnProofData, buildMintProofData } from '../mint-burn-proof';
+import { buildBurnProofData, buildMintProofData, elGamalCiphertextEncrypts } from '../mint-burn-proof';
 import { decryptAesBalance } from '../keys';
 
 /**
@@ -165,6 +165,44 @@ describe('buildMintProofData (real WASM)', () => {
         supplyKeypair.free();
         supplyAes.free();
         destinationKeypair.free();
+    });
+});
+
+describe('elGamalCiphertextEncrypts (real WASM)', () => {
+    it('returns true when the ciphertext encrypts the expected value', () => {
+        const keypair = elgamalKeypair(30);
+        expect(elGamalCiphertextEncrypts(keypair, encryptedBalance(keypair, 100n), 100n)).toBe(true);
+        keypair.free();
+    });
+
+    it('returns true for a large (lo+hi) value without a slow discrete-log solve', () => {
+        const keypair = elgamalKeypair(31);
+        // Far beyond the ~2^32 discrete-log bound: only the diff (0) is decrypted.
+        const large = (1n << 47n) + 12345n;
+        expect(elGamalCiphertextEncrypts(keypair, encryptedBalance(keypair, large), large)).toBe(true);
+        keypair.free();
+    });
+
+    it('returns false when the ciphertext encrypts more than expected (stale drift)', () => {
+        const keypair = elgamalKeypair(32);
+        // Mirrors a post-applyPendingBurn mint: on-chain ElGamal supply is lower
+        // than the stale AES decryptable supply the caller passes in.
+        expect(elGamalCiphertextEncrypts(keypair, encryptedBalance(keypair, 90n), 100n)).toBe(false);
+        keypair.free();
+    });
+
+    it('returns false when the ciphertext encrypts less than expected', () => {
+        const keypair = elgamalKeypair(33);
+        expect(elGamalCiphertextEncrypts(keypair, encryptedBalance(keypair, 100n), 90n)).toBe(false);
+        keypair.free();
+    });
+
+    it('returns false when a different key produced the ciphertext (wrong supply keys)', () => {
+        const keypair = elgamalKeypair(34);
+        const otherKeypair = elgamalKeypair(35);
+        expect(elGamalCiphertextEncrypts(keypair, encryptedBalance(otherKeypair, 100n), 100n)).toBe(false);
+        keypair.free();
+        otherKeypair.free();
     });
 });
 
