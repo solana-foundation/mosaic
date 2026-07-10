@@ -16,8 +16,24 @@ name: Deploy Smoke Test
 # Settings → Deployment Protection → "Protection Bypass for Automation") to let
 # the test through. Without it, a protected preview is detected and the smoke
 # test is skipped (green) instead of run, so this check is safe to keep enabled.
+#
+# Trigger is `pull_request_target` (not `pull_request`): GitHub does NOT expose
+# repo secrets to workflows triggered by a fork's `pull_request` event, so on
+# cross-fork PRs the bypass secret would be empty and the test would always skip.
+# `pull_request_target` runs in the base-repo context, where the secret IS
+# available. SAFETY INVARIANT: this event runs with secrets, so the job must only
+# ever check out TRUSTED base-branch code — never the PR head. The checkout step
+# below intentionally has no `ref:` (defaults to base under this event); do NOT
+# add `ref: ${{ github.event.pull_request.head.sha }}` or you turn this into a
+# secret-exfiltration hole. Untrusted PR code only runs inside Vercel's isolated
+# preview deploy, which this job merely drives over the network. All PR-controlled
+# values are passed via `env:` and read as shell `$VARS` (never interpolated into
+# `run:` via `${{ }}`), closing the script-injection vector.
+#
+# Note: `pull_request_target` always uses the workflow file from the BASE branch,
+# so edits here only take effect for PRs opened after this is merged to base.
 on:
-  pull_request:
+  pull_request_target:
     branches: [main, develop]
   workflow_dispatch:
     inputs:
@@ -95,6 +111,9 @@ jobs:
             echo "run=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # No `ref:` on purpose — under pull_request_target this checks out the
+      # trusted base branch. This job runs with secrets, so never add
+      # `ref: ${{ github.event.pull_request.head.sha }}` here (see header).
       - name: Checkout code
         if: steps.gate.outputs.run == 'true'
         uses: actions/checkout@v4
