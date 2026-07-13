@@ -11,6 +11,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { HelpCircle } from 'lucide-react';
 import { useTokenExtensionStore, usePauseState, useScaledUiAmountState } from '@/stores/token-extension-store';
+import { updateTransferHookProgram } from '@/features/token-management/lib/transfer-hook';
+import { isAddress } from '@solana/kit';
 
 interface TokenExtensionsProps {
     token: TokenDisplay;
@@ -20,7 +22,7 @@ interface ExtensionConfig {
     displayName: string;
     description: string;
     helpText: string;
-    type: 'address' | 'toggle' | 'number' | 'readonly' | 'pausable';
+    type: 'address' | 'toggle' | 'number' | 'readonly' | 'pausable' | 'transferHook';
     editable?: boolean;
     getDisplayValue?: (token: TokenDisplay) => string | number | boolean | undefined;
 }
@@ -109,8 +111,10 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         displayName: 'Transfer Hook',
         description: 'Custom program logic executed on every transfer.',
         helpText:
-            'Executes custom program logic on every transfer. Used for royalties, additional validation, or custom transfer logic. Requires a deployed program implementing the transfer hook interface.',
-        type: 'readonly',
+            'Executes custom program logic on every transfer. Used for royalties, additional validation, or custom transfer logic. Requires a deployed program implementing the transfer hook interface. Set the program id to attach a hook, or clear it to leave the extension inactive.',
+        type: 'transferHook',
+        editable: true,
+        getDisplayValue: token => token.transferHookProgramId,
     },
 };
 
@@ -142,6 +146,19 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
     // Scaled UI Amount local state for edit mode
     const [showScaledUiEditor, setShowScaledUiEditor] = useState(false);
     const [newMultiplier, setNewMultiplier] = useState<string>('');
+
+    // Transfer Hook local state for edit mode
+    const [showTransferHookEditor, setShowTransferHookEditor] = useState(false);
+    const [newTransferHookProgramId, setNewTransferHookProgramId] = useState<string>('');
+    const [isTransferHookUpdating, setIsTransferHookUpdating] = useState(false);
+    const [transferHookError, setTransferHookError] = useState<string | null>(null);
+    const [currentTransferHookProgramId, setCurrentTransferHookProgramId] = useState<string | undefined>(
+        token.transferHookProgramId,
+    );
+
+    useEffect(() => {
+        setCurrentTransferHookProgramId(token.transferHookProgramId);
+    }, [token.address, token.transferHookProgramId]);
 
     // Get pause state from centralized store
     const { isPaused, isUpdating: isPauseUpdating, error: pauseError } = usePauseState(token.address);
@@ -206,6 +223,42 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
         }
     };
 
+    // Handle transfer hook program id update (or clearing it back to inactive)
+    const handleSaveTransferHook = async (clear: boolean) => {
+        if (!token.address || !transactionSendingSigner) {
+            setTransferHookError('Wallet not connected');
+            return;
+        }
+
+        const trimmedValue = newTransferHookProgramId.trim();
+        if (!clear && !trimmedValue) {
+            setTransferHookError('Enter a program id, or clear the hook instead');
+            return;
+        }
+        if (!clear && !isAddress(trimmedValue)) {
+            setTransferHookError('Enter a valid Solana address');
+            return;
+        }
+
+        setIsTransferHookUpdating(true);
+        setTransferHookError(null);
+
+        const result = await updateTransferHookProgram(
+            { mint: token.address, programId: clear ? null : trimmedValue, rpcUrl: cluster?.url },
+            transactionSendingSigner,
+        );
+
+        setIsTransferHookUpdating(false);
+
+        if (result.success) {
+            setCurrentTransferHookProgramId(clear ? undefined : trimmedValue);
+            setNewTransferHookProgramId('');
+            setShowTransferHookEditor(false);
+        } else {
+            setTransferHookError(result.error || 'Failed to update transfer hook');
+        }
+    };
+
     // Get extensions that are present and have config
     const presentExtensions = (token.extensions || [])
         .map(extName => {
@@ -244,7 +297,85 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
 
                             return (
                                 <div key={sdkName} className="p-5">
-                                    {sdkName === 'ScaledUiAmountConfig' && showScaledUiEditor ? (
+                                    {sdkName === 'TransferHook' && showTransferHookEditor ? (
+                                        // Transfer Hook Edit Mode
+                                        <div className="space-y-4">
+                                            <div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <h4 className="font-semibold text-foreground">
+                                                        {config.displayName}
+                                                    </h4>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="max-w-xs">
+                                                            {config.helpText}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </div>
+                                                <p className="text-sm text-muted-foreground mt-0.5">
+                                                    {config.description}
+                                                </p>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <div className="space-y-1">
+                                                    <label className="text-xs text-muted-foreground">
+                                                        Hook Program ID
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Enter the program address..."
+                                                        value={newTransferHookProgramId}
+                                                        onChange={e => setNewTransferHookProgramId(e.target.value)}
+                                                        disabled={isTransferHookUpdating}
+                                                        className="w-full h-10 rounded-xl border border-input bg-background px-3 py-2 text-sm font-mono ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                    />
+                                                    <p className="text-xs text-muted-foreground">
+                                                        Leave blank and click Clear to detach the current program and
+                                                        leave the extension inactive.
+                                                    </p>
+                                                </div>
+                                                {transferHookError && (
+                                                    <Alert variant="destructive">
+                                                        <AlertDescription>{transferHookError}</AlertDescription>
+                                                    </Alert>
+                                                )}
+                                                <div className="flex items-center gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-10 px-4 rounded-xl"
+                                                        onClick={() => handleSaveTransferHook(false)}
+                                                        disabled={isTransferHookUpdating || !newTransferHookProgramId.trim()}
+                                                    >
+                                                        {isTransferHookUpdating ? 'Saving...' : 'Save'}
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="h-10 px-4 rounded-xl"
+                                                        onClick={() => handleSaveTransferHook(true)}
+                                                        disabled={isTransferHookUpdating || !currentTransferHookProgramId}
+                                                    >
+                                                        Clear
+                                                    </Button>
+                                                    <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="h-10 px-4 rounded-xl"
+                                                        onClick={() => {
+                                                            setShowTransferHookEditor(false);
+                                                            setNewTransferHookProgramId('');
+                                                            setTransferHookError(null);
+                                                        }}
+                                                        disabled={isTransferHookUpdating}
+                                                    >
+                                                        Cancel
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : sdkName === 'ScaledUiAmountConfig' && showScaledUiEditor ? (
                                         // Scaled UI Amount Edit Mode
                                         <div className="space-y-4">
                                             <div>
@@ -357,6 +488,16 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                         {value || '0.005'}
                                                     </div>
                                                 )}
+                                                {config.type === 'transferHook' &&
+                                                    (currentTransferHookProgramId ? (
+                                                        <div className="px-3 py-2 bg-muted rounded-xl font-mono text-sm">
+                                                            {truncateAddress(currentTransferHookProgramId)}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="px-3 py-2 bg-muted rounded-xl text-sm text-muted-foreground">
+                                                            Inactive
+                                                        </div>
+                                                    ))}
                                                 {config.type === 'readonly' && (
                                                     <div className="px-3 py-2 bg-muted rounded-xl text-sm text-muted-foreground">
                                                         Enabled
@@ -370,6 +511,12 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                         onClick={() => {
                                                             if (sdkName === 'ScaledUiAmountConfig') {
                                                                 setShowScaledUiEditor(true);
+                                                            } else if (sdkName === 'TransferHook') {
+                                                                setNewTransferHookProgramId(
+                                                                    currentTransferHookProgramId || '',
+                                                                );
+                                                                setTransferHookError(null);
+                                                                setShowTransferHookEditor(true);
                                                             }
                                                         }}
                                                     >
@@ -407,6 +554,7 @@ function mapDisplayNameToSdkName(displayName: string): string {
         'Interest Bearing': 'InterestBearingConfig',
         'Non-Transferable': 'NonTransferable',
         'Transfer Hook': 'TransferHook',
+        'Transfer Hook (Inactive)': 'TransferHook',
     };
 
     // Check if it's already an SDK name

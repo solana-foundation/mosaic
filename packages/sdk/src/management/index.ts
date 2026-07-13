@@ -7,3 +7,4 @@ export * from './force-transfer';
 export * from './mint';
 export * from './pause';
 export * from './permissioned-burn';
+export * from './transfer-hook';

@@ -10,6 +10,7 @@ import {
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from '@solana-program/token-2022';
 import { fetchEncodedAccount } from '@solana/accounts';
+import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 
 /**
  * Default commitment level for transactions.
@@ -41,6 +42,9 @@ export interface TokenAuthorities {
     confidentialBalancesAuthority?: string;
     permanentDelegateAuthority?: string;
     scaledUiAmountAuthority?: string;
+    transferHookAuthority?: string;
+    /** Currently active hook program id, or undefined if the extension is present but inactive. */
+    transferHookProgramId?: string;
 }
 
 /**
@@ -178,6 +182,14 @@ export async function getTokenAuthorities(mintAddress: string, rpcUrl?: string):
                 case 'ScaledUiAmountConfig':
                     if ('authority' in ext && ext.authority) {
                         authorities.scaledUiAmountAuthority = ext.authority;
+                    }
+                    break;
+                case 'TransferHook':
+                    if ('authority' in ext) {
+                        authorities.transferHookAuthority = ext.authority;
+                    }
+                    if ('programId' in ext && ext.programId !== SYSTEM_PROGRAM_ADDRESS) {
+                        authorities.transferHookProgramId = ext.programId;
                     }
                     break;
             }

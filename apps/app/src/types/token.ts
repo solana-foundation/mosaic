@@ -14,6 +14,9 @@ export interface TokenDisplay {
     confidentialBalancesAuthority?: string;
     permanentDelegateAuthority?: string;
     scaledUiAmountAuthority?: string;
+    transferHookAuthority?: string;
+    /** Currently active hook program id; undefined if the extension is present but inactive. */
+    transferHookProgramId?: string;
     extensions?: string[];
     transactionSignature?: string;
     createdAt?: string;
