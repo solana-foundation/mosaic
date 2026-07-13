@@ -82,7 +82,7 @@ src/
 
 ### Environment Variables
 
-- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom Solana RPC endpoint URL. If not set, defaults to `https://api.devnet.solana.com`. This variable is exposed to the client-side and available in production builds. See `.env.example` for more details.
+- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom Solana RPC endpoint URL, applied to whichever cluster is selected. If not set, each network uses its public endpoint (devnet: `https://api.devnet.solana.com`). This variable is exposed to the client-side and inlined at build time, so production builds must be rebuilt after changing it. See `.env.example` for more details.
 
 ## Development
 

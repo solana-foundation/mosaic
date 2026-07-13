@@ -5,7 +5,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { WarningText } from '@/components/ui/warning-text';
 import { TokenDisplay } from '@/types/token';
 import { updateTokenAuthority, removeTokenAuthority } from '@/features/token-management/lib/authority';
-import { getTokenAuthorities, type TokenAuthorities as BlockchainAuthorities } from '@/lib/solana/rpc';
+import { getRpcUrl, getTokenAuthorities, type TokenAuthorities as BlockchainAuthorities } from '@/lib/solana/rpc';
 import { AuthorityType } from '@solana-program/token-2022';
 import { isAddress } from '@solana/kit';
 import { useConnector } from '@solana/connector/react';
@@ -153,7 +153,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
     const { selectedAccount, cluster } = useConnector();
 
     // Get RPC URL from the current cluster
-    const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+    const rpcUrl = getRpcUrl(cluster?.url);
 
     // Use the connector signer hook which provides a kit-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();

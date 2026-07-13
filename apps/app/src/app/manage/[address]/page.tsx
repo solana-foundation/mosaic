@@ -51,7 +51,7 @@ import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from '@solana/kit';
 import { getList, getListConfigPda, getTokenExtensions } from '@solana/mosaic-sdk';
 import { Mode } from '@solana/token-acl-gate-sdk';
 import { buildAddressExplorerUrl } from '@/lib/solana/explorer';
-import { getTokenAuthorities } from '@/lib/solana/rpc';
+import { getRpcUrl, getTokenAuthorities } from '@/lib/solana/rpc';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     DropdownMenu,
@@ -159,8 +159,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
                 // Fetch authority information from the blockchain
                 try {
-                    const rpcUrl =
-                        cluster?.url ?? process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
+                    const rpcUrl = getRpcUrl(cluster?.url);
                     const authorities = await getTokenAuthorities(foundToken.address as Address, rpcUrl);
                     // Merge fetched authorities into the token, preserving existing values if they exist
                     foundToken.mintAuthority = authorities.mintAuthority || foundToken.mintAuthority;

@@ -10,28 +10,33 @@ export function Providers({ children }: { children: ReactNode }) {
     const customRpcs = useRpcStore(state => state.customRpcs);
 
     const connectorConfig = useMemo(() => {
-        // Get custom RPC URL from environment variable
+        // Optional RPC override applied to whichever cluster is selected. When set,
+        // it replaces the public endpoint for every network so writes go through the
+        // configured provider (the public endpoints are rate-limited and may reject
+        // browser writes with HTTP 403).
         const envRpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+
+        const label = (name: string) => (envRpcUrl ? `${name} (Env RPC)` : name);
 
         // Base clusters - always available
         const baseClusters = [
             {
                 id: 'solana:mainnet' as const,
-                label: envRpcUrl ? 'Mainnet (Env RPC)' : 'Mainnet',
+                label: label('Mainnet'),
                 name: 'mainnet-beta' as const,
                 url: envRpcUrl || 'https://api.mainnet-beta.solana.com',
             },
             {
                 id: 'solana:devnet' as const,
-                label: 'Devnet',
+                label: label('Devnet'),
                 name: 'devnet' as const,
-                url: 'https://api.devnet.solana.com',
+                url: envRpcUrl || 'https://api.devnet.solana.com',
             },
             {
                 id: 'solana:testnet' as const,
-                label: 'Testnet',
+                label: label('Testnet'),
                 name: 'testnet' as const,
-                url: 'https://api.testnet.solana.com',
+                url: envRpcUrl || 'https://api.testnet.solana.com',
             },
         ];
 
@@ -51,6 +56,11 @@ export function Providers({ children }: { children: ReactNode }) {
             autoConnect: true,
             enableMobile: true,
             clusters,
+            // Only applies on a first visit: the connector persists the user's
+            // choice under `connector-kit:cluster` and prefers it over this.
+            // Without it the connector falls back to mainnet, where creating a
+            // token would spend real SOL.
+            network: 'devnet',
         });
     }, [customRpcs]);
 

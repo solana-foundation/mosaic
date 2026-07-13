@@ -26,6 +26,7 @@ import {
     MODAL_SUCCESS_MESSAGES,
 } from '@/features/token-management/constants/modal-text';
 import { humanizeError } from '@/lib/errors';
+import { getRpcUrl } from '@/lib/solana/rpc';
 
 interface ForceBurnModalContentProps {
     mintAddress: string;
@@ -78,7 +79,7 @@ export function ForceBurnModalContent({
         setError('');
 
         try {
-            const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+            const rpcUrl = getRpcUrl(cluster?.url);
 
             const options: ForceBurnOptions = {
                 mintAddress,

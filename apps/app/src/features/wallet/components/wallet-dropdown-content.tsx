@@ -53,8 +53,8 @@ export function WalletDropdownContent({
 
     const shortAddress = `${selectedAccount.slice(0, 4)}...${selectedAccount.slice(-4)}`;
 
-    // Get current cluster id for selection
-    const currentClusterId = (cluster as { id?: string })?.id || 'solana:mainnet';
+    // Get current cluster id for selection (matches the connector's default network).
+    const currentClusterId = (cluster as { id?: string })?.id || 'solana:devnet';
 
     // Build all networks list (default + custom)
     const allNetworks = useMemo<NetworkOption[]>(() => {
