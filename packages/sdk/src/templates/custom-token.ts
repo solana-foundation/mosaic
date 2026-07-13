@@ -283,6 +283,10 @@ export const createCustomTokenInitTransaction = async (
     });
 
     // Clear the transfer hook program id back to None so the extension is present but inert.
+    // Pass the resolved input (Signer-or-Address) so a custom Signer flows through and the
+    // kit attaches it to the ix; otherwise we rely on mintAuthority's signature covering it.
+    // A bare Address for transferHookAuthority only works if some other instruction in this
+    // same transaction already attaches a signer for that address.
     if (options?.enableTransferHook && !options.transferHookProgramId) {
         instructions.push(
             getUpdateTransferHookInstruction(

@@ -36,6 +36,8 @@ interface ScaledUiAmountState {
 interface TransferHookState {
     /** Currently active hook program id, or null if the extension is inactive/unset. */
     programId: string | null;
+    /** Whether programId has been seeded from chain data yet (see seedTransferHookProgramId). */
+    seeded: boolean;
     isUpdating: boolean;
     error: string | null;
 }
@@ -63,6 +65,7 @@ function createDefaultExtensionState(): ExtensionState {
         },
         transferHook: {
             programId: null,
+            seeded: false,
             isUpdating: false,
             error: null,
         },
@@ -298,13 +301,17 @@ export const useTokenExtensionStore = create<TokenExtensionStore>()(
             });
         },
 
-        // Seed the transfer hook program id from on-chain data, without clobbering
-        // state already tracked for this mint (e.g. an in-flight or completed update).
+        // Seed the transfer hook program id from on-chain data, once per mint. Guarded on
+        // transferHook.seeded rather than the mint entry's existence: another extension's
+        // fetch (e.g. fetchPauseState) may have already created the entry for this mint via
+        // ensureExtension, which would make a per-mint existence check skip the seed and
+        // leave programId stuck at its default (null/"Inactive").
         seedTransferHookProgramId: (mint, programId) => {
             set(state => {
-                if (!state.extensions[mint]) {
-                    const ext = ensureExtension(state, mint);
+                const ext = ensureExtension(state, mint);
+                if (!ext.transferHook.seeded) {
                     ext.transferHook.programId = programId;
+                    ext.transferHook.seeded = true;
                 }
             });
         },
@@ -327,6 +334,7 @@ export const useTokenExtensionStore = create<TokenExtensionStore>()(
                     ),
                 onSuccess: transferHook => {
                     (transferHook as TransferHookState).programId = options.programId;
+                    (transferHook as TransferHookState).seeded = true;
                 },
                 onFailure: () => {
                     // No optimistic update to revert
@@ -390,6 +398,7 @@ const DEFAULT_SCALED_UI_STATE: ScaledUiAmountState = {
 // Default transfer hook state for selector
 const DEFAULT_TRANSFER_HOOK_STATE: TransferHookState = {
     programId: null,
+    seeded: false,
     isUpdating: false,
     error: null,
 };

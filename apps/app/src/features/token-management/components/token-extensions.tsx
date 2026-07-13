@@ -238,8 +238,11 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
 
     // Handle transfer hook program id update (or clearing it back to inactive) using store
     const handleSaveTransferHook = async (clear: boolean) => {
-        if (!token.address || !transactionSendingSigner) {
-            updateExtensionField(token.address || '', 'transferHook', { error: 'Wallet not connected' });
+        if (!token.address) {
+            return;
+        }
+        if (!transactionSendingSigner) {
+            updateExtensionField(token.address, 'transferHook', { error: 'Wallet not connected' });
             return;
         }
 

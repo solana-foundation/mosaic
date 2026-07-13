@@ -185,7 +185,7 @@ export async function getTokenAuthorities(mintAddress: string, rpcUrl?: string):
                     }
                     break;
                 case 'TransferHook':
-                    if ('authority' in ext) {
+                    if ('authority' in ext && ext.authority !== SYSTEM_PROGRAM_ADDRESS) {
                         authorities.transferHookAuthority = ext.authority;
                     }
                     if ('programId' in ext && ext.programId !== SYSTEM_PROGRAM_ADDRESS) {
