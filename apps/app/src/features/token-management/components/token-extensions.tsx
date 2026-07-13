@@ -10,8 +10,12 @@ import { AmountInput } from '@/components/shared/form/amount-input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { HelpCircle } from 'lucide-react';
-import { useTokenExtensionStore, usePauseState, useScaledUiAmountState } from '@/stores/token-extension-store';
-import { updateTransferHookProgram } from '@/features/token-management/lib/transfer-hook';
+import {
+    useTokenExtensionStore,
+    usePauseState,
+    useScaledUiAmountState,
+    useTransferHookState,
+} from '@/stores/token-extension-store';
 import { isAddress } from '@solana/kit';
 
 interface TokenExtensionsProps {
@@ -147,18 +151,11 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
     const [showScaledUiEditor, setShowScaledUiEditor] = useState(false);
     const [newMultiplier, setNewMultiplier] = useState<string>('');
 
-    // Transfer Hook local state for edit mode
+    // Transfer Hook local state for edit mode (the current value itself lives in the
+    // centralized store so it survives tab switches/remounts instead of reverting to a
+    // stale prop on unmount).
     const [showTransferHookEditor, setShowTransferHookEditor] = useState(false);
     const [newTransferHookProgramId, setNewTransferHookProgramId] = useState<string>('');
-    const [isTransferHookUpdating, setIsTransferHookUpdating] = useState(false);
-    const [transferHookError, setTransferHookError] = useState<string | null>(null);
-    const [currentTransferHookProgramId, setCurrentTransferHookProgramId] = useState<string | undefined>(
-        token.transferHookProgramId,
-    );
-
-    useEffect(() => {
-        setCurrentTransferHookProgramId(token.transferHookProgramId);
-    }, [token.address, token.transferHookProgramId]);
 
     // Get pause state from centralized store
     const { isPaused, isUpdating: isPauseUpdating, error: pauseError } = usePauseState(token.address);
@@ -168,12 +165,28 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
     const { isUpdating: isScaledUiUpdating, error: scaledUiError } = useScaledUiAmountState(token.address);
     const { updateScaledUiMultiplier, updateExtensionField } = useTokenExtensionStore();
 
+    // Get transfer hook state from centralized store
+    const {
+        programId: currentTransferHookProgramId,
+        isUpdating: isTransferHookUpdating,
+        error: transferHookError,
+    } = useTransferHookState(token.address);
+    const { updateTransferHookProgram, seedTransferHookProgramId } = useTokenExtensionStore();
+
     // Fetch pause state on mount if token has pausable extension
     useEffect(() => {
         if (token.address && token.extensions?.some(ext => ext === 'Pausable' || ext === 'PausableConfig')) {
             fetchPauseState(token.address, cluster?.url || '');
         }
     }, [token.address, token.extensions, cluster?.url, fetchPauseState]);
+
+    // Seed the transfer hook program id from the freshly-fetched token once per mint;
+    // the store guards against clobbering state already tracked for this mint.
+    useEffect(() => {
+        if (token.address) {
+            seedTransferHookProgramId(token.address, token.transferHookProgramId ?? null);
+        }
+    }, [token.address, token.transferHookProgramId, seedTransferHookProgramId]);
 
     // Handle pause toggle using store
     const handlePauseToggle = async () => {
@@ -223,39 +236,34 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
         }
     };
 
-    // Handle transfer hook program id update (or clearing it back to inactive)
+    // Handle transfer hook program id update (or clearing it back to inactive) using store
     const handleSaveTransferHook = async (clear: boolean) => {
         if (!token.address || !transactionSendingSigner) {
-            setTransferHookError('Wallet not connected');
+            updateExtensionField(token.address || '', 'transferHook', { error: 'Wallet not connected' });
             return;
         }
 
         const trimmedValue = newTransferHookProgramId.trim();
         if (!clear && !trimmedValue) {
-            setTransferHookError('Enter a program id, or clear the hook instead');
+            updateExtensionField(token.address, 'transferHook', {
+                error: 'Enter a program id, or clear the hook instead',
+            });
             return;
         }
         if (!clear && !isAddress(trimmedValue)) {
-            setTransferHookError('Enter a valid Solana address');
+            updateExtensionField(token.address, 'transferHook', { error: 'Enter a valid Solana address' });
             return;
         }
 
-        setIsTransferHookUpdating(true);
-        setTransferHookError(null);
-
-        const result = await updateTransferHookProgram(
-            { mint: token.address, programId: clear ? null : trimmedValue, rpcUrl: cluster?.url },
+        const success = await updateTransferHookProgram(
+            token.address,
+            { programId: clear ? null : trimmedValue, rpcUrl: cluster?.url },
             transactionSendingSigner,
         );
 
-        setIsTransferHookUpdating(false);
-
-        if (result.success) {
-            setCurrentTransferHookProgramId(clear ? undefined : trimmedValue);
+        if (success) {
             setNewTransferHookProgramId('');
             setShowTransferHookEditor(false);
-        } else {
-            setTransferHookError(result.error || 'Failed to update transfer hook');
         }
     };
 
@@ -366,7 +374,11 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                         onClick={() => {
                                                             setShowTransferHookEditor(false);
                                                             setNewTransferHookProgramId('');
-                                                            setTransferHookError(null);
+                                                            if (token.address) {
+                                                                updateExtensionField(token.address, 'transferHook', {
+                                                                    error: null,
+                                                                });
+                                                            }
                                                         }}
                                                         disabled={isTransferHookUpdating}
                                                     >
@@ -515,7 +527,11 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                                 setNewTransferHookProgramId(
                                                                     currentTransferHookProgramId || '',
                                                                 );
-                                                                setTransferHookError(null);
+                                                                if (token.address) {
+                                                                    updateExtensionField(token.address, 'transferHook', {
+                                                                        error: null,
+                                                                    });
+                                                                }
                                                                 setShowTransferHookEditor(true);
                                                             }
                                                         }}
