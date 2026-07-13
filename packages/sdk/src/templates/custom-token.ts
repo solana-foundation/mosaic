@@ -8,7 +8,9 @@ import {
     setTransactionMessageFeePayer,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
+    none,
 } from '@solana/kit';
+import { getUpdateTransferHookInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { Mode } from '@solana/token-acl-gate-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
@@ -97,7 +99,11 @@ export const createCustomTokenInitTransaction = async (
         interestRate?: number;
 
         // Transfer Hook configuration
-        transferHookAuthority?: Address;
+        // transferHookAuthority defaults to mintAuthority (preserving its TransactionSigner) when
+        // omitted, since it must sign the UpdateTransferHook clear-to-none instruction below when
+        // transferHookProgramId is left unset. Passing a bare Address only works if some other
+        // instruction in the same tx already attaches a signer for that address.
+        transferHookAuthority?: Address | TransactionSigner<string>;
         transferHookProgramId?: Address;
     },
 ): Promise<FullTransaction> => {
@@ -251,15 +257,18 @@ export const createCustomTokenInitTransaction = async (
         tokenBuilder = tokenBuilder.withNonTransferable();
     }
 
-    // Add Transfer Hook extension
+    // Add Transfer Hook extension. If transferHookProgramId is omitted, the extension is
+    // initialized with a placeholder programId (space must be reserved before initializeMint)
+    // and immediately cleared to None below, so the mint reserves TransferHook space and can
+    // adopt a real hook program later without recreating the mint.
+    const transferHookAuthorityInput: Address | TransactionSigner<string> =
+        options?.transferHookAuthority ?? mintAuthority;
+    const transferHookAuthorityAddress =
+        typeof transferHookAuthorityInput === 'string' ? transferHookAuthorityInput : transferHookAuthorityInput.address;
     if (options?.enableTransferHook) {
-        if (!options.transferHookProgramId) {
-            throw new Error('transferHookProgramId is required when enableTransferHook is enabled');
-        }
-        const transferHookAuthority = options.transferHookAuthority || mintAuthorityAddress;
         tokenBuilder = tokenBuilder.withTransferHook({
-            authority: transferHookAuthority,
-            programId: options.transferHookProgramId,
+            authority: transferHookAuthorityAddress,
+            programId: options.transferHookProgramId ?? transferHookAuthorityAddress,
         });
     }
 
@@ -272,6 +281,20 @@ export const createCustomTokenInitTransaction = async (
         mint: mintSigner,
         feePayer: feePayerSigner,
     });
+
+    // Clear the transfer hook program id back to None so the extension is present but inert.
+    if (options?.enableTransferHook && !options.transferHookProgramId) {
+        instructions.push(
+            getUpdateTransferHookInstruction(
+                {
+                    mint: mintSigner.address,
+                    authority: transferHookAuthorityInput,
+                    programId: none(),
+                },
+                { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
+            ),
+        );
+    }
 
     // If SRFC-37 is not enabled or mint authority is not the fee payer, return simple transaction
     if (mintAuthorityAddress !== feePayerSigner.address || !useSrfc37) {

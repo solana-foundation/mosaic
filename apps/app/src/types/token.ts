@@ -171,6 +171,11 @@ export interface CustomTokenOptions {
     interestRate?: string;
     interestBearingAuthority?: string;
     // Transfer Hook configuration
+    // When transferHookInactive is true, the extension is initialized with no active hook
+    // program (programId cleared to None right after mint creation) so it can adopt a real
+    // hook program later without recreating the mint. transferHookProgramId is ignored in
+    // that case.
+    transferHookInactive?: boolean;
     transferHookProgramId?: string;
     transferHookAuthority?: string;
     rpcUrl?: string;
