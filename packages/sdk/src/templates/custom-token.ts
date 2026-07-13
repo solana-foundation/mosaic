@@ -156,7 +156,7 @@ export const createCustomTokenInitTransaction = async (
     }
 
     // Add Default Account State extension
-    if (options?.enableDefaultAccountState !== undefined) {
+    if (options?.enableDefaultAccountState) {
         const initialStateInitialized = options.defaultAccountStateInitialized ?? !useSrfc37;
         tokenBuilder = tokenBuilder.withDefaultAccountState(initialStateInitialized);
     } else if (useSrfc37) {
