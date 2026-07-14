@@ -13,7 +13,7 @@ import {
 import type { FullTransaction } from '../transaction-util';
 import { ABL_PROGRAM_ID } from './utils';
 import { getSetupExtraMetasInstruction } from '@solana/token-acl-gate-sdk';
-import { findMintConfigPda, findThawExtraMetasAccountPda } from '@token-acl/sdk';
+import { findMintConfigPda, findThawExtraMetasAccountPda } from '@solana/token-acl-sdk';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 
 /**
@@ -45,7 +45,7 @@ export const getSetExtraMetasInstructions = async (input: {
             mint: input.mint,
             tokenAclMintConfig: mintConfigPda[0],
             extraMetas: extraMetasThaw[0],
-            lists: input.lists,
+            addresses: input.lists,
         },
         { programAddress: ABL_PROGRAM_ID },
     );
