@@ -183,7 +183,7 @@ export const createMmfInitTransaction = async (
     const setExtraMetasInstructions = await getSetExtraMetasInstructions({
         authority: feePayerSigner,
         mint: mintSigner.address,
-        lists: [listConfig],
+        addresses: [listConfig],
     });
 
     instructions.push(...createConfigInstructions);

@@ -53,20 +53,20 @@
     },
     "packageManager": "pnpm@10.24.0",
     "pnpm": {
-        "_dependencyNotes": "These overrides pin the whole workspace onto the Solana Kit v5 ecosystem. @solana-program/token-2022@0.10.0 declares a Kit v6 peer range but is verified to run against v5, so every @solana/* package is forced to ^5.0.0 for a single consistent resolution. The @solana-program/* pins (compute-budget, system, and zk-elgamal-proof's transitive system dep) keep the program libraries on their Kit-v5-compatible releases. See packages/sdk/package.json `_dependencyNotes`.",
+        "_dependencyNotes": "These overrides pin the whole workspace onto the Solana Kit v6 ecosystem. Kit is capped at 6.x (not the newer 7.x) because the token-acl SDKs (@solana/token-acl-sdk, @solana/token-acl-gate-sdk) peer-depend on @solana/kit ^6.0.0. @solana-program/token-2022 is pinned to 0.10.0 (which already peers kit ^6): it still ships the confidential-transfer InstructionPlan/derive helpers the confidential feature needs, which were removed in 0.12.0. @solana/token-acl-sdk@0.4.0 hard-depends on token-2022 0.12.0 but is forced down to 0.10.0 here — safe because it only consumes stable core token-2022 exports unchanged across 0.10-0.12. Two packages still declare v5 kit ranges but are safe on v6 because they only touch codecs/signers/addresses (unchanged v5->v6): @solana-program/zk-elgamal-proof and @solana/connector are forced onto v6 via the @solana/kit override and the @solana/* transitive overrides. See packages/sdk/package.json `_dependencyNotes`.",
         "overrides": {
-            "@solana/accounts": "^5.0.0",
-            "@solana/addresses": "^5.0.0",
-            "@solana/signers": "^5.0.0",
-            "@solana/rpc": "^5.0.0",
-            "@solana/rpc-types": "^5.0.0",
-            "@solana/transactions": "^5.0.0",
-            "@solana/transaction-messages": "^5.0.0",
-            "@solana/keys": "^5.0.0",
-            "@solana/codecs": "^5.0.0",
-            "@solana-program/compute-budget": "^0.11.0",
-            "@solana-program/system": "^0.10.0",
-            "@solana-program/zk-elgamal-proof>@solana-program/system": "0.10.0"
+            "@solana/kit": "^6.10.0",
+            "@solana/accounts": "^6.0.0",
+            "@solana/addresses": "^6.0.0",
+            "@solana/signers": "^6.0.0",
+            "@solana/rpc": "^6.0.0",
+            "@solana/rpc-types": "^6.0.0",
+            "@solana/transactions": "^6.0.0",
+            "@solana/transaction-messages": "^6.0.0",
+            "@solana/keys": "^6.0.0",
+            "@solana/codecs": "^6.0.0",
+            "@solana-program/system": "0.12.2",
+            "@solana-program/token-2022": "0.10.0"
         }
     }
 }

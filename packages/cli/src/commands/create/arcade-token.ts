@@ -13,7 +13,7 @@ import {
     getSignatureFromTransaction,
 } from '@solana/kit';
 import { findListConfigPda } from '@solana/token-acl-gate-sdk';
-import { findMintConfigPda } from '@token-acl/sdk';
+import { findMintConfigPda } from '@solana/token-acl-sdk';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 
 interface ArcadeTokenOptions {
