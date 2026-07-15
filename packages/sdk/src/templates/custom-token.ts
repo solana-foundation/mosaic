@@ -11,7 +11,6 @@ import {
 } from '@solana/kit';
 import { Mode } from '@solana/token-acl-gate-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
 import { getCreateConfigInstructions } from '../token-acl/create-config';
 import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
@@ -269,7 +268,12 @@ export const createCustomTokenInitTransaction = async (
         rpc,
         decimals,
         mintAuthority,
-        freezeAuthority: options?.freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
+        // On the sRFC-37 path the freeze authority MUST be the mint authority: the
+        // Token-ACL `create_config` instruction requires the mint's current freeze
+        // authority to equal its signer (the mint authority) and then reassigns it to
+        // the config PDA itself. Pre-setting it to anything else (e.g. the program id)
+        // fails create_config with InvalidAuthority.
+        freezeAuthority: useSrfc37 ? mintAuthorityAddress : options?.freezeAuthority,
         mint: mintSigner,
         feePayer: feePayerSigner,
     });
