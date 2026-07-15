@@ -78,7 +78,10 @@ export const createCustomTokenInitTransaction = async (
         // Default Account State configuration
         defaultAccountStateInitialized?: boolean;
 
-        // Freeze authority
+        // Freeze authority.
+        // Note: ignored when `enableSrfc37: true` — the sRFC-37 path forces the freeze
+        // authority to the mint authority, since Token-ACL's create_config requires the
+        // mint authority to be the freeze authority (it is then reassigned to the config PDA).
         freezeAuthority?: Address;
 
         // Transfer Fee configuration
