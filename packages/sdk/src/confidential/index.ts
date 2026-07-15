@@ -54,21 +54,12 @@ export {
     buildZeroCiphertextProofIxs,
     buildWithdrawProofIxs,
     buildTransferProofIxs,
-    buildMintBurnProofIxs,
     buildCloseContextStateInstruction,
     type ProofData,
     type ProofMode,
     type ProofInstructions,
     type ProofWithMode,
 } from './proof';
-
-export {
-    buildMintProofData,
-    buildBurnProofData,
-    type MintBurnProofData,
-    type BuildMintProofDataInput,
-    type BuildBurnProofDataInput,
-} from './mint-burn-proof';
 
 export {
     fetchConfidentialAccountState,

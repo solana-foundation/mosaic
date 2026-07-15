@@ -1,0 +1,1880 @@
+diff --git a/dist/src/confidential.js b/dist/src/confidential.js
+index 3c84494fbae00f90fe7d6f106869fa55d1c0ae55..1f08dda4356c5079a562f967714a3c8f4229a327 100644
+--- a/dist/src/confidential.js
++++ b/dist/src/confidential.js
+@@ -1,12 +1,12 @@
+ 'use strict';
+ 
++var ed25519 = require('@noble/curves/ed25519');
+ var zkElgamalProof = require('@solana-program/zk-elgamal-proof');
+ var kit = require('@solana/kit');
+ var bundler = require('@solana/zk-sdk/bundler');
+-var ed25519 = require('@noble/curves/ed25519');
+ var programClientCore = require('@solana/kit/program-client-core');
+ 
+-// src/confidentialTransferHelpers.ts
++// src/confidentialTransferArithmetic.ts
+ var { Point: RistrettoPoint } = ed25519.ristretto255;
+ function pointFromBytes(bytes) {
+   return RistrettoPoint.fromHex(new Uint8Array(bytes));
+@@ -48,6 +48,14 @@ function subtractCiphertexts(left, right) {
+     leftPoints.handle.subtract(rightPoints.handle)
+   );
+ }
++function addCiphertexts(left, right) {
++  const leftPoints = ciphertextToPoints(left);
++  const rightPoints = ciphertextToPoints(right);
++  return pointsToCiphertext(
++    leftPoints.commitment.add(rightPoints.commitment),
++    leftPoints.handle.add(rightPoints.handle)
++  );
++}
+ function combineLoHiCiphertexts(ciphertextLo, ciphertextHi, bitLength) {
+   const scale = 1n << bitLength;
+   const loPoints = ciphertextToPoints(ciphertextLo);
+@@ -60,16 +68,288 @@ function combineLoHiCiphertexts(ciphertextLo, ciphertextHi, bitLength) {
+ function subtractWithLoHiCiphertexts(left, ciphertextLo, ciphertextHi, bitLength) {
+   return subtractCiphertexts(left, combineLoHiCiphertexts(ciphertextLo, ciphertextHi, bitLength));
+ }
++function addWithLoHiCiphertexts(left, ciphertextLo, ciphertextHi, bitLength) {
++  return addCiphertexts(left, combineLoHiCiphertexts(ciphertextLo, ciphertextHi, bitLength));
++}
+ function subtractAmountFromCiphertext(ciphertext, amount) {
+   const { commitment, handle } = ciphertextToPoints(ciphertext);
+   return pointsToCiphertext(commitment.subtract(RistrettoPoint.BASE.multiply(amount)), handle);
+ }
++var AccountState = /* @__PURE__ */ ((AccountState2) => {
++  AccountState2[AccountState2["Uninitialized"] = 0] = "Uninitialized";
++  AccountState2[AccountState2["Initialized"] = 1] = "Initialized";
++  AccountState2[AccountState2["Frozen"] = 2] = "Frozen";
++  return AccountState2;
++})(AccountState || {});
++function getAccountStateDecoder() {
++  return kit.getEnumDecoder(AccountState);
++}
+ function getDecryptableBalanceEncoder() {
+   return kit.fixEncoderSize(kit.getBytesEncoder(), 36);
+ }
++function getDecryptableBalanceDecoder() {
++  return kit.fixDecoderSize(kit.getBytesDecoder(), 36);
++}
+ function getEncryptedBalanceEncoder() {
+   return kit.fixEncoderSize(kit.getBytesEncoder(), 64);
+ }
++function getEncryptedBalanceDecoder() {
++  return kit.fixDecoderSize(kit.getBytesDecoder(), 64);
++}
++function getExtensionDecoder() {
++  return kit.getDiscriminatedUnionDecoder(
++    [
++      ["Uninitialized", kit.getUnitDecoder()],
++      [
++        "TransferFeeConfig",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["transferFeeConfigAuthority", kit.getAddressDecoder()],
++            ["withdrawWithheldAuthority", kit.getAddressDecoder()],
++            ["withheldAmount", kit.getU64Decoder()],
++            ["olderTransferFee", getTransferFeeDecoder()],
++            ["newerTransferFee", getTransferFeeDecoder()]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "TransferFeeAmount",
++        kit.addDecoderSizePrefix(kit.getStructDecoder([["withheldAmount", kit.getU64Decoder()]]), kit.getU16Decoder())
++      ],
++      [
++        "MintCloseAuthority",
++        kit.addDecoderSizePrefix(kit.getStructDecoder([["closeAuthority", kit.getAddressDecoder()]]), kit.getU16Decoder())
++      ],
++      [
++        "ConfidentialTransferMint",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["authority", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })],
++            ["autoApproveNewAccounts", kit.getBooleanDecoder()],
++            [
++              "auditorElgamalPubkey",
++              kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })
++            ]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "ConfidentialTransferAccount",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["approved", kit.getBooleanDecoder()],
++            ["elgamalPubkey", kit.getAddressDecoder()],
++            ["pendingBalanceLow", getEncryptedBalanceDecoder()],
++            ["pendingBalanceHigh", getEncryptedBalanceDecoder()],
++            ["availableBalance", getEncryptedBalanceDecoder()],
++            ["decryptableAvailableBalance", getDecryptableBalanceDecoder()],
++            ["allowConfidentialCredits", kit.getBooleanDecoder()],
++            ["allowNonConfidentialCredits", kit.getBooleanDecoder()],
++            ["pendingBalanceCreditCounter", kit.getU64Decoder()],
++            ["maximumPendingBalanceCreditCounter", kit.getU64Decoder()],
++            ["expectedPendingBalanceCreditCounter", kit.getU64Decoder()],
++            ["actualPendingBalanceCreditCounter", kit.getU64Decoder()]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "DefaultAccountState",
++        kit.addDecoderSizePrefix(kit.getStructDecoder([["state", getAccountStateDecoder()]]), kit.getU16Decoder())
++      ],
++      ["ImmutableOwner", kit.addDecoderSizePrefix(kit.getStructDecoder([]), kit.getU16Decoder())],
++      [
++        "MemoTransfer",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([["requireIncomingTransferMemos", kit.getBooleanDecoder()]]),
++          kit.getU16Decoder()
++        )
++      ],
++      ["NonTransferable", kit.addDecoderSizePrefix(kit.getStructDecoder([]), kit.getU16Decoder())],
++      [
++        "InterestBearingConfig",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["rateAuthority", kit.getAddressDecoder()],
++            ["initializationTimestamp", kit.getU64Decoder()],
++            ["preUpdateAverageRate", kit.getI16Decoder()],
++            ["lastUpdateTimestamp", kit.getU64Decoder()],
++            ["currentRate", kit.getI16Decoder()]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      ["CpiGuard", kit.addDecoderSizePrefix(kit.getStructDecoder([["lockCpi", kit.getBooleanDecoder()]]), kit.getU16Decoder())],
++      [
++        "PermanentDelegate",
++        kit.addDecoderSizePrefix(kit.getStructDecoder([["delegate", kit.getAddressDecoder()]]), kit.getU16Decoder())
++      ],
++      ["NonTransferableAccount", kit.addDecoderSizePrefix(kit.getStructDecoder([]), kit.getU16Decoder())],
++      [
++        "TransferHook",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["authority", kit.getAddressDecoder()],
++            ["programId", kit.getAddressDecoder()]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "TransferHookAccount",
++        kit.addDecoderSizePrefix(kit.getStructDecoder([["transferring", kit.getBooleanDecoder()]]), kit.getU16Decoder())
++      ],
++      [
++        "ConfidentialTransferFee",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["authority", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })],
++            ["elgamalPubkey", kit.getAddressDecoder()],
++            ["harvestToMintEnabled", kit.getBooleanDecoder()],
++            ["withheldAmount", getEncryptedBalanceDecoder()]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "ConfidentialTransferFeeAmount",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([["withheldAmount", getEncryptedBalanceDecoder()]]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "MetadataPointer",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["authority", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })],
++            [
++              "metadataAddress",
++              kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })
++            ]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "TokenMetadata",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            [
++              "updateAuthority",
++              kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })
++            ],
++            ["mint", kit.getAddressDecoder()],
++            ["name", kit.addDecoderSizePrefix(kit.getUtf8Decoder(), kit.getU32Decoder())],
++            ["symbol", kit.addDecoderSizePrefix(kit.getUtf8Decoder(), kit.getU32Decoder())],
++            ["uri", kit.addDecoderSizePrefix(kit.getUtf8Decoder(), kit.getU32Decoder())],
++            [
++              "additionalMetadata",
++              kit.getMapDecoder(
++                kit.addDecoderSizePrefix(kit.getUtf8Decoder(), kit.getU32Decoder()),
++                kit.addDecoderSizePrefix(kit.getUtf8Decoder(), kit.getU32Decoder())
++              )
++            ]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "GroupPointer",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["authority", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })],
++            ["groupAddress", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "TokenGroup",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            [
++              "updateAuthority",
++              kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })
++            ],
++            ["mint", kit.getAddressDecoder()],
++            ["size", kit.getU64Decoder()],
++            ["maxSize", kit.getU64Decoder()]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "GroupMemberPointer",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["authority", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })],
++            ["memberAddress", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "TokenGroupMember",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["mint", kit.getAddressDecoder()],
++            ["group", kit.getAddressDecoder()],
++            ["memberNumber", kit.getU64Decoder()]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "ConfidentialMintBurn",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["confidentialSupply", getEncryptedBalanceDecoder()],
++            ["decryptableSupply", getDecryptableBalanceDecoder()],
++            ["supplyElgamalPubkey", kit.getAddressDecoder()],
++            ["pendingBurn", getEncryptedBalanceDecoder()]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "ScaledUiAmountConfig",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["authority", kit.getAddressDecoder()],
++            ["multiplier", kit.getF64Decoder()],
++            ["newMultiplierEffectiveTimestamp", kit.getU64Decoder()],
++            ["newMultiplier", kit.getF64Decoder()]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      [
++        "PausableConfig",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["authority", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })],
++            ["paused", kit.getBooleanDecoder()]
++          ]),
++          kit.getU16Decoder()
++        )
++      ],
++      ["PausableAccount", kit.addDecoderSizePrefix(kit.getStructDecoder([]), kit.getU16Decoder())],
++      [
++        "PermissionedBurn",
++        kit.addDecoderSizePrefix(
++          kit.getStructDecoder([
++            ["authority", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: null, noneValue: "zeroes" })]
++          ]),
++          kit.getU16Decoder()
++        )
++      ]
++    ],
++    { size: kit.getU16Decoder() }
++  );
++}
+ var ExtensionType = /* @__PURE__ */ ((ExtensionType2) => {
+   ExtensionType2[ExtensionType2["Uninitialized"] = 0] = "Uninitialized";
+   ExtensionType2[ExtensionType2["TransferFeeConfig"] = 1] = "TransferFeeConfig";
+@@ -105,6 +385,78 @@ var ExtensionType = /* @__PURE__ */ ((ExtensionType2) => {
+ function getExtensionTypeEncoder() {
+   return kit.getEnumEncoder(ExtensionType, { size: kit.getU16Encoder() });
+ }
++function getTransferFeeDecoder() {
++  return kit.getStructDecoder([
++    ["epoch", kit.getU64Decoder()],
++    ["maximumFee", kit.getU64Decoder()],
++    ["transferFeeBasisPoints", kit.getU16Decoder()]
++  ]);
++}
++
++// src/generated/accounts/mint.ts
++function getMintDecoder() {
++  return kit.getStructDecoder([
++    ["mintAuthority", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: kit.getU32Decoder(), noneValue: "zeroes" })],
++    ["supply", kit.getU64Decoder()],
++    ["decimals", kit.getU8Decoder()],
++    ["isInitialized", kit.getBooleanDecoder()],
++    ["freezeAuthority", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: kit.getU32Decoder(), noneValue: "zeroes" })],
++    [
++      "extensions",
++      kit.getOptionDecoder(
++        kit.getHiddenPrefixDecoder(kit.getArrayDecoder(getExtensionDecoder(), { size: "remainder" }), [
++          kit.getConstantDecoder(kit.padLeftEncoder(kit.getU8Encoder(), 83).encode(1))
++        ]),
++        { prefix: null }
++      )
++    ]
++  ]);
++}
++function decodeMint(encodedAccount) {
++  return kit.decodeAccount(encodedAccount, getMintDecoder());
++}
++async function fetchMint(rpc, address, config) {
++  const maybeAccount = await fetchMaybeMint(rpc, address, config);
++  kit.assertAccountExists(maybeAccount);
++  return maybeAccount;
++}
++async function fetchMaybeMint(rpc, address, config) {
++  const maybeAccount = await kit.fetchEncodedAccount(rpc, address, config);
++  return decodeMint(maybeAccount);
++}
++function getTokenDecoder() {
++  return kit.getStructDecoder([
++    ["mint", kit.getAddressDecoder()],
++    ["owner", kit.getAddressDecoder()],
++    ["amount", kit.getU64Decoder()],
++    ["delegate", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: kit.getU32Decoder(), noneValue: "zeroes" })],
++    ["state", getAccountStateDecoder()],
++    ["isNative", kit.getOptionDecoder(kit.getU64Decoder(), { prefix: kit.getU32Decoder(), noneValue: "zeroes" })],
++    ["delegatedAmount", kit.getU64Decoder()],
++    ["closeAuthority", kit.getOptionDecoder(kit.getAddressDecoder(), { prefix: kit.getU32Decoder(), noneValue: "zeroes" })],
++    [
++      "extensions",
++      kit.getOptionDecoder(
++        kit.getHiddenPrefixDecoder(kit.getArrayDecoder(getExtensionDecoder(), { size: "remainder" }), [
++          kit.getConstantDecoder(kit.getU8Encoder().encode(2))
++        ]),
++        { prefix: null }
++      )
++    ]
++  ]);
++}
++function decodeToken(encodedAccount) {
++  return kit.decodeAccount(encodedAccount, getTokenDecoder());
++}
++async function fetchToken(rpc, address, config) {
++  const maybeAccount = await fetchMaybeToken(rpc, address, config);
++  kit.assertAccountExists(maybeAccount);
++  return maybeAccount;
++}
++async function fetchMaybeToken(rpc, address, config) {
++  const maybeAccount = await kit.fetchEncodedAccount(rpc, address, config);
++  return decodeToken(maybeAccount);
++}
+ var APPLY_CONFIDENTIAL_PENDING_BALANCE_DISCRIMINATOR = 27;
+ var APPLY_CONFIDENTIAL_PENDING_BALANCE_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 8;
+ function getApplyConfidentialPendingBalanceInstructionDataEncoder() {
+@@ -148,6 +500,116 @@ function getApplyConfidentialPendingBalanceInstruction(input, config) {
+     programAddress
+   });
+ }
++var CONFIDENTIAL_BURN_DISCRIMINATOR = 42;
++var CONFIDENTIAL_BURN_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR = 4;
++function getConfidentialBurnInstructionDataEncoder() {
++  return kit.transformEncoder(
++    kit.getStructEncoder([
++      ["discriminator", kit.getU8Encoder()],
++      ["confidentialMintBurnDiscriminator", kit.getU8Encoder()],
++      ["newDecryptableAvailableBalance", getDecryptableBalanceEncoder()],
++      ["burnAmountAuditorCiphertextLo", getEncryptedBalanceEncoder()],
++      ["burnAmountAuditorCiphertextHi", getEncryptedBalanceEncoder()],
++      ["equalityProofInstructionOffset", kit.getI8Encoder()],
++      ["ciphertextValidityProofInstructionOffset", kit.getI8Encoder()],
++      ["rangeProofInstructionOffset", kit.getI8Encoder()]
++    ]),
++    (value) => ({
++      ...value,
++      discriminator: CONFIDENTIAL_BURN_DISCRIMINATOR,
++      confidentialMintBurnDiscriminator: CONFIDENTIAL_BURN_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR
++    })
++  );
++}
++function getConfidentialBurnInstruction(input, config) {
++  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
++  const originalAccounts = {
++    token: { value: input.token ?? null, isWritable: true },
++    mint: { value: input.mint ?? null, isWritable: true },
++    instructionsSysvar: { value: input.instructionsSysvar ?? null, isWritable: false },
++    equalityRecord: { value: input.equalityRecord ?? null, isWritable: false },
++    ciphertextValidityRecord: { value: input.ciphertextValidityRecord ?? null, isWritable: false },
++    rangeRecord: { value: input.rangeRecord ?? null, isWritable: false },
++    authority: { value: input.authority ?? null, isWritable: false }
++  };
++  const accounts = originalAccounts;
++  const args = { ...input };
++  const remainingAccounts = (args.multiSigners ?? []).map((signer) => ({
++    address: signer.address,
++    role: kit.AccountRole.READONLY_SIGNER,
++    signer
++  }));
++  const getAccountMeta = programClientCore.getAccountMetaFactory(programAddress, "omitted");
++  return Object.freeze({
++    accounts: [
++      getAccountMeta("token", accounts.token),
++      getAccountMeta("mint", accounts.mint),
++      getAccountMeta("instructionsSysvar", accounts.instructionsSysvar),
++      getAccountMeta("equalityRecord", accounts.equalityRecord),
++      getAccountMeta("ciphertextValidityRecord", accounts.ciphertextValidityRecord),
++      getAccountMeta("rangeRecord", accounts.rangeRecord),
++      getAccountMeta("authority", accounts.authority),
++      ...remainingAccounts
++    ].filter((x) => x !== void 0),
++    data: getConfidentialBurnInstructionDataEncoder().encode(args),
++    programAddress
++  });
++}
++var CONFIDENTIAL_MINT_DISCRIMINATOR = 42;
++var CONFIDENTIAL_MINT_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR = 3;
++function getConfidentialMintInstructionDataEncoder() {
++  return kit.transformEncoder(
++    kit.getStructEncoder([
++      ["discriminator", kit.getU8Encoder()],
++      ["confidentialMintBurnDiscriminator", kit.getU8Encoder()],
++      ["newDecryptableSupply", getDecryptableBalanceEncoder()],
++      ["mintAmountAuditorCiphertextLo", getEncryptedBalanceEncoder()],
++      ["mintAmountAuditorCiphertextHi", getEncryptedBalanceEncoder()],
++      ["equalityProofInstructionOffset", kit.getI8Encoder()],
++      ["ciphertextValidityProofInstructionOffset", kit.getI8Encoder()],
++      ["rangeProofInstructionOffset", kit.getI8Encoder()]
++    ]),
++    (value) => ({
++      ...value,
++      discriminator: CONFIDENTIAL_MINT_DISCRIMINATOR,
++      confidentialMintBurnDiscriminator: CONFIDENTIAL_MINT_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR
++    })
++  );
++}
++function getConfidentialMintInstruction(input, config) {
++  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
++  const originalAccounts = {
++    token: { value: input.token ?? null, isWritable: true },
++    mint: { value: input.mint ?? null, isWritable: true },
++    instructionsSysvar: { value: input.instructionsSysvar ?? null, isWritable: false },
++    equalityRecord: { value: input.equalityRecord ?? null, isWritable: false },
++    ciphertextValidityRecord: { value: input.ciphertextValidityRecord ?? null, isWritable: false },
++    rangeRecord: { value: input.rangeRecord ?? null, isWritable: false },
++    authority: { value: input.authority ?? null, isWritable: false }
++  };
++  const accounts = originalAccounts;
++  const args = { ...input };
++  const remainingAccounts = (args.multiSigners ?? []).map((signer) => ({
++    address: signer.address,
++    role: kit.AccountRole.READONLY_SIGNER,
++    signer
++  }));
++  const getAccountMeta = programClientCore.getAccountMetaFactory(programAddress, "omitted");
++  return Object.freeze({
++    accounts: [
++      getAccountMeta("token", accounts.token),
++      getAccountMeta("mint", accounts.mint),
++      getAccountMeta("instructionsSysvar", accounts.instructionsSysvar),
++      getAccountMeta("equalityRecord", accounts.equalityRecord),
++      getAccountMeta("ciphertextValidityRecord", accounts.ciphertextValidityRecord),
++      getAccountMeta("rangeRecord", accounts.rangeRecord),
++      getAccountMeta("authority", accounts.authority),
++      ...remainingAccounts
++    ].filter((x) => x !== void 0),
++    data: getConfidentialMintInstructionDataEncoder().encode(args),
++    programAddress
++  });
++}
+ var CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 27;
+ var CONFIDENTIAL_TRANSFER_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 7;
+ function getConfidentialTransferInstructionDataEncoder() {
+@@ -359,6 +821,53 @@ function getCreateAssociatedTokenIdempotentInstruction(input, config) {
+     programAddress
+   });
+ }
++var EMPTY_CONFIDENTIAL_TRANSFER_ACCOUNT_DISCRIMINATOR = 27;
++var EMPTY_CONFIDENTIAL_TRANSFER_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR = 4;
++function getEmptyConfidentialTransferAccountInstructionDataEncoder() {
++  return kit.transformEncoder(
++    kit.getStructEncoder([
++      ["discriminator", kit.getU8Encoder()],
++      ["confidentialTransferDiscriminator", kit.getU8Encoder()],
++      ["proofInstructionOffset", kit.getI8Encoder()]
++    ]),
++    (value) => ({
++      ...value,
++      discriminator: EMPTY_CONFIDENTIAL_TRANSFER_ACCOUNT_DISCRIMINATOR,
++      confidentialTransferDiscriminator: EMPTY_CONFIDENTIAL_TRANSFER_ACCOUNT_CONFIDENTIAL_TRANSFER_DISCRIMINATOR
++    })
++  );
++}
++function getEmptyConfidentialTransferAccountInstruction(input, config) {
++  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
++  const originalAccounts = {
++    token: { value: input.token ?? null, isWritable: true },
++    instructionsSysvarOrContextState: { value: input.instructionsSysvarOrContextState ?? null, isWritable: false },
++    authority: { value: input.authority ?? null, isWritable: false }
++  };
++  const accounts = originalAccounts;
++  const args = { ...input };
++  if (!accounts.instructionsSysvarOrContextState.value) {
++    accounts.instructionsSysvarOrContextState.value = "Sysvar1nstructions1111111111111111111111111";
++  }
++  const remainingAccounts = (args.multiSigners ?? []).map((signer) => ({
++    address: signer.address,
++    role: kit.AccountRole.READONLY_SIGNER,
++    signer
++  }));
++  const getAccountMeta = programClientCore.getAccountMetaFactory(programAddress, "programId");
++  return Object.freeze({
++    accounts: [
++      getAccountMeta("token", accounts.token),
++      getAccountMeta("instructionsSysvarOrContextState", accounts.instructionsSysvarOrContextState),
++      getAccountMeta("authority", accounts.authority),
++      ...remainingAccounts
++    ],
++    data: getEmptyConfidentialTransferAccountInstructionDataEncoder().encode(
++      args
++    ),
++    programAddress
++  });
++}
+ var REALLOCATE_DISCRIMINATOR = 29;
+ function getReallocateInstructionDataEncoder() {
+   return kit.transformEncoder(
+@@ -400,6 +909,48 @@ function getReallocateInstruction(input, config) {
+     programAddress
+   });
+ }
++var UPDATE_CONFIDENTIAL_MINT_BURN_DECRYPTABLE_SUPPLY_DISCRIMINATOR = 42;
++var UPDATE_CONFIDENTIAL_MINT_BURN_DECRYPTABLE_SUPPLY_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR = 2;
++function getUpdateConfidentialMintBurnDecryptableSupplyInstructionDataEncoder() {
++  return kit.transformEncoder(
++    kit.getStructEncoder([
++      ["discriminator", kit.getU8Encoder()],
++      ["confidentialMintBurnDiscriminator", kit.getU8Encoder()],
++      ["newDecryptableSupply", getDecryptableBalanceEncoder()]
++    ]),
++    (value) => ({
++      ...value,
++      discriminator: UPDATE_CONFIDENTIAL_MINT_BURN_DECRYPTABLE_SUPPLY_DISCRIMINATOR,
++      confidentialMintBurnDiscriminator: UPDATE_CONFIDENTIAL_MINT_BURN_DECRYPTABLE_SUPPLY_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR
++    })
++  );
++}
++function getUpdateConfidentialMintBurnDecryptableSupplyInstruction(input, config) {
++  const programAddress = config?.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS;
++  const originalAccounts = {
++    mint: { value: input.mint ?? null, isWritable: true },
++    authority: { value: input.authority ?? null, isWritable: false }
++  };
++  const accounts = originalAccounts;
++  const args = { ...input };
++  const remainingAccounts = (args.multiSigners ?? []).map((signer) => ({
++    address: signer.address,
++    role: kit.AccountRole.READONLY_SIGNER,
++    signer
++  }));
++  const getAccountMeta = programClientCore.getAccountMetaFactory(programAddress, "programId");
++  return Object.freeze({
++    accounts: [
++      getAccountMeta("mint", accounts.mint),
++      getAccountMeta("authority", accounts.authority),
++      ...remainingAccounts
++    ],
++    data: getUpdateConfidentialMintBurnDecryptableSupplyInstructionDataEncoder().encode(
++      args
++    ),
++    programAddress
++  });
++}
+ 
+ // src/generated/programs/associatedToken.ts
+ var ASSOCIATED_TOKEN_PROGRAM_ADDRESS = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
+@@ -433,6 +984,26 @@ function getRequiredConfidentialTransferAccountExtension(tokenAccount) {
+   }
+   return extension;
+ }
++function getRequiredConfidentialTransferMintExtension(mint) {
++  if (!kit.isSome(mint.extensions)) {
++    throw new Error("Mint account is missing extensions.");
++  }
++  const extension = mint.extensions.value.find((candidate) => candidate.__kind === "ConfidentialTransferMint");
++  if (!extension) {
++    throw new Error("Mint account is missing the ConfidentialTransferMint extension.");
++  }
++  return extension;
++}
++function getRequiredConfidentialMintBurnExtension(mint) {
++  if (!kit.isSome(mint.extensions)) {
++    throw new Error("Mint account is missing extensions.");
++  }
++  const extension = mint.extensions.value.find((candidate) => candidate.__kind === "ConfidentialMintBurn");
++  if (!extension) {
++    throw new Error("Mint account is missing the ConfidentialMintBurn extension.");
++  }
++  return extension;
++}
+ function parseAeCiphertext(bytes) {
+   const ciphertext = bundler.AeCiphertext.fromBytes(new Uint8Array(bytes));
+   if (!ciphertext) {
+@@ -453,6 +1024,21 @@ function getElGamalPubkeyFromAddress(value) {
+ function getDefaultAuditorElGamalPubkey() {
+   return bundler.ElGamalPubkey.fromBytes(new Uint8Array(32));
+ }
++async function getAuditorElGamalPubkey(input) {
++  if (input.auditorElgamalPubkey) {
++    return getElGamalPubkeyFromAddress(input.auditorElgamalPubkey);
++  }
++  const mint = input.mintAccount ?? (await fetchMint(input.rpc, input.mint)).data;
++  const extension = getRequiredConfidentialTransferMintExtension(mint);
++  return kit.isSome(extension.auditorElgamalPubkey) ? getElGamalPubkeyFromAddress(extension.auditorElgamalPubkey.value) : getDefaultAuditorElGamalPubkey();
++}
++function resolveAuditorElGamalPubkey(mint, override) {
++  if (override) {
++    return getElGamalPubkeyFromAddress(override);
++  }
++  const extension = getRequiredConfidentialTransferMintExtension(mint);
++  return kit.isSome(extension.auditorElgamalPubkey) ? getElGamalPubkeyFromAddress(extension.auditorElgamalPubkey.value) : getDefaultAuditorElGamalPubkey();
++}
+ function getDestinationElGamalPubkey(input) {
+   if (input.destinationElgamalPubkey) {
+     return getElGamalPubkeyFromAddress(input.destinationElgamalPubkey);
+@@ -474,6 +1060,11 @@ function combineAmounts(amountLo, amountHi, bitLength) {
+ function decryptAvailableBalance(account, aesKey) {
+   return aesKey.decrypt(parseAeCiphertext(account.decryptableAvailableBalance));
+ }
++function decryptPendingBalance(account, elgamalSecretKey) {
++  const pendingBalanceLo = elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceLow));
++  const pendingBalanceHi = elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceHigh));
++  return combineAmounts(pendingBalanceLo, pendingBalanceHi, PENDING_BALANCE_LO_BIT_LENGTH);
++}
+ function assertCreateHelperOwnerMatchesAuthority(owner, authority) {
+   if (addressOf(owner) !== addressOf(authority)) {
+     throw new Error(
+@@ -566,13 +1157,32 @@ async function getCreateConfidentialTransferAccountInstructionPlan(input) {
+     verifyProofInstruction
+   ]);
+ }
++function decryptConfidentialTransferBalance(input) {
++  const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
++  const availableBalance = decryptAvailableBalance(account, input.aesKey);
++  const pendingBalance = decryptPendingBalance(account, input.elgamalSecretKey);
++  return {
++    availableBalance,
++    pendingBalance,
++    totalBalance: availableBalance + pendingBalance,
++    pendingBalanceCreditCounter: account.pendingBalanceCreditCounter,
++    maximumPendingBalanceCreditCounter: account.maximumPendingBalanceCreditCounter,
++    expectedPendingBalanceCreditCounter: account.expectedPendingBalanceCreditCounter,
++    actualPendingBalanceCreditCounter: account.actualPendingBalanceCreditCounter
++  };
++}
++async function fetchConfidentialTransferBalance(input) {
++  const { data: tokenAccount } = await fetchToken(input.rpc, input.token, input.config);
++  return decryptConfidentialTransferBalance({
++    tokenAccount,
++    elgamalSecretKey: input.elgamalSecretKey,
++    aesKey: input.aesKey
++  });
++}
+ function getApplyConfidentialPendingBalanceInstructionFromToken(input) {
+   const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
+-  const pendingBalanceLo = input.elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceLow));
+-  const pendingBalanceHi = input.elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceHigh));
+-  const newDecryptableAvailableBalance = input.aesKey.encrypt(
+-    decryptAvailableBalance(account, input.aesKey) + combineAmounts(pendingBalanceLo, pendingBalanceHi, PENDING_BALANCE_LO_BIT_LENGTH)
+-  ).toBytes();
++  const pendingBalance = decryptPendingBalance(account, input.elgamalSecretKey);
++  const newDecryptableAvailableBalance = input.aesKey.encrypt(decryptAvailableBalance(account, input.aesKey) + pendingBalance).toBytes();
+   return getApplyConfidentialPendingBalanceInstruction(
+     {
+       token: input.token,
+@@ -584,6 +1194,33 @@ function getApplyConfidentialPendingBalanceInstructionFromToken(input) {
+     { programAddress: getTokenProgramAddress(input.programAddress) }
+   );
+ }
++async function getEmptyConfidentialTransferAccountInstructionPlan(input) {
++  const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
++  const zeroCiphertextProofData = new bundler.ZeroCiphertextProofData(
++    input.elgamalKeypair,
++    parseElGamalCiphertext(account.availableBalance)
++  );
++  const proofPlan = await buildContextStateProofPlan(
++    zeroCiphertextProofData.toBytes(),
++    zkElgamalProof.verifyZeroCiphertext,
++    input.payer,
++    input.rpc
++  );
++  return kit.sequentialInstructionPlan([
++    proofPlan.setup,
++    getEmptyConfidentialTransferAccountInstruction(
++      {
++        token: input.token,
++        instructionsSysvarOrContextState: proofPlan.address,
++        authority: input.authority,
++        proofInstructionOffset: 0,
++        multiSigners: input.multiSigners
++      },
++      { programAddress: getTokenProgramAddress(input.programAddress) }
++    ),
++    proofPlan.cleanup
++  ]);
++}
+ async function getConfidentialWithdrawInstructionPlan(input) {
+   const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
+   const amount = BigInt(input.amount);
+@@ -644,7 +1281,7 @@ async function getConfidentialTransferInstructionPlan(input) {
+   const [transferAmountLo, transferAmountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
+   const sourcePubkey = input.sourceElgamalKeypair.pubkey();
+   const destinationPubkey = getDestinationElGamalPubkey(input);
+-  const auditorPubkey = input.auditorElgamalPubkey ? getElGamalPubkeyFromAddress(input.auditorElgamalPubkey) : getDefaultAuditorElGamalPubkey();
++  const auditorPubkey = await getAuditorElGamalPubkey(input);
+   const openingLo = new bundler.PedersenOpening();
+   const openingHi = new bundler.PedersenOpening();
+   const groupedCiphertextLo = bundler.GroupedElGamalCiphertext3Handles.encryptWith(
+@@ -757,6 +1394,278 @@ async function getConfidentialTransferInstructionPlan(input) {
+     ])
+   ]);
+ }
++var MAX_CONFIDENTIAL_MINT_BURN_AMOUNT = (1n << TRANSFER_AMOUNT_LO_BIT_LENGTH + TRANSFER_AMOUNT_HI_BIT_LENGTH) - 1n;
++var U64_MAX = (1n << 64n) - 1n;
++function assertConfidentialMintBurnAmount(amount) {
++  if (amount > MAX_CONFIDENTIAL_MINT_BURN_AMOUNT) {
++    throw new Error(
++      `Amount exceeds the maximum confidential mint/burn amount (2^48 - 1 = ${MAX_CONFIDENTIAL_MINT_BURN_AMOUNT}).`
++    );
++  }
++}
++function getMintDestinationElGamalPubkey(input) {
++  if (input.destinationElgamalPubkey) {
++    return getElGamalPubkeyFromAddress(input.destinationElgamalPubkey);
++  }
++  if (!input.destinationTokenAccount) {
++    throw new Error("Destination confidential transfer state is required.");
++  }
++  return getElGamalPubkeyFromAddress(
++    getRequiredConfidentialTransferAccountExtension(input.destinationTokenAccount).elgamalPubkey
++  );
++}
++async function getConfidentialMintInstructionPlan(input) {
++  const mintAccount = input.mintAccount ?? (await fetchMint(input.rpc, input.mint)).data;
++  const mintBurnExtension = getRequiredConfidentialMintBurnExtension(mintAccount);
++  const amount = BigInt(input.amount);
++  assertNonNegativeAmount(amount);
++  assertConfidentialMintBurnAmount(amount);
++  const currentSupply = input.supplyAesKey.decrypt(parseAeCiphertext(mintBurnExtension.decryptableSupply));
++  const newSupply = currentSupply + amount;
++  if (newSupply > U64_MAX) {
++    throw new Error("Mint would overflow the maximum u64 supply.");
++  }
++  const [amountLo, amountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
++  const supplyPubkey = input.supplyElgamalKeypair.pubkey();
++  const destinationPubkey = getMintDestinationElGamalPubkey(input);
++  const auditorPubkey = resolveAuditorElGamalPubkey(mintAccount, input.auditorElgamalPubkey);
++  const openingLo = new bundler.PedersenOpening();
++  const openingHi = new bundler.PedersenOpening();
++  const groupedCiphertextLo = bundler.GroupedElGamalCiphertext3Handles.encryptWith(
++    destinationPubkey,
++    supplyPubkey,
++    auditorPubkey,
++    amountLo,
++    openingLo
++  );
++  const groupedCiphertextHi = bundler.GroupedElGamalCiphertext3Handles.encryptWith(
++    destinationPubkey,
++    supplyPubkey,
++    auditorPubkey,
++    amountHi,
++    openingHi
++  );
++  const groupedCiphertextLoBytes = groupedCiphertextLo.toBytes();
++  const groupedCiphertextHiBytes = groupedCiphertextHi.toBytes();
++  const mintAmountSupplyCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 1);
++  const mintAmountSupplyCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 1);
++  const mintAmountAuditorCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 2);
++  const mintAmountAuditorCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 2);
++  const newSupplyCiphertext = parseElGamalCiphertext(
++    addWithLoHiCiphertexts(
++      mintBurnExtension.confidentialSupply,
++      mintAmountSupplyCiphertextLo,
++      mintAmountSupplyCiphertextHi,
++      TRANSFER_AMOUNT_LO_BIT_LENGTH
++    )
++  );
++  const newSupplyOpening = new bundler.PedersenOpening();
++  const newSupplyCommitment = bundler.PedersenCommitment.from(newSupply, newSupplyOpening);
++  const equalityProofData = new bundler.CiphertextCommitmentEqualityProofData(
++    input.supplyElgamalKeypair,
++    newSupplyCiphertext,
++    newSupplyCommitment,
++    newSupplyOpening,
++    newSupply
++  );
++  const ciphertextValidityProofData = new bundler.BatchedGroupedCiphertext3HandlesValidityProofData(
++    destinationPubkey,
++    supplyPubkey,
++    auditorPubkey,
++    groupedCiphertextLo,
++    groupedCiphertextHi,
++    amountLo,
++    amountHi,
++    openingLo,
++    openingHi
++  );
++  const commitmentLo = bundler.PedersenCommitment.fromBytes(groupedCiphertextLoBytes.slice(0, 32));
++  const commitmentHi = bundler.PedersenCommitment.fromBytes(groupedCiphertextHiBytes.slice(0, 32));
++  const paddingOpening = new bundler.PedersenOpening();
++  const paddingCommitment = bundler.PedersenCommitment.from(0n, paddingOpening);
++  const rangeProofData = new bundler.BatchedRangeProofU128Data(
++    [newSupplyCommitment, commitmentLo, commitmentHi, paddingCommitment],
++    new BigUint64Array([newSupply, amountLo, amountHi, 0n]),
++    Uint8Array.from([
++      REMAINING_BALANCE_BIT_LENGTH,
++      Number(TRANSFER_AMOUNT_LO_BIT_LENGTH),
++      Number(TRANSFER_AMOUNT_HI_BIT_LENGTH),
++      RANGE_PROOF_PADDING_BIT_LENGTH
++    ]),
++    [newSupplyOpening, openingLo, openingHi, paddingOpening]
++  );
++  const [equalityProofPlan, ciphertextValidityProofPlan, rangeProofPlan] = await Promise.all([
++    buildContextStateProofPlan(
++      equalityProofData.toBytes(),
++      zkElgamalProof.verifyCiphertextCommitmentEquality,
++      input.payer,
++      input.rpc
++    ),
++    buildContextStateProofPlan(
++      ciphertextValidityProofData.toBytes(),
++      zkElgamalProof.verifyBatchedGroupedCiphertext3HandlesValidity,
++      input.payer,
++      input.rpc
++    ),
++    buildContextStateProofPlan(rangeProofData.toBytes(), zkElgamalProof.verifyBatchedRangeProofU128, input.payer, input.rpc)
++  ]);
++  return kit.sequentialInstructionPlan([
++    kit.parallelInstructionPlan([equalityProofPlan.setup, ciphertextValidityProofPlan.setup, rangeProofPlan.setup]),
++    getConfidentialMintInstruction(
++      {
++        token: input.token,
++        mint: input.mint,
++        equalityRecord: equalityProofPlan.address,
++        ciphertextValidityRecord: ciphertextValidityProofPlan.address,
++        rangeRecord: rangeProofPlan.address,
++        authority: input.authority,
++        newDecryptableSupply: input.supplyAesKey.encrypt(newSupply).toBytes(),
++        mintAmountAuditorCiphertextLo,
++        mintAmountAuditorCiphertextHi,
++        equalityProofInstructionOffset: 0,
++        ciphertextValidityProofInstructionOffset: 0,
++        rangeProofInstructionOffset: 0,
++        multiSigners: input.multiSigners
++      },
++      { programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS }
++    ),
++    kit.parallelInstructionPlan([
++      equalityProofPlan.cleanup,
++      ciphertextValidityProofPlan.cleanup,
++      rangeProofPlan.cleanup
++    ])
++  ]);
++}
++async function getConfidentialBurnInstructionPlan(input) {
++  const mintAccount = input.mintAccount ?? (await fetchMint(input.rpc, input.mint)).data;
++  const mintBurnExtension = getRequiredConfidentialMintBurnExtension(mintAccount);
++  const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
++  const amount = BigInt(input.amount);
++  assertNonNegativeAmount(amount);
++  assertConfidentialMintBurnAmount(amount);
++  const remainingBalance = computeNewAvailableBalance(decryptAvailableBalance(sourceAccount, input.aesKey), amount);
++  const [amountLo, amountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
++  const sourcePubkey = input.sourceElgamalKeypair.pubkey();
++  const supplyPubkey = getElGamalPubkeyFromAddress(mintBurnExtension.supplyElgamalPubkey);
++  const auditorPubkey = resolveAuditorElGamalPubkey(mintAccount, input.auditorElgamalPubkey);
++  const openingLo = new bundler.PedersenOpening();
++  const openingHi = new bundler.PedersenOpening();
++  const groupedCiphertextLo = bundler.GroupedElGamalCiphertext3Handles.encryptWith(
++    sourcePubkey,
++    supplyPubkey,
++    auditorPubkey,
++    amountLo,
++    openingLo
++  );
++  const groupedCiphertextHi = bundler.GroupedElGamalCiphertext3Handles.encryptWith(
++    sourcePubkey,
++    supplyPubkey,
++    auditorPubkey,
++    amountHi,
++    openingHi
++  );
++  const groupedCiphertextLoBytes = groupedCiphertextLo.toBytes();
++  const groupedCiphertextHiBytes = groupedCiphertextHi.toBytes();
++  const burnAmountSourceCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 0);
++  const burnAmountSourceCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 0);
++  const burnAmountAuditorCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 2);
++  const burnAmountAuditorCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 2);
++  const newBalanceCiphertext = parseElGamalCiphertext(
++    subtractWithLoHiCiphertexts(
++      sourceAccount.availableBalance,
++      burnAmountSourceCiphertextLo,
++      burnAmountSourceCiphertextHi,
++      TRANSFER_AMOUNT_LO_BIT_LENGTH
++    )
++  );
++  const newBalanceOpening = new bundler.PedersenOpening();
++  const newBalanceCommitment = bundler.PedersenCommitment.from(remainingBalance, newBalanceOpening);
++  const equalityProofData = new bundler.CiphertextCommitmentEqualityProofData(
++    input.sourceElgamalKeypair,
++    newBalanceCiphertext,
++    newBalanceCommitment,
++    newBalanceOpening,
++    remainingBalance
++  );
++  const ciphertextValidityProofData = new bundler.BatchedGroupedCiphertext3HandlesValidityProofData(
++    sourcePubkey,
++    supplyPubkey,
++    auditorPubkey,
++    groupedCiphertextLo,
++    groupedCiphertextHi,
++    amountLo,
++    amountHi,
++    openingLo,
++    openingHi
++  );
++  const commitmentLo = bundler.PedersenCommitment.fromBytes(groupedCiphertextLoBytes.slice(0, 32));
++  const commitmentHi = bundler.PedersenCommitment.fromBytes(groupedCiphertextHiBytes.slice(0, 32));
++  const paddingOpening = new bundler.PedersenOpening();
++  const paddingCommitment = bundler.PedersenCommitment.from(0n, paddingOpening);
++  const rangeProofData = new bundler.BatchedRangeProofU128Data(
++    [newBalanceCommitment, commitmentLo, commitmentHi, paddingCommitment],
++    new BigUint64Array([remainingBalance, amountLo, amountHi, 0n]),
++    Uint8Array.from([
++      REMAINING_BALANCE_BIT_LENGTH,
++      Number(TRANSFER_AMOUNT_LO_BIT_LENGTH),
++      Number(TRANSFER_AMOUNT_HI_BIT_LENGTH),
++      RANGE_PROOF_PADDING_BIT_LENGTH
++    ]),
++    [newBalanceOpening, openingLo, openingHi, paddingOpening]
++  );
++  const [equalityProofPlan, ciphertextValidityProofPlan, rangeProofPlan] = await Promise.all([
++    buildContextStateProofPlan(
++      equalityProofData.toBytes(),
++      zkElgamalProof.verifyCiphertextCommitmentEquality,
++      input.payer,
++      input.rpc
++    ),
++    buildContextStateProofPlan(
++      ciphertextValidityProofData.toBytes(),
++      zkElgamalProof.verifyBatchedGroupedCiphertext3HandlesValidity,
++      input.payer,
++      input.rpc
++    ),
++    buildContextStateProofPlan(rangeProofData.toBytes(), zkElgamalProof.verifyBatchedRangeProofU128, input.payer, input.rpc)
++  ]);
++  return kit.sequentialInstructionPlan([
++    kit.parallelInstructionPlan([equalityProofPlan.setup, ciphertextValidityProofPlan.setup, rangeProofPlan.setup]),
++    getConfidentialBurnInstruction(
++      {
++        token: input.token,
++        mint: input.mint,
++        equalityRecord: equalityProofPlan.address,
++        ciphertextValidityRecord: ciphertextValidityProofPlan.address,
++        rangeRecord: rangeProofPlan.address,
++        authority: input.authority,
++        newDecryptableAvailableBalance: input.aesKey.encrypt(remainingBalance).toBytes(),
++        burnAmountAuditorCiphertextLo,
++        burnAmountAuditorCiphertextHi,
++        equalityProofInstructionOffset: 0,
++        ciphertextValidityProofInstructionOffset: 0,
++        rangeProofInstructionOffset: 0,
++        multiSigners: input.multiSigners
++      },
++      { programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS }
++    ),
++    kit.parallelInstructionPlan([
++      equalityProofPlan.cleanup,
++      ciphertextValidityProofPlan.cleanup,
++      rangeProofPlan.cleanup
++    ])
++  ]);
++}
++function getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply(input) {
++  return getUpdateConfidentialMintBurnDecryptableSupplyInstruction(
++    {
++      mint: input.mint,
++      authority: input.authority,
++      newDecryptableSupply: input.supplyAesKey.encrypt(BigInt(input.supply)).toBytes(),
++      multiSigners: input.multiSigners
++    },
++    { programAddress: getTokenProgramAddress(input.programAddress) }
++  );
++}
+ async function signDerivationMessage(signer, message) {
+   const [signatures] = await signer.signMessages([kit.createSignableMessage(message)]);
+   const signature = signatures?.[signer.address];
+@@ -802,14 +1711,38 @@ async function deriveAeKeyForOwnerMint({
+ }) {
+   return await deriveAeKey({ signer, publicSeed: ownerMintSeed(owner, mint) });
+ }
++async function deriveSupplyElGamalKeypair({
++  signer,
++  mint
++}) {
++  return await deriveElGamalKeypairForOwnerMint({ signer, owner: signer.address, mint });
++}
++async function deriveSupplyAeKey({
++  signer,
++  mint
++}) {
++  return await deriveAeKeyForOwnerMint({ signer, owner: signer.address, mint });
++}
+ 
++exports.addWithLoHiCiphertexts = addWithLoHiCiphertexts;
++exports.decryptConfidentialTransferBalance = decryptConfidentialTransferBalance;
+ exports.deriveAeKey = deriveAeKey;
+ exports.deriveAeKeyForOwnerMint = deriveAeKeyForOwnerMint;
+ exports.deriveElGamalKeypair = deriveElGamalKeypair;
+ exports.deriveElGamalKeypairForOwnerMint = deriveElGamalKeypairForOwnerMint;
++exports.deriveSupplyAeKey = deriveSupplyAeKey;
++exports.deriveSupplyElGamalKeypair = deriveSupplyElGamalKeypair;
++exports.extractCiphertextFromGroupedBytes = extractCiphertextFromGroupedBytes;
++exports.fetchConfidentialTransferBalance = fetchConfidentialTransferBalance;
+ exports.getApplyConfidentialPendingBalanceInstructionFromToken = getApplyConfidentialPendingBalanceInstructionFromToken;
++exports.getConfidentialBurnInstructionPlan = getConfidentialBurnInstructionPlan;
++exports.getConfidentialMintInstructionPlan = getConfidentialMintInstructionPlan;
+ exports.getConfidentialTransferInstructionPlan = getConfidentialTransferInstructionPlan;
+ exports.getConfidentialWithdrawInstructionPlan = getConfidentialWithdrawInstructionPlan;
+ exports.getCreateConfidentialTransferAccountInstructionPlan = getCreateConfidentialTransferAccountInstructionPlan;
++exports.getEmptyConfidentialTransferAccountInstructionPlan = getEmptyConfidentialTransferAccountInstructionPlan;
++exports.getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply = getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply;
++exports.subtractAmountFromCiphertext = subtractAmountFromCiphertext;
++exports.subtractWithLoHiCiphertexts = subtractWithLoHiCiphertexts;
+ //# sourceMappingURL=confidential.js.map
+ //# sourceMappingURL=confidential.js.map
+\ No newline at end of file
+diff --git a/dist/src/confidential.mjs b/dist/src/confidential.mjs
+index 600c8c565e5fc933bac8147bacc675e1817433fd..1e69b63fe29f12934b5b35db8bb89f53da55b618 100644
+--- a/dist/src/confidential.mjs
++++ b/dist/src/confidential.mjs
+@@ -1,8 +1,8 @@
+-import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction, getReallocateInstruction, getConfigureConfidentialTransferAccountInstruction, getApplyConfidentialPendingBalanceInstruction, getConfidentialWithdrawInstruction, TOKEN_2022_PROGRAM_ADDRESS, getConfidentialTransferInstruction } from './chunk-AJW32H7M.mjs';
+-import { verifyPubkeyValidity, verifyCiphertextCommitmentEquality, verifyBatchedRangeProofU64, verifyBatchedGroupedCiphertext3HandlesValidity, verifyBatchedRangeProofU128, closeContextStateProof } from '@solana-program/zk-elgamal-proof';
+-import { nonDivisibleSequentialInstructionPlan, sequentialInstructionPlan, parallelInstructionPlan, getAddressDecoder, isSome, generateKeyPairSigner, getAddressEncoder, createSignableMessage, getTupleEncoder } from '@solana/kit';
+-import { PubkeyValidityProofData, PedersenOpening, PedersenCommitment, CiphertextCommitmentEqualityProofData, BatchedRangeProofU64Data, GroupedElGamalCiphertext3Handles, BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofU128Data, ElGamalKeypair, AeKey, ElGamalCiphertext, ElGamalPubkey, AeCiphertext } from '@solana/zk-sdk/bundler';
++import { findAssociatedTokenPda, getCreateAssociatedTokenIdempotentInstruction, getReallocateInstruction, getConfigureConfidentialTransferAccountInstruction, fetchToken, getApplyConfidentialPendingBalanceInstruction, getEmptyConfidentialTransferAccountInstruction, getConfidentialWithdrawInstruction, TOKEN_2022_PROGRAM_ADDRESS, getConfidentialTransferInstruction, fetchMint, getConfidentialMintInstruction, getConfidentialBurnInstruction, getUpdateConfidentialMintBurnDecryptableSupplyInstruction } from './chunk-AJW32H7M.mjs';
+ import { ristretto255 } from '@noble/curves/ed25519';
++import { verifyPubkeyValidity, verifyZeroCiphertext, verifyCiphertextCommitmentEquality, verifyBatchedRangeProofU64, verifyBatchedGroupedCiphertext3HandlesValidity, verifyBatchedRangeProofU128, closeContextStateProof } from '@solana-program/zk-elgamal-proof';
++import { nonDivisibleSequentialInstructionPlan, sequentialInstructionPlan, parallelInstructionPlan, getAddressDecoder, isSome, generateKeyPairSigner, getAddressEncoder, createSignableMessage, getTupleEncoder } from '@solana/kit';
++import { PubkeyValidityProofData, ZeroCiphertextProofData, PedersenOpening, PedersenCommitment, CiphertextCommitmentEqualityProofData, BatchedRangeProofU64Data, GroupedElGamalCiphertext3Handles, BatchedGroupedCiphertext3HandlesValidityProofData, BatchedRangeProofU128Data, ElGamalKeypair, AeKey, ElGamalCiphertext, AeCiphertext, ElGamalPubkey } from '@solana/zk-sdk/bundler';
+ 
+ var { Point: RistrettoPoint } = ristretto255;
+ function pointFromBytes(bytes) {
+@@ -45,6 +45,14 @@ function subtractCiphertexts(left, right) {
+     leftPoints.handle.subtract(rightPoints.handle)
+   );
+ }
++function addCiphertexts(left, right) {
++  const leftPoints = ciphertextToPoints(left);
++  const rightPoints = ciphertextToPoints(right);
++  return pointsToCiphertext(
++    leftPoints.commitment.add(rightPoints.commitment),
++    leftPoints.handle.add(rightPoints.handle)
++  );
++}
+ function combineLoHiCiphertexts(ciphertextLo, ciphertextHi, bitLength) {
+   const scale = 1n << bitLength;
+   const loPoints = ciphertextToPoints(ciphertextLo);
+@@ -57,12 +65,13 @@ function combineLoHiCiphertexts(ciphertextLo, ciphertextHi, bitLength) {
+ function subtractWithLoHiCiphertexts(left, ciphertextLo, ciphertextHi, bitLength) {
+   return subtractCiphertexts(left, combineLoHiCiphertexts(ciphertextLo, ciphertextHi, bitLength));
+ }
++function addWithLoHiCiphertexts(left, ciphertextLo, ciphertextHi, bitLength) {
++  return addCiphertexts(left, combineLoHiCiphertexts(ciphertextLo, ciphertextHi, bitLength));
++}
+ function subtractAmountFromCiphertext(ciphertext, amount) {
+   const { commitment, handle } = ciphertextToPoints(ciphertext);
+   return pointsToCiphertext(commitment.subtract(RistrettoPoint.BASE.multiply(amount)), handle);
+ }
+-
+-// src/confidentialTransferHelpers.ts
+ var DEFAULT_MAXIMUM_PENDING_BALANCE_CREDIT_COUNTER = 1n << 16n;
+ var PENDING_BALANCE_LO_BIT_LENGTH = 16n;
+ var TRANSFER_AMOUNT_LO_BIT_LENGTH = 16n;
+@@ -90,6 +99,26 @@ function getRequiredConfidentialTransferAccountExtension(tokenAccount) {
+   }
+   return extension;
+ }
++function getRequiredConfidentialTransferMintExtension(mint) {
++  if (!isSome(mint.extensions)) {
++    throw new Error("Mint account is missing extensions.");
++  }
++  const extension = mint.extensions.value.find((candidate) => candidate.__kind === "ConfidentialTransferMint");
++  if (!extension) {
++    throw new Error("Mint account is missing the ConfidentialTransferMint extension.");
++  }
++  return extension;
++}
++function getRequiredConfidentialMintBurnExtension(mint) {
++  if (!isSome(mint.extensions)) {
++    throw new Error("Mint account is missing extensions.");
++  }
++  const extension = mint.extensions.value.find((candidate) => candidate.__kind === "ConfidentialMintBurn");
++  if (!extension) {
++    throw new Error("Mint account is missing the ConfidentialMintBurn extension.");
++  }
++  return extension;
++}
+ function parseAeCiphertext(bytes) {
+   const ciphertext = AeCiphertext.fromBytes(new Uint8Array(bytes));
+   if (!ciphertext) {
+@@ -110,6 +139,21 @@ function getElGamalPubkeyFromAddress(value) {
+ function getDefaultAuditorElGamalPubkey() {
+   return ElGamalPubkey.fromBytes(new Uint8Array(32));
+ }
++async function getAuditorElGamalPubkey(input) {
++  if (input.auditorElgamalPubkey) {
++    return getElGamalPubkeyFromAddress(input.auditorElgamalPubkey);
++  }
++  const mint = input.mintAccount ?? (await fetchMint(input.rpc, input.mint)).data;
++  const extension = getRequiredConfidentialTransferMintExtension(mint);
++  return isSome(extension.auditorElgamalPubkey) ? getElGamalPubkeyFromAddress(extension.auditorElgamalPubkey.value) : getDefaultAuditorElGamalPubkey();
++}
++function resolveAuditorElGamalPubkey(mint, override) {
++  if (override) {
++    return getElGamalPubkeyFromAddress(override);
++  }
++  const extension = getRequiredConfidentialTransferMintExtension(mint);
++  return isSome(extension.auditorElgamalPubkey) ? getElGamalPubkeyFromAddress(extension.auditorElgamalPubkey.value) : getDefaultAuditorElGamalPubkey();
++}
+ function getDestinationElGamalPubkey(input) {
+   if (input.destinationElgamalPubkey) {
+     return getElGamalPubkeyFromAddress(input.destinationElgamalPubkey);
+@@ -131,6 +175,11 @@ function combineAmounts(amountLo, amountHi, bitLength) {
+ function decryptAvailableBalance(account, aesKey) {
+   return aesKey.decrypt(parseAeCiphertext(account.decryptableAvailableBalance));
+ }
++function decryptPendingBalance(account, elgamalSecretKey) {
++  const pendingBalanceLo = elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceLow));
++  const pendingBalanceHi = elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceHigh));
++  return combineAmounts(pendingBalanceLo, pendingBalanceHi, PENDING_BALANCE_LO_BIT_LENGTH);
++}
+ function assertCreateHelperOwnerMatchesAuthority(owner, authority) {
+   if (addressOf(owner) !== addressOf(authority)) {
+     throw new Error(
+@@ -223,13 +272,32 @@ async function getCreateConfidentialTransferAccountInstructionPlan(input) {
+     verifyProofInstruction
+   ]);
+ }
++function decryptConfidentialTransferBalance(input) {
++  const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
++  const availableBalance = decryptAvailableBalance(account, input.aesKey);
++  const pendingBalance = decryptPendingBalance(account, input.elgamalSecretKey);
++  return {
++    availableBalance,
++    pendingBalance,
++    totalBalance: availableBalance + pendingBalance,
++    pendingBalanceCreditCounter: account.pendingBalanceCreditCounter,
++    maximumPendingBalanceCreditCounter: account.maximumPendingBalanceCreditCounter,
++    expectedPendingBalanceCreditCounter: account.expectedPendingBalanceCreditCounter,
++    actualPendingBalanceCreditCounter: account.actualPendingBalanceCreditCounter
++  };
++}
++async function fetchConfidentialTransferBalance(input) {
++  const { data: tokenAccount } = await fetchToken(input.rpc, input.token, input.config);
++  return decryptConfidentialTransferBalance({
++    tokenAccount,
++    elgamalSecretKey: input.elgamalSecretKey,
++    aesKey: input.aesKey
++  });
++}
+ function getApplyConfidentialPendingBalanceInstructionFromToken(input) {
+   const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
+-  const pendingBalanceLo = input.elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceLow));
+-  const pendingBalanceHi = input.elgamalSecretKey.decrypt(parseElGamalCiphertext(account.pendingBalanceHigh));
+-  const newDecryptableAvailableBalance = input.aesKey.encrypt(
+-    decryptAvailableBalance(account, input.aesKey) + combineAmounts(pendingBalanceLo, pendingBalanceHi, PENDING_BALANCE_LO_BIT_LENGTH)
+-  ).toBytes();
++  const pendingBalance = decryptPendingBalance(account, input.elgamalSecretKey);
++  const newDecryptableAvailableBalance = input.aesKey.encrypt(decryptAvailableBalance(account, input.aesKey) + pendingBalance).toBytes();
+   return getApplyConfidentialPendingBalanceInstruction(
+     {
+       token: input.token,
+@@ -241,6 +309,33 @@ function getApplyConfidentialPendingBalanceInstructionFromToken(input) {
+     { programAddress: getTokenProgramAddress(input.programAddress) }
+   );
+ }
++async function getEmptyConfidentialTransferAccountInstructionPlan(input) {
++  const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
++  const zeroCiphertextProofData = new ZeroCiphertextProofData(
++    input.elgamalKeypair,
++    parseElGamalCiphertext(account.availableBalance)
++  );
++  const proofPlan = await buildContextStateProofPlan(
++    zeroCiphertextProofData.toBytes(),
++    verifyZeroCiphertext,
++    input.payer,
++    input.rpc
++  );
++  return sequentialInstructionPlan([
++    proofPlan.setup,
++    getEmptyConfidentialTransferAccountInstruction(
++      {
++        token: input.token,
++        instructionsSysvarOrContextState: proofPlan.address,
++        authority: input.authority,
++        proofInstructionOffset: 0,
++        multiSigners: input.multiSigners
++      },
++      { programAddress: getTokenProgramAddress(input.programAddress) }
++    ),
++    proofPlan.cleanup
++  ]);
++}
+ async function getConfidentialWithdrawInstructionPlan(input) {
+   const account = getRequiredConfidentialTransferAccountExtension(input.tokenAccount);
+   const amount = BigInt(input.amount);
+@@ -301,7 +396,7 @@ async function getConfidentialTransferInstructionPlan(input) {
+   const [transferAmountLo, transferAmountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
+   const sourcePubkey = input.sourceElgamalKeypair.pubkey();
+   const destinationPubkey = getDestinationElGamalPubkey(input);
+-  const auditorPubkey = input.auditorElgamalPubkey ? getElGamalPubkeyFromAddress(input.auditorElgamalPubkey) : getDefaultAuditorElGamalPubkey();
++  const auditorPubkey = await getAuditorElGamalPubkey(input);
+   const openingLo = new PedersenOpening();
+   const openingHi = new PedersenOpening();
+   const groupedCiphertextLo = GroupedElGamalCiphertext3Handles.encryptWith(
+@@ -414,6 +509,278 @@ async function getConfidentialTransferInstructionPlan(input) {
+     ])
+   ]);
+ }
++var MAX_CONFIDENTIAL_MINT_BURN_AMOUNT = (1n << TRANSFER_AMOUNT_LO_BIT_LENGTH + TRANSFER_AMOUNT_HI_BIT_LENGTH) - 1n;
++var U64_MAX = (1n << 64n) - 1n;
++function assertConfidentialMintBurnAmount(amount) {
++  if (amount > MAX_CONFIDENTIAL_MINT_BURN_AMOUNT) {
++    throw new Error(
++      `Amount exceeds the maximum confidential mint/burn amount (2^48 - 1 = ${MAX_CONFIDENTIAL_MINT_BURN_AMOUNT}).`
++    );
++  }
++}
++function getMintDestinationElGamalPubkey(input) {
++  if (input.destinationElgamalPubkey) {
++    return getElGamalPubkeyFromAddress(input.destinationElgamalPubkey);
++  }
++  if (!input.destinationTokenAccount) {
++    throw new Error("Destination confidential transfer state is required.");
++  }
++  return getElGamalPubkeyFromAddress(
++    getRequiredConfidentialTransferAccountExtension(input.destinationTokenAccount).elgamalPubkey
++  );
++}
++async function getConfidentialMintInstructionPlan(input) {
++  const mintAccount = input.mintAccount ?? (await fetchMint(input.rpc, input.mint)).data;
++  const mintBurnExtension = getRequiredConfidentialMintBurnExtension(mintAccount);
++  const amount = BigInt(input.amount);
++  assertNonNegativeAmount(amount);
++  assertConfidentialMintBurnAmount(amount);
++  const currentSupply = input.supplyAesKey.decrypt(parseAeCiphertext(mintBurnExtension.decryptableSupply));
++  const newSupply = currentSupply + amount;
++  if (newSupply > U64_MAX) {
++    throw new Error("Mint would overflow the maximum u64 supply.");
++  }
++  const [amountLo, amountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
++  const supplyPubkey = input.supplyElgamalKeypair.pubkey();
++  const destinationPubkey = getMintDestinationElGamalPubkey(input);
++  const auditorPubkey = resolveAuditorElGamalPubkey(mintAccount, input.auditorElgamalPubkey);
++  const openingLo = new PedersenOpening();
++  const openingHi = new PedersenOpening();
++  const groupedCiphertextLo = GroupedElGamalCiphertext3Handles.encryptWith(
++    destinationPubkey,
++    supplyPubkey,
++    auditorPubkey,
++    amountLo,
++    openingLo
++  );
++  const groupedCiphertextHi = GroupedElGamalCiphertext3Handles.encryptWith(
++    destinationPubkey,
++    supplyPubkey,
++    auditorPubkey,
++    amountHi,
++    openingHi
++  );
++  const groupedCiphertextLoBytes = groupedCiphertextLo.toBytes();
++  const groupedCiphertextHiBytes = groupedCiphertextHi.toBytes();
++  const mintAmountSupplyCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 1);
++  const mintAmountSupplyCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 1);
++  const mintAmountAuditorCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 2);
++  const mintAmountAuditorCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 2);
++  const newSupplyCiphertext = parseElGamalCiphertext(
++    addWithLoHiCiphertexts(
++      mintBurnExtension.confidentialSupply,
++      mintAmountSupplyCiphertextLo,
++      mintAmountSupplyCiphertextHi,
++      TRANSFER_AMOUNT_LO_BIT_LENGTH
++    )
++  );
++  const newSupplyOpening = new PedersenOpening();
++  const newSupplyCommitment = PedersenCommitment.from(newSupply, newSupplyOpening);
++  const equalityProofData = new CiphertextCommitmentEqualityProofData(
++    input.supplyElgamalKeypair,
++    newSupplyCiphertext,
++    newSupplyCommitment,
++    newSupplyOpening,
++    newSupply
++  );
++  const ciphertextValidityProofData = new BatchedGroupedCiphertext3HandlesValidityProofData(
++    destinationPubkey,
++    supplyPubkey,
++    auditorPubkey,
++    groupedCiphertextLo,
++    groupedCiphertextHi,
++    amountLo,
++    amountHi,
++    openingLo,
++    openingHi
++  );
++  const commitmentLo = PedersenCommitment.fromBytes(groupedCiphertextLoBytes.slice(0, 32));
++  const commitmentHi = PedersenCommitment.fromBytes(groupedCiphertextHiBytes.slice(0, 32));
++  const paddingOpening = new PedersenOpening();
++  const paddingCommitment = PedersenCommitment.from(0n, paddingOpening);
++  const rangeProofData = new BatchedRangeProofU128Data(
++    [newSupplyCommitment, commitmentLo, commitmentHi, paddingCommitment],
++    new BigUint64Array([newSupply, amountLo, amountHi, 0n]),
++    Uint8Array.from([
++      REMAINING_BALANCE_BIT_LENGTH,
++      Number(TRANSFER_AMOUNT_LO_BIT_LENGTH),
++      Number(TRANSFER_AMOUNT_HI_BIT_LENGTH),
++      RANGE_PROOF_PADDING_BIT_LENGTH
++    ]),
++    [newSupplyOpening, openingLo, openingHi, paddingOpening]
++  );
++  const [equalityProofPlan, ciphertextValidityProofPlan, rangeProofPlan] = await Promise.all([
++    buildContextStateProofPlan(
++      equalityProofData.toBytes(),
++      verifyCiphertextCommitmentEquality,
++      input.payer,
++      input.rpc
++    ),
++    buildContextStateProofPlan(
++      ciphertextValidityProofData.toBytes(),
++      verifyBatchedGroupedCiphertext3HandlesValidity,
++      input.payer,
++      input.rpc
++    ),
++    buildContextStateProofPlan(rangeProofData.toBytes(), verifyBatchedRangeProofU128, input.payer, input.rpc)
++  ]);
++  return sequentialInstructionPlan([
++    parallelInstructionPlan([equalityProofPlan.setup, ciphertextValidityProofPlan.setup, rangeProofPlan.setup]),
++    getConfidentialMintInstruction(
++      {
++        token: input.token,
++        mint: input.mint,
++        equalityRecord: equalityProofPlan.address,
++        ciphertextValidityRecord: ciphertextValidityProofPlan.address,
++        rangeRecord: rangeProofPlan.address,
++        authority: input.authority,
++        newDecryptableSupply: input.supplyAesKey.encrypt(newSupply).toBytes(),
++        mintAmountAuditorCiphertextLo,
++        mintAmountAuditorCiphertextHi,
++        equalityProofInstructionOffset: 0,
++        ciphertextValidityProofInstructionOffset: 0,
++        rangeProofInstructionOffset: 0,
++        multiSigners: input.multiSigners
++      },
++      { programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS }
++    ),
++    parallelInstructionPlan([
++      equalityProofPlan.cleanup,
++      ciphertextValidityProofPlan.cleanup,
++      rangeProofPlan.cleanup
++    ])
++  ]);
++}
++async function getConfidentialBurnInstructionPlan(input) {
++  const mintAccount = input.mintAccount ?? (await fetchMint(input.rpc, input.mint)).data;
++  const mintBurnExtension = getRequiredConfidentialMintBurnExtension(mintAccount);
++  const sourceAccount = getRequiredConfidentialTransferAccountExtension(input.sourceTokenAccount);
++  const amount = BigInt(input.amount);
++  assertNonNegativeAmount(amount);
++  assertConfidentialMintBurnAmount(amount);
++  const remainingBalance = computeNewAvailableBalance(decryptAvailableBalance(sourceAccount, input.aesKey), amount);
++  const [amountLo, amountHi] = splitAmount(amount, TRANSFER_AMOUNT_LO_BIT_LENGTH);
++  const sourcePubkey = input.sourceElgamalKeypair.pubkey();
++  const supplyPubkey = getElGamalPubkeyFromAddress(mintBurnExtension.supplyElgamalPubkey);
++  const auditorPubkey = resolveAuditorElGamalPubkey(mintAccount, input.auditorElgamalPubkey);
++  const openingLo = new PedersenOpening();
++  const openingHi = new PedersenOpening();
++  const groupedCiphertextLo = GroupedElGamalCiphertext3Handles.encryptWith(
++    sourcePubkey,
++    supplyPubkey,
++    auditorPubkey,
++    amountLo,
++    openingLo
++  );
++  const groupedCiphertextHi = GroupedElGamalCiphertext3Handles.encryptWith(
++    sourcePubkey,
++    supplyPubkey,
++    auditorPubkey,
++    amountHi,
++    openingHi
++  );
++  const groupedCiphertextLoBytes = groupedCiphertextLo.toBytes();
++  const groupedCiphertextHiBytes = groupedCiphertextHi.toBytes();
++  const burnAmountSourceCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 0);
++  const burnAmountSourceCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 0);
++  const burnAmountAuditorCiphertextLo = extractCiphertextFromGroupedBytes(groupedCiphertextLoBytes, 2);
++  const burnAmountAuditorCiphertextHi = extractCiphertextFromGroupedBytes(groupedCiphertextHiBytes, 2);
++  const newBalanceCiphertext = parseElGamalCiphertext(
++    subtractWithLoHiCiphertexts(
++      sourceAccount.availableBalance,
++      burnAmountSourceCiphertextLo,
++      burnAmountSourceCiphertextHi,
++      TRANSFER_AMOUNT_LO_BIT_LENGTH
++    )
++  );
++  const newBalanceOpening = new PedersenOpening();
++  const newBalanceCommitment = PedersenCommitment.from(remainingBalance, newBalanceOpening);
++  const equalityProofData = new CiphertextCommitmentEqualityProofData(
++    input.sourceElgamalKeypair,
++    newBalanceCiphertext,
++    newBalanceCommitment,
++    newBalanceOpening,
++    remainingBalance
++  );
++  const ciphertextValidityProofData = new BatchedGroupedCiphertext3HandlesValidityProofData(
++    sourcePubkey,
++    supplyPubkey,
++    auditorPubkey,
++    groupedCiphertextLo,
++    groupedCiphertextHi,
++    amountLo,
++    amountHi,
++    openingLo,
++    openingHi
++  );
++  const commitmentLo = PedersenCommitment.fromBytes(groupedCiphertextLoBytes.slice(0, 32));
++  const commitmentHi = PedersenCommitment.fromBytes(groupedCiphertextHiBytes.slice(0, 32));
++  const paddingOpening = new PedersenOpening();
++  const paddingCommitment = PedersenCommitment.from(0n, paddingOpening);
++  const rangeProofData = new BatchedRangeProofU128Data(
++    [newBalanceCommitment, commitmentLo, commitmentHi, paddingCommitment],
++    new BigUint64Array([remainingBalance, amountLo, amountHi, 0n]),
++    Uint8Array.from([
++      REMAINING_BALANCE_BIT_LENGTH,
++      Number(TRANSFER_AMOUNT_LO_BIT_LENGTH),
++      Number(TRANSFER_AMOUNT_HI_BIT_LENGTH),
++      RANGE_PROOF_PADDING_BIT_LENGTH
++    ]),
++    [newBalanceOpening, openingLo, openingHi, paddingOpening]
++  );
++  const [equalityProofPlan, ciphertextValidityProofPlan, rangeProofPlan] = await Promise.all([
++    buildContextStateProofPlan(
++      equalityProofData.toBytes(),
++      verifyCiphertextCommitmentEquality,
++      input.payer,
++      input.rpc
++    ),
++    buildContextStateProofPlan(
++      ciphertextValidityProofData.toBytes(),
++      verifyBatchedGroupedCiphertext3HandlesValidity,
++      input.payer,
++      input.rpc
++    ),
++    buildContextStateProofPlan(rangeProofData.toBytes(), verifyBatchedRangeProofU128, input.payer, input.rpc)
++  ]);
++  return sequentialInstructionPlan([
++    parallelInstructionPlan([equalityProofPlan.setup, ciphertextValidityProofPlan.setup, rangeProofPlan.setup]),
++    getConfidentialBurnInstruction(
++      {
++        token: input.token,
++        mint: input.mint,
++        equalityRecord: equalityProofPlan.address,
++        ciphertextValidityRecord: ciphertextValidityProofPlan.address,
++        rangeRecord: rangeProofPlan.address,
++        authority: input.authority,
++        newDecryptableAvailableBalance: input.aesKey.encrypt(remainingBalance).toBytes(),
++        burnAmountAuditorCiphertextLo,
++        burnAmountAuditorCiphertextHi,
++        equalityProofInstructionOffset: 0,
++        ciphertextValidityProofInstructionOffset: 0,
++        rangeProofInstructionOffset: 0,
++        multiSigners: input.multiSigners
++      },
++      { programAddress: input.programAddress ?? TOKEN_2022_PROGRAM_ADDRESS }
++    ),
++    parallelInstructionPlan([
++      equalityProofPlan.cleanup,
++      ciphertextValidityProofPlan.cleanup,
++      rangeProofPlan.cleanup
++    ])
++  ]);
++}
++function getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply(input) {
++  return getUpdateConfidentialMintBurnDecryptableSupplyInstruction(
++    {
++      mint: input.mint,
++      authority: input.authority,
++      newDecryptableSupply: input.supplyAesKey.encrypt(BigInt(input.supply)).toBytes(),
++      multiSigners: input.multiSigners
++    },
++    { programAddress: getTokenProgramAddress(input.programAddress) }
++  );
++}
+ async function signDerivationMessage(signer, message) {
+   const [signatures] = await signer.signMessages([createSignableMessage(message)]);
+   const signature = signatures?.[signer.address];
+@@ -459,7 +826,19 @@ async function deriveAeKeyForOwnerMint({
+ }) {
+   return await deriveAeKey({ signer, publicSeed: ownerMintSeed(owner, mint) });
+ }
++async function deriveSupplyElGamalKeypair({
++  signer,
++  mint
++}) {
++  return await deriveElGamalKeypairForOwnerMint({ signer, owner: signer.address, mint });
++}
++async function deriveSupplyAeKey({
++  signer,
++  mint
++}) {
++  return await deriveAeKeyForOwnerMint({ signer, owner: signer.address, mint });
++}
+ 
+-export { deriveAeKey, deriveAeKeyForOwnerMint, deriveElGamalKeypair, deriveElGamalKeypairForOwnerMint, getApplyConfidentialPendingBalanceInstructionFromToken, getConfidentialTransferInstructionPlan, getConfidentialWithdrawInstructionPlan, getCreateConfidentialTransferAccountInstructionPlan };
++export { addWithLoHiCiphertexts, decryptConfidentialTransferBalance, deriveAeKey, deriveAeKeyForOwnerMint, deriveElGamalKeypair, deriveElGamalKeypairForOwnerMint, deriveSupplyAeKey, deriveSupplyElGamalKeypair, extractCiphertextFromGroupedBytes, fetchConfidentialTransferBalance, getApplyConfidentialPendingBalanceInstructionFromToken, getConfidentialBurnInstructionPlan, getConfidentialMintInstructionPlan, getConfidentialTransferInstructionPlan, getConfidentialWithdrawInstructionPlan, getCreateConfidentialTransferAccountInstructionPlan, getEmptyConfidentialTransferAccountInstructionPlan, getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply, subtractAmountFromCiphertext, subtractWithLoHiCiphertexts };
+ //# sourceMappingURL=confidential.mjs.map
+ //# sourceMappingURL=confidential.mjs.map
+\ No newline at end of file
+diff --git a/dist/types/confidential.d.ts b/dist/types/confidential.d.ts
+index fb632463b9665d8c63ac1e4a00fbc710f21fa1e1..be8240777b2d1004da2ae22a6391e67016a41d03 100644
+--- a/dist/types/confidential.d.ts
++++ b/dist/types/confidential.d.ts
+@@ -1,3 +1,4 @@
++export * from './confidentialTransferArithmetic';
+ export * from './confidentialTransferHelpers';
+ export * from './confidentialTransferKeys';
+ //# sourceMappingURL=confidential.d.ts.map
+\ No newline at end of file
+diff --git a/dist/types/confidentialTransferArithmetic.d.ts b/dist/types/confidentialTransferArithmetic.d.ts
+index 3ac2aece4c33769bcf6d530fede744fc0a8f52b8..0b324135ff765d922174a537bfd21e009e543b18 100644
+--- a/dist/types/confidentialTransferArithmetic.d.ts
++++ b/dist/types/confidentialTransferArithmetic.d.ts
+@@ -11,6 +11,12 @@ export declare function extractCiphertextFromGroupedBytes(groupedCiphertext: Rea
+  * after a confidential transfer.
+  */
+ export declare function subtractWithLoHiCiphertexts(left: ReadonlyUint8Array, ciphertextLo: ReadonlyUint8Array, ciphertextHi: ReadonlyUint8Array, bitLength: bigint): Uint8Array<ArrayBuffer>;
++/**
++ * Combines lo/hi ciphertext halves (hi << bitLength + lo) and adds the result
++ * to `left`. Used to compute the new encrypted-supply ciphertext after a
++ * confidential mint.
++ */
++export declare function addWithLoHiCiphertexts(left: ReadonlyUint8Array, ciphertextLo: ReadonlyUint8Array, ciphertextHi: ReadonlyUint8Array, bitLength: bigint): Uint8Array<ArrayBuffer>;
+ /**
+  * Subtracts a plaintext amount from an ElGamal ciphertext by removing
+  * `amount * G` from the commitment. Used to compute the expected
+diff --git a/dist/types/confidentialTransferHelpers.d.ts b/dist/types/confidentialTransferHelpers.d.ts
+index 9f63f47c6e57d1d4644ed363dd05aeb2972b5aca..9c6b9b5217378f25689eac10997e1825dcd53895 100644
+--- a/dist/types/confidentialTransferHelpers.d.ts
++++ b/dist/types/confidentialTransferHelpers.d.ts
+@@ -1,6 +1,6 @@
+-import { Address, Instruction, TransactionSigner, type GetMinimumBalanceForRentExemptionApi, type InstructionPlan, type Rpc } from '@solana/kit';
++import { Address, Instruction, TransactionSigner, type GetAccountInfoApi, type GetMinimumBalanceForRentExemptionApi, type FetchAccountConfig, type InstructionPlan, type Rpc } from '@solana/kit';
+ import { AeKey, ElGamalKeypair, ElGamalSecretKey } from '@solana/zk-sdk/bundler';
+-import { Token } from './generated';
++import { Mint, Token, fetchToken } from './generated';
+ type ContextStateProofMode = {
+     /**
+      * The strategy used to provide zero-knowledge proofs to the program.
+@@ -14,6 +14,19 @@ type ContextStateProofMode = {
+     payer: TransactionSigner;
+     rpc: Rpc<GetMinimumBalanceForRentExemptionApi>;
+ };
++type ConfidentialTransferContextStateProofMode = {
++    /**
++     * The strategy used to provide zero-knowledge proofs to the program.
++     *
++     * Currently, only `context-state` is supported, where each proof is verified
++     * into a dedicated context-state account before the instruction is executed.
++     * Additional modes — such as `instruction-data`, where proofs are provided
++     * inline within the same transaction — may be supported in the future.
++     */
++    proofMode?: 'context-state';
++    payer: TransactionSigner;
++    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & GetAccountInfoApi>;
++};
+ export type GetCreateConfidentialTransferAccountInstructionPlanInput = {
+     payer: TransactionSigner;
+     owner: Address | TransactionSigner;
+@@ -36,6 +49,25 @@ export type GetApplyConfidentialPendingBalanceInstructionFromTokenInput = {
+     multiSigners?: Array<TransactionSigner>;
+     programAddress?: Address;
+ };
++export type DecryptConfidentialTransferBalanceInput = {
++    tokenAccount: Token;
++    elgamalSecretKey: ElGamalSecretKey;
++    aesKey: AeKey;
++};
++export type FetchConfidentialTransferBalanceInput = Omit<DecryptConfidentialTransferBalanceInput, 'tokenAccount'> & {
++    token: Address;
++    rpc: Parameters<typeof fetchToken>[0];
++    config?: FetchAccountConfig;
++};
++export type ConfidentialTransferBalance = {
++    availableBalance: bigint;
++    pendingBalance: bigint;
++    totalBalance: bigint;
++    pendingBalanceCreditCounter: bigint;
++    maximumPendingBalanceCreditCounter: bigint;
++    expectedPendingBalanceCreditCounter: bigint;
++    actualPendingBalanceCreditCounter: bigint;
++};
+ type GetConfidentialWithdrawInstructionPlanBaseInput = {
+     token: Address;
+     mint: Address;
+@@ -49,11 +81,31 @@ type GetConfidentialWithdrawInstructionPlanBaseInput = {
+     programAddress?: Address;
+ };
+ export type GetConfidentialWithdrawInstructionPlanInput = GetConfidentialWithdrawInstructionPlanBaseInput & ContextStateProofMode;
++export type GetEmptyConfidentialTransferAccountInstructionPlanInput = {
++    token: Address;
++    tokenAccount: Token;
++    authority: Address | TransactionSigner;
++    elgamalKeypair: ElGamalKeypair;
++    multiSigners?: Array<TransactionSigner>;
++    programAddress?: Address;
++} & ContextStateProofMode;
+ type GetConfidentialTransferInstructionPlanBaseInput = {
+     sourceToken: Address;
+     mint: Address;
++    /**
++     * Decoded mint account used to resolve the configured auditor key when
++     * `auditorElgamalPubkey` is omitted. Supplying this avoids an extra mint
++     * fetch for callers that already have the mint account loaded.
++     */
++    mintAccount?: Mint;
+     destinationToken: Address;
+     sourceTokenAccount: Token;
++    /**
++     * Auditor ElGamal public key to use for the auditor ciphertexts. When
++     * omitted, the helper resolves the key from `mintAccount`, then by fetching
++     * the mint account. If the mint has no auditor configured, the zero auditor
++     * key is used.
++     */
+     auditorElgamalPubkey?: Address;
+     authority: Address | TransactionSigner;
+     amount: number | bigint;
+@@ -68,19 +120,32 @@ type GetConfidentialTransferInstructionPlanBaseInput = {
+     destinationElgamalPubkey: Address;
+     destinationTokenAccount?: never;
+ });
+-export type GetConfidentialTransferInstructionPlanInput = GetConfidentialTransferInstructionPlanBaseInput & ContextStateProofMode;
++export type GetConfidentialTransferInstructionPlanInput = GetConfidentialTransferInstructionPlanBaseInput & ConfidentialTransferContextStateProofMode;
+ /**
+  * Returns a single-transaction plan that creates the ATA, reallocates it
+  * for the confidential-transfer extension, configures the account, and
+  * verifies the ZK pubkey-validity proof.
+  */
+ export declare function getCreateConfidentialTransferAccountInstructionPlan(input: GetCreateConfidentialTransferAccountInstructionPlanInput): Promise<InstructionPlan>;
++/**
++ * Decrypts a decoded token account's confidential-transfer balances.
++ */
++export declare function decryptConfidentialTransferBalance(input: DecryptConfidentialTransferBalanceInput): ConfidentialTransferBalance;
++/**
++ * Fetches a token account and decrypts its confidential-transfer balances.
++ */
++export declare function fetchConfidentialTransferBalance(input: FetchConfidentialTransferBalanceInput): Promise<ConfidentialTransferBalance>;
+ /**
+  * Builds an `ApplyPendingBalance` instruction plan from a decoded token
+  * account, decrypting the pending balance and re-encrypting the new
+  * available balance locally.
+  */
+ export declare function getApplyConfidentialPendingBalanceInstructionFromToken(input: GetApplyConfidentialPendingBalanceInstructionFromTokenInput): Instruction;
++/**
++ * Returns an instruction plan that empties the confidential-transfer
++ * extension state once the available encrypted balance decrypts to zero.
++ */
++export declare function getEmptyConfidentialTransferAccountInstructionPlan(input: GetEmptyConfidentialTransferAccountInstructionPlanInput): Promise<InstructionPlan>;
+ /**
+  * Returns an instruction plan that moves tokens from the encrypted
+  * available balance back to the plaintext balance. Generates and verifies
+@@ -94,5 +159,115 @@ export declare function getConfidentialWithdrawInstructionPlan(input: GetConfide
+  * via context-state accounts.
+  */
+ export declare function getConfidentialTransferInstructionPlan(input: GetConfidentialTransferInstructionPlanInput): Promise<InstructionPlan>;
++type GetConfidentialMintInstructionPlanBaseInput = {
++    /** Destination confidential token account (where the minted balance lands). */
++    token: Address;
++    mint: Address;
++    /**
++     * Decoded mint account, used to read the `ConfidentialMintBurn` extension
++     * (current encrypted + decryptable supply) and resolve the auditor key.
++     * Fetched via `rpc` when omitted.
++     */
++    mintAccount?: Mint;
++    /**
++     * Auditor ElGamal public key. When omitted, resolved from the mint's
++     * `ConfidentialTransferMint` extension, falling back to the zero auditor key.
++     */
++    auditorElgamalPubkey?: Address;
++    /** The confidential mint authority. */
++    authority: Address | TransactionSigner;
++    amount: number | bigint;
++    /** The mint authority's supply ElGamal keypair (backs the equality proof). */
++    supplyElgamalKeypair: ElGamalKeypair;
++    /** The mint authority's supply AES key (encrypts the new decryptable supply). */
++    supplyAesKey: AeKey;
++    multiSigners?: Array<TransactionSigner>;
++    programAddress?: Address;
++} & ({
++    destinationTokenAccount: Token;
++    destinationElgamalPubkey?: Address;
++} | {
++    destinationElgamalPubkey: Address;
++    destinationTokenAccount?: never;
++});
++export type GetConfidentialMintInstructionPlanInput = GetConfidentialMintInstructionPlanBaseInput & ConfidentialTransferContextStateProofMode;
++type GetConfidentialBurnInstructionPlanBaseInput = {
++    /** Source confidential token account (tokens are burned from here). */
++    token: Address;
++    mint: Address;
++    /** Decoded source token account (available balance + ElGamal pubkey). */
++    sourceTokenAccount: Token;
++    /**
++     * Decoded mint account, used to read the supply ElGamal public key from the
++     * `ConfidentialMintBurn` extension and resolve the auditor key. Fetched via
++     * `rpc` when omitted.
++     */
++    mintAccount?: Mint;
++    /**
++     * Auditor ElGamal public key. When omitted, resolved from the mint's
++     * `ConfidentialTransferMint` extension, falling back to the zero auditor key.
++     */
++    auditorElgamalPubkey?: Address;
++    authority: Address | TransactionSigner;
++    amount: number | bigint;
++    /** The account owner's ElGamal keypair (backs the equality proof). */
++    sourceElgamalKeypair: ElGamalKeypair;
++    /** The account owner's AES key (encrypts the new decryptable available balance). */
++    aesKey: AeKey;
++    multiSigners?: Array<TransactionSigner>;
++    programAddress?: Address;
++};
++export type GetConfidentialBurnInstructionPlanInput = GetConfidentialBurnInstructionPlanBaseInput & ConfidentialTransferContextStateProofMode;
++/**
++ * Returns an instruction plan that confidentially **mints** tokens directly into
++ * a confidential balance, increasing the encrypted total supply. Unlike a
++ * plaintext mint + confidential deposit, the amount never appears on-chain in
++ * the clear.
++ *
++ * Splits the amount into lo/hi halves and verifies the three required proofs
++ * (ciphertext-commitment equality, grouped-ciphertext validity, batched U128
++ * range) via context-state accounts. The grouped ciphertext is encrypted under
++ * `[destination, supply, auditor]`; the supply handle is added to the mint's
++ * current encrypted supply.
++ *
++ * The mint must carry the `ConfidentialMintBurn` extension, and the destination
++ * account must be confidential-transfer configured.
++ */
++export declare function getConfidentialMintInstructionPlan(input: GetConfidentialMintInstructionPlanInput): Promise<InstructionPlan>;
++/**
++ * Returns an instruction plan that confidentially **burns** tokens from a
++ * confidential balance, decreasing it (the burnt amount accrues to the mint's
++ * pending burn until applied). The amount never appears on-chain in the clear.
++ *
++ * Splits the amount into lo/hi halves and verifies the three required proofs
++ * (ciphertext-commitment equality, grouped-ciphertext validity, batched U128
++ * range) via context-state accounts. The grouped ciphertext is encrypted under
++ * `[source, supply, auditor]`; the source handle is subtracted from the
++ * account's available balance.
++ *
++ * The mint must carry the `ConfidentialMintBurn` extension.
++ */
++export declare function getConfidentialBurnInstructionPlan(input: GetConfidentialBurnInstructionPlanInput): Promise<InstructionPlan>;
++export type GetUpdateConfidentialMintBurnDecryptableSupplyInstructionInput = {
++    mint: Address;
++    /** The confidential mint authority. */
++    authority: Address | TransactionSigner;
++    /** The mint authority's supply AES key (encrypts the decryptable supply). */
++    supplyAesKey: AeKey;
++    /**
++     * The new (decrypted) supply to record. Provide the authority's known supply
++     * — e.g. after `ApplyPendingBurn`, which advances the on-chain encrypted
++     * supply but cannot re-encrypt the AES decryptable supply — to re-sync the
++     * two encodings before the next mint/burn.
++     */
++    supply: number | bigint;
++    multiSigners?: Array<TransactionSigner>;
++    programAddress?: Address;
++};
++/**
++ * Builds an `UpdateDecryptableSupply` instruction for a `ConfidentialMintBurn`
++ * mint from a known supply value, encrypting it under the supply AES key.
++ */
++export declare function getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply(input: GetUpdateConfidentialMintBurnDecryptableSupplyInstructionInput): Instruction;
+ export {};
+ //# sourceMappingURL=confidentialTransferHelpers.d.ts.map
+\ No newline at end of file
+diff --git a/dist/types/confidentialTransferKeys.d.ts b/dist/types/confidentialTransferKeys.d.ts
+index 4bab8c090c269b56268f9a2322ac5c2e2244a055..8a845238de1b50b7347a09158f99a1d64b7d608e 100644
+--- a/dist/types/confidentialTransferKeys.d.ts
++++ b/dist/types/confidentialTransferKeys.d.ts
+@@ -41,4 +41,32 @@ export declare function deriveAeKeyForOwnerMint({ signer, owner, mint, }: {
+     owner: Address;
+     mint: Address;
+ }): Promise<Uint8Array>;
++/**
++ * Derives the **supply** ElGamal keypair for a `ConfidentialMintBurn` mint. This
++ * is the mint authority's key for the encrypted total supply — conceptually
++ * separate from any account's balance keys — and backs the mint/burn equality
++ * proof.
++ *
++ * Bound to `(mintAuthority, mint)`, i.e. the `(owner, mint)` derivation with
++ * `owner = signer.address`, so the same authority always re-derives the same
++ * supply key with no storage. Because the derivation is identical to the
++ * per-account one, the supply key is not domain-separated from account keys: if
++ * the mint authority also holds a confidential balance under the same mint, the
++ * material coincides.
++ */
++export declare function deriveSupplyElGamalKeypair({ signer, mint, }: {
++    signer: MessagePartialSigner;
++    mint: Address;
++}): Promise<DerivedElGamalKeypair>;
++/**
++ * Derives the **supply** AES key for a `ConfidentialMintBurn` mint. It encrypts
++ * the mint's decryptable supply.
++ *
++ * See `deriveSupplyElGamalKeypair` for the `(mintAuthority, mint)` binding and
++ * the domain-separation caveat.
++ */
++export declare function deriveSupplyAeKey({ signer, mint, }: {
++    signer: MessagePartialSigner;
++    mint: Address;
++}): Promise<Uint8Array>;
+ //# sourceMappingURL=confidentialTransferKeys.d.ts.map

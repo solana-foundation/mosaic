@@ -6,7 +6,8 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import { fetchToken, getConfidentialWithdrawInstructionPlan } from '@solana-program/token-2022';
+import { fetchToken } from '@solana-program/token-2022';
+import { getConfidentialWithdrawInstructionPlan } from '@solana-program/token-2022/confidential';
 import type { ConfidentialKeys } from './keys';
 import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util';
 

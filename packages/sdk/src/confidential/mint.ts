@@ -6,14 +6,12 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import { fetchMint, fetchToken, getConfidentialMintInstruction } from '@solana-program/token-2022';
-import { type ConfidentialKeys, decryptAesBalance } from './keys';
-import { buildMintProofData, elGamalCiphertextEncrypts } from './mint-burn-proof';
+import { fetchMint, fetchToken } from '@solana-program/token-2022';
+import { getConfidentialMintInstructionPlan } from '@solana-program/token-2022/confidential';
+import { type ConfidentialKeys, decryptAesBalance, elGamalCiphertextEncrypts } from './keys';
 import {
-    assembleConfidentialMintBurnPlan,
     getAccountElgamalPubkey,
     getConfidentialMintBurnExtension,
-    getMintAuditorElgamalPubkey,
     isConfidentialTransferMint,
 } from './mint-burn-util';
 import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
@@ -23,12 +21,13 @@ import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
  * increasing the encrypted total supply. Unlike a plaintext mint + deposit, the
  * amount never appears on-chain in the clear.
  *
- * There is no upstream `InstructionPlan` helper for confidential mint, so this
- * generates the three required proofs (ciphertext-commitment equality, grouped
- * ciphertext validity, U128 range) via `mint-burn-proof.ts` and wires them
- * through context-state accounts (see {@link assembleConfidentialMintBurnPlan}).
- * The resulting plan spans multiple transactions: proof setup → mint → cleanup.
+ * Wraps the official `getConfidentialMintInstructionPlan`, which generates the
+ * three required proofs (ciphertext-commitment equality, grouped ciphertext
+ * validity, U128 range) and wires them through context-state accounts; the
+ * resulting plan spans multiple transactions (proof setup → mint → cleanup).
  *
+ * This wrapper adds the Mosaic value-adds: decimal `TokenAmount` handling, the
+ * both-extensions-required fail-fast, and the decryptable-supply **drift guard**.
  * The mint must carry **both** `ConfidentialMintBurn` and
  * `ConfidentialTransferMint`, and the destination account must be
  * confidential-transfer configured; otherwise this fails fast.
@@ -77,6 +76,8 @@ export async function createConfidentialMintInstructionPlan(input: {
                 `both are required for confidential mint.`,
         );
     }
+    // Also validates the destination is confidential-transfer configured.
+    const destinationElgamalPubkey = getAccountElgamalPubkey(destinationDecoded, input.destinationToken);
 
     const rawAmount = tokenAmountToRaw(input.amount, mintDecoded.data.decimals);
     const currentSupply = decryptAesBalance(input.supplyKeys.aes, new Uint8Array(mintBurnExt.decryptableSupply));
@@ -96,39 +97,18 @@ export async function createConfidentialMintInstructionPlan(input: {
         );
     }
 
-    const destinationElgamalPubkey = getAccountElgamalPubkey(destinationDecoded, input.destinationToken);
-    const auditorElgamalPubkey = input.auditorElgamalPubkey ?? getMintAuditorElgamalPubkey(mintDecoded);
-
-    const proof = buildMintProofData({
-        currentSupplyCiphertext,
-        currentSupply,
-        mintAmount: rawAmount,
-        supplyElgamalKeypair: input.supplyKeys.elgamal,
-        supplyAesKey: input.supplyKeys.aes,
-        destinationElgamalPubkey,
-        auditorElgamalPubkey,
-    });
-
-    const authority = toAuthoritySigner(input.authority);
-    return assembleConfidentialMintBurnPlan({
+    return getConfidentialMintInstructionPlan({
         rpc: input.rpc,
         payer: input.payer,
-        proof,
-        buildTokenInstruction: records =>
-            getConfidentialMintInstruction({
-                token: input.destinationToken,
-                mint: input.mint,
-                equalityRecord: records.equalityRecord,
-                ciphertextValidityRecord: records.ciphertextValidityRecord,
-                rangeRecord: records.rangeRecord,
-                authority,
-                newDecryptableSupply: proof.newDecryptableBalance,
-                mintAmountAuditorCiphertextLo: proof.auditorCiphertextLo,
-                mintAmountAuditorCiphertextHi: proof.auditorCiphertextHi,
-                // 0 = read each proof from its context-state account.
-                equalityProofInstructionOffset: 0,
-                ciphertextValidityProofInstructionOffset: 0,
-                rangeProofInstructionOffset: 0,
-            }),
+        proofMode: 'context-state',
+        token: input.destinationToken,
+        mint: input.mint,
+        mintAccount: mintDecoded.data,
+        destinationElgamalPubkey,
+        authority: toAuthoritySigner(input.authority),
+        amount: rawAmount,
+        supplyElgamalKeypair: input.supplyKeys.elgamal,
+        supplyAesKey: input.supplyKeys.aes,
+        auditorElgamalPubkey: input.auditorElgamalPubkey,
     });
 }

@@ -1015,7 +1015,7 @@ describeSkipIf()('Inspection Integration Tests', () => {
                 // literal program ID alone is a false positive: a mint built with the
                 // program ID as freezeAuthority — without running createConfig — is not a
                 // working sRFC-37 setup. The Token-ACL program isn't deployed on the test
-                // validator and `@token-acl/sdk` is mocked, so we can't exercise the full
+                // validator and `@solana/token-acl-sdk` is mocked, so we can't exercise the full
                 // sRFC-37 flow here; this test pins the bug-fix invariant instead.
                 const tokenBuilder = new Token()
                     .withMetadata({

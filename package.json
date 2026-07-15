@@ -53,20 +53,23 @@
     },
     "packageManager": "pnpm@10.24.0",
     "pnpm": {
-        "_dependencyNotes": "These overrides pin the whole workspace onto the Solana Kit v5 ecosystem. @solana-program/token-2022@0.10.0 declares a Kit v6 peer range but is verified to run against v5, so every @solana/* package is forced to ^5.0.0 for a single consistent resolution. The @solana-program/* pins (compute-budget, system, and zk-elgamal-proof's transitive system dep) keep the program libraries on their Kit-v5-compatible releases. See packages/sdk/package.json `_dependencyNotes`.",
+        "_dependencyNotes": "These overrides pin the whole workspace onto the Solana Kit v6 ecosystem. Kit is capped at 6.x (not the newer 7.x) because the token-acl SDKs (@solana/token-acl-sdk, @solana/token-acl-gate-sdk) peer-depend on @solana/kit ^6.0.0. @solana-program/token-2022 is pinned to the published 0.12.0 and then PATCHED via pnpm.patchedDependencies (patches/@solana-program__token-2022@0.12.0.patch) to add the confidential mint/burn InstructionPlan helpers (getConfidentialMintInstructionPlan/getConfidentialBurnInstructionPlan) on the /confidential subpath. The patch is a git-tracked text file (unlike a vendored .tgz), so it applies on CI/Vercel with --frozen-lockfile. This is INTERIM: drop the patch and bump to the published version (>=0.13) once the upstream Track A PR merges and a real release ships. NOTE: 0.11+ MOVED the confidential helpers/derives from the root barrel to the @solana-program/token-2022/confidential subpath (they were not removed); the SDK imports them from that subpath. @solana/token-acl-sdk@0.4.0 depends on token-2022 0.12.0 and resolves against this patched 0.12.0 — safe because it only consumes stable core token-2022 exports (unchanged) and the patch only adds to the /confidential entry. Two packages still declare v5 kit ranges but are safe on v6 because they only touch codecs/signers/addresses (unchanged v5->v6): @solana-program/zk-elgamal-proof and @solana/connector are forced onto v6 via the @solana/kit override and the @solana/* transitive overrides. See packages/sdk/package.json `_dependencyNotes`.",
         "overrides": {
-            "@solana/accounts": "^5.0.0",
-            "@solana/addresses": "^5.0.0",
-            "@solana/signers": "^5.0.0",
-            "@solana/rpc": "^5.0.0",
-            "@solana/rpc-types": "^5.0.0",
-            "@solana/transactions": "^5.0.0",
-            "@solana/transaction-messages": "^5.0.0",
-            "@solana/keys": "^5.0.0",
-            "@solana/codecs": "^5.0.0",
-            "@solana-program/compute-budget": "^0.11.0",
-            "@solana-program/system": "^0.10.0",
-            "@solana-program/zk-elgamal-proof>@solana-program/system": "0.10.0"
+            "@solana/kit": "^6.10.0",
+            "@solana/accounts": "^6.0.0",
+            "@solana/addresses": "^6.0.0",
+            "@solana/signers": "^6.0.0",
+            "@solana/rpc": "^6.0.0",
+            "@solana/rpc-types": "^6.0.0",
+            "@solana/transactions": "^6.0.0",
+            "@solana/transaction-messages": "^6.0.0",
+            "@solana/keys": "^6.0.0",
+            "@solana/codecs": "^6.0.0",
+            "@solana-program/system": "0.12.2",
+            "@solana-program/token-2022": "0.12.0"
+        },
+        "patchedDependencies": {
+            "@solana-program/token-2022@0.12.0": "patches/@solana-program__token-2022@0.12.0.patch"
         }
     }
 }
