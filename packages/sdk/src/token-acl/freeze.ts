@@ -11,7 +11,7 @@ import {
     type TransactionSigner,
 } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
-import { findMintConfigPda, getFreezeInstruction } from '@token-acl/sdk';
+import { findMintConfigPda, getFreezeInstruction } from '@solana/token-acl-sdk';
 import {
     getCreateAssociatedTokenIdempotentInstruction,
     getFreezeAccountInstruction,

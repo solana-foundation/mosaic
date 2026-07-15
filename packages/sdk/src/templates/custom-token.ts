@@ -322,7 +322,7 @@ export const createCustomTokenInitTransaction = async (
         authority: mintAuthoritySigner,
         payer: feePayerSigner,
         mint: mintSigner.address,
-        lists: [listConfig],
+        addresses: [listConfig],
     });
 
     instructions.push(...createConfigInstructions);

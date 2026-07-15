@@ -13,7 +13,7 @@ import {
 import type { FullTransaction } from '../transaction-util';
 import { ABL_PROGRAM_ID } from './utils';
 import { getSetupExtraMetasInstruction } from '@solana/token-acl-gate-sdk';
-import { findMintConfigPda, findThawExtraMetasAccountPda } from '@token-acl/sdk';
+import { findMintConfigPda, findThawExtraMetasAccountPda } from '@solana/token-acl-sdk';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
 
 /**
@@ -26,14 +26,14 @@ import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
  * @param input - Configuration parameters for setting extra metadata thaw
  * @param input.authority - The authority signer who can modify the thaw configuration
  * @param input.mint - The mint address for which to configure extra metadata thaw
- * @param input.list - The list configuration address that controls the thaw permissions
+ * @param input.addresses - The list configuration addresses that control the thaw permissions
  * @returns Promise containing the instructions for setting extra metadata thaw
  */
 export const getSetExtraMetasInstructions = async (input: {
     authority: TransactionSigner<string>;
     payer?: TransactionSigner<string>;
     mint: Address;
-    lists: Address[];
+    addresses: Address[];
 }): Promise<Instruction<string>[]> => {
     const mintConfigPda = await findMintConfigPda({ mint: input.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
     const extraMetasThaw = await findThawExtraMetasAccountPda({ mint: input.mint }, { programAddress: ABL_PROGRAM_ID });
@@ -45,7 +45,7 @@ export const getSetExtraMetasInstructions = async (input: {
             mint: input.mint,
             tokenAclMintConfig: mintConfigPda[0],
             extraMetas: extraMetasThaw[0],
-            lists: input.lists,
+            addresses: input.addresses,
         },
         { programAddress: ABL_PROGRAM_ID },
     );
@@ -65,7 +65,7 @@ export const getSetExtraMetasInstructions = async (input: {
  * @param input.payer - The transaction fee payer signer
  * @param input.authority - The authority signer who can modify the thaw configuration
  * @param input.mint - The mint address for which to configure extra metadata thaw
- * @param input.list - The list configuration address that controls the thaw permissions
+ * @param input.addresses - The list configuration addresses that control the thaw permissions
  * @returns Promise containing the full transaction for setting extra metadata thaw
  */
 export const getSetExtraMetasTransaction = async (input: {
@@ -73,7 +73,7 @@ export const getSetExtraMetasTransaction = async (input: {
     payer: TransactionSigner<string>;
     authority: TransactionSigner<string>;
     mint: Address;
-    lists: Address[];
+    addresses: Address[];
 }): Promise<FullTransaction> => {
     const instructions = await getSetExtraMetasInstructions(input);
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
