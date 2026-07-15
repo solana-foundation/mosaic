@@ -6,7 +6,8 @@ import {
     type TransactionSigner,
     singleInstructionPlan,
 } from '@solana/kit';
-import { fetchToken, getApplyConfidentialPendingBalanceInstructionFromToken } from '@solana-program/token-2022';
+import { fetchToken } from '@solana-program/token-2022';
+import { getApplyConfidentialPendingBalanceInstructionFromToken } from '@solana-program/token-2022/confidential';
 import type { ConfidentialKeys } from './keys';
 import { toAuthoritySigner } from './util';
 

@@ -42,10 +42,9 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@noble/curves": "^1.9.7",
         "@solana-program/memo": "^0.11.2",
         "@solana-program/system": "0.12.2",
-        "@solana-program/token-2022": "^0.10.0",
+        "@solana-program/token-2022": "0.12.0",
         "@solana-program/zk-elgamal-proof": "0.1.0",
         "@solana/kit": "^6.10.0",
         "@solana/sysvars": "^6.10.0",
@@ -54,7 +53,7 @@
         "@solana/token-acl-sdk": "^0.4.0"
     },
     "_dependencyNotes": {
-        "solanaKitV6": "This SDK targets the Solana Kit v6 ecosystem (@solana/kit@6.10, @solana/sysvars@6.10). Kit is capped at 6.x (not 7.x) because the token-acl SDKs peer @solana/kit ^6.0.0. @solana-program/token-2022 is kept at 0.10.0 (which already peers kit ^6) because it provides the confidential-transfer InstructionPlan/derive helpers (getConfidentialTransferInstructionPlan, deriveAeKeyForOwnerMint, etc.) that the confidential feature relies on; these were removed in token-2022 0.12.0. @solana/token-acl-sdk@0.4.0 depends on token-2022 0.12.0 but is forced down to 0.10.0 via the root override — safe because it only uses stable core exports (TOKEN_2022_PROGRAM_ADDRESS, getMintDecoder, ATA/metadata helpers, AccountState, Mint) unchanged across 0.10-0.12. @solana-program/zk-elgamal-proof@0.1.0 declares a kit-v5 peer but runs on v6 (only codecs/signers/addresses, unchanged v5->v6); the root overrides force it onto v6. See: https://github.com/anza-xyz/kit"
+        "solanaKitV6": "This SDK targets the Solana Kit v6 ecosystem (@solana/kit@6.10, @solana/sysvars@6.10). Kit is capped at 6.x (not 7.x) because the token-acl SDKs peer @solana/kit ^6.0.0. @solana-program/token-2022 is the published 0.12.0, PATCHED via pnpm.patchedDependencies (see root patches/@solana-program__token-2022@0.12.0.patch) to add the confidential mint/burn InstructionPlan helpers (getConfidentialMintInstructionPlan/getConfidentialBurnInstructionPlan). A git-tracked patch (not a vendored .tgz) so it applies on CI/Vercel with --frozen-lockfile. INTERIM until the Track A PR merges and a real release (>=0.13) ships. On 0.11+ the confidential helpers/derives (getConfidentialTransferInstructionPlan, deriveAeKeyForOwnerMint, etc.) live on the @solana-program/token-2022/confidential subpath (moved off the root barrel, not removed); the confidential module imports them from there. @solana/token-acl-sdk@0.4.0 depends on token-2022 0.12.0 and resolves against this patched 0.12.0 — safe because it only uses stable core exports (TOKEN_2022_PROGRAM_ADDRESS, getMintDecoder, ATA/metadata helpers, AccountState, Mint) and the patch only adds to the /confidential entry. @solana-program/zk-elgamal-proof@0.1.0 declares a kit-v5 peer but runs on v6 (only codecs/signers/addresses, unchanged v5->v6); the root overrides force it onto v6. See: https://github.com/anza-xyz/kit"
     },
     "devDependencies": {
         "@jest/test-sequencer": "^29.7.0",
