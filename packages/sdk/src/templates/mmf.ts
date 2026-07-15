@@ -13,7 +13,6 @@ import {
 import { getUpdateTransferHookInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { Mode } from '@solana/token-acl-gate-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
 import { getCreateConfigInstructions } from '../token-acl/create-config';
 import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
@@ -31,8 +30,10 @@ import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
  * without re-creating the mint.
  *
  * Accounts default to frozen, so a freeze authority is mandatory: if `freezeAuthority` is
- * omitted it defaults to TOKEN_ACL_PROGRAM_ID when SRFC-37 is enabled, otherwise to the
- * mint authority. This prevents minting a mint whose accounts can never be thawed.
+ * omitted it defaults to the mint authority. On the SRFC-37 path the freeze authority is
+ * always the mint authority — the Token-ACL `create_config` instruction validates it and
+ * then reassigns freeze authority to its config PDA. This prevents minting a mint whose
+ * accounts can never be thawed.
  *
  * Transaction size: when `enableSrfc37` is true, the returned transaction appends the full
  * SRFC-37 setup (createConfig, setGatingProgram, enablePermissionlessThaw, createList,
@@ -65,21 +66,11 @@ export const createMmfInitTransaction = async (
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
+    const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
 
     const aclMode = options?.aclMode ?? 'allowlist';
     const useSrfc37 = options?.enableSrfc37 ?? false;
-
-    // SRFC-37 setup is signed by feePayer, and the mint's freeze authority is set to
-    // TOKEN_ACL_PROGRAM_ID before the config account exists. If we early-out without
-    // installing the config (e.g. because mintAuthority !== feePayer), the mint is left
-    // with TOKEN_ACL_PROGRAM_ID as freeze authority and no config — bricked. Refuse upfront.
-    if (useSrfc37 && mintAuthorityAddress !== feePayerSigner.address) {
-        throw new Error(
-            'createMmfInitTransaction: enableSrfc37 requires mintAuthority === feePayer. ' +
-                'Either pass the same signer for both, or disable enableSrfc37 and configure SRFC-37 separately.',
-        );
-    }
 
     const metadataAuthority = options?.metadataAuthority || mintAuthorityAddress;
     const pausableAuthority = options?.pausableAuthority || mintAuthorityAddress;
@@ -98,9 +89,10 @@ export const createMmfInitTransaction = async (
     const enableConfidential = options?.enableConfidentialBalances ?? false;
 
     // MMF accounts default to frozen, so a freeze authority is required to ever thaw them.
-    // SRFC-37 supplies TOKEN_ACL_PROGRAM_ID as the freeze authority; otherwise fall back to the
-    // mint authority so the mint isn't left permanently unusable.
-    const resolvedFreezeAuthority = freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : mintAuthorityAddress);
+    // On the SRFC-37 path the freeze authority MUST be the mint authority: `create_config`
+    // validates it as the current freeze authority and then reassigns it to the config PDA.
+    // Otherwise fall back to the mint authority so the mint isn't left permanently unusable.
+    const resolvedFreezeAuthority = useSrfc37 ? mintAuthorityAddress : (freezeAuthority ?? mintAuthorityAddress);
 
     let tokenBuilder = new Token()
         .withMetadata({
@@ -157,31 +149,38 @@ export const createMmfInitTransaction = async (
         ) as FullTransaction;
     }
 
+    // The on-chain authority for Token-ACL/ABL setup is the mint authority (which is also the
+    // mint's freeze authority, so create_config validates and then reassigns it to the config
+    // PDA). Account creation is funded by the fee payer via `payer`, allowing a sponsored
+    // (e.g. Kora) deploy where feePayer !== mintAuthority.
     const { instructions: createConfigInstructions } = await getCreateConfigInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
+        payer: feePayerSigner,
         mint: mintSigner.address,
         gatingProgram: ABL_PROGRAM_ID,
     });
 
     const setGatingProgramInstructions = await getSetGatingProgramInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
         mint: mintSigner.address,
         gatingProgram: ABL_PROGRAM_ID,
     });
 
     const enablePermissionlessThawInstructions = await getEnablePermissionlessThawInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
         mint: mintSigner.address,
     });
 
     const { instructions: createListInstructions, listConfig } = await getCreateListInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
+        payer: feePayerSigner,
         mint: mintSigner.address,
         mode: aclMode === 'allowlist' ? Mode.Allow : Mode.Block,
     });
 
     const setExtraMetasInstructions = await getSetExtraMetasInstructions({
-        authority: feePayerSigner,
+        authority: mintAuthoritySigner,
+        payer: feePayerSigner,
         mint: mintSigner.address,
         addresses: [listConfig],
     });
