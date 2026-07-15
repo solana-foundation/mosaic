@@ -13,7 +13,12 @@ import {
     getPermissionedBurnCheckedInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
-import { resolveTokenAccount, decimalAmountToRaw, getMintDetails } from '../transaction-util';
+import {
+    resolveTokenAccount,
+    decimalAmountToRaw,
+    getMintDetails,
+    isConfidentialMintBurnMint,
+} from '../transaction-util';
 import { getPermissionedBurnAuthority } from './permissioned-burn';
 
 /**
@@ -43,6 +48,17 @@ export const createBurnTransaction = async (
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
     const ownerSigner = typeof owner === 'string' ? createNoopSigner(owner) : owner;
     const ownerAddress = typeof owner === 'string' ? owner : owner.address;
+
+    // A ConfidentialMintBurn mint keeps its supply encrypted, so Token-2022 rejects
+    // plaintext Burn (IllegalMintBurnConversion). Fail fast with an actionable
+    // message rather than building a transaction the chain would reject.
+    if (await isConfidentialMintBurnMint(rpc, mint)) {
+        throw new Error(
+            `Mint ${mint} has the ConfidentialMintBurn extension enabled; plaintext burning is not supported. ` +
+                `Use the confidential burn path (createConfidentialBurnInstructionPlan) from ` +
+                `@solana/mosaic-sdk/confidential instead.`,
+        );
+    }
 
     // Get mint info to determine decimals
     const { decimals } = await getMintDetails(rpc, mint);

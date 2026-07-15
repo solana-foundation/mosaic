@@ -17,6 +17,7 @@ import {
     resolveTokenAccount,
     decimalAmountToRaw,
     getMintDetails,
+    isConfidentialMintBurnMint,
     isDefaultAccountStateSetFrozen,
 } from '../transaction-util';
 import { getThawPermissionlessInstructions } from '../token-acl';
@@ -51,6 +52,18 @@ export const createForceBurnTransaction = async (
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
     const permanentDelegateSigner =
         typeof permanentDelegate === 'string' ? createNoopSigner(permanentDelegate) : permanentDelegate;
+
+    // A ConfidentialMintBurn mint keeps its supply encrypted, so Token-2022 rejects
+    // plaintext Burn — including a permanent-delegate force burn (IllegalMintBurnConversion).
+    // Fail fast with an actionable message rather than building a transaction the chain
+    // would reject.
+    if (await isConfidentialMintBurnMint(rpc, mint)) {
+        throw new Error(
+            `Mint ${mint} has the ConfidentialMintBurn extension enabled; plaintext burning is not supported. ` +
+                `Use the confidential burn path (createConfidentialBurnInstructionPlan) from ` +
+                `@solana/mosaic-sdk/confidential instead.`,
+        );
+    }
 
     // Get mint info to determine decimals
     const { decimals, extensions, usesTokenAcl } = await getMintDetails(rpc, mint);

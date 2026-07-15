@@ -236,6 +236,17 @@ const tx2 = await new Token()
     .buildTransaction({ rpc, decimals: 2, mintAuthority, mint, feePayer });
 ```
 
+> **`withConfidentialMintBurn` forces a confidential-only supply.** A mint with the
+> `ConfidentialMintBurn` extension tracks its total supply as an encrypted value, so
+> Token-2022 **rejects plaintext `MintTo` / `Burn`** on it (`IllegalMintBurnConversion`).
+> All issuance and redemption must go through `createConfidentialMintInstructionPlan` /
+> `createConfidentialBurnInstructionPlan` (step 5) — the plaintext `createMintToTransaction`
+> / `createBurnTransaction` builders fail fast on such a mint. Enable the extension only
+> when you want the supply itself to be confidential. If you instead want a **public
+> supply with confidential balances**, use `withConfidentialBalances` **without**
+> `withConfidentialMintBurn`: mint in cleartext with `createMintToTransaction`, then move
+> value into the confidential balance with a `deposit` (step 4).
+
 ### 2. Derive account keys
 
 Each holder derives ElGamal + AES keys bound to `(owner, mint)` from a signature —

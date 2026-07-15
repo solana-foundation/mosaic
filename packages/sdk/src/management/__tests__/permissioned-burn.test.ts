@@ -58,6 +58,7 @@ function mockTransactionUtil(): void {
             programAddress: TOKEN_2022_PROGRAM_ADDRESS,
         }),
         isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
+        isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
     }));
 }
 
