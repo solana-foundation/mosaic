@@ -11,7 +11,7 @@ import {
     type TransactionSigner,
 } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
-import { findMintConfigPda, getSetGatingProgramInstruction } from '@token-acl/sdk';
+import { findMintConfigPda, getSetGatingProgramInstruction } from '@solana/token-acl-sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils';
 
 /**

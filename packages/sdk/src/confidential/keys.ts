@@ -6,7 +6,11 @@ import {
     getAddressEncoder,
     signBytes,
 } from '@solana/kit';
-import { deriveAeKeyForOwnerMint, deriveElGamalKeypairForOwnerMint } from '@solana-program/token-2022';
+import {
+    deriveAeKeyForOwnerMint,
+    deriveElGamalKeypairForOwnerMint,
+    subtractAmountFromCiphertext,
+} from '@solana-program/token-2022/confidential';
 import { ElGamalKeypair, AeKey, ElGamalSecretKey, ElGamalCiphertext, AeCiphertext } from '@solana/mosaic-sdk/_zk';
 
 /**
@@ -257,6 +261,38 @@ export function decryptElGamalBalance(elgamal: ElGamalKeypair, ciphertext: Uint8
         return secret.decrypt(ct);
     } finally {
         ct.free?.();
+        secret.free?.();
+    }
+}
+
+/**
+ * Checks whether a 64-byte ElGamal `ciphertextBytes` encrypts `expected` under
+ * `keypair`. Used by confidential mint/burn to fail fast when a mint's
+ * decryptable supply (or an account's decryptable available balance) has drifted
+ * from its on-chain ElGamal ciphertext — which otherwise yields a proof the chain
+ * rejects with an opaque ZK error.
+ *
+ * Subtracts the `expected` plaintext from the ciphertext with the upstream
+ * ciphertext arithmetic (`commitment − expected·G`, handle unchanged); the result
+ * encrypts `actual − expected`, so it decrypts to `0` exactly when they match. A
+ * failed bounded discrete-log solve means the difference is non-zero.
+ */
+export function elGamalCiphertextEncrypts(
+    keypair: ElGamalKeypair,
+    ciphertextBytes: Uint8Array,
+    expected: bigint,
+): boolean {
+    const diff = ElGamalCiphertext.fromBytes(new Uint8Array(subtractAmountFromCiphertext(ciphertextBytes, expected)));
+    if (!diff) {
+        return false;
+    }
+    const secret = keypair.secret();
+    try {
+        return secret.decrypt(diff) === 0n;
+    } catch {
+        return false;
+    } finally {
+        diff.free?.();
         secret.free?.();
     }
 }
