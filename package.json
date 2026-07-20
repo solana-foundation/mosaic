@@ -18,7 +18,10 @@
         "type-check": "turbo type-check",
         "clean": "turbo clean",
         "precommit": "pnpm run format && pnpm run lint:fix",
-        "check": "pnpm run build && pnpm run format:check && pnpm run lint && pnpm run type-check"
+        "check": "pnpm run build && pnpm run format:check && pnpm run lint && pnpm run type-check",
+        "changeset": "changeset",
+        "version:packages": "changeset version",
+        "publish-packages": "changeset publish --filter @solana/mosaic-sdk --filter @solana/mosaic-cli"
     },
     "keywords": [
         "solana",
@@ -33,6 +36,8 @@
     "author": "Solana Foundation",
     "license": "MIT",
     "devDependencies": {
+        "@changesets/changelog-github": "^0.5.1",
+        "@changesets/cli": "^2.29.7",
         "@solana/prettier-config-solana": "0.0.5",
         "@types/node": "^20.0.0",
         "@typescript-eslint/eslint-plugin": "^8.61.1",
@@ -48,6 +53,7 @@
     },
     "packageManager": "pnpm@10.24.0",
     "pnpm": {
+        "_dependencyNotes": "These overrides pin the whole workspace onto the Solana Kit v5 ecosystem. @solana-program/token-2022@0.10.0 declares a Kit v6 peer range but is verified to run against v5, so every @solana/* package is forced to ^5.0.0 for a single consistent resolution. The @solana-program/* pins (compute-budget, system, and zk-elgamal-proof's transitive system dep) keep the program libraries on their Kit-v5-compatible releases. See packages/sdk/package.json `_dependencyNotes`.",
         "overrides": {
             "@solana/accounts": "^5.0.0",
             "@solana/addresses": "^5.0.0",
@@ -59,7 +65,8 @@
             "@solana/keys": "^5.0.0",
             "@solana/codecs": "^5.0.0",
             "@solana-program/compute-budget": "^0.11.0",
-            "@solana-program/system": "^0.10.0"
+            "@solana-program/system": "^0.10.0",
+            "@solana-program/zk-elgamal-proof>@solana-program/system": "0.10.0"
         }
     }
 }

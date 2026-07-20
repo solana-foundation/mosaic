@@ -167,7 +167,7 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
     // Get RPC URL from the current cluster
     const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
 
-    // Use the connector signer hook which provides a gill-compatible transaction signer
+    // Use the connector signer hook which provides a kit-compatible transaction signer
     const transactionSendingSigner = useConnectorSigner();
 
     // Fetch current authorities from blockchain

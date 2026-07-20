@@ -2,7 +2,7 @@
 
 A comprehensive TypeScript monorepo for managing Token-2022 tokens with extensions on Solana, specifically designed for different token templates for Stablecoins, RWAs, and Arcade Token. It includes built in advanced access control features such as integration with sRFC-37.
 
-Note: sRFC-37 is still under development and not ready for mainnet use. If you use this repo please be sure to not use sRFC-37 yet.
+> **Status — sRFC-37 / Token ACL:** The Token ACL program (`TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP`) and its companion ABL gating program (`GATEzzqxhJnsWF6vHRsgtixxSB8PaQdcqGEVTEHWiULz`) are deployed on both devnet and mainnet-beta. An audit has been completed and feedback addressed. The sRFC-37 standard itself is not yet finalized and the on-chain interface may still change. See the [sRFC-37 discussion](https://github.com/solana-foundation/SRFCs/discussions/2) for current status.
 
 ## Why Mosaic?
 
@@ -68,7 +68,7 @@ See the [sdk readme](packages/sdk/README.md) for detailed docs
 
 ```typescript
 import { createStablecoinInitTransaction, createArcadeTokenInitTransaction } from '@solana/mosaic-sdk';
-import { createSolanaRpc, generateKeyPairSigner } from 'gill';
+import { createSolanaRpc, generateKeyPairSigner } from '@solana/kit';
 
 const rpc = createSolanaRpc('https://api.devnet.solana.com');
 const authority = await generateKeyPairSigner();
@@ -94,8 +94,8 @@ This monorepo contains the following packages:
 - **[@solana/mosaic-sdk](packages/sdk/)** - Core SDK with token templates, allowlist / blocklist integrations, management utilities, and Token-2022 integration
 - **[@solana/mosaic-cli](packages/cli/)** - Command-line interface for token creation and management
 - **[@mosaic/app](apps/app/)** - Dashboard application for a full featured tokenization engine for token management with wallet integration and sRFC-37 administration
-- **[@mosaic/abl](packages/abl/)** - Allowlist/Blocklist implementation for sRFC-37 compliance
-- **[@mosaic/token-acl](packages/token-acl/)** - Token ACL (sRFC-37). This standard provides management of access control lists for Solana Tokens.
+- **[@mosaic/abl](packages/abl/)** - Allowlist/Blocklist implementation for sRFC-37 compliance. Program ID `GATEzzqxhJnsWF6vHRsgtixxSB8PaQdcqGEVTEHWiULz` (devnet + mainnet-beta)
+- **[@mosaic/token-acl](packages/token-acl/)** - Token ACL (sRFC-37). This standard provides management of access control lists for Solana Tokens. Program ID `TACLkU6CiCdkQN2MjoyDkVg2yAH9zkxiHDsiztQ52TP` (devnet + mainnet-beta)
 - **[@mosaic/tlv-account-resolution](packages/tlv-account-resolution/)** - TLV account resolution utilities
 
 ## Token Templates

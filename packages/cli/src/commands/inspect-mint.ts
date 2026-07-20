@@ -52,7 +52,7 @@ export const inspectMintCommand = new Command('inspect-mint')
 
             spinner.text = 'Parsing mint data...';
 
-            // Decode mint data using gill's decodeMint
+            // Decode mint data using `@solana-program/token-2022`'s `decodeMint`
             const decodedMint = decodeMint(encodedAccount);
 
             // Get extensions
