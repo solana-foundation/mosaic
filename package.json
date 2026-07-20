@@ -21,7 +21,7 @@
         "check": "pnpm run build && pnpm run format:check && pnpm run lint && pnpm run type-check",
         "changeset": "changeset",
         "version:packages": "changeset version",
-        "publish-packages": "changeset publish --filter @solana/mosaic-sdk --filter @solana/mosaic-cli"
+        "publish-packages": "changeset publish"
     },
     "keywords": [
         "solana",
