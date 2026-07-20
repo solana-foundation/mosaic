@@ -53,23 +53,20 @@
     },
     "packageManager": "pnpm@10.24.0",
     "pnpm": {
-        "_dependencyNotes": "These overrides pin the whole workspace onto the Solana Kit v6 ecosystem. Kit is capped at 6.x (not the newer 7.x) because the token-acl SDKs (@solana/token-acl-sdk, @solana/token-acl-gate-sdk) peer-depend on @solana/kit ^6.0.0. @solana-program/token-2022 is pinned to the published 0.12.0 and then PATCHED via pnpm.patchedDependencies (patches/@solana-program__token-2022@0.12.0.patch) to add the confidential mint/burn InstructionPlan helpers (getConfidentialMintInstructionPlan/getConfidentialBurnInstructionPlan) on the /confidential subpath. The patch is a git-tracked text file (unlike a vendored .tgz), so it applies on CI/Vercel with --frozen-lockfile. This is INTERIM: drop the patch and bump to the published version (>=0.13) once the upstream Track A PR merges and a real release ships. NOTE: 0.11+ MOVED the confidential helpers/derives from the root barrel to the @solana-program/token-2022/confidential subpath (they were not removed); the SDK imports them from that subpath. @solana/token-acl-sdk@0.4.0 depends on token-2022 0.12.0 and resolves against this patched 0.12.0 — safe because it only consumes stable core token-2022 exports (unchanged) and the patch only adds to the /confidential entry. Two packages still declare v5 kit ranges but are safe on v6 because they only touch codecs/signers/addresses (unchanged v5->v6): @solana-program/zk-elgamal-proof and @solana/connector are forced onto v6 via the @solana/kit override and the @solana/* transitive overrides. See packages/sdk/package.json `_dependencyNotes`.",
+        "_dependencyNotes": "These overrides pin the whole workspace onto the Solana Kit v7 ecosystem. @solana-program/token-2022 is the published 0.13.0 (kit-v7-native) — NO patch. token-2022 must be >=0.13.0 on kit v7: 0.12.0's compiled code imports getMinimumBalanceForRentExemption from @solana/kit, which kit v7 removed (0.13.0 no longer uses it). 0.13.0 ships every confidential helper Mosaic consumes EXCEPT confidential mint/burn: transfer/withdraw/configure/apply/empty InstructionPlan helpers, PR #1269 (getConfidentialTransferInstructionPlan resolves the auditor from an optional mintAccount), the owner/mint key derivations, and the subtract/extract ciphertext arithmetic all come from the published /confidential subpath. The mint/burn InstructionPlan helpers (getConfidentialMintInstructionPlan/getConfidentialBurnInstructionPlan) + addWithLoHiCiphertexts do NOT exist in any published token-2022, so they are implemented locally in packages/sdk/src/confidential (mint-burn-plan.ts + mint-burn-proof.ts + ciphertext-math.ts, on @noble/curves + @solana/zk-sdk). This is INTERIM: once the upstream Track A PR merges and a token-2022 release ships the mint/burn helpers, delete the local implementation and re-point mint.ts/burn.ts at @solana-program/token-2022/confidential (a one-line import change each). @solana/token-acl-sdk@0.4.0 declares an exact token-2022 0.12.0 dependency; the override forces it up to 0.13.0 — safe because it only consumes stable core exports (TOKEN_2022_PROGRAM_ADDRESS, getMintDecoder, ATA/metadata helpers, AccountState, Mint), unchanged across 0.10-0.13. @solana/token-acl-sdk / @solana/token-acl-gate-sdk / @solana/connector declare kit <=6 peer ranges but run correctly on kit v7 (they only touch codecs/signers/addresses; the only v7 breaking changes — a type-only codec-union return-type widening, ReactiveStreamStore.connect(), a new instruction-planning error — are not exercised) and are forced onto v7 via the @solana/kit + @solana/* overrides. @solana-program/system and @solana-program/memo are on their kit-v7-native releases (0.13.0 / 0.12.0). See packages/sdk/package.json `_dependencyNotes`.",
         "overrides": {
-            "@solana/kit": "^6.10.0",
-            "@solana/accounts": "^6.0.0",
-            "@solana/addresses": "^6.0.0",
-            "@solana/signers": "^6.0.0",
-            "@solana/rpc": "^6.0.0",
-            "@solana/rpc-types": "^6.0.0",
-            "@solana/transactions": "^6.0.0",
-            "@solana/transaction-messages": "^6.0.0",
-            "@solana/keys": "^6.0.0",
-            "@solana/codecs": "^6.0.0",
-            "@solana-program/system": "0.12.2",
-            "@solana-program/token-2022": "0.12.0"
-        },
-        "patchedDependencies": {
-            "@solana-program/token-2022@0.12.0": "patches/@solana-program__token-2022@0.12.0.patch"
+            "@solana/kit": "^7.0.0",
+            "@solana/accounts": "^7.0.0",
+            "@solana/addresses": "^7.0.0",
+            "@solana/signers": "^7.0.0",
+            "@solana/rpc": "^7.0.0",
+            "@solana/rpc-types": "^7.0.0",
+            "@solana/transactions": "^7.0.0",
+            "@solana/transaction-messages": "^7.0.0",
+            "@solana/keys": "^7.0.0",
+            "@solana/codecs": "^7.0.0",
+            "@solana-program/system": "0.13.0",
+            "@solana-program/token-2022": "0.13.0"
         }
     }
 }
