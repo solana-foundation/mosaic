@@ -12,7 +12,6 @@ import {
 import { getCreateConfigInstructions } from '../token-acl/create-config';
 import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
 import { ABL_PROGRAM_ID } from '../abl/utils';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
 import { getCreateListInstructions } from '../abl/list';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
@@ -78,7 +77,12 @@ export const createArcadeTokenInitTransaction = async (
             rpc,
             decimals,
             mintAuthority,
-            freezeAuthority: freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
+            // On the sRFC-37 path the freeze authority MUST be the mint authority: the
+            // Token-ACL `create_config` instruction requires the mint's current freeze
+            // authority to equal its signer (the mint authority) and then reassigns it to
+            // the config PDA itself. Pre-setting it to anything else (e.g. the program id)
+            // fails create_config with InvalidAuthority.
+            freezeAuthority: useSrfc37 ? mintAuthorityAddress : freezeAuthority,
             mint: mintSigner,
             feePayer: feePayerSigner,
         });

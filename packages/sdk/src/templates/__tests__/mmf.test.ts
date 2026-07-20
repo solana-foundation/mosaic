@@ -12,7 +12,6 @@ import {
     identifyToken2022Instruction,
 } from '@solana-program/token-2022';
 import { none } from '@solana/kit';
-import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl/utils';
 import { createMmfInitTransaction } from '../mmf';
 
 const matchesIx = (a: Instruction, b: Instruction) =>
@@ -48,29 +47,52 @@ describe('createMmfInitTransaction', () => {
         expect(tx.instructions.some(i => matchesIx(i, expectedFrozenInit))).toBe(true);
     });
 
-    test('throws when SRFC-37 is enabled but mintAuthority !== feePayer', async () => {
-        // Without this guard the mint's freeze authority would be set to TOKEN_ACL_PROGRAM_ID
-        // and then the function would early-return without installing the SRFC-37 config —
-        // bricking freeze/thaw for the lifetime of the mint.
-        const otherMintAuthority = createMockSigner('GA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT');
-        await expect(
-            createMmfInitTransaction(rpc, 'MMF', 'MMF', 6, 'uri', otherMintAuthority, mint, feePayer, undefined, {
-                enableSrfc37: true,
-            }),
-        ).rejects.toThrow(/enableSrfc37 requires mintAuthority === feePayer/);
+    test('SRFC-37 sponsored deploy: feePayer !== mintAuthority uses the mint authority as freeze authority', async () => {
+        // Sponsored (e.g. Kora) deploy: the fee payer funds account creation via `payer`
+        // while the mint authority stays the freeze authority that create_config validates
+        // and hands to the config PDA. This must not throw and must not use the fee payer as
+        // the freeze authority. Distinct addresses — createMockSigner() defaults them equal.
+        const sponsorFeePayer = createMockSigner('sAPDrViGV3C6PaT4xD7uRDDvB4xCURfZzDkGEd8Yv4v');
+        const custodyMintAuthority = createMockSigner('So11111111111111111111111111111111111111112');
+        const mmfMint = createMockSigner('HA3KcFsXNjRJsRZq1P1Y8qPAeSZnZsFyauCDEsSSGqTj');
+        const tx = await createMmfInitTransaction(
+            rpc,
+            'MMF',
+            'MMF',
+            6,
+            'uri',
+            custodyMintAuthority,
+            mmfMint,
+            sponsorFeePayer,
+            undefined,
+            { enableSrfc37: true },
+        );
+
+        const expectedInit = getInitializeMintInstruction(
+            {
+                mint: mmfMint.address,
+                decimals: 6,
+                freezeAuthority: custodyMintAuthority.address,
+                mintAuthority: custodyMintAuthority.address,
+            },
+            { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
+        );
+        expect(tx.instructions.some(i => matchesIx(i, expectedInit))).toBe(true);
     });
 
-    test('uses TOKEN_ACL_PROGRAM_ID as freeze authority when SRFC-37 enabled', async () => {
-        // SRFC-37 path requires mint authority == fee payer (signer); pass feePayer as both.
+    test('uses the mint authority as freeze authority when SRFC-37 enabled', async () => {
+        // feePayer === mintAuthority here (non-sponsored); pass feePayer as both.
         const tx = await createMmfInitTransaction(rpc, 'MMF', 'MMF', 6, 'uri', feePayer, mint, feePayer, undefined, {
             enableSrfc37: true,
         });
 
+        // Freeze authority is the mint authority (here === feePayer); Token-ACL create_config
+        // validates it and then reassigns freeze authority to its config PDA.
         const expectedInit = getInitializeMintInstruction(
             {
                 mint: mint.address,
                 decimals: 6,
-                freezeAuthority: TOKEN_ACL_PROGRAM_ID,
+                freezeAuthority: feePayer.address,
                 mintAuthority: feePayer.address,
             },
             { programAddress: TOKEN_2022_PROGRAM_ADDRESS },

@@ -7,7 +7,6 @@ import {
     AccountState,
     getPreInitializeInstructionsForMintExtensions,
 } from '@solana-program/token-2022';
-import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl/utils';
 import * as createConfigModule from '../../token-acl/create-config';
 import * as setGatingProgramModule from '../../token-acl/set-gating-program';
 import * as enableThawModule from '../../token-acl/enable-permissionless-thaw';
@@ -76,7 +75,7 @@ describe('templates enableSrfc37 option', () => {
         expect(hasDefaultInitialized).toBe(true);
     });
 
-    test('arcade token: enableSrfc37 true uses default account state frozen and TOKEN_ACL_PROGRAM_ID as freeze authority', async () => {
+    test('arcade token: enableSrfc37 true uses default account state frozen and the mint authority as freeze authority', async () => {
         const mintAuthoritySigner = createMockSigner();
         const decimals = 6;
         const { createArcadeTokenInitTransaction } = await import('../arcade-token');
@@ -98,12 +97,13 @@ describe('templates enableSrfc37 option', () => {
         const instructions = tx.instructions;
         expect(instructions.length).toBeGreaterThan(0);
 
-        // When SRFC-37 is enabled, freeze authority should be TOKEN_ACL_PROGRAM_ID
+        // When SRFC-37 is enabled, freeze authority should be the mint authority — Token-ACL
+        // create_config validates it and then reassigns freeze authority to its config PDA.
         const expectedInit = getInitializeMintInstruction(
             {
                 mint: mint.address,
                 decimals,
-                freezeAuthority: TOKEN_ACL_PROGRAM_ID,
+                freezeAuthority: mintAuthoritySigner.address,
                 mintAuthority: mintAuthoritySigner.address,
             },
             { programAddress: TOKEN_2022_PROGRAM_ADDRESS },

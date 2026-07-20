@@ -13,7 +13,12 @@ import {
     getPermissionedBurnCheckedInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
-import { resolveTokenAccount, decimalAmountToRaw, getMintDetails } from '../transaction-util';
+import {
+    resolveTokenAccount,
+    decimalAmountToRaw,
+    getMintDetails,
+    mintHasConfidentialMintBurnExtension,
+} from '../transaction-util';
 import { getPermissionedBurnAuthority } from './permissioned-burn';
 
 /**
@@ -44,8 +49,20 @@ export const createBurnTransaction = async (
     const ownerSigner = typeof owner === 'string' ? createNoopSigner(owner) : owner;
     const ownerAddress = typeof owner === 'string' ? owner : owner.address;
 
-    // Get mint info to determine decimals
-    const { decimals } = await getMintDetails(rpc, mint);
+    // Get mint info to determine decimals (and detect ConfidentialMintBurn below,
+    // from the same fetch — no second mint read).
+    const { decimals, extensions } = await getMintDetails(rpc, mint);
+
+    // A ConfidentialMintBurn mint keeps its supply encrypted, so Token-2022 rejects
+    // plaintext Burn (IllegalMintBurnConversion). Fail fast with an actionable
+    // message rather than building a transaction the chain would reject.
+    if (mintHasConfidentialMintBurnExtension(extensions)) {
+        throw new Error(
+            `Mint ${mint} has the ConfidentialMintBurn extension enabled; plaintext burning is not supported. ` +
+                `Use the confidential burn path (createConfidentialBurnInstructionPlan) from ` +
+                `@solana/mosaic-sdk/confidential instead.`,
+        );
+    }
 
     // Convert decimal amount to raw amount
     const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
