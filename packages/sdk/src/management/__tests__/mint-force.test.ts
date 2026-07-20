@@ -33,7 +33,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
                 programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-            isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+            mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
         }));
         const { createMintToTransaction } = await import('../mint');
         const tx = await createMintToTransaction(rpc, mint, wallet, 1, mintAuthority, feePayer);
@@ -67,7 +67,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
                 programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-            isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+            mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
         }));
         const { createForceTransferTransaction } = await import('../force-transfer');
         const tx = await createForceTransferTransaction(rpc, mint, wallet, wallet, 1, permDel, feePayer);
@@ -93,7 +93,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
                 programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
-            isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+            mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
         }));
         const { createMintToTransaction } = await import('../mint');
         const tx = await createMintToTransaction(rpc, mint, wallet, 1, mintAuthority, feePayer);
@@ -128,7 +128,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
                 programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
-            isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+            mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
         }));
         const { createForceTransferTransaction } = await import('../force-transfer');
         const tx = await createForceTransferTransaction(rpc, mint, wallet, wallet, 1, permDel, feePayer);

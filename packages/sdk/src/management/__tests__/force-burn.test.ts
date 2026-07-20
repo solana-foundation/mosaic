@@ -42,7 +42,7 @@ describe('force-burn', () => {
                     programAddress: TOKEN_2022_PROGRAM_ADDRESS,
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-                isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+                mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
             }));
 
             const { createForceBurnTransaction } = await import('../force-burn');
@@ -85,7 +85,7 @@ describe('force-burn', () => {
                     programAddress: TOKEN_2022_PROGRAM_ADDRESS,
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
-                isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+                mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
             }));
 
             const { createForceBurnTransaction } = await import('../force-burn');
@@ -119,7 +119,7 @@ describe('force-burn', () => {
                     programAddress: TOKEN_2022_PROGRAM_ADDRESS,
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-                isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+                mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
             }));
 
             const { createForceBurnTransaction } = await import('../force-burn');
@@ -159,7 +159,7 @@ describe('force-burn', () => {
                         ],
                     }),
                     isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-                    isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+                    mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
                 }));
 
                 const { createForceBurnTransaction } = await import('../force-burn');
@@ -195,7 +195,7 @@ describe('force-burn', () => {
                     ],
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-                isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+                mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
             }));
 
             const { createForceBurnTransaction } = await import('../force-burn');
@@ -233,7 +233,7 @@ describe('force-burn', () => {
                         ],
                     }),
                     isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-                    isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+                    mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
                 }));
 
                 const { createForceBurnTransaction } = await import('../force-burn');
@@ -266,7 +266,7 @@ describe('force-burn', () => {
                     ],
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-                isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+                mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
             }));
 
             const { createForceBurnTransaction } = await import('../force-burn');
@@ -297,7 +297,7 @@ describe('force-burn', () => {
                     ],
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-                isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+                mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
             }));
 
             const { createForceBurnTransaction } = await import('../force-burn');
@@ -432,7 +432,7 @@ describe('force-burn', () => {
                     usesTokenAcl: true,
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
-                isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+                mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
             }));
 
             jest.doMock('../../token-acl', () => ({
@@ -484,7 +484,7 @@ describe('force-burn', () => {
                     ],
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-                isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+                mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
             }));
 
             const { createForceBurnTransaction } = await import('../force-burn');
@@ -519,7 +519,7 @@ describe('force-burn', () => {
                     ],
                 }),
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-                isConfidentialMintBurnMint: jest.fn().mockResolvedValue(false),
+                mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
             }));
 
             const { createForceBurnTransaction } = await import('../force-burn');
