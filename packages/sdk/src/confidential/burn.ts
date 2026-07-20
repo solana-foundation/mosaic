@@ -7,12 +7,19 @@ import {
     type TransactionSigner,
     singleInstructionPlan,
 } from '@solana/kit';
-import { fetchMint, fetchToken, getApplyConfidentialPendingBurnInstruction } from '@solana-program/token-2022';
-import { getConfidentialBurnInstructionPlan } from '@solana-program/token-2022/confidential';
-import { type ConfidentialKeys, decryptAesBalance, elGamalCiphertextEncrypts } from './keys';
 import {
+    fetchMint,
+    fetchToken,
+    getApplyConfidentialPendingBurnInstruction,
+    getConfidentialBurnInstruction,
+} from '@solana-program/token-2022';
+import { type ConfidentialKeys, decryptAesBalance } from './keys';
+import { buildBurnProofData, elGamalCiphertextEncrypts } from './mint-burn-proof';
+import {
+    assembleConfidentialMintBurnPlan,
     getConfidentialMintBurnExtension,
     getConfidentialTransferAccountExtension,
+    getMintAuditorElgamalPubkey,
     isConfidentialTransferMint,
 } from './mint-burn-util';
 import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
@@ -23,11 +30,12 @@ import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
  * `pending_burn` accumulator until {@link createApplyConfidentialPendingBurnInstructionPlan}
  * is run). The burn amount stays encrypted on-chain.
  *
- * Wraps the official `getConfidentialBurnInstructionPlan`, which generates the
- * three proofs (equality, grouped-ciphertext validity, U128 range) and wires them
- * via context-state accounts, so the plan spans multiple transactions (proof
- * setup → burn → cleanup). Authored by the **account owner** (who holds the
- * account keys); the mint's supply pubkey + auditor are read from the mint.
+ * No published token-2022 ships a confidential-burn `InstructionPlan` helper, so
+ * this generates the three proofs (equality, grouped-ciphertext validity, U128
+ * range) via `mint-burn-proof.ts` and wires them via context-state accounts, so
+ * the plan spans multiple transactions (proof setup → burn → cleanup). Authored
+ * by the **account owner** (who holds the account keys); the mint's supply pubkey
+ * + auditor are read from the mint.
  *
  * This wrapper adds the Mosaic value-adds: decimal `TokenAmount` handling, the
  * both-extensions-required + account-configured fail-fast, and the
@@ -59,7 +67,7 @@ export async function createConfidentialBurnInstructionPlan(input: {
 
     // Fail fast: the mint must be confidential-mint/burn configured, and (since
     // the burned balance is confidential) also confidential-transfer configured.
-    getConfidentialMintBurnExtension(mintDecoded, input.mint);
+    const mintBurnExt = getConfidentialMintBurnExtension(mintDecoded, input.mint);
     if (!isConfidentialTransferMint(mintDecoded)) {
         throw new Error(
             `Mint ${input.mint} has ConfidentialMintBurn but not ConfidentialTransferMint; ` +
@@ -88,19 +96,39 @@ export async function createConfidentialBurnInstructionPlan(input: {
         );
     }
 
-    return getConfidentialBurnInstructionPlan({
+    const auditorElgamalPubkey = input.auditorElgamalPubkey ?? getMintAuditorElgamalPubkey(mintDecoded);
+
+    const proof = buildBurnProofData({
+        currentAvailableBalanceCiphertext,
+        currentAvailableBalance,
+        burnAmount: rawAmount,
+        sourceElgamalKeypair: input.keys.elgamal,
+        sourceAesKey: input.keys.aes,
+        supplyElgamalPubkey: mintBurnExt.supplyElgamalPubkey,
+        auditorElgamalPubkey,
+    });
+
+    const authority = toAuthoritySigner(input.authority);
+    return assembleConfidentialMintBurnPlan({
         rpc: input.rpc,
         payer: input.payer,
-        proofMode: 'context-state',
-        token: input.tokenAccount,
-        mint: input.mint,
-        sourceTokenAccount: tokenDecoded.data,
-        mintAccount: mintDecoded.data,
-        authority: toAuthoritySigner(input.authority),
-        amount: rawAmount,
-        sourceElgamalKeypair: input.keys.elgamal,
-        aesKey: input.keys.aes,
-        auditorElgamalPubkey: input.auditorElgamalPubkey,
+        proof,
+        buildTokenInstruction: records =>
+            getConfidentialBurnInstruction({
+                token: input.tokenAccount,
+                mint: input.mint,
+                equalityRecord: records.equalityRecord,
+                ciphertextValidityRecord: records.ciphertextValidityRecord,
+                rangeRecord: records.rangeRecord,
+                authority,
+                newDecryptableAvailableBalance: proof.newDecryptableBalance,
+                burnAmountAuditorCiphertextLo: proof.auditorCiphertextLo,
+                burnAmountAuditorCiphertextHi: proof.auditorCiphertextHi,
+                // 0 = read each proof from its context-state account.
+                equalityProofInstructionOffset: 0,
+                ciphertextValidityProofInstructionOffset: 0,
+                rangeProofInstructionOffset: 0,
+            }),
     });
 }
 

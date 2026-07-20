@@ -250,6 +250,7 @@ describe('confidential operation builders', () => {
                 expect.objectContaining({
                     proofMode: 'context-state',
                     amount: 3_000_000n,
+                    mintAccount: { decimals: 6, extensions: mockMintExtensions },
                     sourceTokenAccount: mockSourceToken.data,
                     destinationTokenAccount: mockDestToken.data,
                     auditorElgamalPubkey: undefined,
@@ -257,7 +258,10 @@ describe('confidential operation builders', () => {
             );
         });
 
-        it('detects the auditor pubkey from the mint extension', async () => {
+        it('forwards the decoded mint so the helper resolves the auditor', async () => {
+            // Auditor resolution lives in the upstream helper (token-2022 #1269);
+            // mosaic just forwards the decoded mint as `mintAccount` and leaves
+            // `auditorElgamalPubkey` undefined so the helper reads it from there.
             mockMintExtensions = {
                 __option: 'Some',
                 value: [
@@ -275,7 +279,10 @@ describe('confidential operation builders', () => {
                 keys: fakeKeys,
             });
             expect(getConfidentialTransferInstructionPlan).toHaveBeenCalledWith(
-                expect.objectContaining({ auditorElgamalPubkey: AUDITOR }),
+                expect.objectContaining({
+                    mintAccount: { decimals: 6, extensions: mockMintExtensions },
+                    auditorElgamalPubkey: undefined,
+                }),
             );
         });
 
