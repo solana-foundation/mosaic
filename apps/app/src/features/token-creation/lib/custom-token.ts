@@ -97,7 +97,7 @@ function validateCustomTokenOptions(options: CustomTokenOptions): number {
     }
 
     // Validate Transfer Hook configuration if enabled
-    if (options.enableTransferHook) {
+    if (options.enableTransferHook && !options.transferHookInactive) {
         if (!options.transferHookProgramId) {
             throw new Error('Transfer hook program ID is required');
         }
@@ -171,9 +171,10 @@ export const createCustomToken = async (
         const transferHookAuthority = options.transferHookAuthority
             ? (options.transferHookAuthority as Address)
             : undefined;
-        const transferHookProgramId = options.transferHookProgramId
-            ? (options.transferHookProgramId as Address)
-            : undefined;
+        const transferHookProgramId =
+            options.transferHookProgramId && !options.transferHookInactive
+                ? (options.transferHookProgramId as Address)
+                : undefined;
 
         const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
@@ -285,7 +286,9 @@ export const createCustomToken = async (
         if (options.enableTransferFee) extensions.push('Transfer Fee');
         if (options.enableInterestBearing) extensions.push('Interest Bearing');
         if (options.enableNonTransferable) extensions.push('Non-Transferable');
-        if (options.enableTransferHook) extensions.push('Transfer Hook');
+        if (options.enableTransferHook) {
+            extensions.push(transferHookProgramId ? 'Transfer Hook' : 'Transfer Hook (Inactive)');
+        }
         if (enableSrfc37) {
             extensions.push(`SRFC-37 (${options.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'})`);
         }

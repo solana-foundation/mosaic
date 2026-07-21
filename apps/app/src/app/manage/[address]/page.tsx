@@ -172,6 +172,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                         authorities.permanentDelegateAuthority || foundToken.permanentDelegateAuthority;
                     foundToken.scaledUiAmountAuthority =
                         authorities.scaledUiAmountAuthority || foundToken.scaledUiAmountAuthority;
+                    foundToken.transferHookAuthority =
+                        authorities.transferHookAuthority || foundToken.transferHookAuthority;
+                    foundToken.transferHookProgramId = authorities.transferHookProgramId;
                 } catch {
                     // If authority fetch fails, continue with existing token data
                     // Authorities may not be available if token doesn't exist on this network

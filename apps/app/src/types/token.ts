@@ -14,6 +14,9 @@ export interface TokenDisplay {
     confidentialBalancesAuthority?: string;
     permanentDelegateAuthority?: string;
     scaledUiAmountAuthority?: string;
+    transferHookAuthority?: string;
+    /** Currently active hook program id; undefined if the extension is present but inactive. */
+    transferHookProgramId?: string;
     extensions?: string[];
     transactionSignature?: string;
     createdAt?: string;
@@ -171,6 +174,11 @@ export interface CustomTokenOptions {
     interestRate?: string;
     interestBearingAuthority?: string;
     // Transfer Hook configuration
+    // When transferHookInactive is true, the extension is initialized with no active hook
+    // program (programId cleared to None right after mint creation) so it can adopt a real
+    // hook program later without recreating the mint. transferHookProgramId is ignored in
+    // that case.
+    transferHookInactive?: boolean;
     transferHookProgramId?: string;
     transferHookAuthority?: string;
     rpcUrl?: string;
