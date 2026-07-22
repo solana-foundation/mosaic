@@ -18,6 +18,11 @@ overrides:
   '@solana-program/system': 0.13.0
   '@solana-program/token-2022': 0.13.0
 
+patchedDependencies:
+  '@solana/zk-sdk@0.4.2':
+    hash: 36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271
+    path: patches/@solana__zk-sdk@0.4.2.patch
+
 importers:
 
   .:
@@ -111,7 +116,7 @@ importers:
         version: 0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))
       '@solana-program/token-2022':
         specifier: 0.13.0
-        version: 0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2)
+        version: 0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271))
       '@solana/accounts':
         specifier: ^7.0.0
         version: 7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
@@ -135,7 +140,7 @@ importers:
         version: 0.3.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@solana/zk-sdk':
         specifier: 0.4.2
-        version: 0.4.2
+        version: 0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271)
       '@tanstack/react-query':
         specifier: ^5.101.0
         version: 5.101.0(react@19.2.7)
@@ -253,7 +258,7 @@ importers:
         version: 0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))
       '@solana-program/token-2022':
         specifier: 0.13.0
-        version: 0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2)
+        version: 0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271))
       '@solana/kit':
         specifier: ^7.0.0
         version: 7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
@@ -265,7 +270,7 @@ importers:
         version: 0.3.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@solana/token-acl-sdk':
         specifier: ^0.4.0
-        version: 0.4.0(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2)(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
+        version: 0.4.0(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271))(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       chalk:
         specifier: ^5.6.2
         version: 5.6.2
@@ -308,7 +313,7 @@ importers:
         version: 0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))
       '@solana-program/token-2022':
         specifier: 0.13.0
-        version: 0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2)
+        version: 0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271))
       '@solana-program/zk-elgamal-proof':
         specifier: 0.1.0
         version: 0.1.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))
@@ -323,10 +328,10 @@ importers:
         version: 0.3.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@solana/token-acl-sdk':
         specifier: ^0.4.0
-        version: 0.4.0(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2)(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
+        version: 0.4.0(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271))(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@solana/zk-sdk':
         specifier: ^0.4.2
-        version: 0.4.2
+        version: 0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271)
     devDependencies:
       '@jest/test-sequencer':
         specifier: ^29.7.0
@@ -7512,14 +7517,14 @@ snapshots:
     dependencies:
       '@solana/kit': 7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
 
-  '@solana-program/token-2022@0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2)':
+  '@solana-program/token-2022@0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271))':
     dependencies:
       '@noble/curves': 1.9.7
       '@solana-program/zk-elgamal-proof': 0.3.2(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))
       '@solana/kit': 7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@solana/sysvars': 7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
     optionalDependencies:
-      '@solana/zk-sdk': 0.4.2
+      '@solana/zk-sdk': 0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271)
 
   '@solana-program/zk-elgamal-proof@0.1.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))':
     dependencies:
@@ -8061,9 +8066,9 @@ snapshots:
       - fastestsmallesttextencoderdecoder
       - utf-8-validate
 
-  '@solana/token-acl-sdk@0.4.0(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2)(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)':
+  '@solana/token-acl-sdk@0.4.0(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271))(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
-      '@solana-program/token-2022': 0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2)
+      '@solana-program/token-2022': 0.13.0(@solana/kit@7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10))(@solana/sysvars@7.0.0(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3))(@solana/zk-sdk@0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271))
       '@solana/kit': 7.0.0(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - '@solana/sysvars'
@@ -8248,7 +8253,7 @@ snapshots:
       '@noble/ed25519': 3.0.0
       typescript: 5.9.3
 
-  '@solana/zk-sdk@0.4.2': {}
+  '@solana/zk-sdk@0.4.2(patch_hash=36858606c345445d2423c2199275b523b2822caf412374ce053775b299c0d271)': {}
 
   '@swc/helpers@0.5.15':
     dependencies:
