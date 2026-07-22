@@ -150,6 +150,14 @@ export const createStablecoinCommand = new Command('stablecoin')
 
             spinner.text = 'Building transaction...';
 
+            // The metadata-initialize instruction must be signed by the mint authority, so the SDK
+            // requires a TransactionSigner (not a bare address) whenever the Metadata extension is
+            // present. In the signing path the loaded keypair IS the mint authority, so hand the
+            // template the signer itself; a custom --mint-authority that isn't the signer can't sign
+            // the metadata init here (that needs --raw-tx and an external signature).
+            const mintAuthorityArg =
+                !rawTx && mintAuthority === signerAddress ? signerKeypair! : mintAuthority;
+
             // Create stablecoin transaction
             const transaction = await createStablecoinInitTransaction(
                 rpc,
@@ -157,7 +165,7 @@ export const createStablecoinCommand = new Command('stablecoin')
                 options.symbol,
                 decimals,
                 options.uri || '',
-                mintAuthority,
+                mintAuthorityArg,
                 rawTx ? (mintKeypair.address as Address) : mintKeypair,
                 rawTx ? signerAddress : signerKeypair!,
                 options.aclMode || 'blocklist',
