@@ -159,13 +159,21 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
 
             spinner.text = 'Building transaction...';
 
+            // The TokenMetadata extension requires the mint authority to sign the metadata-init
+            // instruction, so the template needs a signer (not a bare address) when Metadata is
+            // present. In the signing path the loaded keypair IS the mint authority, so hand the
+            // template the signer itself; a custom --mint-authority that isn't the signer can't sign
+            // the metadata init here (that needs --raw-tx and an external signature).
+            const mintAuthorityArg =
+                !rawTx && mintAuthority === signerAddress ? signerKeypair! : mintAuthority;
+
             const transaction = await createTokenizedSecurityInitTransaction(
                 rpc,
                 options.name,
                 options.symbol,
                 decimals,
                 options.uri || '',
-                mintAuthority,
+                mintAuthorityArg,
                 rawTx ? (mintKeypair.address as Address) : mintKeypair,
                 rawTx ? (signerAddress as Address) : (signerKeypair as TransactionSigner<string>),
                 undefined, // freezeAuthority - TODO add argument for this
