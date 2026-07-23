@@ -53,20 +53,23 @@
     },
     "packageManager": "pnpm@10.24.0",
     "pnpm": {
-        "_dependencyNotes": "These overrides pin the whole workspace onto the Solana Kit v6 ecosystem. Kit is capped at 6.x (not the newer 7.x) because the token-acl SDKs (@solana/token-acl-sdk, @solana/token-acl-gate-sdk) peer-depend on @solana/kit ^6.0.0. @solana-program/token-2022 is pinned to 0.10.0 (which already peers kit ^6): it still ships the confidential-transfer InstructionPlan/derive helpers the confidential feature needs, which were removed in 0.12.0. @solana/token-acl-sdk@0.4.0 hard-depends on token-2022 0.12.0 but is forced down to 0.10.0 here — safe because it only consumes stable core token-2022 exports unchanged across 0.10-0.12. Two packages still declare v5 kit ranges but are safe on v6 because they only touch codecs/signers/addresses (unchanged v5->v6): @solana-program/zk-elgamal-proof and @solana/connector are forced onto v6 via the @solana/kit override and the @solana/* transitive overrides. See packages/sdk/package.json `_dependencyNotes`.",
+        "_dependencyNotes": "TEMPORARY (branch refactor/confidential-mint-burn-upstream-helpers): @solana-program/token-2022 is overridden to a LOCAL tarball (file:/Users/eldar/projects/hoodies/sdp/t2022mb.tgz) built from the token-2022 clone branch feat-js-confidential-mint-burn-instruction-plans (version 0.12.0), which adds the confidential mint/burn InstructionPlan helpers (getConfidentialMintInstructionPlan / getConfidentialBurnInstructionPlan / getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply) + addWithLoHiCiphertexts to the /confidential subpath. This lets Mosaic consume the UPSTREAMED helpers instead of a local proof implementation: mint.ts/burn.ts/supply.ts now delegate to @solana-program/token-2022/confidential and the former local trio (ciphertext-math.ts / mint-burn-proof.ts / mint-burn-util.ts, on @noble/curves) has been DELETED. The tarball path is machine-local — replace this override with a published token-2022 release (>=0.13 that ships the mint/burn helpers) before merging. Mosaic only consumes the /confidential subpath, which is clean under kit v7; the 0.12.0 root's kit-v7-removed getMinimumBalanceForRentExemption usage sits only in create-mint/create-token convenience helpers Mosaic does not call. Historical context (published-0.13.0 baseline): token-2022 must be >=0.13.0 on kit v7: 0.12.0's compiled code imports getMinimumBalanceForRentExemption from @solana/kit, which kit v7 removed (0.13.0 no longer uses it). 0.13.0 ships every confidential helper Mosaic consumes EXCEPT confidential mint/burn: transfer/withdraw/configure/apply/empty InstructionPlan helpers, PR #1269 (getConfidentialTransferInstructionPlan resolves the auditor from an optional mintAccount), the owner/mint key derivations, and the subtract/extract ciphertext arithmetic all come from the published /confidential subpath. The mint/burn InstructionPlan helpers + addWithLoHiCiphertexts do NOT exist in any PUBLISHED token-2022; on this branch they are consumed from the local tarball override described above (mint.ts/burn.ts/supply.ts delegate to @solana-program/token-2022/confidential; the former local proof implementation is deleted). Once a published token-2022 release ships the mint/burn helpers, swap the tarball override for that version and drop this temporary note. @solana/token-acl-sdk@0.4.0 declares an exact token-2022 0.12.0 dependency; the override forces it up to 0.13.0 — safe because it only consumes stable core exports (TOKEN_2022_PROGRAM_ADDRESS, getMintDecoder, ATA/metadata helpers, AccountState, Mint), unchanged across 0.10-0.13. @solana/token-acl-sdk / @solana/token-acl-gate-sdk / @solana/connector declare kit <=6 peer ranges but run correctly on kit v7 (they only touch codecs/signers/addresses; the only v7 breaking changes — a type-only codec-union return-type widening, ReactiveStreamStore.connect(), a new instruction-planning error — are not exercised) and are forced onto v7 via the @solana/kit + @solana/* overrides. @solana-program/system and @solana-program/memo are on their kit-v7-native releases (0.13.0 / 0.12.0). See packages/sdk/package.json `_dependencyNotes`. PATCH: token-2022 stays unpatched, but @solana/zk-sdk@0.4.2 IS patched (patches/@solana__zk-sdk@0.4.2.patch) to make its ./bundler subpath condition-aware (node -> CJS node build, else bundler). token-2022@0.13.0's confidential.mjs hardcodes `@solana/zk-sdk/bundler` (ESM+wasm bundler build) which can't load under Node (`Unknown file extension .wasm`) and, if forced, yields a dual-WASM `expected instance of ElGamalKeypair` mismatch; the patch serves the node build under Node while browser bundlers still get the bundler build (they don't set the `node` condition). Mirrors the existing packages/sdk/jest.config.js remap. Remove once @solana/zk-sdk ships a conditional root export upstream (see workspace plan zk-sdk-bundler-wasm-node-resolution.md).",
         "overrides": {
-            "@solana/kit": "^6.10.0",
-            "@solana/accounts": "^6.0.0",
-            "@solana/addresses": "^6.0.0",
-            "@solana/signers": "^6.0.0",
-            "@solana/rpc": "^6.0.0",
-            "@solana/rpc-types": "^6.0.0",
-            "@solana/transactions": "^6.0.0",
-            "@solana/transaction-messages": "^6.0.0",
-            "@solana/keys": "^6.0.0",
-            "@solana/codecs": "^6.0.0",
-            "@solana-program/system": "0.12.2",
-            "@solana-program/token-2022": "0.10.0"
+            "@solana/kit": "^7.0.0",
+            "@solana/accounts": "^7.0.0",
+            "@solana/addresses": "^7.0.0",
+            "@solana/signers": "^7.0.0",
+            "@solana/rpc": "^7.0.0",
+            "@solana/rpc-types": "^7.0.0",
+            "@solana/transactions": "^7.0.0",
+            "@solana/transaction-messages": "^7.0.0",
+            "@solana/keys": "^7.0.0",
+            "@solana/codecs": "^7.0.0",
+            "@solana-program/system": "0.13.0",
+            "@solana-program/token-2022": "file:/Users/eldar/projects/hoodies/sdp/t2022mb.tgz"
+        },
+        "patchedDependencies": {
+            "@solana/zk-sdk@0.4.2": "patches/@solana__zk-sdk@0.4.2.patch"
         }
     }
 }
