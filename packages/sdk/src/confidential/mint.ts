@@ -6,47 +6,54 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import { fetchMint, fetchToken, getConfidentialMintInstruction } from '@solana-program/token-2022';
-import { type ConfidentialKeys, decryptAesBalance } from './keys';
-import { buildMintProofData, elGamalCiphertextEncrypts } from './mint-burn-proof';
-import {
-    assembleConfidentialMintBurnPlan,
-    getAccountElgamalPubkey,
-    getConfidentialMintBurnExtension,
-    getMintAuditorElgamalPubkey,
-    isConfidentialTransferMint,
-} from './mint-burn-util';
+import { fetchMint, fetchToken } from '@solana-program/token-2022';
+import { getConfidentialMintInstructionPlan } from '@solana-program/token-2022/confidential';
+import type { ConfidentialKeys } from './keys';
 import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
+
+type DecodedMint = Awaited<ReturnType<typeof fetchMint>>;
+type DecodedToken = Awaited<ReturnType<typeof fetchToken>>;
+
+/** Whether a decoded mint carries the `ConfidentialMintBurn` extension. */
+function isConfidentialMintBurn(mint: DecodedMint): boolean {
+    return (
+        mint.data.extensions.__option === 'Some' &&
+        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialMintBurn')
+    );
+}
+
+/** Whether a decoded mint carries the `ConfidentialTransferMint` extension. */
+function isConfidentialTransferMint(mint: DecodedMint): boolean {
+    return (
+        mint.data.extensions.__option === 'Some' &&
+        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferMint')
+    );
+}
+
+/** Whether a decoded token account carries the `ConfidentialTransferAccount` extension. */
+function isConfidentialTransferAccount(token: DecodedToken): boolean {
+    return (
+        token.data.extensions.__option === 'Some' &&
+        token.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferAccount')
+    );
+}
 
 /**
  * Confidentially **mints** tokens directly into a confidential balance,
  * increasing the encrypted total supply. Unlike a plaintext mint + deposit, the
  * amount never appears on-chain in the clear.
  *
- * No published token-2022 ships a confidential-mint `InstructionPlan` helper, so
- * this generates the three required proofs (ciphertext-commitment equality,
- * grouped ciphertext validity, U128 range) via `mint-burn-proof.ts` and wires
- * them through context-state accounts (see `assembleConfidentialMintBurnPlan`);
- * the resulting plan spans multiple transactions (proof setup → mint → cleanup).
+ * Wraps the official `getConfidentialMintInstructionPlan`, which generates the
+ * three required proofs (ciphertext-commitment equality, grouped ciphertext
+ * validity, U128 range) and wires them through context-state accounts; the
+ * resulting plan spans multiple transactions (proof setup → mint → cleanup).
  *
- * Adds the Mosaic value-adds: decimal `TokenAmount` handling, the
- * both-extensions-required fail-fast, and the decryptable-supply **drift guard**.
- * The mint must carry **both** `ConfidentialMintBurn` and
- * `ConfidentialTransferMint`, and the destination account must be
- * confidential-transfer configured; otherwise this fails fast.
- *
- * The current supply is read (and decrypted with the supply AES key) from the
- * mint's decryptable supply; the auditor is detected from the mint unless
- * overridden.
- *
- * ⚠️ The equality proof binds the decrypted decryptable supply to the on-chain
- * ElGamal `confidentialSupply` ciphertext. `applyPendingBurn` updates the ElGamal
- * ciphertext but cannot update the AES decryptable supply (the program has no
- * access to the supply AES key), so the two drift after a burn is applied. Minting
- * against a stale decryptable supply produces a proof the chain rejects with an
- * opaque error. After any `applyPendingBurn`, re-sync first with
- * {@link createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan} (from
- * `@solana/mosaic-sdk/confidential`) before calling this.
+ * Reads the mint (for decimals + supply state) and the destination account, and
+ * adds the Mosaic value-adds: decimal `TokenAmount` handling and a
+ * both-extensions-required fail-fast. The mint must carry **both**
+ * `ConfidentialMintBurn` and `ConfidentialTransferMint`, and the destination
+ * account must be confidential-transfer configured. The upstream helper resolves
+ * the auditor from the decoded mint unless overridden.
  */
 export async function createConfidentialMintInstructionPlan(input: {
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
@@ -70,68 +77,43 @@ export async function createConfidentialMintInstructionPlan(input: {
         fetchToken(input.rpc, input.destinationToken),
     ]);
 
-    // Fail fast: the mint must be confidential-mint/burn configured, and (since
-    // the minted balance is confidential) also confidential-transfer configured.
-    const mintBurnExt = getConfidentialMintBurnExtension(mintDecoded, input.mint);
+    // Fail fast with actionable messages rather than letting the upstream helper
+    // throw deep in the stack. The mint must be confidential-mint/burn configured,
+    // and (since the minted balance is confidential) also confidential-transfer
+    // configured; the destination account must be confidential-transfer configured.
+    if (!isConfidentialMintBurn(mintDecoded)) {
+        throw new Error(
+            `Mint ${input.mint} is not configured for confidential mint/burn ` +
+                `(missing the ConfidentialMintBurn extension).`,
+        );
+    }
     if (!isConfidentialTransferMint(mintDecoded)) {
         throw new Error(
             `Mint ${input.mint} has ConfidentialMintBurn but not ConfidentialTransferMint; ` +
                 `both are required for confidential mint.`,
         );
     }
-    // Also validates the destination is confidential-transfer configured.
-    const destinationElgamalPubkey = getAccountElgamalPubkey(destinationDecoded, input.destinationToken);
-
-    const rawAmount = tokenAmountToRaw(input.amount, mintDecoded.data.decimals);
-    const currentSupply = decryptAesBalance(input.supplyKeys.aes, new Uint8Array(mintBurnExt.decryptableSupply));
-    const currentSupplyCiphertext = new Uint8Array(mintBurnExt.confidentialSupply);
-
-    // The equality proof binds the AES-decrypted `currentSupply` to the on-chain
-    // ElGamal supply ciphertext; `applyPendingBurn` updates the ciphertext but not
-    // the AES decryptable supply, so they drift after a burn is applied. Minting
-    // against a stale decryptable supply would build a proof the chain rejects
-    // with an opaque ZK error — fail fast with an actionable one instead. (Also
-    // catches a mismatched `supplyKeys`.)
-    if (!elGamalCiphertextEncrypts(input.supplyKeys.elgamal, currentSupplyCiphertext, currentSupply)) {
+    if (!isConfidentialTransferAccount(destinationDecoded)) {
         throw new Error(
-            `Mint ${input.mint}'s decryptable supply is out of sync with its on-chain ElGamal supply ` +
-                `ciphertext (this happens after \`applyPendingBurn\`, or if the wrong supply keys were passed). ` +
-                `Re-sync it with createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan before minting.`,
+            `Token account ${input.destinationToken} is not configured for confidential transfers ` +
+                `(missing the ConfidentialTransferAccount extension). Configure it first with ` +
+                `createConfigureConfidentialAccountInstructionPlan.`,
         );
     }
 
-    const auditorElgamalPubkey = input.auditorElgamalPubkey ?? getMintAuditorElgamalPubkey(mintDecoded);
+    const amount = tokenAmountToRaw(input.amount, mintDecoded.data.decimals);
 
-    const proof = buildMintProofData({
-        currentSupplyCiphertext,
-        currentSupply,
-        mintAmount: rawAmount,
-        supplyElgamalKeypair: input.supplyKeys.elgamal,
-        supplyAesKey: input.supplyKeys.aes,
-        destinationElgamalPubkey,
-        auditorElgamalPubkey,
-    });
-
-    const authority = toAuthoritySigner(input.authority);
-    return assembleConfidentialMintBurnPlan({
+    return getConfidentialMintInstructionPlan({
         rpc: input.rpc,
         payer: input.payer,
-        proof,
-        buildTokenInstruction: records =>
-            getConfidentialMintInstruction({
-                token: input.destinationToken,
-                mint: input.mint,
-                equalityRecord: records.equalityRecord,
-                ciphertextValidityRecord: records.ciphertextValidityRecord,
-                rangeRecord: records.rangeRecord,
-                authority,
-                newDecryptableSupply: proof.newDecryptableBalance,
-                mintAmountAuditorCiphertextLo: proof.auditorCiphertextLo,
-                mintAmountAuditorCiphertextHi: proof.auditorCiphertextHi,
-                // 0 = read each proof from its context-state account.
-                equalityProofInstructionOffset: 0,
-                ciphertextValidityProofInstructionOffset: 0,
-                rangeProofInstructionOffset: 0,
-            }),
+        token: input.destinationToken,
+        mint: input.mint,
+        mintAccount: mintDecoded.data,
+        destinationTokenAccount: destinationDecoded.data,
+        authority: toAuthoritySigner(input.authority),
+        amount,
+        supplyElgamalKeypair: input.supplyKeys.elgamal,
+        supplyAesKey: input.supplyKeys.aes,
+        auditorElgamalPubkey: input.auditorElgamalPubkey,
     });
 }

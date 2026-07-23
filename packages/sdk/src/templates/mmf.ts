@@ -119,7 +119,7 @@ export const createMmfInitTransaction = async (
     const instructions = await tokenBuilder.buildInstructions({
         rpc,
         decimals,
-        mintAuthority,
+        mintAuthority: mintAuthoritySigner,
         freezeAuthority: resolvedFreezeAuthority,
         mint: mintSigner,
         feePayer: feePayerSigner,

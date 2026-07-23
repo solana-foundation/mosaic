@@ -1,5 +1,5 @@
 import { type Address, type InstructionPlan, type TransactionSigner, singleInstructionPlan } from '@solana/kit';
-import { getUpdateConfidentialMintBurnDecryptableSupplyInstruction } from '@solana-program/token-2022';
+import { getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply } from '@solana-program/token-2022/confidential';
 import type { ConfidentialKeys } from './keys';
 import { toAuthoritySigner } from './util';
 
@@ -21,6 +21,9 @@ import { toAuthoritySigner } from './util';
  * Re-encrypts and updates the mint's **decryptable supply** to `supply` under
  * the supply AES key. Signed by the mint authority. No proof required — returns
  * a `singleInstructionPlan`.
+ *
+ * Delegates the AES re-encryption + instruction building to the official
+ * `getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply`.
  */
 export function createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan(input: {
     /** The token mint (must carry `ConfidentialMintBurn`). */
@@ -32,23 +35,17 @@ export function createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan
     /** The true current supply to encode into the decryptable supply. */
     supply: bigint;
 }): InstructionPlan {
-    // Supply is a u64 on-chain; reject out-of-range values before handing them
-    // to the WASM AES encrypt (which would otherwise fail opaquely or wrap).
+    // Supply is a u64 on-chain; reject out-of-range values with an actionable
+    // message before handing them to the AES encrypt.
     if (input.supply < 0n || input.supply > 0xffff_ffff_ffff_ffffn) {
         throw new Error(`supply must be a u64 (0..2^64-1), got ${input.supply}.`);
     }
-    const ciphertext = input.supplyKeys.aes.encrypt(input.supply);
-    let newDecryptableSupply: Uint8Array;
-    try {
-        newDecryptableSupply = new Uint8Array(ciphertext.toBytes());
-    } finally {
-        ciphertext.free?.();
-    }
     return singleInstructionPlan(
-        getUpdateConfidentialMintBurnDecryptableSupplyInstruction({
+        getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply({
             mint: input.mint,
             authority: toAuthoritySigner(input.authority),
-            newDecryptableSupply,
+            supplyAesKey: input.supplyKeys.aes,
+            supply: input.supply,
         }),
     );
 }
