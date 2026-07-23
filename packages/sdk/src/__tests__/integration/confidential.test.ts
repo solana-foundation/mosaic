@@ -25,13 +25,18 @@ import { join } from 'node:path';
 import { Token } from '../../issuance';
 import {
     createApplyConfidentialPendingBalanceInstructionPlan,
+    createApplyConfidentialPendingBurnInstructionPlan,
+    createConfidentialBurnInstructionPlan,
     createConfidentialDepositInstructionPlan,
+    createConfidentialMintInstructionPlan,
     createConfidentialTransferInstructionPlan,
     createConfidentialWithdrawInstructionPlan,
     createConfigureConfidentialAccountInstructionPlan,
     createEmptyConfidentialAccountInstructionPlan,
     deriveConfidentialKeysForOwnerMint,
+    deriveConfidentialSupplyKeys,
     freeConfidentialKeys,
+    getConfidentialMintBurnInit,
     inspectConfidentialAccount,
     planConfidentialInstructions,
 } from '../../confidential';
@@ -64,6 +69,9 @@ const ZK_PROOF_PROGRAM = 'ZkE1Gama1Proof11111111111111111111111111111' as Addres
 const DECIMALS = 2;
 const MINT_AMOUNT = 1_000n; // 10.00 tokens, minted to the sender's plaintext balance
 const TRANSFER_AMOUNT = 400n; // 4.00 tokens, sent confidentially
+
+const CONFIDENTIAL_MINT_AMOUNT = 500n; // 5.00 tokens, minted straight into a confidential balance
+const CONFIDENTIAL_BURN_AMOUNT = 200n; // 2.00 tokens, burned from the confidential balance
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -465,6 +473,136 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
                 recipient: recipient.address,
                 senderAta,
                 recipientAta,
+                transactions: txLog,
+            });
+        }
+    }, 300_000);
+
+    it('runs confidential mint → apply → burn → apply-pending-burn with decrypted balance checks', async () => {
+        const rpc = client.rpc as Rpc<SolanaRpcApi>;
+        const mint = await generateKeyPairSigner();
+
+        const [ownerAta] = await findAssociatedTokenPda({
+            owner: payer.address,
+            mint: mint.address,
+            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+        });
+
+        const txLog: Array<{ step: string; signature: string }> = [];
+        const record = (step: string, signatures: Signature[]) =>
+            signatures.forEach((signature, i) =>
+                txLog.push({
+                    step: signatures.length > 1 ? `${step} [${i + 1}/${signatures.length}]` : step,
+                    signature,
+                }),
+            );
+        const step = async (label: string, feePayer: TransactionSigner, plan: InstructionPlan) =>
+            record(label, await runPlan(client, feePayer, plan));
+
+        // Supply keys (bound to the mint authority + mint) back the encrypted
+        // supply; they must be derived before the mint so their init values can
+        // be baked into the ConfidentialMintBurn extension.
+        const supplyKeys = await deriveConfidentialSupplyKeys({ signer: payer, mint: mint.address });
+        const ownerKeys = await deriveConfidentialKeysForOwnerMint({
+            signer: payer,
+            owner: payer.address,
+            mint: mint.address,
+        });
+
+        try {
+            // 1. Create the mint with BOTH confidential-transfer and mint-burn
+            //    extensions (mint-burn requires the account to hold a confidential
+            //    balance). opt-in so the account self-configures.
+            const mintInit = getConfidentialMintBurnInit(supplyKeys);
+            const createMintTx = await new Token()
+                .withConfidentialBalances({ authority: payer.address, policy: 'opt-in' })
+                .withConfidentialMintBurn(mintInit)
+                .buildTransaction({
+                    rpc: rpc as Rpc<SolanaRpcApiMainnet>,
+                    decimals: DECIMALS,
+                    mintAuthority: payer,
+                    mint,
+                    feePayer: payer,
+                });
+            record('create-mint-burn-mint', [await signSendConfirm(rpc, createMintTx)]);
+            await waitForToken2022Account(rpc, mint.address);
+
+            // 2. Configure the owner's account for confidential transfers.
+            await step(
+                'configure-owner',
+                payer,
+                await createConfigureConfidentialAccountInstructionPlan({
+                    rpc,
+                    payer,
+                    owner: payer,
+                    mint: mint.address,
+                    keys: ownerKeys,
+                }),
+            );
+            await waitForToken2022Account(rpc, ownerAta);
+
+            // 3. Confidentially mint straight into the owner's pending balance.
+            await step(
+                'confidential-mint',
+                payer,
+                await createConfidentialMintInstructionPlan({
+                    rpc,
+                    payer,
+                    mint: mint.address,
+                    destinationToken: ownerAta,
+                    authority: payer,
+                    amount: CONFIDENTIAL_MINT_AMOUNT,
+                    supplyKeys,
+                }),
+            );
+
+            // 4. Apply the pending balance, then assert the decrypted available balance.
+            await step(
+                'apply-after-mint',
+                payer,
+                await createApplyConfidentialPendingBalanceInstructionPlan({
+                    rpc,
+                    tokenAccount: ownerAta,
+                    authority: payer,
+                    keys: ownerKeys,
+                }),
+            );
+            const afterMint = await inspectConfidentialAccount(rpc, ownerAta, ownerKeys);
+            expect(afterMint?.decrypted?.availableBalance).toBe(CONFIDENTIAL_MINT_AMOUNT);
+
+            // 5. Confidentially burn part of the available balance.
+            await step(
+                'confidential-burn',
+                payer,
+                await createConfidentialBurnInstructionPlan({
+                    rpc,
+                    payer,
+                    mint: mint.address,
+                    tokenAccount: ownerAta,
+                    authority: payer,
+                    amount: CONFIDENTIAL_BURN_AMOUNT,
+                    keys: ownerKeys,
+                }),
+            );
+            const afterBurn = await inspectConfidentialAccount(rpc, ownerAta, ownerKeys);
+            expect(afterBurn?.decrypted?.availableBalance).toBe(CONFIDENTIAL_MINT_AMOUNT - CONFIDENTIAL_BURN_AMOUNT);
+
+            // 6. Apply the mint's pending burn on the supply side (mint authority).
+            await step(
+                'apply-pending-burn',
+                payer,
+                createApplyConfidentialPendingBurnInstructionPlan({ mint: mint.address, authority: payer }),
+            );
+        } finally {
+            freeConfidentialKeys(supplyKeys);
+            freeConfidentialKeys(ownerKeys);
+            emitArtefacts({
+                cluster: clusterParam(RPC_URL),
+                mint: mint.address,
+                payer: payer.address,
+                recipient: payer.address,
+                senderAta: ownerAta,
+                recipientAta: ownerAta,
                 transactions: txLog,
             });
         }

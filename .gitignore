@@ -32,6 +32,12 @@ out/
 *.tsbuildinfo
 .tscache/
 
+# Compiled TS emit accidentally written next to sources (src is TS-only)
+apps/app/src/**/*.js
+apps/app/src/**/*.js.map
+apps/app/src/**/*.d.ts
+apps/app/src/**/*.d.ts.map
+
 # Testing
 coverage/
 .nyc_output/

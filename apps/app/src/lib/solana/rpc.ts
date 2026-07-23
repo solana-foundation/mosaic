@@ -46,7 +46,7 @@ export interface TokenAuthorities {
 /**
  * Gets the Solana RPC URL from environment variable or returns a default fallback.
  * Reads from NEXT_PUBLIC_SOLANA_RPC_URL environment variable.
- * Falls back to devnet if not set.
+ * Falls back to public devnet if not set.
  *
  * @param overrideUrl - Optional RPC URL to override the default behavior
  * @returns RPC URL string
