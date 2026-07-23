@@ -3,58 +3,33 @@ import { createMockRpc, createMockSigner } from '../../__tests__/test-utils';
 import type { ConfidentialKeys } from '../keys';
 
 // --- Mocks --------------------------------------------------------------------
-// No published token-2022 ships confidential mint/burn `InstructionPlan` helpers,
-// so the proof generation + context-state assembly are implemented locally
-// (`mint-burn-proof.ts` + `mint-burn-util.ts`, exercised for real by
-// `ciphertext-math.test.ts` / `mint-burn-proof.test.ts`). These tests assert the
-// Mosaic *wrapper* contract — prerequisite guards, the decryptable-balance drift
-// guard, and correct argument mapping into the local proof builder + assembler —
-// so we mock the proof builder, the drift guard, and the plan assembler, and stub
-// the RPC fetches.
+// mint.ts / burn.ts are thin wrappers over the official token-2022 confidential
+// mint/burn `InstructionPlan` helpers (`@solana-program/token-2022/confidential`).
+// The proof generation + context-state assembly now live upstream (and are
+// covered by token-2022's own tests), so these tests assert only the Mosaic
+// *wrapper* contract: the prerequisite fail-fast guards and correct argument
+// mapping (decimal scaling, decoded accounts, threaded keys) into the upstream
+// helper. We mock the upstream helpers and stub the RPC fetches.
 
-const fakeProof = {
-    equalityProofBytes: new Uint8Array(1),
-    ciphertextValidityProofBytes: new Uint8Array(1),
-    rangeProofBytes: new Uint8Array(1),
-    auditorCiphertextLo: new Uint8Array(64),
-    auditorCiphertextHi: new Uint8Array(64),
-    newDecryptableBalance: new Uint8Array(36),
-};
-const mockBuildMintProofData = jest.fn((_input: unknown) => fakeProof);
-const mockBuildBurnProofData = jest.fn((_input: unknown) => fakeProof);
-// The AES/ElGamal supply-consistency guard. Defaults to "in sync" (true) so the
-// delegation tests exercise the happy path; individual tests flip it to false.
-const mockElGamalCiphertextEncrypts = jest.fn((): boolean => true);
-jest.mock('../mint-burn-proof', () => ({
-    buildMintProofData: (input: unknown) => mockBuildMintProofData(input as never),
-    buildBurnProofData: (input: unknown) => mockBuildBurnProofData(input as never),
-    elGamalCiphertextEncrypts: () => mockElGamalCiphertextEncrypts(),
+const mintPlan = { kind: 'sequential' as const, id: 'mint-plan' };
+const burnPlan = { kind: 'sequential' as const, id: 'burn-plan' };
+const mockGetConfidentialMintInstructionPlan = jest.fn(async (_input: unknown) => mintPlan);
+const mockGetConfidentialBurnInstructionPlan = jest.fn(async (_input: unknown) => burnPlan);
+jest.mock('@solana-program/token-2022/confidential', () => ({
+    getConfidentialMintInstructionPlan: (input: unknown) => mockGetConfidentialMintInstructionPlan(input),
+    getConfidentialBurnInstructionPlan: (input: unknown) => mockGetConfidentialBurnInstructionPlan(input),
 }));
 
-// Capture the assembler input (incl. the built token instruction) but skip the
-// real context-state proof wiring (no WASM / proof-program calls in unit tests).
-const mockAssembleConfidentialMintBurnPlan = jest.fn(async (_input: unknown) => ({ kind: 'sequential' as const }));
-jest.mock('../mint-burn-util', () => ({
-    ...jest.requireActual('../mint-burn-util'),
-    assembleConfidentialMintBurnPlan: (input: unknown) => mockAssembleConfidentialMintBurnPlan(input),
-}));
-
+let mockMintDecimals = 6;
 let mockMintExtensions: unknown[] = [];
 let mockTokenExtensions: unknown[] = [];
+const mockMintData = () => ({ data: { decimals: mockMintDecimals, extensions: { __option: 'Some', value: mockMintExtensions } } });
+const mockTokenData = () => ({ data: { extensions: { __option: 'Some', value: mockTokenExtensions } } });
 
 jest.mock('@solana-program/token-2022', () => ({
     ...jest.requireActual('@solana-program/token-2022'),
-    fetchMint: jest.fn(async () => ({
-        data: { decimals: 6, extensions: { __option: 'Some', value: mockMintExtensions } },
-    })),
-    fetchToken: jest.fn(async () => ({
-        data: { extensions: { __option: 'Some', value: mockTokenExtensions } },
-    })),
-}));
-
-// `decryptAesBalance` is stubbed (no WASM); returns the current supply/balance.
-jest.mock('../keys', () => ({
-    decryptAesBalance: jest.fn(() => 1000n),
+    fetchMint: jest.fn(async () => mockMintData()),
+    fetchToken: jest.fn(async () => mockTokenData()),
 }));
 
 import {
@@ -95,14 +70,14 @@ describe('confidential mint (wrapper)', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockElGamalCiphertextEncrypts.mockReturnValue(true);
+        mockMintDecimals = 6;
         mockMintExtensions = [MINT_BURN_EXT, TRANSFER_MINT_EXT];
         mockTokenExtensions = [ACCOUNT_EXT];
         rpc = createMockRpc();
     });
 
-    it('builds the mint proof and assembles a context-state plan with mapped args', async () => {
-        await createConfidentialMintInstructionPlan({
+    it('delegates to the upstream mint helper with mapped args', async () => {
+        const plan = await createConfidentialMintInstructionPlan({
             rpc: rpc as never,
             payer,
             mint: MINT,
@@ -112,20 +87,35 @@ describe('confidential mint (wrapper)', () => {
             supplyKeys: fakeKeys,
         });
 
-        expect(mockBuildMintProofData).toHaveBeenCalledTimes(1);
-        const proofArg = mockBuildMintProofData.mock.calls[0][0] as any;
-        // Amount is scaled to raw by the wrapper (2 * 10^6).
-        expect(proofArg.mintAmount).toBe(2_000_000n);
-        // Current supply decrypted from the mint's decryptable supply (stub → 1000n).
-        expect(proofArg.currentSupply).toBe(1000n);
-        // Destination ElGamal pubkey read from the destination account extension.
-        expect(proofArg.destinationElgamalPubkey).toBe(ACCOUNT_PK);
-        // Supply keys threaded through; no auditor configured on the mint.
-        expect(proofArg.supplyElgamalKeypair).toBe(fakeKeys.elgamal);
-        expect(proofArg.supplyAesKey).toBe(fakeKeys.aes);
-        expect(proofArg.auditorElgamalPubkey).toBeUndefined();
+        expect(plan).toBe(mintPlan);
+        expect(mockGetConfidentialMintInstructionPlan).toHaveBeenCalledTimes(1);
+        const arg = mockGetConfidentialMintInstructionPlan.mock.calls[0][0] as any;
+        expect(arg.token).toBe(DEST_TOKEN);
+        expect(arg.mint).toBe(MINT);
+        // Decoded accounts forwarded to the upstream helper.
+        expect(arg.mintAccount).toEqual(mockMintData().data);
+        expect(arg.destinationTokenAccount).toEqual(mockTokenData().data);
+        // Amount scaled to raw by the wrapper (2 * 10^6).
+        expect(arg.amount).toBe(2_000_000n);
+        // Supply keys threaded through as separate ElGamal/AES params.
+        expect(arg.supplyElgamalKeypair).toBe(fakeKeys.elgamal);
+        expect(arg.supplyAesKey).toBe(fakeKeys.aes);
+        expect(arg.auditorElgamalPubkey).toBeUndefined();
+    });
 
-        expect(mockAssembleConfidentialMintBurnPlan).toHaveBeenCalledTimes(1);
+    it('forwards an auditor override to the upstream helper', async () => {
+        await createConfidentialMintInstructionPlan({
+            rpc: rpc as never,
+            payer,
+            mint: MINT,
+            destinationToken: DEST_TOKEN,
+            authority: AUTHORITY,
+            amount: '2',
+            supplyKeys: fakeKeys,
+            auditorElgamalPubkey: SUPPLY_PK,
+        });
+        const arg = mockGetConfidentialMintInstructionPlan.mock.calls[0][0] as any;
+        expect(arg.auditorElgamalPubkey).toBe(SUPPLY_PK);
     });
 
     it('fails fast when the mint lacks the ConfidentialMintBurn extension', async () => {
@@ -141,7 +131,7 @@ describe('confidential mint (wrapper)', () => {
                 supplyKeys: fakeKeys,
             }),
         ).rejects.toThrow(/ConfidentialMintBurn/);
-        expect(mockAssembleConfidentialMintBurnPlan).not.toHaveBeenCalled();
+        expect(mockGetConfidentialMintInstructionPlan).not.toHaveBeenCalled();
     });
 
     it('fails fast when the mint lacks the ConfidentialTransferMint extension', async () => {
@@ -157,11 +147,11 @@ describe('confidential mint (wrapper)', () => {
                 supplyKeys: fakeKeys,
             }),
         ).rejects.toThrow(/ConfidentialTransferMint/);
-        expect(mockAssembleConfidentialMintBurnPlan).not.toHaveBeenCalled();
+        expect(mockGetConfidentialMintInstructionPlan).not.toHaveBeenCalled();
     });
 
-    it('fails fast when the decryptable supply is out of sync with the ElGamal ciphertext', async () => {
-        mockElGamalCiphertextEncrypts.mockReturnValueOnce(false);
+    it('fails fast when the destination account is not confidential-transfer configured', async () => {
+        mockTokenExtensions = [];
         await expect(
             createConfidentialMintInstructionPlan({
                 rpc: rpc as never,
@@ -172,9 +162,8 @@ describe('confidential mint (wrapper)', () => {
                 amount: '2',
                 supplyKeys: fakeKeys,
             }),
-        ).rejects.toThrow(/out of sync/);
-        expect(mockBuildMintProofData).not.toHaveBeenCalled();
-        expect(mockAssembleConfidentialMintBurnPlan).not.toHaveBeenCalled();
+        ).rejects.toThrow(/ConfidentialTransferAccount/);
+        expect(mockGetConfidentialMintInstructionPlan).not.toHaveBeenCalled();
     });
 });
 
@@ -184,14 +173,14 @@ describe('confidential burn (wrapper)', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockElGamalCiphertextEncrypts.mockReturnValue(true);
+        mockMintDecimals = 6;
         mockMintExtensions = [MINT_BURN_EXT, TRANSFER_MINT_EXT];
         mockTokenExtensions = [ACCOUNT_EXT];
         rpc = createMockRpc();
     });
 
-    it('builds the burn proof and assembles a context-state plan with mapped args', async () => {
-        await createConfidentialBurnInstructionPlan({
+    it('delegates to the upstream burn helper with mapped args', async () => {
+        const plan = await createConfidentialBurnInstructionPlan({
             rpc: rpc as never,
             payer,
             mint: MINT,
@@ -201,17 +190,17 @@ describe('confidential burn (wrapper)', () => {
             keys: fakeKeys,
         });
 
-        expect(mockBuildBurnProofData).toHaveBeenCalledTimes(1);
-        const proofArg = mockBuildBurnProofData.mock.calls[0][0] as any;
-        expect(proofArg.burnAmount).toBe(1_000_000n);
-        expect(proofArg.currentAvailableBalance).toBe(1000n);
-        // Supply pubkey read from the mint's ConfidentialMintBurn extension.
-        expect(proofArg.supplyElgamalPubkey).toBe(SUPPLY_PK);
-        expect(proofArg.sourceElgamalKeypair).toBe(fakeKeys.elgamal);
-        expect(proofArg.sourceAesKey).toBe(fakeKeys.aes);
-        expect(proofArg.auditorElgamalPubkey).toBeUndefined();
-
-        expect(mockAssembleConfidentialMintBurnPlan).toHaveBeenCalledTimes(1);
+        expect(plan).toBe(burnPlan);
+        expect(mockGetConfidentialBurnInstructionPlan).toHaveBeenCalledTimes(1);
+        const arg = mockGetConfidentialBurnInstructionPlan.mock.calls[0][0] as any;
+        expect(arg.token).toBe(SOURCE_TOKEN);
+        expect(arg.mint).toBe(MINT);
+        expect(arg.mintAccount).toEqual(mockMintData().data);
+        expect(arg.sourceTokenAccount).toEqual(mockTokenData().data);
+        expect(arg.amount).toBe(1_000_000n);
+        expect(arg.sourceElgamalKeypair).toBe(fakeKeys.elgamal);
+        expect(arg.aesKey).toBe(fakeKeys.aes);
+        expect(arg.auditorElgamalPubkey).toBeUndefined();
     });
 
     it('fails fast when the mint lacks the ConfidentialMintBurn extension', async () => {
@@ -227,7 +216,7 @@ describe('confidential burn (wrapper)', () => {
                 keys: fakeKeys,
             }),
         ).rejects.toThrow(/ConfidentialMintBurn/);
-        expect(mockAssembleConfidentialMintBurnPlan).not.toHaveBeenCalled();
+        expect(mockGetConfidentialBurnInstructionPlan).not.toHaveBeenCalled();
     });
 
     it('fails fast when the account is not confidential-transfer configured', async () => {
@@ -243,24 +232,7 @@ describe('confidential burn (wrapper)', () => {
                 keys: fakeKeys,
             }),
         ).rejects.toThrow(/ConfidentialTransferAccount/);
-        expect(mockAssembleConfidentialMintBurnPlan).not.toHaveBeenCalled();
-    });
-
-    it('fails fast when the decryptable balance is out of sync with the ElGamal ciphertext', async () => {
-        mockElGamalCiphertextEncrypts.mockReturnValueOnce(false);
-        await expect(
-            createConfidentialBurnInstructionPlan({
-                rpc: rpc as never,
-                payer,
-                mint: MINT,
-                tokenAccount: SOURCE_TOKEN,
-                authority: AUTHORITY,
-                amount: '1',
-                keys: fakeKeys,
-            }),
-        ).rejects.toThrow(/out of sync/);
-        expect(mockBuildBurnProofData).not.toHaveBeenCalled();
-        expect(mockAssembleConfidentialMintBurnPlan).not.toHaveBeenCalled();
+        expect(mockGetConfidentialBurnInstructionPlan).not.toHaveBeenCalled();
     });
 });
 

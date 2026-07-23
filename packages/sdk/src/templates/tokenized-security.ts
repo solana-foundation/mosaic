@@ -104,7 +104,7 @@ export const createTokenizedSecurityInitTransaction = async (
     const instructions = await tokenBuilder.buildInstructions({
         rpc,
         decimals,
-        mintAuthority: mintAuthority,
+        mintAuthority: mintAuthoritySigner,
         // On the sRFC-37 path the freeze authority MUST be the mint authority: the
         // Token-ACL `create_config` instruction requires the mint's current freeze
         // authority to equal its signer (the mint authority) and then reassigns it to
