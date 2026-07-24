@@ -42,18 +42,18 @@
         "clean": "rm -rf dist"
     },
     "dependencies": {
-        "@solana-program/memo": "^0.11.2",
-        "@solana-program/system": "0.12.2",
-        "@solana-program/token-2022": "^0.10.0",
+        "@solana-program/memo": "^0.12.0",
+        "@solana-program/system": "0.13.0",
+        "@solana-program/token-2022": "0.13.0",
         "@solana-program/zk-elgamal-proof": "0.1.0",
-        "@solana/kit": "^6.10.0",
-        "@solana/sysvars": "^6.10.0",
+        "@solana/kit": "^7.0.0",
+        "@solana/sysvars": "^7.0.0",
         "@solana/zk-sdk": "^0.4.2",
         "@solana/token-acl-gate-sdk": "^0.3.0",
         "@solana/token-acl-sdk": "^0.4.0"
     },
     "_dependencyNotes": {
-        "solanaKitV6": "This SDK targets the Solana Kit v6 ecosystem (@solana/kit@6.10, @solana/sysvars@6.10). Kit is capped at 6.x (not 7.x) because the token-acl SDKs peer @solana/kit ^6.0.0. @solana-program/token-2022 is kept at 0.10.0 (which already peers kit ^6) because it provides the confidential-transfer InstructionPlan/derive helpers (getConfidentialTransferInstructionPlan, deriveAeKeyForOwnerMint, etc.) that the confidential feature relies on; these were removed in token-2022 0.12.0. @solana/token-acl-sdk@0.4.0 depends on token-2022 0.12.0 but is forced down to 0.10.0 via the root override — safe because it only uses stable core exports (TOKEN_2022_PROGRAM_ADDRESS, getMintDecoder, ATA/metadata helpers, AccountState, Mint) unchanged across 0.10-0.12. @solana-program/zk-elgamal-proof@0.1.0 declares a kit-v5 peer but runs on v6 (only codecs/signers/addresses, unchanged v5->v6); the root overrides force it onto v6. See: https://github.com/anza-xyz/kit"
+        "solanaKitV7": "This SDK targets the Solana Kit v7 ecosystem (@solana/kit@^7, @solana/sysvars@^7). @solana-program/system and @solana-program/memo are on their kit-v7-native releases (0.13.0 / 0.12.0). @solana-program/token-2022 is the published 0.13.0 (kit-v7-native) — NO patch. token-2022 must be >=0.13.0 on kit v7 because 0.12.0's compiled code imports getMinimumBalanceForRentExemption from @solana/kit, which kit v7 removed. 0.13.0 ships every confidential helper this SDK consumes EXCEPT confidential mint/burn — transfer/withdraw/configure/apply/empty InstructionPlan helpers, PR #1269 (getConfidentialTransferInstructionPlan resolves the auditor from an optional mintAccount), deriveElGamalKeypairForOwnerMint/deriveAeKeyForOwnerMint, and subtractAmountFromCiphertext/subtractWithLoHiCiphertexts/extractCiphertextFromGroupedBytes all come from the @solana-program/token-2022/confidential subpath. The mint/burn InstructionPlan helpers (getConfidentialMintInstructionPlan/getConfidentialBurnInstructionPlan) and addWithLoHiCiphertexts do NOT exist in any published token-2022, so they are implemented locally here (confidential/mint-burn-plan.ts + mint-burn-proof.ts + ciphertext-math.ts) on top of @noble/curves (Ristretto point arithmetic zk-sdk doesn't expose) and @solana/zk-sdk (proof-data WASM). INTERIM: once the upstream Track A PR merges and a token-2022 release ships the mint/burn helpers, delete the local implementation and re-point mint.ts/burn.ts at @solana-program/token-2022/confidential (a one-line import change each), then drop @noble/curves. @solana/token-acl-sdk@0.4.0 declares an exact token-2022 0.12.0 dependency, forced up to 0.13.0 by the root override — safe because it only uses stable core exports (TOKEN_2022_PROGRAM_ADDRESS, getMintDecoder, ATA/metadata helpers, AccountState, Mint), unchanged across 0.10-0.13. The token-acl SDKs and @solana-program/zk-elgamal-proof@0.1.0 declare kit <=6 peer ranges but run correctly on kit v7 (they only touch codecs/signers/addresses; v7's only breaking changes — a type-only codec-union return-type widening, ReactiveStreamStore.connect(), a new instruction-planning error — are not exercised) and are forced onto v7 via the root @solana/kit + @solana/* overrides. See: https://github.com/anza-xyz/kit"
     },
     "devDependencies": {
         "@jest/test-sequencer": "^29.7.0",

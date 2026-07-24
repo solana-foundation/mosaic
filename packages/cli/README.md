@@ -8,6 +8,7 @@ CLI for building and operating Token-2022 mints with modern extensions on Solana
 - **Operations**: Mint, transfer, force-transfer (permanent delegate), inspect mints
 - **Access control**: Manage allowlists/blocklists
 - **Token ACL**: Create config, set gating program, enable permissionless thaw, thaw/freeze
+- **Confidential balances**: Configure accounts, deposit/apply/withdraw, confidential transfer, confidential mint/burn, and inspect encrypted state
 
 ## Installation
 
@@ -53,6 +54,12 @@ If your signer (fee payer) is also the mint authority, the create commands will 
 
 ## Command reference
 
+> **Confidential balances.** Confidential balances are enabled at mint creation and
+> operated at runtime through the [`mosaic confidential`](#confidential-balances)
+> command group (configure account, deposit/apply/withdraw, confidential transfer,
+> confidential mint/burn, inspect). For the underlying primitives see the
+> [SDK confidential guide](../sdk/README.md#confidential-balances--transfers).
+
 ### Create
 
 ```bash
@@ -66,6 +73,9 @@ mosaic create stablecoin \
   [--metadata-authority <address>] \
   [--pausable-authority <address>] \
   [--confidential-balances-authority <address>] \
+  [--confidential-policy <opt-in|whitelist>] \
+  [--auditor-elgamal-pubkey <address>] \
+  [--confidential-mint-burn] \
   [--permanent-delegate-authority <address>] \
   [--mint-keypair <path>]
 
@@ -92,6 +102,9 @@ mosaic create tokenized-security \
   [--metadata-authority <address>] \
   [--pausable-authority <address>] \
   [--confidential-balances-authority <address>] \
+  [--confidential-policy <opt-in|whitelist>] \
+  [--auditor-elgamal-pubkey <address>] \
+  [--confidential-mint-burn] \
   [--permanent-delegate-authority <address>] \
   [--permissioned-burn-authority <address>] \
   [--multiplier <number=1>] \
@@ -138,6 +151,83 @@ mosaic force-burn \
 
 # Inspect a mint and list extensions
 mosaic inspect-mint --mint-address <mint>
+```
+
+The `create stablecoin` and `create tokenized-security` commands accept confidential-transfer flags:
+
+- `--confidential-policy <opt-in|whitelist>` — enable policy for confidential transfers (default `whitelist`).
+- `--auditor-elgamal-pubkey <address>` — optional auditor ElGamal public key.
+- `--confidential-mint-burn` — also enable the `ConfidentialMintBurn` extension (mint/burn directly into/from confidential balances). Derives the mint authority's supply keys, so the signer must be the mint authority and it cannot run in `--raw-tx` mode.
+
+### Confidential balances
+
+Runtime operations for Token-2022 confidential balances. Operations that derive
+confidential keys need the account owner's (or mint authority's) real keypair and
+cannot run in `--raw-tx` mode. Multi-transaction proof flows (configure, transfer,
+withdraw, mint, burn) are sent one transaction at a time. All commands accept
+`-m, --mint` and default `--token-account` to the signer's ATA.
+
+```bash
+# Configure (create/reallocate) a token account for confidential transfers
+mosaic confidential configure-account \
+  --mint <mint> \
+  [--token-account <address>] \
+  [--max-pending-credits <number>]
+
+# Approve a configured account (whitelist-policy mints)
+mosaic confidential approve --mint <mint> [--token-account <address>]
+
+# Enable / disable incoming credits (--non-confidential toggles plaintext credits)
+mosaic confidential enable-credits  --mint <mint> [--token-account <address>] [--non-confidential]
+mosaic confidential disable-credits --mint <mint> [--token-account <address>] [--non-confidential]
+
+# Deposit plaintext balance -> pending confidential balance
+mosaic confidential deposit --mint <mint> --amount <decimal> [--token-account <address>]
+
+# Apply pending -> available confidential balance
+mosaic confidential apply --mint <mint> [--token-account <address>]
+
+# Withdraw available confidential balance -> plaintext balance
+mosaic confidential withdraw --mint <mint> --amount <decimal> [--token-account <address>]
+
+# Confidentially transfer to another confidential account (auto-detects the mint auditor)
+mosaic confidential transfer \
+  --mint <mint> \
+  --to <recipient_owner> \
+  --amount <decimal> \
+  [--token-account <address>] \
+  [--to-token-account <address>] \
+  [--auditor-elgamal-pubkey <address>]
+
+# Confidentially mint into a confidential balance (mint must carry ConfidentialMintBurn; mint authority)
+mosaic confidential mint \
+  --mint <mint> \
+  --amount <decimal> \
+  --to <recipient_owner> \
+  [--to-token-account <address>] \
+  [--auditor-elgamal-pubkey <address>]
+
+# Confidentially burn from a confidential balance (account owner)
+mosaic confidential burn \
+  --mint <mint> \
+  --amount <decimal> \
+  [--token-account <address>] \
+  [--auditor-elgamal-pubkey <address>]
+
+# Apply the mint's accumulated pending burn into its confidential supply (mint authority)
+mosaic confidential apply-pending-burn --mint <mint>
+
+# Re-assert the mint's decryptable supply under the supply AES key (mint authority)
+mosaic confidential update-supply --mint <mint> --supply <raw_base_units>
+
+# Prove the available balance is zero so the account can be closed
+mosaic confidential empty-account --mint <mint> [--token-account <address>]
+
+# Inspect confidential-transfer account state (decrypts balances with the owner keypair)
+mosaic confidential inspect-account \
+  --mint <mint> \
+  [--token-account <address>] \
+  [--decrypt-pending]
 ```
 
 ### ABL (Address-Based Lists)
@@ -207,6 +297,12 @@ mosaic allowlist add --mint-address <MINT> --account <WALLET>
 
 # Enable permissionless thaw for a mint
 mosaic token-acl enable-permissionless-thaw --mint <MINT>
+
+# Confidential balances: configure, deposit, apply, then inspect
+mosaic confidential configure-account --mint <MINT>
+mosaic confidential deposit --mint <MINT> --amount 10
+mosaic confidential apply --mint <MINT>
+mosaic confidential inspect-account --mint <MINT> --decrypt-pending
 ```
 
 ## Development

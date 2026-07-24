@@ -1,6 +1,12 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { ABL_PROGRAM_ID, TOKEN_ACL_PROGRAM_ID, createTokenizedSecurityInitTransaction } from '@solana/mosaic-sdk';
+import {
+    ABL_PROGRAM_ID,
+    TOKEN_ACL_PROGRAM_ID,
+    createTokenizedSecurityInitTransaction,
+    type ConfidentialApprovePolicy,
+    type ConfidentialMintBurnOptions,
+} from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
 import { loadKeypair } from '../../utils/solana.js';
 import {
@@ -26,6 +32,9 @@ interface TokenizedSecuritiesOptions {
     metadataAuthority?: string;
     pausableAuthority?: string;
     confidentialBalancesAuthority?: string;
+    confidentialPolicy?: string;
+    auditorElgamalPubkey?: string;
+    confidentialMintBurn?: boolean;
     permanentDelegateAuthority?: string;
     permissionedBurnAuthority?: string;
     multiplier?: string; // scaled UI amount multiplier
@@ -47,6 +56,16 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
     .option(
         '--confidential-balances-authority <address>',
         'Confidential balances authority address (defaults to mint authority)',
+    )
+    .option(
+        '--confidential-policy <opt-in|whitelist>',
+        'Confidential-transfer enable policy (defaults to whitelist)',
+        'whitelist',
+    )
+    .option('--auditor-elgamal-pubkey <address>', 'Auditor ElGamal public key for confidential transfers (optional)')
+    .option(
+        '--confidential-mint-burn',
+        'Enable the ConfidentialMintBurn extension (mint/burn directly into/from confidential balances)',
     )
     .option(
         '--permanent-delegate-authority <address>',
@@ -101,10 +120,52 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
             const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
             const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
+            const confidentialPolicy = (options.confidentialPolicy || 'whitelist') as ConfidentialApprovePolicy;
+            if (confidentialPolicy !== 'opt-in' && confidentialPolicy !== 'whitelist') {
+                throw new Error("--confidential-policy must be 'opt-in' or 'whitelist'");
+            }
+            const auditorElgamalPubkey = options.auditorElgamalPubkey as Address | undefined;
             const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
             const permissionedBurnAuthority = (options.permissionedBurnAuthority || mintAuthority) as Address;
             const scaledUiAmountAuthority = (options.scaledUiAmountAuthority || mintAuthority) as Address;
+
+            // ConfidentialMintBurn: derive the mint authority's supply keys and compute the
+            // initial (zero) supply init values. Supply keys are bound to (mintAuthority, mint),
+            // so this requires the mint authority's real keypair (no raw-tx, signer == authority).
+            let confidentialMintBurnInit: ConfidentialMintBurnOptions | undefined;
+            if (options.confidentialMintBurn) {
+                if (rawTx) {
+                    throw new Error(
+                        '--confidential-mint-burn derives supply keys and cannot run in --raw-tx mode. Run it with a real keypair (omit --raw-tx).',
+                    );
+                }
+                if (mintAuthority !== signerAddress) {
+                    throw new Error(
+                        '--confidential-mint-burn requires the signer to be the mint authority (supply keys are derived from the mint authority keypair). Omit --mint-authority or set it to the signer address.',
+                    );
+                }
+                const { deriveConfidentialSupplyKeys, getConfidentialMintBurnInit, freeConfidentialKeys } =
+                    await import('@solana/mosaic-sdk/confidential');
+                const supplyKeys = await deriveConfidentialSupplyKeys({
+                    signer: signerKeypair!,
+                    mint: mintKeypair.address,
+                });
+                try {
+                    confidentialMintBurnInit = getConfidentialMintBurnInit(supplyKeys);
+                } finally {
+                    freeConfidentialKeys(supplyKeys);
+                }
+            }
+
             spinner.text = 'Building transaction...';
+
+            // The TokenMetadata extension requires the mint authority to sign the metadata-init
+            // instruction, so the template needs a signer (not a bare address) when Metadata is
+            // present. In the signing path the loaded keypair IS the mint authority, so hand the
+            // template the signer itself; a custom --mint-authority that isn't the signer can't sign
+            // the metadata init here (that needs --raw-tx and an external signature).
+            const mintAuthorityArg =
+                !rawTx && mintAuthority === signerAddress ? signerKeypair! : mintAuthority;
 
             const transaction = await createTokenizedSecurityInitTransaction(
                 rpc,
@@ -112,7 +173,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
                 options.symbol,
                 decimals,
                 options.uri || '',
-                mintAuthority,
+                mintAuthorityArg,
                 rawTx ? (mintKeypair.address as Address) : mintKeypair,
                 rawTx ? (signerAddress as Address) : (signerKeypair as TransactionSigner<string>),
                 undefined, // freezeAuthority - TODO add argument for this
@@ -121,6 +182,9 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
                     metadataAuthority,
                     pausableAuthority,
                     confidentialBalancesAuthority,
+                    confidentialPolicy,
+                    auditorElgamalPubkey,
+                    confidentialMintBurn: confidentialMintBurnInit,
                     permanentDelegateAuthority,
                     permissionedBurnAuthority,
                     scaledUiAmount: {
@@ -170,6 +234,15 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             console.log(`   ${chalk.bold('Metadata Authority:')} ${metadataAuthority}`);
             console.log(`   ${chalk.bold('Pausable Authority:')} ${pausableAuthority}`);
             console.log(`   ${chalk.bold('Confidential Balances Authority:')} ${confidentialBalancesAuthority}`);
+            console.log(`   ${chalk.bold('Confidential Policy:')} ${confidentialPolicy}`);
+            if (auditorElgamalPubkey) {
+                console.log(`   ${chalk.bold('Auditor ElGamal Pubkey:')} ${auditorElgamalPubkey}`);
+            }
+            if (confidentialMintBurnInit) {
+                console.log(
+                    `   ${chalk.bold('Confidential Supply ElGamal Pubkey:')} ${confidentialMintBurnInit.supplyElgamalPubkey}`,
+                );
+            }
             console.log(`   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`);
             console.log(`   ${chalk.bold('Permissioned Burn Authority:')} ${permissionedBurnAuthority}`);
 
@@ -178,6 +251,9 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             console.log(`   ${chalk.green('✓')} Pausable`);
             console.log(`   ${chalk.green('✓')} Default Account State (Blocklist)`);
             console.log(`   ${chalk.green('✓')} Confidential Balances`);
+            if (confidentialMintBurnInit) {
+                console.log(`   ${chalk.green('✓')} Confidential Mint/Burn`);
+            }
             console.log(`   ${chalk.green('✓')} Permanent Delegate`);
             console.log(`   ${chalk.green('✓')} Permissioned Burn`);
             console.log(`   ${chalk.green('✓')} Scaled UI Amount (multiplier=${multiplier})`);

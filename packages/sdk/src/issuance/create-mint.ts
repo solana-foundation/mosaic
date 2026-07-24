@@ -1,4 +1,11 @@
-import type { Address, Instruction, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
+import type {
+    Address,
+    Instruction,
+    ReadonlyUint8Array,
+    Rpc,
+    SolanaRpcApiMainnet,
+    TransactionSigner,
+} from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
     pipe,
@@ -47,6 +54,29 @@ export interface ConfidentialBalancesOptions {
      */
     auditorElgamalPubkey?: Address | null;
 }
+
+export interface ConfidentialMintBurnOptions {
+    /**
+     * The mint authority's **supply** ElGamal public key — the encrypted total
+     * supply is maintained under it, and it backs the mint/burn equality proof.
+     * Conceptually the supply key rather than an account balance key, though it
+     * shares the standard `(owner, mint)` derivation (with `owner = mintAuthority`)
+     * so it is not domain-separated from the authority's own account keys. Derive
+     * it alongside {@link getConfidentialMintBurnInit} in
+     * `@solana/mosaic-sdk/confidential`.
+     */
+    supplyElgamalPubkey: Address;
+    /**
+     * The initial (zero) supply encrypted under the supply **AES** key — the
+     * cheap-to-decrypt "decryptable supply". Must be produced by the same supply
+     * keys as {@link supplyElgamalPubkey} (see `getConfidentialMintBurnInit`).
+     * 36-byte AES ciphertext.
+     */
+    decryptableSupply: ReadonlyUint8Array;
+}
+
+/** Placeholder ciphertexts for extension sizing; the real values are set on-chain by init. */
+const EMPTY_ENCRYPTED_BALANCE = new Uint8Array(64);
 
 export class Token {
     private extensions: Extension[] = [];
@@ -149,6 +179,52 @@ export class Token {
             auditorElgamalPubkey: auditorElgamalPubkey ? some(auditorElgamalPubkey) : null,
         });
         this.extensions.push(confidentialBalancesExtension as Extension);
+        return this;
+    }
+
+    /**
+     * Adds the ConfidentialMintBurn extension to the mint, enabling tokens to be
+     * minted directly into — and burned from — a confidential balance (the
+     * amounts stay encrypted, unlike a plaintext deposit/withdraw).
+     *
+     * This is a **separate** extension from `ConfidentialTransferMint`, but a
+     * mint-burn mint needs **both**: accounts must be confidential-transfer
+     * configured to hold the minted balance, so pair this with
+     * {@link Token.withConfidentialBalances}.
+     *
+     * The total supply is maintained as an encrypted (ElGamal) value plus a
+     * cheap-to-decrypt AES "decryptable supply", both under the mint authority's
+     * dedicated **supply keys**. Derive those keys and compute the two init
+     * values with `getConfidentialMintBurnInit` from
+     * `@solana/mosaic-sdk/confidential` (kept out of this WASM-free module).
+     *
+     * @param options - `{ supplyElgamalPubkey, decryptableSupply }` for the
+     *   initial (zero) supply.
+     */
+    withConfidentialMintBurn(options: ConfidentialMintBurnOptions): Token {
+        // A mint-burn mint needs both extensions; require ConfidentialTransferMint
+        // to be enabled first (same prerequisite pattern as withConfidentialTransferFee).
+        if (!this.extensions.some(ext => ext.__kind === 'ConfidentialTransferMint')) {
+            throw new Error('ConfidentialTransferMint extension must be enabled before adding ConfidentialMintBurn');
+        }
+        if (options.decryptableSupply.length !== 36) {
+            throw new Error(`decryptableSupply must be 36 bytes (got ${options.decryptableSupply.length}).`);
+        }
+        const confidentialMintBurnExtension: Extract<Extension, { __kind: 'ConfidentialMintBurn' }> = {
+            __kind: 'ConfidentialMintBurn',
+            // Only `supplyElgamalPubkey` + `decryptableSupply` are sent on-chain
+            // (via the init instruction); the ciphertext fields below are the
+            // program's own state, zero-filled here purely so the extension
+            // encodes to the correct on-chain size. Clone the placeholder per
+            // field so the two arrays are not aliased across Token instances.
+            confidentialSupply: new Uint8Array(EMPTY_ENCRYPTED_BALANCE),
+            // Copy the caller's array so later external mutation can't silently
+            // corrupt the extension bytes (length already validated above).
+            decryptableSupply: new Uint8Array(options.decryptableSupply),
+            supplyElgamalPubkey: options.supplyElgamalPubkey,
+            pendingBurn: new Uint8Array(EMPTY_ENCRYPTED_BALANCE),
+        };
+        this.extensions.push(confidentialMintBurnExtension);
         return this;
     }
 

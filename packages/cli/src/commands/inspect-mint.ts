@@ -193,6 +193,18 @@ export const inspectMintCommand = new Command('inspect-mint')
                                 console.log(`     Auto-approve: ${ext.autoApproveNewAccounts}`);
                             }
                             break;
+                        case 'ConfidentialMintBurn':
+                            // Mint/burn directly into/from a confidential balance; the supply
+                            // is tracked under the mint authority's supply keys.
+                            if ('supplyElgamalPubkey' in ext) {
+                                console.log(`     Supply ElGamal Pubkey: ${ext.supplyElgamalPubkey}`);
+                            }
+                            if ('decryptableSupply' in ext) {
+                                console.log(
+                                    `     Decryptable Supply: ${ext.decryptableSupply} ${chalk.gray('(encrypted)')}`,
+                                );
+                            }
+                            break;
                         case 'TransferFeeConfig':
                             if ('transferFeeConfigAuthority' in ext && ext.transferFeeConfigAuthority) {
                                 console.log(`     Authority: ${ext.transferFeeConfigAuthority}`);

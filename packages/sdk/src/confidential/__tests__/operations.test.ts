@@ -25,12 +25,17 @@ let mockMintExtensions: { __option: 'None' } | { __option: 'Some'; value: unknow
 
 jest.mock('@solana-program/token-2022', () => ({
     ...jest.requireActual('@solana-program/token-2022'),
+    fetchToken: jest.fn(async (_rpc: unknown, addr: string) => mockTokenByAddr[addr]),
+    fetchMint: jest.fn(async () => ({ data: { decimals: 6, extensions: mockMintExtensions } })),
+}));
+
+// The InstructionPlan/derive helpers live on the `/confidential` subpath (moved
+// off the root barrel in token-2022 0.11+); stub them there.
+jest.mock('@solana-program/token-2022/confidential', () => ({
     getCreateConfidentialTransferAccountInstructionPlan: jest.fn(async () => mockConfigurePlan),
     getConfidentialWithdrawInstructionPlan: jest.fn(async () => mockWithdrawPlan),
     getConfidentialTransferInstructionPlan: jest.fn(async () => mockTransferPlan),
     getApplyConfidentialPendingBalanceInstructionFromToken: jest.fn(() => mockApplyIx),
-    fetchToken: jest.fn(async (_rpc: unknown, addr: string) => mockTokenByAddr[addr]),
-    fetchMint: jest.fn(async () => ({ data: { decimals: 6, extensions: mockMintExtensions } })),
 }));
 
 // Mock the bespoke proof + account-state plumbing used by empty-account.
@@ -44,14 +49,16 @@ jest.mock('../account-state', () => ({
 }));
 
 import {
-    getApplyConfidentialPendingBalanceInstructionFromToken,
     getConfidentialDepositInstructionDataDecoder,
-    getConfidentialTransferInstructionPlan,
-    getConfidentialWithdrawInstructionPlan,
-    getCreateConfidentialTransferAccountInstructionPlan,
     getEmptyConfidentialTransferAccountInstructionDataDecoder,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
+import {
+    getApplyConfidentialPendingBalanceInstructionFromToken,
+    getConfidentialTransferInstructionPlan,
+    getConfidentialWithdrawInstructionPlan,
+    getCreateConfidentialTransferAccountInstructionPlan,
+} from '@solana-program/token-2022/confidential';
 import {
     createApplyConfidentialPendingBalanceInstructionPlan,
     createApproveConfidentialAccountInstructionPlan,
@@ -243,6 +250,7 @@ describe('confidential operation builders', () => {
                 expect.objectContaining({
                     proofMode: 'context-state',
                     amount: 3_000_000n,
+                    mintAccount: { decimals: 6, extensions: mockMintExtensions },
                     sourceTokenAccount: mockSourceToken.data,
                     destinationTokenAccount: mockDestToken.data,
                     auditorElgamalPubkey: undefined,
@@ -250,7 +258,10 @@ describe('confidential operation builders', () => {
             );
         });
 
-        it('detects the auditor pubkey from the mint extension', async () => {
+        it('forwards the decoded mint so the helper resolves the auditor', async () => {
+            // Auditor resolution lives in the upstream helper (token-2022 #1269);
+            // mosaic just forwards the decoded mint as `mintAccount` and leaves
+            // `auditorElgamalPubkey` undefined so the helper reads it from there.
             mockMintExtensions = {
                 __option: 'Some',
                 value: [
@@ -268,7 +279,10 @@ describe('confidential operation builders', () => {
                 keys: fakeKeys,
             });
             expect(getConfidentialTransferInstructionPlan).toHaveBeenCalledWith(
-                expect.objectContaining({ auditorElgamalPubkey: AUDITOR }),
+                expect.objectContaining({
+                    mintAccount: { decimals: 6, extensions: mockMintExtensions },
+                    auditorElgamalPubkey: undefined,
+                }),
             );
         });
 

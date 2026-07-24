@@ -1,0 +1,17 @@
+diff --git a/package.json b/package.json
+index 66f383c622ebedc64d225c84e2da8327253fef61..7681956f34ce0f59e358686f8ba6ccbfbaf6f6d2 100644
+--- a/package.json
++++ b/package.json
+@@ -24,9 +24,10 @@
+       "types": "./dist/web/index.d.ts"
+     },
+     "./bundler": {
++      "types": "./dist/bundler/index.d.ts",
++      "node": "./dist/node/index.js",
+       "import": "./dist/bundler/index.js",
+-      "default": "./dist/bundler/index.js",
+-      "types": "./dist/bundler/index.d.ts"
++      "default": "./dist/bundler/index.js"
+     }
+   },
+   "scripts": {

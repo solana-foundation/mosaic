@@ -1,4 +1,5 @@
 import { Token } from '../issuance';
+import type { ConfidentialApprovePolicy, ConfidentialMintBurnOptions } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -36,6 +37,9 @@ export const createTokenizedSecurityInitTransaction = async (
         metadataAuthority?: Address;
         pausableAuthority?: Address;
         confidentialBalancesAuthority?: Address;
+        confidentialPolicy?: ConfidentialApprovePolicy;
+        auditorElgamalPubkey?: Address;
+        confidentialMintBurn?: ConfidentialMintBurnOptions;
         permanentDelegateAuthority?: Address;
         permissionedBurnAuthority?: Address;
         enableSrfc37?: boolean;
@@ -75,9 +79,19 @@ export const createTokenizedSecurityInitTransaction = async (
         // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
         // default frozen and the permissionless-thaw path against the blocklist fires.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
-        .withConfidentialBalances(confidentialBalancesAuthority)
+        .withConfidentialBalances({
+            authority: confidentialBalancesAuthority,
+            policy: options?.confidentialPolicy,
+            auditorElgamalPubkey: options?.auditorElgamalPubkey,
+        })
         .withPermanentDelegate(permanentDelegateAuthority)
         .withPermissionedBurn(permissionedBurnAuthority);
+
+    // ConfidentialMintBurn needs ConfidentialTransferMint (added above) to hold the
+    // minted balance; both extensions must be present on the mint.
+    if (options?.confidentialMintBurn) {
+        tokenBuilder = tokenBuilder.withConfidentialMintBurn(options.confidentialMintBurn);
+    }
 
     // Add Scaled UI Amount extension
     tokenBuilder = tokenBuilder.withScaledUiAmount(
@@ -90,7 +104,7 @@ export const createTokenizedSecurityInitTransaction = async (
     const instructions = await tokenBuilder.buildInstructions({
         rpc,
         decimals,
-        mintAuthority: mintAuthority,
+        mintAuthority: mintAuthoritySigner,
         // On the sRFC-37 path the freeze authority MUST be the mint authority: the
         // Token-ACL `create_config` instruction requires the mint's current freeze
         // authority to equal its signer (the mint authority) and then reassigns it to

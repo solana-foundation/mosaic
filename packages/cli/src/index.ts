@@ -17,6 +17,7 @@ import { removeCommand as removeFromBlocklistCommand } from './commands/blocklis
 import { addCommand as addToAllowlistCommand } from './commands/allowlist/add';
 import { removeCommand as removeFromAllowlistCommand } from './commands/allowlist/remove';
 import { controlCommand } from './commands/control/index';
+import { confidentialCommand } from './commands/confidential/index.js';
 
 const program = new Command();
 
@@ -47,6 +48,7 @@ program.addCommand(forceTransferCommand);
 program.addCommand(burnCommand);
 program.addCommand(forceBurnCommand);
 program.addCommand(controlCommand);
+program.addCommand(confidentialCommand);
 program.addCommand(inspectMintCommand);
 program.addCommand(tokenAclCommand);
 program.addCommand(ablCommand);
@@ -57,6 +59,8 @@ program
     .option('--keypair <path>', 'Path to keypair file (defaults to Solana CLI default)')
     .option('--authority <address>', 'Authority address (for --raw-tx)')
     .option('--fee-payer <address>', 'Fee payer address (for --raw-tx)')
-    .option('--raw-tx <encoding>', 'Output unsigned transaction instead of sending (b64|b58)', 'b64');
+    // No default: an unset value must be falsy so commands actually send. A default here
+    // makes `opts.rawTx` truthy for every invocation, forcing raw-tx mode globally.
+    .option('--raw-tx <encoding>', 'Output unsigned transaction instead of sending (b64|b58)');
 
 program.parse(process.argv);
