@@ -8,7 +8,10 @@ import {
     singleInstructionPlan,
 } from '@solana/kit';
 import { fetchMint, fetchToken, getApplyConfidentialPendingBurnInstruction } from '@solana-program/token-2022';
-import { getConfidentialBurnInstructionPlan } from '@solana-program/token-2022/confidential';
+import {
+    getConfidentialBurnInstructionPlan,
+    getPermissionedConfidentialBurnInstructionPlan,
+} from '@solana-program/token-2022/confidential';
 import type { ConfidentialKeys } from './keys';
 import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
 
@@ -40,21 +43,47 @@ function isConfidentialTransferAccount(token: DecodedToken): boolean {
 }
 
 /**
+ * Returns the `PermissionedBurn` extension's configured authority, or `null` if
+ * the mint has no `PermissionedBurn` extension or its authority is cleared (both
+ * cases allow the standard confidential burn variant). When set, token-2022
+ * rejects the standard burn and requires the permissioned variant with this
+ * authority as an extra signer. Mirrors `getPermissionedBurnAuthority` in
+ * `../management/permissioned-burn`, but reads the already-decoded mint.
+ */
+function getPermissionedBurnAuthorityFromMint(mint: DecodedMint): Address | null {
+    if (mint.data.extensions.__option !== 'Some') {
+        return null;
+    }
+    const ext = mint.data.extensions.value.find(e => e.__kind === 'PermissionedBurn');
+    if (!ext || ext.__kind !== 'PermissionedBurn') {
+        return null;
+    }
+    return ext.authority.__option === 'Some' ? ext.authority.value : null;
+}
+
+/**
  * Confidentially **burns** tokens from an account's available confidential
  * balance, decreasing the mint's encrypted total supply (recorded in the mint's
  * `pending_burn` accumulator until {@link createApplyConfidentialPendingBurnInstructionPlan}
  * is run). The burn amount stays encrypted on-chain.
  *
- * Wraps the official `getConfidentialBurnInstructionPlan`, which generates the
- * three required proofs (equality, grouped-ciphertext validity, U128 range) and
- * wires them through context-state accounts, so the plan spans multiple
- * transactions (proof setup → burn → cleanup). Authored by the **account owner**
- * (who holds the account keys); the mint's supply pubkey + auditor are read from
- * the mint by the upstream helper.
+ * Wraps the official `getConfidentialBurnInstructionPlan` (standard variant) or,
+ * for mints carrying the `PermissionedBurn` extension,
+ * `getPermissionedConfidentialBurnInstructionPlan`. Both generate the three
+ * required proofs (equality, grouped-ciphertext validity, U128 range) and wire
+ * them through context-state accounts, so the plan spans multiple transactions
+ * (proof setup → burn → cleanup).
  *
- * Reads the mint (for decimals) and the source account, and adds the Mosaic
- * value-adds: decimal `TokenAmount` handling and a both-extensions-required +
- * account-configured fail-fast.
+ * The burn is always authored by the **account owner** (`authority`, who holds
+ * the account keys). On a `PermissionedBurn` mint the token-2022 program rejects
+ * the standard variant, so the mint's configured **permissioned burn authority**
+ * must additionally co-sign — pass it as `permissionedBurnAuthority` (a bare
+ * address becomes a no-op signer for raw-tx flows). The mint's supply pubkey +
+ * auditor are read from the mint by the upstream helper.
+ *
+ * Reads the mint (for decimals + `PermissionedBurn` detection) and the source
+ * account, and adds the Mosaic value-adds: decimal `TokenAmount` handling and a
+ * both-extensions-required + account-configured fail-fast.
  */
 export async function createConfidentialBurnInstructionPlan(input: {
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
@@ -72,6 +101,12 @@ export async function createConfidentialBurnInstructionPlan(input: {
     keys: ConfidentialKeys;
     /** Override the auditor pubkey; defaults to the mint's configured auditor. */
     auditorElgamalPubkey?: Address;
+    /**
+     * The mint's permissioned burn authority. Required only when the mint
+     * carries the `PermissionedBurn` extension with a set authority; ignored
+     * otherwise. A bare address becomes a no-op signer.
+     */
+    permissionedBurnAuthority?: Address | TransactionSigner;
 }): Promise<InstructionPlan> {
     const [mintDecoded, tokenDecoded] = await Promise.all([
         fetchMint(input.rpc, input.mint),
@@ -104,7 +139,7 @@ export async function createConfidentialBurnInstructionPlan(input: {
 
     const amount = tokenAmountToRaw(input.amount, mintDecoded.data.decimals);
 
-    return getConfidentialBurnInstructionPlan({
+    const commonArgs = {
         rpc: input.rpc,
         payer: input.payer,
         token: input.tokenAccount,
@@ -116,7 +151,27 @@ export async function createConfidentialBurnInstructionPlan(input: {
         sourceElgamalKeypair: input.keys.elgamal,
         aesKey: input.keys.aes,
         auditorElgamalPubkey: input.auditorElgamalPubkey,
-    });
+    };
+
+    // On a PermissionedBurn mint the token-2022 program rejects the standard
+    // burn variant (TokenError::InvalidInstruction) and requires the
+    // permissioned variant, with the mint's burn authority as an extra signer.
+    const permissionedBurnAuthority = getPermissionedBurnAuthorityFromMint(mintDecoded);
+    if (permissionedBurnAuthority !== null) {
+        if (input.permissionedBurnAuthority === undefined) {
+            throw new Error(
+                `Mint ${input.mint} has a permissioned burn authority (${permissionedBurnAuthority}); ` +
+                    `confidential burn requires the permissioned variant. Pass permissionedBurnAuthority ` +
+                    `(the burn-authority signer, or its address for a raw transaction).`,
+            );
+        }
+        return getPermissionedConfidentialBurnInstructionPlan({
+            ...commonArgs,
+            permissionedBurnAuthority: toAuthoritySigner(input.permissionedBurnAuthority),
+        });
+    }
+
+    return getConfidentialBurnInstructionPlan(commonArgs);
 }
 
 /**
