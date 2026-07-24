@@ -1822,7 +1822,7 @@ packages:
       '@solana/kit': ^7.0.0
 
   '@solana-program/token-2022@file:../../t2022mb.tgz':
-    resolution: {integrity: sha512-hf8LbYHinEEULiK6FWcVQgrHc+XkA2LQhPEL0eOezwY5W9tj6ZEp2Cnee0HIxkL7nAuxLIzqW+edXhblwjIL9w==, tarball: file:../../t2022mb.tgz}
+    resolution: {integrity: sha512-no2BiQ7/iezdP53bpU4awyoelizNKz9Cd+EOD1OdJtXuxjAnNtSAs7W7HhPnznJLvtLiIIJygzUVAYUd9if6Iw==, tarball: file:../../t2022mb.tgz}
     version: 0.13.0
     engines: {node: '>=24.0.0'}
     peerDependencies:
