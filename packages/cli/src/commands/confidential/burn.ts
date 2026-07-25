@@ -3,6 +3,7 @@ import type { Address } from '@solana/kit';
 import { createRpcClient } from '../../utils/rpc.js';
 import { createSpinner } from '../../utils/cli.js';
 import { sendOrOutputInstructionPlan } from '../../utils/instruction-plan.js';
+import { loadKeypair } from '../../utils/solana.js';
 import { loadKeysSigner, printResult, readGlobalOpts, resolveTokenAccount, withErrorHandling } from './common.js';
 
 interface BurnOptions {
@@ -10,6 +11,7 @@ interface BurnOptions {
     amount: string;
     tokenAccount?: string;
     auditorElgamalPubkey?: string;
+    permissionedBurnAuthority?: string;
 }
 
 export const burnCommand = new Command('burn')
@@ -18,6 +20,11 @@ export const burnCommand = new Command('burn')
     .requiredOption('--amount <decimal>', 'Amount to burn (decimal, e.g. 1.5)')
     .option('--token-account <address>', "Source confidential token account (defaults to the signer's ATA)")
     .option('--auditor-elgamal-pubkey <address>', "Override the auditor pubkey (defaults to the mint's auditor)")
+    .option(
+        '--permissioned-burn-authority <keypair>',
+        "Keypair file of the mint's permissioned burn authority. Required for mints carrying the " +
+            'Permissioned Burn extension (e.g. tokenized-security); this authority co-signs the burn.',
+    )
     .showHelpAfterError()
     .action(async (options: BurnOptions, command) => {
         const opts = readGlobalOpts(command);
@@ -33,6 +40,13 @@ export const burnCommand = new Command('burn')
             const mint = options.mint as Address;
             const tokenAccount = await resolveTokenAccount(mint, signer.address, options.tokenAccount);
 
+            // On a Permissioned-Burn mint the burn authority must co-sign; load it from the
+            // provided keypair file. Burn can't run in --raw-tx (it derives confidential keys),
+            // so a real signer is always what's needed here.
+            const permissionedBurnAuthority = options.permissionedBurnAuthority
+                ? await loadKeypair(options.permissionedBurnAuthority)
+                : undefined;
+
             const keys = await deriveConfidentialKeysForOwnerMint({ signer, owner: signer.address, mint });
             try {
                 const plan = await createConfidentialBurnInstructionPlan({
@@ -44,6 +58,7 @@ export const burnCommand = new Command('burn')
                     amount: options.amount,
                     keys,
                     auditorElgamalPubkey: options.auditorElgamalPubkey as Address | undefined,
+                    permissionedBurnAuthority,
                 });
                 const { signatures } = await sendOrOutputInstructionPlan(plan, signer, rpc, opts.rawTx, spinner);
                 spinner.succeed('Confidential burn complete!');
