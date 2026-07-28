@@ -1,4 +1,5 @@
 import { Token } from '../issuance';
+import type { ConfidentialApprovePolicy } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -16,6 +17,23 @@ import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
 import { getCreateListInstructions } from '../abl/list';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
+
+/**
+ * Extra options for {@link createStablecoinInitTransaction}.
+ *
+ * This template's parameters are positional for historical reasons; new options are
+ * added here instead of extending that list further.
+ */
+export interface StablecoinExtraOptions {
+    /**
+     * Confidential-balances approve policy. Defaults to `'whitelist'`, which leaves the
+     * extension gated so the authority must approve each account; `'opt-in'` lets holders
+     * configure their own confidential account permissionlessly.
+     */
+    confidentialBalancesPolicy?: ConfidentialApprovePolicy;
+    /** Optional auditor ElGamal pubkey, able to decode every confidential transfer amount. */
+    auditorElgamalPubkey?: Address | null;
+}
 
 /**
  * Creates a transaction to initialize a new stablecoin mint on Solana with common stablecoin features.
@@ -53,6 +71,9 @@ export const createStablecoinInitTransaction = async (
     permanentDelegateAuthority?: Address,
     enableSrfc37?: boolean,
     freezeAuthority?: Address,
+    // New options go in this bag rather than becoming a 17th positional parameter.
+    // TODO: collapse the positional parameters above into it (breaking change).
+    options?: StablecoinExtraOptions,
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
@@ -76,10 +97,15 @@ export const createStablecoinInitTransaction = async (
             additionalMetadata: new Map(),
         })
         .withPausable(pausableAuthority || mintAuthorityAddress)
-        // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
-        // default frozen and the permissionless-thaw path against the blocklist fires.
+        // `true` = Initialized, `false` = Frozen. Only an allowlist wants frozen-by-default:
+        // new ATAs start frozen and are opened through the permissionless-thaw path. A
+        // blocklist is allow-by-default, so accounts start Initialized.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
-        .withConfidentialBalances(confidentialBalancesAuthority || mintAuthorityAddress)
+        .withConfidentialBalances({
+            authority: confidentialBalancesAuthority || mintAuthorityAddress,
+            policy: options?.confidentialBalancesPolicy,
+            auditorElgamalPubkey: options?.auditorElgamalPubkey,
+        })
         .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
         .buildInstructions({
             rpc,

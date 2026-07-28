@@ -1,4 +1,5 @@
 import { Token } from '../issuance';
+import type { ConfidentialApprovePolicy } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -39,6 +40,11 @@ export const createTokenizedSecurityInitTransaction = async (
         permanentDelegateAuthority?: Address;
         permissionedBurnAuthority?: Address;
         enableSrfc37?: boolean;
+        // Confidential Balances configuration. `policy` defaults to `'whitelist'`, which
+        // leaves the extension gated so the authority must approve each account;
+        // `'opt-in'` lets holders configure their own confidential account permissionlessly.
+        confidentialBalancesPolicy?: ConfidentialApprovePolicy;
+        auditorElgamalPubkey?: Address | null;
         scaledUiAmount?: {
             authority?: Address;
             multiplier?: number;
@@ -72,10 +78,15 @@ export const createTokenizedSecurityInitTransaction = async (
             additionalMetadata: new Map(),
         })
         .withPausable(pausableAuthority)
-        // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
-        // default frozen and the permissionless-thaw path against the blocklist fires.
+        // `true` = Initialized, `false` = Frozen. Only an allowlist wants frozen-by-default:
+        // new ATAs start frozen and are opened through the permissionless-thaw path. A
+        // blocklist is allow-by-default, so accounts start Initialized.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
-        .withConfidentialBalances(confidentialBalancesAuthority)
+        .withConfidentialBalances({
+            authority: confidentialBalancesAuthority,
+            policy: options?.confidentialBalancesPolicy,
+            auditorElgamalPubkey: options?.auditorElgamalPubkey,
+        })
         .withPermanentDelegate(permanentDelegateAuthority)
         .withPermissionedBurn(permissionedBurnAuthority);
 
