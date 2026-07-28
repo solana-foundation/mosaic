@@ -76,8 +76,9 @@ export const createStablecoinInitTransaction = async (
             additionalMetadata: new Map(),
         })
         .withPausable(pausableAuthority || mintAuthorityAddress)
-        // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
-        // default frozen and the permissionless-thaw path against the blocklist fires.
+        // Blocklist mints are born Initialized: accounts are usable by default and only
+        // blocked wallets get frozen. Allowlist mints are born Frozen, so membership is what
+        // unlocks an account via permissionless thaw.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
         .withConfidentialBalances(confidentialBalancesAuthority || mintAuthorityAddress)
         .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
