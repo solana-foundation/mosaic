@@ -133,147 +133,139 @@ describe('devnet: sRFC-37 blocklist on a DefaultAccountState=Initialized mint', 
         }
     }, 120_000);
 
-    test(
-        'blocklist add freezes, blocklist remove thaws',
-        async () => {
-            const mint = await generateKeyPairSigner();
-            const holder = await generateKeyPairSigner();
+    test('blocklist add freezes, blocklist remove thaws', async () => {
+        const mint = await generateKeyPairSigner();
+        const holder = await generateKeyPairSigner();
 
-            // 1. Create the token: Token-ACL blocklist, accounts born usable.
-            const createTx = await createCustomTokenInitTransaction(
-                rpc,
-                'HOO-903 Check',
-                'H903',
-                6,
-                'https://example.com/h903.json',
-                payer, // mint authority
-                mint,
-                payer, // fee payer
-                {
-                    enableMetadata: true,
-                    enableSrfc37: true,
-                    aclMode: 'blocklist',
-                    enableDefaultAccountState: true,
-                    defaultAccountStateInitialized: true, // <- the broken configuration
-                },
-            );
-            console.log('create tx', await sendTx(createTx));
-            console.log('mint', mint.address);
+        // 1. Create the token: Token-ACL blocklist, accounts born usable.
+        const createTx = await createCustomTokenInitTransaction(
+            rpc,
+            'HOO-903 Check',
+            'H903',
+            6,
+            'https://example.com/h903.json',
+            payer, // mint authority
+            mint,
+            payer, // fee payer
+            {
+                enableMetadata: true,
+                enableSrfc37: true,
+                aclMode: 'blocklist',
+                enableDefaultAccountState: true,
+                defaultAccountStateInitialized: true, // <- the broken configuration
+            },
+        );
+        console.log('create tx', await sendTx(createTx));
+        console.log('mint', mint.address);
 
-            // Precondition: this is exactly the shape that used to fail.
-            const details = await getMintDetails(rpc, mint.address);
-            expect(details.usesTokenAcl).toBe(true);
-            expect(isDefaultAccountStateSetFrozen(details.extensions)).toBe(false);
+        // Precondition: this is exactly the shape that used to fail.
+        const details = await getMintDetails(rpc, mint.address);
+        expect(details.usesTokenAcl).toBe(true);
+        expect(isDefaultAccountStateSetFrozen(details.extensions)).toBe(false);
 
-            // 2. Mint to the holder so it has a real, unfrozen ATA.
-            console.log(
-                'mint-to tx',
-                await sendTx(await createMintToTransaction(rpc, mint.address, holder.address, 100, payer, payer)),
-            );
-            let state = await ataState(rpc, holder.address, mint.address);
-            expect(state.isInitialized).toBe(true);
-            expect(state.isFrozen).toBe(false);
-            expect(state.balance).toBe(100_000_000n);
+        // 2. Mint to the holder so it has a real, unfrozen ATA.
+        console.log(
+            'mint-to tx',
+            await sendTx(await createMintToTransaction(rpc, mint.address, holder.address, 100, payer, payer)),
+        );
+        let state = await ataState(rpc, holder.address, mint.address);
+        expect(state.isInitialized).toBe(true);
+        expect(state.isFrozen).toBe(false);
+        expect(state.balance).toBe(100_000_000n);
 
-            // 3. Blocklist the holder. This is the operation from the ticket.
-            const addIx = await getAddToBlocklistInstructions(rpc, mint.address, holder.address, payer);
-            console.log(
-                'add-to-blocklist instructions:',
-                addIx.map(i => i.programAddress),
-            );
-            expect(addIx).toHaveLength(2); // ABL addWallet + Token-ACL freeze
-            console.log('blocklist add tx', await sendIx(addIx, payer));
+        // 3. Blocklist the holder. This is the operation from the ticket.
+        const addIx = await getAddToBlocklistInstructions(rpc, mint.address, holder.address, payer);
+        console.log(
+            'add-to-blocklist instructions:',
+            addIx.map(i => i.programAddress),
+        );
+        expect(addIx).toHaveLength(2); // ABL addWallet + Token-ACL freeze
+        console.log('blocklist add tx', await sendIx(addIx, payer));
 
-            state = await ataState(rpc, holder.address, mint.address);
-            expect(state.isFrozen).toBe(true); // <- the whole point
+        state = await ataState(rpc, holder.address, mint.address);
+        expect(state.isFrozen).toBe(true); // <- the whole point
 
-            // 4. Un-blocklist: wallet entry removed and the account thaws again.
-            const removeIx = await getRemoveFromBlocklistInstructions(rpc, mint.address, holder.address, payer);
-            console.log(
-                'remove-from-blocklist instructions:',
-                removeIx.map(i => i.programAddress),
-            );
-            console.log('blocklist remove tx', await sendIx(removeIx, payer));
+        // 4. Un-blocklist: wallet entry removed and the account thaws again.
+        const removeIx = await getRemoveFromBlocklistInstructions(rpc, mint.address, holder.address, payer);
+        console.log(
+            'remove-from-blocklist instructions:',
+            removeIx.map(i => i.programAddress),
+        );
+        console.log('blocklist remove tx', await sendIx(removeIx, payer));
 
-            state = await ataState(rpc, holder.address, mint.address);
-            expect(state.isFrozen).toBe(false);
-        },
-        600_000,
-    );
+        state = await ataState(rpc, holder.address, mint.address);
+        expect(state.isFrozen).toBe(false);
+    }, 600_000);
 
     // Covers the second bug fixed alongside HOO-903: removal from an allowlist used to freeze
     // only accounts that were ALREADY frozen, so it never actually revoked access.
-    test(
-        'allowlist remove freezes, allowlist add thaws again',
-        async () => {
-            const mint = await generateKeyPairSigner();
-            const holder = await generateKeyPairSigner();
+    test('allowlist remove freezes, allowlist add thaws again', async () => {
+        const mint = await generateKeyPairSigner();
+        const holder = await generateKeyPairSigner();
 
-            const createTx = await createCustomTokenInitTransaction(
-                rpc,
-                'HOO-903 Allow',
-                'H903A',
-                6,
-                'https://example.com/h903a.json',
-                payer,
-                mint,
-                payer,
-                {
-                    enableMetadata: true,
-                    enableSrfc37: true,
-                    aclMode: 'allowlist',
-                    enableDefaultAccountState: true,
-                    defaultAccountStateInitialized: true, // what apps/app produces
-                },
-            );
-            console.log('create tx', await sendTx(createTx));
-            console.log('allowlist mint', mint.address);
+        const createTx = await createCustomTokenInitTransaction(
+            rpc,
+            'HOO-903 Allow',
+            'H903A',
+            6,
+            'https://example.com/h903a.json',
+            payer,
+            mint,
+            payer,
+            {
+                enableMetadata: true,
+                enableSrfc37: true,
+                aclMode: 'allowlist',
+                enableDefaultAccountState: true,
+                defaultAccountStateInitialized: true, // what apps/app produces
+            },
+        );
+        console.log('create tx', await sendTx(createTx));
+        console.log('allowlist mint', mint.address);
 
-            const details = await getMintDetails(rpc, mint.address);
-            expect(details.usesTokenAcl).toBe(true);
-            expect(isDefaultAccountStateSetFrozen(details.extensions)).toBe(false);
+        const details = await getMintDetails(rpc, mint.address);
+        expect(details.usesTokenAcl).toBe(true);
+        expect(isDefaultAccountStateSetFrozen(details.extensions)).toBe(false);
 
-            console.log(
-                'mint-to tx',
-                await sendTx(await createMintToTransaction(rpc, mint.address, holder.address, 50, payer, payer)),
-            );
+        console.log(
+            'mint-to tx',
+            await sendTx(await createMintToTransaction(rpc, mint.address, holder.address, 50, payer, payer)),
+        );
 
-            // Put the holder on the allowlist. Its account is already usable, so no thaw is
-            // needed — the ABL entry alone.
-            const addIx = await getAddToAllowlistInstructions(rpc, mint.address, holder.address, payer);
-            console.log(
-                'add-to-allowlist instructions:',
-                addIx.map(i => i.programAddress),
-            );
-            console.log('allowlist add tx', await sendIx(addIx, payer));
-            let state = await ataState(rpc, holder.address, mint.address);
-            expect(state.isFrozen).toBe(false);
+        // Put the holder on the allowlist. Its account is already usable, so no thaw is
+        // needed — the ABL entry alone.
+        const addIx = await getAddToAllowlistInstructions(rpc, mint.address, holder.address, payer);
+        console.log(
+            'add-to-allowlist instructions:',
+            addIx.map(i => i.programAddress),
+        );
+        console.log('allowlist add tx', await sendIx(addIx, payer));
+        let state = await ataState(rpc, holder.address, mint.address);
+        expect(state.isFrozen).toBe(false);
 
-            // Remove from the allowlist: access must actually be revoked. Before the fix this
-            // emitted the ABL removal only and left the account transacting.
-            const removeIx = await getRemoveFromAllowlistInstructions(rpc, mint.address, holder.address, payer);
-            console.log(
-                'remove-from-allowlist instructions:',
-                removeIx.map(i => i.programAddress),
-            );
-            expect(removeIx).toHaveLength(2); // ABL removeWallet + Token-ACL freeze
-            console.log('allowlist remove tx', await sendIx(removeIx, payer));
+        // Remove from the allowlist: access must actually be revoked. Before the fix this
+        // emitted the ABL removal only and left the account transacting.
+        const removeIx = await getRemoveFromAllowlistInstructions(rpc, mint.address, holder.address, payer);
+        console.log(
+            'remove-from-allowlist instructions:',
+            removeIx.map(i => i.programAddress),
+        );
+        expect(removeIx).toHaveLength(2); // ABL removeWallet + Token-ACL freeze
+        console.log('allowlist remove tx', await sendIx(removeIx, payer));
 
-            state = await ataState(rpc, holder.address, mint.address);
-            expect(state.isFrozen).toBe(true); // <- the Change 2 assertion
+        state = await ataState(rpc, holder.address, mint.address);
+        expect(state.isFrozen).toBe(true); // <- the Change 2 assertion
 
-            // Re-adding must restore access via permissionless thaw.
-            const readdIx = await getAddToAllowlistInstructions(rpc, mint.address, holder.address, payer);
-            console.log(
-                're-add-to-allowlist instructions:',
-                readdIx.map(i => i.programAddress),
-            );
-            expect(readdIx).toHaveLength(2); // ABL addWallet + Token-ACL thaw
-            console.log('allowlist re-add tx', await sendIx(readdIx, payer));
+        // Re-adding must restore access via permissionless thaw.
+        const readdIx = await getAddToAllowlistInstructions(rpc, mint.address, holder.address, payer);
+        console.log(
+            're-add-to-allowlist instructions:',
+            readdIx.map(i => i.programAddress),
+        );
+        expect(readdIx).toHaveLength(2); // ABL addWallet + Token-ACL thaw
+        console.log('allowlist re-add tx', await sendIx(readdIx, payer));
 
-            state = await ataState(rpc, holder.address, mint.address);
-            expect(state.isFrozen).toBe(false);
-        },
-        600_000,
-    );
+        state = await ataState(rpc, holder.address, mint.address);
+        expect(state.isFrozen).toBe(false);
+    }, 600_000);
 });
