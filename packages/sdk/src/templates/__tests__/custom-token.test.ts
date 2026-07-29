@@ -24,9 +24,19 @@ describe('createCustomTokenInitTransaction - Transfer Hook', () => {
 
     test('clears the transfer hook program id via UpdateTransferHook(None) when transferHookProgramId is omitted', async () => {
         const mintAuthority = createMockSigner();
-        const tx = await createCustomTokenInitTransaction(rpc, 'Token', 'TKN', 6, 'uri', mintAuthority, mint, feePayer, {
-            enableTransferHook: true,
-        });
+        const tx = await createCustomTokenInitTransaction(
+            rpc,
+            'Token',
+            'TKN',
+            6,
+            'uri',
+            mintAuthority,
+            mint,
+            feePayer,
+            {
+                enableTransferHook: true,
+            },
+        );
 
         const expected = getUpdateTransferHookInstruction(
             { mint: mint.address, authority: mintAuthority.address, programId: none() },
@@ -38,10 +48,20 @@ describe('createCustomTokenInitTransaction - Transfer Hook', () => {
     test('does not clear the transfer hook program id when transferHookProgramId is provided', async () => {
         const mintAuthority = createMockSigner();
         const hookProgramId = createMockSigner().address;
-        const tx = await createCustomTokenInitTransaction(rpc, 'Token', 'TKN', 6, 'uri', mintAuthority, mint, feePayer, {
-            enableTransferHook: true,
-            transferHookProgramId: hookProgramId,
-        });
+        const tx = await createCustomTokenInitTransaction(
+            rpc,
+            'Token',
+            'TKN',
+            6,
+            'uri',
+            mintAuthority,
+            mint,
+            feePayer,
+            {
+                enableTransferHook: true,
+                transferHookProgramId: hookProgramId,
+            },
+        );
 
         const updateIx = tx.instructions.find(
             i =>

@@ -265,7 +265,9 @@ export const createCustomTokenInitTransaction = async (
     const transferHookAuthorityInput: Address | TransactionSigner<string> =
         options?.transferHookAuthority ?? mintAuthority;
     const transferHookAuthorityAddress =
-        typeof transferHookAuthorityInput === 'string' ? transferHookAuthorityInput : transferHookAuthorityInput.address;
+        typeof transferHookAuthorityInput === 'string'
+            ? transferHookAuthorityInput
+            : transferHookAuthorityInput.address;
     if (options?.enableTransferHook) {
         tokenBuilder = tokenBuilder.withTransferHook({
             authority: transferHookAuthorityAddress,

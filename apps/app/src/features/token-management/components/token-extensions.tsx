@@ -357,7 +357,9 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                         size="sm"
                                                         className="h-10 px-4 rounded-xl"
                                                         onClick={() => handleSaveTransferHook(false)}
-                                                        disabled={isTransferHookUpdating || !newTransferHookProgramId.trim()}
+                                                        disabled={
+                                                            isTransferHookUpdating || !newTransferHookProgramId.trim()
+                                                        }
                                                     >
                                                         {isTransferHookUpdating ? 'Saving...' : 'Save'}
                                                     </Button>
@@ -366,7 +368,9 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                         size="sm"
                                                         className="h-10 px-4 rounded-xl"
                                                         onClick={() => handleSaveTransferHook(true)}
-                                                        disabled={isTransferHookUpdating || !currentTransferHookProgramId}
+                                                        disabled={
+                                                            isTransferHookUpdating || !currentTransferHookProgramId
+                                                        }
                                                     >
                                                         Clear
                                                     </Button>
@@ -531,9 +535,13 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                                     currentTransferHookProgramId || '',
                                                                 );
                                                                 if (token.address) {
-                                                                    updateExtensionField(token.address, 'transferHook', {
-                                                                        error: null,
-                                                                    });
+                                                                    updateExtensionField(
+                                                                        token.address,
+                                                                        'transferHook',
+                                                                        {
+                                                                            error: null,
+                                                                        },
+                                                                    );
                                                                 }
                                                                 setShowTransferHookEditor(true);
                                                             }
