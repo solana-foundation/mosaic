@@ -17,9 +17,9 @@ import {
     getThawAccountInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
-import { findListConfigPda, Mode } from '@solana/token-acl-gate-sdk';
-import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util';
-import { ABL_PROGRAM_ID, getAddWalletInstructions, getList, getRemoveWalletInstructions } from '../abl';
+import { Mode } from '@solana/token-acl-gate-sdk';
+import { getMintDetails, resolveTokenAccount } from '../transaction-util';
+import { getAddWalletInstructions, getList, getListConfigPda, getRemoveWalletInstructions } from '../abl';
 import { getFreezeInstructions } from '../token-acl/freeze';
 import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless';
 
@@ -30,8 +30,10 @@ export const isAblBlocklist = async (rpc: Rpc<SolanaRpcApi>, listConfig: Address
 
 /**
  * Gets the instructions to add an account to a blocklist
- * If the mint has SRFC37 enabled, the account will be added to the blocklist and frozen
- * If the mint does not have SRFC37 enabled, the account will only be frozen
+ * If the mint uses Token ACL, the account will be added to the ABL blocklist and frozen
+ * through the Token ACL program
+ * If the mint does not use Token ACL, there is no ABL list to mutate and the account is
+ * only frozen, directly through Token-2022
  *
  * @param rpc - The Solana RPC client instance
  * @param mint - The mint address
@@ -47,10 +49,15 @@ export const getAddToBlocklistInstructions = async (
     const { tokenAccount, isInitialized, isFrozen } = await resolveTokenAccount(rpc, account, mint);
     const accountSigner = typeof authority === 'string' ? createNoopSigner(authority) : authority;
 
-    const { extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
-    const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
+    const { usesTokenAcl } = await getMintDetails(rpc, mint);
 
-    if (!enableSrfc37) {
+    // Token ACL reassigns freeze authority to its mintConfig PDA, so freeze/thaw must go
+    // through the ACL program whenever it is configured — regardless of the mint's default
+    // account state. Blocklist mints are deliberately created with
+    // DefaultAccountState=Initialized (only blocked wallets get frozen), so additionally
+    // requiring `frozen` here emitted a plain Token-2022 freeze signed by the wallet, which
+    // can never land once the wallet is no longer the freeze authority.
+    if (!usesTokenAcl) {
         return [
             getFreezeAccountInstruction(
                 {
@@ -65,20 +72,14 @@ export const getAddToBlocklistInstructions = async (
         ];
     }
 
-    const listConfigPda = await findListConfigPda(
-        {
-            authority: accountSigner.address,
-            seed: mint,
-        },
-        { programAddress: ABL_PROGRAM_ID },
-    );
-    if (!(await isAblBlocklist(rpc, listConfigPda[0]))) {
+    const listConfigPda = await getListConfigPda({ authority: accountSigner.address, mint });
+    if (!(await isAblBlocklist(rpc, listConfigPda))) {
         throw new Error('This is not an ABL blocklist');
     }
     const addToBlocklistInstructions = await getAddWalletInstructions({
         authority: accountSigner,
         wallet: account,
-        list: listConfigPda[0],
+        list: listConfigPda,
     });
     const freezeInstructions =
         isInitialized && !isFrozen
@@ -117,10 +118,11 @@ export const getRemoveFromBlocklistInstructions = async (
     const { tokenAccount: destinationAta, isInitialized, isFrozen } = await resolveTokenAccount(rpc, account, mint);
     const accountSigner = typeof authority === 'string' ? createNoopSigner(authority) : authority;
 
-    const { extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
-    const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
+    const { usesTokenAcl } = await getMintDetails(rpc, mint);
 
-    if (!enableSrfc37) {
+    // See getAddToBlocklistInstructions: the ACL path is keyed off Token ACL ownership of the
+    // freeze authority alone, not off the mint's default account state.
+    if (!usesTokenAcl) {
         return [
             getThawAccountInstruction(
                 {
@@ -135,26 +137,19 @@ export const getRemoveFromBlocklistInstructions = async (
         ];
     }
 
-    const listConfigPda = await findListConfigPda(
-        {
-            authority: accountSigner.address,
-            seed: mint,
-        },
-        { programAddress: ABL_PROGRAM_ID },
-    );
-    if (!(await isAblBlocklist(rpc, listConfigPda[0]))) {
+    const listConfigPda = await getListConfigPda({ authority: accountSigner.address, mint });
+    if (!(await isAblBlocklist(rpc, listConfigPda))) {
         throw new Error('This is not an ABL blocklist');
     }
     const instructions = [];
     const removeFromBlocklistInstructions = await getRemoveWalletInstructions({
         authority: accountSigner,
         wallet: account,
-        list: listConfigPda[0],
+        list: listConfigPda,
     });
     instructions.push(...removeFromBlocklistInstructions);
 
-    const useSrfc37 = enableSrfc37 ?? false;
-    if (isInitialized && isFrozen && useSrfc37) {
+    if (isInitialized && isFrozen) {
         // TODO: this should unfreeze all accounts owned by the wallet
         const thawInstructions = await getThawPermissionlessInstructions({
             authority: accountSigner,
