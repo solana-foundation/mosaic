@@ -13,6 +13,7 @@ interface StablecoinCreateFormProps {
     rpcUrl?: string;
     onTokenCreated?: () => void;
     onCancel?: () => void;
+    onClose?: () => void;
 }
 
 const STEPS: Step[] = [
@@ -39,6 +40,7 @@ export function StablecoinCreateForm({
     rpcUrl,
     onTokenCreated,
     onCancel,
+    onClose,
 }: StablecoinCreateFormProps) {
     const formState = useTokenCreationForm<StablecoinOptions, StablecoinCreationResult>({
         initialOptions: INITIAL_OPTIONS,
@@ -66,7 +68,7 @@ export function StablecoinCreateForm({
                         return null;
                 }
             }}
-            renderResult={result => <StablecoinCreationResultDisplay result={result} />}
+            renderResult={result => <StablecoinCreationResultDisplay result={result} onClose={onClose} />}
         />
     );
 }

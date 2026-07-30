@@ -13,6 +13,7 @@ interface TokenizedSecurityCreateFormProps {
     rpcUrl?: string;
     onTokenCreated?: () => void;
     onCancel?: () => void;
+    onClose?: () => void;
 }
 
 const STEPS: Step[] = [
@@ -41,6 +42,7 @@ export function TokenizedSecurityCreateForm({
     rpcUrl,
     onTokenCreated,
     onCancel,
+    onClose,
 }: TokenizedSecurityCreateFormProps) {
     const formState = useTokenCreationForm<TokenizedSecurityOptions, TokenizedSecurityCreationResult>({
         initialOptions: INITIAL_OPTIONS,
@@ -88,7 +90,7 @@ export function TokenizedSecurityCreateForm({
                         return null;
                 }
             }}
-            renderResult={result => <TokenizedSecurityCreationResultDisplay result={result} />}
+            renderResult={result => <TokenizedSecurityCreationResultDisplay result={result} onClose={onClose} />}
         />
     );
 }
