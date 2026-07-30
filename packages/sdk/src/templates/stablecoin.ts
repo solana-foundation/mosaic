@@ -82,9 +82,9 @@ export const createStablecoinInitTransaction = async (
             additionalMetadata: new Map(),
         })
         .withPausable(pausableAuthority || mintAuthorityAddress)
-        // `true` = Initialized, `false` = Frozen. Only an allowlist wants frozen-by-default:
-        // new ATAs start frozen and are opened through the permissionless-thaw path. A
-        // blocklist is allow-by-default, so accounts start Initialized.
+        // Blocklist mints are born Initialized: accounts are usable by default and only
+        // blocked wallets get frozen. Allowlist mints are born Frozen, so membership is what
+        // unlocks an account via permissionless thaw.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
         .withConfidentialBalances({
             authority: confidentialBalancesAuthority || mintAuthorityAddress,
