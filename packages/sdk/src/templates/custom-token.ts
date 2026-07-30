@@ -1,5 +1,5 @@
 import { Token } from '../issuance';
-import type { ConfidentialApprovePolicy } from '../issuance/create-mint';
+import type { ConfidentialBalancesConfig } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -84,13 +84,9 @@ export const createCustomTokenInitTransaction = async (
         // `enableDefaultAccountState` above.
         defaultAccountStateInitialized?: boolean;
 
-        // Confidential Balances configuration (only read when
+        // Confidential Balances policy / auditor (only read when
         // `enableConfidentialBalances` is truthy).
-        // `policy` defaults to `'whitelist'`, which leaves the extension gated so the
-        // authority must approve each account; `'opt-in'` lets holders configure their
-        // own confidential account permissionlessly.
-        confidentialBalancesPolicy?: ConfidentialApprovePolicy;
-        auditorElgamalPubkey?: Address | null;
+        confidentialBalances?: ConfidentialBalancesConfig;
 
         // Freeze authority.
         // Note: ignored when `enableSrfc37: true` — the sRFC-37 path forces the freeze
@@ -186,8 +182,7 @@ export const createCustomTokenInitTransaction = async (
     if (options?.enableConfidentialBalances) {
         tokenBuilder = tokenBuilder.withConfidentialBalances({
             authority: confidentialBalancesAuthority,
-            policy: options.confidentialBalancesPolicy,
-            auditorElgamalPubkey: options.auditorElgamalPubkey,
+            ...options.confidentialBalances,
         });
     }
 

@@ -1,5 +1,5 @@
 import { Token } from '../issuance';
-import type { ConfidentialApprovePolicy } from '../issuance/create-mint';
+import type { ConfidentialBalancesConfig } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -63,11 +63,9 @@ export const createMmfInitTransaction = async (
         transferHookAuthority?: Address | TransactionSigner<string>;
         enableConfidentialBalances?: boolean;
         enableSrfc37?: boolean;
-        // Confidential Balances configuration. `policy` defaults to `'whitelist'`, which
-        // leaves the extension gated so the authority must approve each account;
-        // `'opt-in'` lets holders configure their own confidential account permissionlessly.
-        confidentialBalancesPolicy?: ConfidentialApprovePolicy;
-        auditorElgamalPubkey?: Address | null;
+        // Confidential Balances policy / auditor (only read when
+        // `enableConfidentialBalances` is truthy).
+        confidentialBalances?: ConfidentialBalancesConfig;
     },
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
@@ -121,8 +119,7 @@ export const createMmfInitTransaction = async (
         const confidentialBalancesAuthority = options?.confidentialBalancesAuthority || mintAuthorityAddress;
         tokenBuilder = tokenBuilder.withConfidentialBalances({
             authority: confidentialBalancesAuthority,
-            policy: options?.confidentialBalancesPolicy,
-            auditorElgamalPubkey: options?.auditorElgamalPubkey,
+            ...options?.confidentialBalances,
         });
     }
 

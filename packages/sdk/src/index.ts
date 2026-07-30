@@ -1,4 +1,9 @@
-export { Token, type ConfidentialApprovePolicy, type ConfidentialBalancesOptions } from './issuance';
+export {
+    Token,
+    type ConfidentialApprovePolicy,
+    type ConfidentialBalancesConfig,
+    type ConfidentialBalancesOptions,
+} from './issuance';
 export {
     createUpdateFieldInstruction,
     createReallocateInstruction,

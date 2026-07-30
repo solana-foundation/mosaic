@@ -89,7 +89,7 @@ describe('Template options integration tests', () => {
                     undefined,
                     false,
                     undefined,
-                    { confidentialBalancesPolicy: 'opt-in' },
+                    { policy: 'opt-in' },
                 );
                 await sendAndConfirmTransaction(client, tx, DEFAULT_COMMITMENT);
 
@@ -119,7 +119,7 @@ describe('Template options integration tests', () => {
                     undefined,
                     false,
                     undefined,
-                    { confidentialBalancesPolicy: 'opt-in', auditorElgamalPubkey: auditor },
+                    { policy: 'opt-in', auditorElgamalPubkey: auditor },
                 );
                 await sendAndConfirmTransaction(client, tx, DEFAULT_COMMITMENT);
 
@@ -142,7 +142,7 @@ describe('Template options integration tests', () => {
                     mintAuthority,
                     mint,
                     payer,
-                    { enableConfidentialBalances: true, confidentialBalancesPolicy: 'opt-in' },
+                    { enableConfidentialBalances: true, confidentialBalances: { policy: 'opt-in' } },
                 );
                 await sendAndConfirmTransaction(client, tx, DEFAULT_COMMITMENT);
 

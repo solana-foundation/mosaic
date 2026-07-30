@@ -1,5 +1,5 @@
 import { Token } from '../issuance';
-import type { ConfidentialApprovePolicy } from '../issuance/create-mint';
+import type { ConfidentialBalancesConfig } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -19,23 +19,6 @@ import { getCreateListInstructions } from '../abl/list';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
 
 /**
- * Extra options for {@link createStablecoinInitTransaction}.
- *
- * This template's parameters are positional for historical reasons; new options are
- * added here instead of extending that list further.
- */
-export interface StablecoinExtraOptions {
-    /**
-     * Confidential-balances approve policy. Defaults to `'whitelist'`, which leaves the
-     * extension gated so the authority must approve each account; `'opt-in'` lets holders
-     * configure their own confidential account permissionlessly.
-     */
-    confidentialBalancesPolicy?: ConfidentialApprovePolicy;
-    /** Optional auditor ElGamal pubkey, able to decode every confidential transfer amount. */
-    auditorElgamalPubkey?: Address | null;
-}
-
-/**
  * Creates a transaction to initialize a new stablecoin mint on Solana with common stablecoin features.
  *
  * This function configures the mint with metadata, pausable functionality, default account state,
@@ -53,6 +36,10 @@ export interface StablecoinExtraOptions {
  * @param pausableAuthority - The address with authority over the pausable functionality.
  * @param confidentialBalancesAuthority - The address with authority over the confidential balances extension.
  * @param permanentDelegateAuthority - The address with authority over the permanent delegate.
+ * @param confidentialBalances - Confidential Balances configuration: `policy` defaults to `'whitelist'`,
+ * which leaves the extension gated so the authority must approve each account, while `'opt-in'` lets
+ * holders configure their own confidential account permissionlessly; `auditorElgamalPubkey` optionally
+ * records an auditor able to decode every confidential transfer amount.
  * @returns A promise that resolves to a FullTransaction object for initializing the stablecoin mint.
  */
 export const createStablecoinInitTransaction = async (
@@ -71,9 +58,7 @@ export const createStablecoinInitTransaction = async (
     permanentDelegateAuthority?: Address,
     enableSrfc37?: boolean,
     freezeAuthority?: Address,
-    // New options go in this bag rather than becoming a 17th positional parameter.
-    // TODO: collapse the positional parameters above into it (breaking change).
-    options?: StablecoinExtraOptions,
+    confidentialBalances?: ConfidentialBalancesConfig,
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
@@ -103,8 +88,7 @@ export const createStablecoinInitTransaction = async (
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
         .withConfidentialBalances({
             authority: confidentialBalancesAuthority || mintAuthorityAddress,
-            policy: options?.confidentialBalancesPolicy,
-            auditorElgamalPubkey: options?.auditorElgamalPubkey,
+            ...confidentialBalances,
         })
         .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
         .buildInstructions({

@@ -1,5 +1,5 @@
 import { Token } from '../issuance';
-import type { ConfidentialApprovePolicy } from '../issuance/create-mint';
+import type { ConfidentialBalancesConfig } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -40,11 +40,8 @@ export const createTokenizedSecurityInitTransaction = async (
         permanentDelegateAuthority?: Address;
         permissionedBurnAuthority?: Address;
         enableSrfc37?: boolean;
-        // Confidential Balances configuration. `policy` defaults to `'whitelist'`, which
-        // leaves the extension gated so the authority must approve each account;
-        // `'opt-in'` lets holders configure their own confidential account permissionlessly.
-        confidentialBalancesPolicy?: ConfidentialApprovePolicy;
-        auditorElgamalPubkey?: Address | null;
+        // Confidential Balances policy / auditor.
+        confidentialBalances?: ConfidentialBalancesConfig;
         scaledUiAmount?: {
             authority?: Address;
             multiplier?: number;
@@ -84,8 +81,7 @@ export const createTokenizedSecurityInitTransaction = async (
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
         .withConfidentialBalances({
             authority: confidentialBalancesAuthority,
-            policy: options?.confidentialBalancesPolicy,
-            auditorElgamalPubkey: options?.auditorElgamalPubkey,
+            ...options?.confidentialBalances,
         })
         .withPermanentDelegate(permanentDelegateAuthority)
         .withPermissionedBurn(permissionedBurnAuthority);

@@ -73,8 +73,7 @@ describe('templates confidential balances policy / auditor passthrough', () => {
                     feePayer,
                     {
                         enableConfidentialBalances: true,
-                        confidentialBalancesPolicy: policy,
-                        auditorElgamalPubkey,
+                        confidentialBalances: { policy, auditorElgamalPubkey },
                     },
                 );
             },
@@ -99,7 +98,7 @@ describe('templates confidential balances policy / auditor passthrough', () => {
                     undefined,
                     false,
                     undefined,
-                    { confidentialBalancesPolicy: policy, auditorElgamalPubkey },
+                    { policy, auditorElgamalPubkey },
                 );
             },
         },
@@ -117,7 +116,7 @@ describe('templates confidential balances policy / auditor passthrough', () => {
                     mint,
                     feePayer,
                     undefined,
-                    { enableSrfc37: false, confidentialBalancesPolicy: policy, auditorElgamalPubkey },
+                    { enableSrfc37: false, confidentialBalances: { policy, auditorElgamalPubkey } },
                 );
             },
         },
@@ -138,8 +137,7 @@ describe('templates confidential balances policy / auditor passthrough', () => {
                     {
                         enableConfidentialBalances: true,
                         enableSrfc37: false,
-                        confidentialBalancesPolicy: policy,
-                        auditorElgamalPubkey,
+                        confidentialBalances: { policy, auditorElgamalPubkey },
                     },
                 );
             },
