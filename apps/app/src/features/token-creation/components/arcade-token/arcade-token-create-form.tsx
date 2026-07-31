@@ -13,6 +13,7 @@ interface ArcadeTokenCreateFormProps {
     rpcUrl?: string;
     onTokenCreated?: () => void;
     onCancel?: () => void;
+    onClose?: () => void;
 }
 
 const STEPS: Step[] = [
@@ -37,6 +38,7 @@ export function ArcadeTokenCreateForm({
     rpcUrl,
     onTokenCreated,
     onCancel,
+    onClose,
 }: ArcadeTokenCreateFormProps) {
     const formState = useTokenCreationForm<ArcadeTokenOptions, ArcadeTokenCreationResult>({
         initialOptions: INITIAL_OPTIONS,
@@ -64,7 +66,7 @@ export function ArcadeTokenCreateForm({
                         return null;
                 }
             }}
-            renderResult={result => <ArcadeTokenCreationResultDisplay result={result} />}
+            renderResult={result => <ArcadeTokenCreationResultDisplay result={result} onClose={onClose} />}
         />
     );
 }
