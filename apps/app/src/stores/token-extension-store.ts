@@ -13,6 +13,10 @@ import {
     updateScaledUiMultiplier as updateScaledUiMultiplierLib,
     type UpdateScaledUiMultiplierOptions,
 } from '@/features/token-management/lib/scaled-ui-amount';
+import {
+    updateTransferHookProgram as updateTransferHookProgramLib,
+    type UpdateTransferHookOptions,
+} from '@/features/token-management/lib/transfer-hook';
 import { humanizeError } from '@/lib/errors';
 
 // Individual extension states
@@ -29,10 +33,20 @@ interface ScaledUiAmountState {
     error: string | null;
 }
 
+interface TransferHookState {
+    /** Currently active hook program id, or null if the extension is inactive/unset. */
+    programId: string | null;
+    /** Whether programId has been seeded from chain data yet (see seedTransferHookProgramId). */
+    seeded: boolean;
+    isUpdating: boolean;
+    error: string | null;
+}
+
 // Combined state for a single token
 interface ExtensionState {
     pause: PauseState;
     scaledUiAmount: ScaledUiAmountState;
+    transferHook: TransferHookState;
 }
 
 // Default state factory
@@ -46,6 +60,12 @@ function createDefaultExtensionState(): ExtensionState {
         },
         scaledUiAmount: {
             multiplier: null,
+            isUpdating: false,
+            error: null,
+        },
+        transferHook: {
+            programId: null,
+            seeded: false,
             isUpdating: false,
             error: null,
         },
@@ -69,6 +89,14 @@ interface TokenExtensionStore {
     updateScaledUiMultiplier: (
         mint: string,
         options: Omit<UpdateScaledUiMultiplierOptions, 'mint'>,
+        signer: TransactionModifyingSigner,
+    ) => Promise<boolean>;
+
+    // Transfer Hook actions
+    seedTransferHookProgramId: (mint: string, programId: string | null) => void;
+    updateTransferHookProgram: (
+        mint: string,
+        options: Omit<UpdateTransferHookOptions, 'mint'>,
         signer: TransactionModifyingSigner,
     ) => Promise<boolean>;
 
@@ -273,6 +301,49 @@ export const useTokenExtensionStore = create<TokenExtensionStore>()(
             });
         },
 
+        // Seed the transfer hook program id from on-chain data, once per mint. Guarded on
+        // transferHook.seeded rather than the mint entry's existence: another extension's
+        // fetch (e.g. fetchPauseState) may have already created the entry for this mint via
+        // ensureExtension, which would make a per-mint existence check skip the seed and
+        // leave programId stuck at its default (null/"Inactive").
+        seedTransferHookProgramId: (mint, programId) => {
+            set(state => {
+                const ext = ensureExtension(state, mint);
+                if (!ext.transferHook.seeded) {
+                    ext.transferHook.programId = programId;
+                    ext.transferHook.seeded = true;
+                }
+            });
+        },
+
+        // Update (or clear) the transfer hook program id
+        updateTransferHookProgram: async (mint, options, signer) => {
+            return executeAsyncOperation({
+                get,
+                set,
+                mint,
+                extensionKey: 'transferHook',
+                operation: async () =>
+                    updateTransferHookProgramLib(
+                        {
+                            mint,
+                            programId: options.programId,
+                            rpcUrl: options.rpcUrl,
+                        },
+                        signer,
+                    ),
+                onSuccess: transferHook => {
+                    (transferHook as TransferHookState).programId = options.programId;
+                    (transferHook as TransferHookState).seeded = true;
+                },
+                onFailure: () => {
+                    // No optimistic update to revert
+                },
+                successToast: options.programId ? 'Transfer hook updated' : 'Transfer hook cleared',
+                errorToast: 'Failed to update transfer hook',
+            });
+        },
+
         // Generic extension field updater
         updateExtensionField: <K extends keyof ExtensionState>(
             mint: string,
@@ -324,6 +395,14 @@ const DEFAULT_SCALED_UI_STATE: ScaledUiAmountState = {
     error: null,
 };
 
+// Default transfer hook state for selector
+const DEFAULT_TRANSFER_HOOK_STATE: TransferHookState = {
+    programId: null,
+    seeded: false,
+    isUpdating: false,
+    error: null,
+};
+
 /**
  * Selector hook for pause state of a specific token
  * Uses useShallow to prevent unnecessary re-renders
@@ -342,6 +421,18 @@ export function useScaledUiAmountState(mint: string | undefined): ScaledUiAmount
     return useTokenExtensionStore(
         useShallow(state =>
             mint ? (state.extensions[mint]?.scaledUiAmount ?? DEFAULT_SCALED_UI_STATE) : DEFAULT_SCALED_UI_STATE,
+        ),
+    );
+}
+
+/**
+ * Selector hook for transfer hook state of a specific token
+ * Uses useShallow to prevent unnecessary re-renders
+ */
+export function useTransferHookState(mint: string | undefined): TransferHookState {
+    return useTokenExtensionStore(
+        useShallow(state =>
+            mint ? (state.extensions[mint]?.transferHook ?? DEFAULT_TRANSFER_HOOK_STATE) : DEFAULT_TRANSFER_HOOK_STATE,
         ),
     );
 }

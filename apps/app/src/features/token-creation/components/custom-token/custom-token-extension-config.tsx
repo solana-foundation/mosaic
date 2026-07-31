@@ -654,38 +654,61 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
-                            <div className="space-y-1">
-                                <Label
-                                    htmlFor="transferHookProgramId"
-                                    className="text-xs text-muted-foreground flex items-center gap-1"
-                                >
-                                    Hook Program ID
-                                    <span className="text-destructive">*</span>
-                                </Label>
-                                <Input
-                                    id="transferHookProgramId"
-                                    type="text"
-                                    placeholder="Enter the program address..."
-                                    value={options.transferHookProgramId || ''}
-                                    onChange={e => onInputChange('transferHookProgramId', e.target.value)}
-                                    className={cn(
-                                        !options.transferHookProgramId?.trim() &&
-                                            'border-destructive focus-visible:ring-destructive',
-                                    )}
+                            <label className="flex items-start gap-2 cursor-pointer">
+                                <Checkbox
+                                    checked={!!options.transferHookInactive}
+                                    onCheckedChange={checked => {
+                                        onInputChange('transferHookInactive', !!checked);
+                                        if (checked) {
+                                            onInputChange('transferHookProgramId', '');
+                                        }
+                                    }}
                                 />
-                                {!options.transferHookProgramId?.trim() && (
-                                    <p className="text-xs text-destructive">
-                                        A valid program address is required to create a token with Transfer Hook
-                                    </p>
-                                )}
-                            </div>
+                                <span className="text-sm">
+                                    Initialize inactive (no active hook program)
+                                    <span className="block text-xs text-muted-foreground">
+                                        Reserves the Transfer Hook extension on the mint without attaching a program.
+                                        You can point it at a deployed hook program later via an update authority
+                                        instruction, without recreating the mint.
+                                    </span>
+                                </span>
+                            </label>
+
+                            {!options.transferHookInactive && (
+                                <div className="space-y-1">
+                                    <Label
+                                        htmlFor="transferHookProgramId"
+                                        className="text-xs text-muted-foreground flex items-center gap-1"
+                                    >
+                                        Hook Program ID
+                                        <span className="text-destructive">*</span>
+                                    </Label>
+                                    <Input
+                                        id="transferHookProgramId"
+                                        type="text"
+                                        placeholder="Enter the program address..."
+                                        value={options.transferHookProgramId || ''}
+                                        onChange={e => onInputChange('transferHookProgramId', e.target.value)}
+                                        className={cn(
+                                            !options.transferHookProgramId?.trim() &&
+                                                'border-destructive focus-visible:ring-destructive',
+                                        )}
+                                    />
+                                    {!options.transferHookProgramId?.trim() && (
+                                        <p className="text-xs text-destructive">
+                                            A valid program address is required to create a token with Transfer Hook
+                                        </p>
+                                    )}
+                                </div>
+                            )}
                         </div>
                         <Alert variant="warning" className="border-amber-500/50">
                             <AlertTriangle className="h-4 w-4" />
                             <AlertDescription>
                                 <p className="text-xs">
-                                    Transfer hooks require a deployed program that implements the transfer hook
-                                    interface. The program must be deployed before creating the token.
+                                    {options.transferHookInactive
+                                        ? 'The extension will be initialized with no active program. Transfers work normally until a hook program is attached later.'
+                                        : 'Transfer hooks require a deployed program that implements the transfer hook interface. The program must be deployed before creating the token.'}
                                 </p>
                             </AlertDescription>
                         </Alert>

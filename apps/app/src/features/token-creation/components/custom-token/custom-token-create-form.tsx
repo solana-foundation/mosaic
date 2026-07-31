@@ -42,8 +42,8 @@ function canProceed(step: number, options: CustomTokenOptions): boolean {
     }
     // Step 2: Configuration - validate required fields for enabled extensions
     if (step === 2) {
-        // Transfer Hook requires a program ID
-        if (options.enableTransferHook && !options.transferHookProgramId?.trim()) {
+        // Transfer Hook requires a program ID unless it's being initialized inactive
+        if (options.enableTransferHook && !options.transferHookInactive && !options.transferHookProgramId?.trim()) {
             return false;
         }
     }

@@ -35,6 +35,7 @@ type SupportedAuthorityRole =
     | typeof AuthorityType.ConfidentialTransferMint
     | typeof AuthorityType.PermanentDelegate
     | typeof AuthorityType.ScaledUiAmount
+    | typeof AuthorityType.TransferHookProgramId
     | 'Metadata';
 
 /**
@@ -49,6 +50,7 @@ const AUTHORITY_ROLE_TO_KEY: Record<SupportedAuthorityRole, keyof BlockchainAuth
     [AuthorityType.ConfidentialTransferMint]: 'confidentialBalancesAuthority',
     [AuthorityType.PermanentDelegate]: 'permanentDelegateAuthority',
     [AuthorityType.ScaledUiAmount]: 'scaledUiAmountAuthority',
+    [AuthorityType.TransferHookProgramId]: 'transferHookAuthority',
 };
 
 /**
@@ -63,6 +65,7 @@ const LOCKED_DESCRIPTIONS: Record<SupportedAuthorityRole, string> = {
     [AuthorityType.ConfidentialTransferMint]: 'Confidential transfer settings cannot be changed.',
     [AuthorityType.PermanentDelegate]: 'No delegate can transfer or burn tokens from any account.',
     [AuthorityType.ScaledUiAmount]: 'Token display multiplier cannot be updated.',
+    [AuthorityType.TransferHookProgramId]: 'The transfer hook program id cannot be changed.',
 };
 
 interface TokenAuthoritiesProps {
@@ -142,6 +145,15 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
             description: 'This wallet can update the token display multiplier.',
             role: AuthorityType.ScaledUiAmount,
             currentAuthority: token.scaledUiAmountAuthority,
+            isEditing: false,
+            newAuthority: '',
+            isLoading: false,
+        },
+        {
+            label: 'Transfer Hook Authority',
+            description: 'This wallet can attach or detach the transfer hook program.',
+            role: AuthorityType.TransferHookProgramId,
+            currentAuthority: token.transferHookAuthority,
             isEditing: false,
             newAuthority: '',
             isLoading: false,
