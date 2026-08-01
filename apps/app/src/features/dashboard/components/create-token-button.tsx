@@ -2,24 +2,22 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { CreateTokenModal } from '@/features/token-creation/components/create-token-modal';
 import { ImportTokenModal } from './import-token-modal';
 import { IconPlus } from 'symbols-react';
 import { Upload } from 'lucide-react';
 
 interface CreateTokenButtonProps {
-    onTokenCreated: () => void;
+    onCreateClick: () => void;
     onTokenImported: () => void;
 }
 
-export function CreateTokenButton({ onTokenCreated, onTokenImported }: CreateTokenButtonProps) {
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
+export function CreateTokenButton({ onCreateClick, onTokenImported }: CreateTokenButtonProps) {
     const [isImportOpen, setIsImportOpen] = useState(false);
 
     return (
         <>
             <div className="flex items-center gap-2">
-                <Button onClick={() => setIsCreateOpen(true)} size="sm" className="gap-2">
+                <Button onClick={onCreateClick} size="sm" className="gap-2">
                     <IconPlus className="size-3 fill-primary/50" />
                     Create
                 </Button>
@@ -28,7 +26,6 @@ export function CreateTokenButton({ onTokenCreated, onTokenImported }: CreateTok
                 </Button>
             </div>
 
-            <CreateTokenModal isOpen={isCreateOpen} onOpenChange={setIsCreateOpen} onTokenCreated={onTokenCreated} />
             <ImportTokenModal isOpen={isImportOpen} onOpenChange={setIsImportOpen} onTokenImported={onTokenImported} />
         </>
     );

@@ -116,6 +116,11 @@ export function useTokenCreationForm<TOptions extends BaseTokenOptions, TResult 
         try {
             const creationResult = await createToken({ ...options, rpcUrl }, transactionSendingSigner);
 
+            // Publish the result before running `onTokenCreated`: the parent uses that
+            // callback to refresh the dashboard, and it must not be able to unmount this
+            // form before the success screen (mint address, signature, Manage Token) renders.
+            setResult(creationResult);
+
             if (creationResult.success && creationResult.mintAddress) {
                 // Extract wallet address from signer
                 const addrValue: unknown = (
@@ -141,8 +146,6 @@ export function useTokenCreationForm<TOptions extends BaseTokenOptions, TResult 
                 addToken(tokenDisplay);
                 onTokenCreated?.();
             }
-
-            setResult(creationResult);
         } catch (error) {
             setResult({
                 success: false,

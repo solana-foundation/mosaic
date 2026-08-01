@@ -55,6 +55,7 @@ interface CustomTokenCreateFormProps {
     rpcUrl?: string;
     onTokenCreated?: () => void;
     onCancel?: () => void;
+    onClose?: () => void;
 }
 
 const INITIAL_OPTIONS: CustomTokenOptions = {
@@ -82,6 +83,7 @@ export function CustomTokenCreateForm({
     rpcUrl,
     onTokenCreated,
     onCancel,
+    onClose,
 }: CustomTokenCreateFormProps) {
     const formState = useTokenCreationForm<CustomTokenOptions, CustomTokenCreationResult>({
         initialOptions: INITIAL_OPTIONS,
@@ -114,7 +116,7 @@ export function CustomTokenCreateForm({
                         return null;
                 }
             }}
-            renderResult={result => <CustomTokenCreationResultDisplay result={result} />}
+            renderResult={result => <CustomTokenCreationResultDisplay result={result} onClose={onClose} />}
         />
     );
 }
