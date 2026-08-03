@@ -1,4 +1,5 @@
 import { Token } from '../issuance';
+import type { ConfidentialBalancesConfig } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -49,6 +50,8 @@ export const createCustomTokenInitTransaction = async (
         enablePausable?: boolean;
         enablePermanentDelegate?: boolean;
         enablePermissionedBurn?: boolean;
+        // Adds the DefaultAccountState extension. Falsy means the extension is not
+        // added at all — except on the sRFC-37 path, which requires it.
         enableDefaultAccountState?: boolean;
         enableConfidentialBalances?: boolean;
         enableScaledUiAmount?: boolean;
@@ -75,8 +78,15 @@ export const createCustomTokenInitTransaction = async (
         scaledUiAmountNewMultiplier?: number;
         scaledUiAmountNewMultiplierEffectiveTimestamp?: bigint | number;
 
-        // Default Account State configuration
+        // Default Account State configuration.
+        // Only read when `enableDefaultAccountState` is truthy. `true` = Initialized,
+        // `false` = Frozen. Defaults to the sRFC-37-aware state described on
+        // `enableDefaultAccountState` above.
         defaultAccountStateInitialized?: boolean;
+
+        // Confidential Balances policy / auditor (only read when
+        // `enableConfidentialBalances` is truthy).
+        confidentialBalances?: ConfidentialBalancesConfig;
 
         // Freeze authority.
         // Note: ignored when `enableSrfc37: true` — the sRFC-37 path forces the freeze
@@ -152,18 +162,28 @@ export const createCustomTokenInitTransaction = async (
         tokenBuilder = tokenBuilder.withPermissionedBurn(permissionedBurnAuthority);
     }
 
-    // Add Default Account State extension
-    if (options?.enableDefaultAccountState !== undefined) {
-        const initialStateInitialized = options.defaultAccountStateInitialized ?? !useSrfc37;
-        tokenBuilder = tokenBuilder.withDefaultAccountState(initialStateInitialized);
+    // Add Default Account State extension.
+    //
+    // `true` = Initialized, `false` = Frozen. Frozen-by-default only makes sense for a
+    // deny-by-default list: an allowlist gates account usage through permissionless thaw,
+    // whereas a blocklist is allow-by-default. Mirrors stablecoin.ts / tokenized-security.ts
+    // / arcade-token.ts so every template agrees on the sRFC-37 default.
+    const srfc37DefaultStateInitialized = aclMode === 'blocklist' || !useSrfc37;
+    if (options?.enableDefaultAccountState) {
+        tokenBuilder = tokenBuilder.withDefaultAccountState(
+            options.defaultAccountStateInitialized ?? srfc37DefaultStateInitialized,
+        );
     } else if (useSrfc37) {
-        // If SRFC-37 is enabled but default account state is not explicitly set, default to initialized
-        tokenBuilder = tokenBuilder.withDefaultAccountState(true);
+        // sRFC-37 requires the extension even when the caller did not ask for it.
+        tokenBuilder = tokenBuilder.withDefaultAccountState(srfc37DefaultStateInitialized);
     }
 
     // Add Confidential Balances extension
     if (options?.enableConfidentialBalances) {
-        tokenBuilder = tokenBuilder.withConfidentialBalances(confidentialBalancesAuthority);
+        tokenBuilder = tokenBuilder.withConfidentialBalances({
+            authority: confidentialBalancesAuthority,
+            ...options.confidentialBalances,
+        });
     }
 
     // Add Scaled UI Amount extension
