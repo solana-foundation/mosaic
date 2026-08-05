@@ -78,6 +78,14 @@ export interface ConfidentialMintBurnOptions {
 /** Placeholder ciphertexts for extension sizing; the real values are set on-chain by init. */
 const EMPTY_ENCRYPTED_BALANCE = new Uint8Array(64);
 
+/**
+ * Issuer-facing Confidential Balances configuration accepted by the token templates.
+ *
+ * The authority is supplied by the template (its own `confidentialBalancesAuthority`
+ * input, which defaults to the mint authority), so it is not part of this config.
+ */
+export type ConfidentialBalancesConfig = Omit<ConfidentialBalancesOptions, 'authority'>;
+
 export class Token {
     private extensions: Extension[] = [];
     private confidentialTransferFeeConfig?: {

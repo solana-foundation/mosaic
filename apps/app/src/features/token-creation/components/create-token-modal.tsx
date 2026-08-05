@@ -40,13 +40,9 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
         onOpenChange(false);
     };
 
-    const handleTokenCreated = () => {
-        // Call the parent callback to refresh the dashboard
-        onTokenCreated?.();
-        // Close the modal
-        handleClose();
-    };
-
+    // `onTokenCreated` only refreshes the dashboard behind the modal — the modal stays
+    // open so the form can show its success screen (mint address, transaction signature,
+    // Manage Token link). Dismissal is up to the user, via `handleClose`.
     const renderForm = () => {
         if (!transactionSendingSigner || !selectedTemplate) {
             return null;
@@ -58,8 +54,9 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                     <StablecoinCreateForm
                         transactionSendingSigner={transactionSendingSigner}
                         rpcUrl={rpcUrl}
-                        onTokenCreated={handleTokenCreated}
+                        onTokenCreated={onTokenCreated}
                         onCancel={handleBack}
+                        onClose={handleClose}
                     />
                 );
             case 'arcade-token':
@@ -67,8 +64,9 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                     <ArcadeTokenCreateForm
                         transactionSendingSigner={transactionSendingSigner}
                         rpcUrl={rpcUrl}
-                        onTokenCreated={handleTokenCreated}
+                        onTokenCreated={onTokenCreated}
                         onCancel={handleBack}
+                        onClose={handleClose}
                     />
                 );
             case 'tokenized-security':
@@ -76,8 +74,9 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                     <TokenizedSecurityCreateForm
                         transactionSendingSigner={transactionSendingSigner}
                         rpcUrl={rpcUrl}
-                        onTokenCreated={handleTokenCreated}
+                        onTokenCreated={onTokenCreated}
                         onCancel={handleBack}
+                        onClose={handleClose}
                     />
                 );
             case 'custom-token':
@@ -85,8 +84,9 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                     <CustomTokenCreateForm
                         transactionSendingSigner={transactionSendingSigner}
                         rpcUrl={rpcUrl}
-                        onTokenCreated={handleTokenCreated}
+                        onTokenCreated={onTokenCreated}
                         onCancel={handleBack}
+                        onClose={handleClose}
                     />
                 );
             default:

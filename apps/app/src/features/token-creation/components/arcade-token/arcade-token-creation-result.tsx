@@ -1,20 +1,24 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Gamepad2, CheckCircle, Settings } from 'lucide-react';
+import { Gamepad2, CheckCircle } from 'lucide-react';
 import { CopyableExplorerField } from '@/components/copyable-explorer-field';
 import { ArcadeTokenCreationResult } from '@/types/token';
-import Link from 'next/link';
 import { useCluster } from '@solana/connector/react';
 import { getEffectiveClusterName } from '@/lib/solana/explorer';
+import { CreationResultActions } from '../creation-result-actions';
 
 interface ArcadeTokenCreationResultProps {
     result: ArcadeTokenCreationResult;
     cluster?: 'devnet' | 'testnet' | 'mainnet-beta';
+    onClose?: () => void;
 }
 
-export function ArcadeTokenCreationResultDisplay({ result, cluster: clusterProp }: ArcadeTokenCreationResultProps) {
+export function ArcadeTokenCreationResultDisplay({
+    result,
+    cluster: clusterProp,
+    onClose,
+}: ArcadeTokenCreationResultProps) {
     const { cluster: connectorCluster } = useCluster();
     const cluster = getEffectiveClusterName(clusterProp, connectorCluster) as 'devnet' | 'testnet' | 'mainnet-beta';
     return (
@@ -76,21 +80,14 @@ export function ArcadeTokenCreationResultDisplay({ result, cluster: clusterProp 
                             </div>
                         </div>
 
-                        {/* Manage Token Button */}
-                        {result.mintAddress && (
-                            <div className="pt-4 border-t">
-                                <Link href={`/manage/${result.mintAddress}`}>
-                                    <Button className="w-full">
-                                        <Settings className="h-4 w-4 mr-2" />
-                                        Manage Token
-                                    </Button>
-                                </Link>
-                            </div>
-                        )}
+                        <CreationResultActions mintAddress={result.mintAddress} onClose={onClose} />
                     </div>
                 ) : (
-                    <div className="text-red-600">
-                        <strong>Error:</strong> {result.error}
+                    <div className="space-y-4">
+                        <div className="text-red-600">
+                            <strong>Error:</strong> {result.error}
+                        </div>
+                        <CreationResultActions onClose={onClose} closeLabel="Close" />
                     </div>
                 )}
             </CardContent>
