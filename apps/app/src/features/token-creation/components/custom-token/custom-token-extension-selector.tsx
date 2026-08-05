@@ -149,7 +149,11 @@ export function hasExtensionsRequiringConfig(options: CustomTokenOptions): boole
         options.enableInterestBearing ||
         options.enableTransferHook ||
         options.enableSrfc37 ||
-        options.enableScaledUiAmount
+        options.enableScaledUiAmount ||
+        // Both have configurable sub-options (frozen-vs-initialized, approve policy +
+        // auditor key) that are only reachable from the Configuration step.
+        options.enableDefaultAccountState ||
+        options.enableConfidentialBalances
     );
 }
 

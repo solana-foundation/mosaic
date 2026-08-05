@@ -170,12 +170,36 @@ export function CustomTokenCreationResultDisplay({
                             </>
                         )}
 
+                        {/* Confidential Balances */}
+                        {result.details?.confidentialBalancesPolicy && (
+                            <>
+                                <div className="pt-2 text-sm text-muted-foreground">Confidential Balances</div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                        <strong>Access:</strong>{' '}
+                                        {result.details.confidentialBalancesPolicy === 'opt-in'
+                                            ? 'Opt-in (holders self-enable)'
+                                            : 'Approval required'}
+                                    </div>
+                                    {result.details?.auditorElgamalPubkey && (
+                                        <div>
+                                            <strong>Auditor:</strong>{' '}
+                                            <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                                {result.details.auditorElgamalPubkey}
+                                            </code>
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        )}
+
                         {/* Other Authorities */}
                         {(result.details?.metadataAuthority ||
                             result.details?.pausableAuthority ||
                             result.details?.permanentDelegateAuthority ||
                             result.details?.confidentialBalancesAuthority ||
-                            result.details?.scaledUiAmountAuthority) && (
+                            result.details?.scaledUiAmountAuthority ||
+                            result.details?.freezeAuthority) && (
                             <>
                                 <div className="pt-2 text-sm text-muted-foreground">Authorities</div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
@@ -224,6 +248,14 @@ export function CustomTokenCreationResultDisplay({
                                             <strong>Scaled UI Amount Authority:</strong>{' '}
                                             <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
                                                 {result.details.scaledUiAmountAuthority}
+                                            </code>
+                                        </div>
+                                    )}
+                                    {result.details?.freezeAuthority && (
+                                        <div>
+                                            <strong>Freeze Authority:</strong>{' '}
+                                            <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                                {result.details.freezeAuthority}
                                             </code>
                                         </div>
                                     )}

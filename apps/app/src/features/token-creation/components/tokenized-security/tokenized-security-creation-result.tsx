@@ -109,6 +109,38 @@ export function TokenizedSecurityCreationResultDisplay({ result, onClose }: Toke
                                     {result.details?.permanentDelegateAuthority}
                                 </code>
                             </div>
+                            {result.details?.permissionedBurnAuthority && (
+                                <div>
+                                    <strong>Permissioned Burn Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.permissionedBurnAuthority}
+                                    </code>
+                                </div>
+                            )}
+                            {result.details?.scaledUiAmountAuthority && (
+                                <div>
+                                    <strong>Scaled UI Amount Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.scaledUiAmountAuthority}
+                                    </code>
+                                </div>
+                            )}
+                            {result.details?.freezeAuthority && (
+                                <div className="md:col-span-2">
+                                    <strong>Freeze Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.freezeAuthority}
+                                    </code>
+                                </div>
+                            )}
+                            {result.details?.auditorElgamalPubkey && (
+                                <div className="md:col-span-2">
+                                    <strong>Auditor ElGamal Key:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.auditorElgamalPubkey}
+                                    </code>
+                                </div>
+                            )}
                         </div>
 
                         <CreationResultActions mintAddress={result.mintAddress} onClose={onClose} />

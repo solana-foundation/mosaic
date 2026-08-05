@@ -72,12 +72,47 @@ export function ArcadeTokenCreationResultDisplay({
                             <div>
                                 <strong>Decimals:</strong> {result.details?.decimals}
                             </div>
-                            <div>
-                                <strong>ACL Mode:</strong> Allowlist
-                            </div>
+                            {/* Only claim an ACL when sRFC-37 actually created one. */}
+                            {result.details?.enableSrfc37 && (
+                                <div>
+                                    <strong>ACL Mode:</strong> Allowlist
+                                </div>
+                            )}
                             <div>
                                 <strong>Extensions:</strong> {result.details?.extensions?.join(', ')}
                             </div>
+                            {result.details?.metadataAuthority && (
+                                <div>
+                                    <strong>Metadata Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.metadataAuthority}
+                                    </code>
+                                </div>
+                            )}
+                            {result.details?.pausableAuthority && (
+                                <div>
+                                    <strong>Pausable Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.pausableAuthority}
+                                    </code>
+                                </div>
+                            )}
+                            {result.details?.permanentDelegateAuthority && (
+                                <div>
+                                    <strong>Permanent Delegate Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.permanentDelegateAuthority}
+                                    </code>
+                                </div>
+                            )}
+                            {result.details?.freezeAuthority && (
+                                <div>
+                                    <strong>Freeze Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.freezeAuthority}
+                                    </code>
+                                </div>
+                            )}
                         </div>
 
                         <CreationResultActions mintAddress={result.mintAddress} onClose={onClose} />

@@ -1,4 +1,12 @@
-import type { TokenType } from '@solana/mosaic-sdk';
+import type { ConfidentialApprovePolicy, TokenType } from '@solana/mosaic-sdk';
+
+/**
+ * Confidential-balances approve policy, as a form value.
+ *
+ * `'whitelist'` leaves the extension gated so the authority must approve each account;
+ * `'opt-in'` lets holders configure their own confidential account permissionlessly.
+ */
+export type ConfidentialPolicy = ConfidentialApprovePolicy;
 
 export interface TokenDisplay {
     name?: string;
@@ -35,6 +43,10 @@ export interface StablecoinOptions {
     pausableAuthority?: string;
     confidentialBalancesAuthority?: string;
     permanentDelegateAuthority?: string;
+    freezeAuthority?: string;
+    // Confidential Balances configuration
+    confidentialBalancesPolicy?: ConfidentialPolicy;
+    auditorElgamalPubkey?: string;
     rpcUrl?: string;
 }
 
@@ -53,6 +65,9 @@ export interface StablecoinCreationResult {
         pausableAuthority?: string;
         confidentialBalancesAuthority?: string;
         permanentDelegateAuthority?: string;
+        freezeAuthority?: string;
+        confidentialBalancesPolicy?: ConfidentialPolicy;
+        auditorElgamalPubkey?: string;
         extensions: string[];
     };
 }
@@ -67,6 +82,7 @@ export interface ArcadeTokenOptions {
     metadataAuthority?: string;
     pausableAuthority?: string;
     permanentDelegateAuthority?: string;
+    freezeAuthority?: string;
     mintKeypair?: string;
     rpcUrl?: string;
     keypair?: string;
@@ -86,6 +102,7 @@ export interface ArcadeTokenCreationResult {
         metadataAuthority?: string;
         pausableAuthority?: string;
         permanentDelegateAuthority?: string;
+        freezeAuthority?: string;
         enableSrfc37: boolean;
         extensions: string[];
     };
@@ -103,7 +120,12 @@ export interface TokenizedSecurityOptions {
     pausableAuthority?: string;
     confidentialBalancesAuthority?: string;
     permanentDelegateAuthority?: string;
+    permissionedBurnAuthority?: string;
     scaledUiAmountAuthority?: string;
+    freezeAuthority?: string;
+    // Confidential Balances configuration
+    confidentialBalancesPolicy?: ConfidentialPolicy;
+    auditorElgamalPubkey?: string;
     multiplier?: string; // Scaled UI Amount multiplier
     rpcUrl?: string;
 }
@@ -123,6 +145,11 @@ export interface TokenizedSecurityCreationResult {
         pausableAuthority?: string;
         confidentialBalancesAuthority?: string;
         permanentDelegateAuthority?: string;
+        permissionedBurnAuthority?: string;
+        scaledUiAmountAuthority?: string;
+        freezeAuthority?: string;
+        confidentialBalancesPolicy?: ConfidentialPolicy;
+        auditorElgamalPubkey?: string;
         multiplier: number;
         extensions: string[];
     };
@@ -159,9 +186,13 @@ export interface CustomTokenOptions {
     scaledUiAmountMultiplier?: string;
     scaledUiAmountNewMultiplier?: string;
     scaledUiAmountEffectiveTimestamp?: string;
-    // Default Account State configuration
+    // Default Account State configuration.
+    // `true` = new accounts start Initialized, `false` = they start Frozen.
     defaultAccountStateInitialized?: boolean;
     freezeAuthority?: string;
+    // Confidential Balances configuration
+    confidentialBalancesPolicy?: ConfidentialPolicy;
+    auditorElgamalPubkey?: string;
     // Transfer Fee configuration
     transferFeeBasisPoints?: string;
     transferFeeMaximum?: string;
@@ -194,6 +225,10 @@ export interface CustomTokenCreationResult {
         scaledUiAmountAuthority?: string;
         scaledUiAmountMultiplier?: number;
         defaultAccountStateInitialized?: boolean;
+        freezeAuthority?: string;
+        // Confidential Balances details
+        confidentialBalancesPolicy?: ConfidentialPolicy;
+        auditorElgamalPubkey?: string;
         // Transfer Fee details
         transferFeeBasisPoints?: number;
         transferFeeMaximum?: string;

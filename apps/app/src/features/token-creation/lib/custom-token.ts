@@ -15,6 +15,17 @@ import {
 import { CustomTokenCreationResult, CustomTokenOptions } from '@/types/token';
 import { createCustomTokenInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
+import { assertValidAddressFields } from './validate-authorities';
+
+/**
+ * Normalises a form boolean.
+ *
+ * `useTokenCreationForm.setOption` is typed `string | boolean`, so a boolean option can
+ * arrive as the string `'true'` / `'false'` depending on which control wrote it.
+ */
+function asBoolean(value: unknown): boolean {
+    return value === true || value === 'true';
+}
 
 /**
  * Validates custom token options and returns parsed decimals
@@ -106,6 +117,37 @@ function validateCustomTokenOptions(options: CustomTokenOptions): number {
         }
     }
 
+    // Every authority is cast straight to `Address` further down, so validate here rather
+    // than letting a malformed string fail deep inside kit with an opaque message.
+    assertValidAddressFields(options, {
+        mintAuthority: 'Mint authority',
+        metadataAuthority: 'Metadata authority',
+        pausableAuthority: 'Pausable authority',
+        permanentDelegateAuthority: 'Permanent delegate authority',
+        confidentialBalancesAuthority: 'Confidential balances authority',
+        scaledUiAmountAuthority: 'Scaled UI amount authority',
+        freezeAuthority: 'Freeze authority',
+        transferFeeAuthority: 'Transfer fee authority',
+        withdrawWithheldAuthority: 'Withdraw withheld authority',
+        interestBearingAuthority: 'Interest bearing authority',
+        transferHookAuthority: 'Transfer hook authority',
+    });
+
+    if (options.enableConfidentialBalances && options.auditorElgamalPubkey?.trim()) {
+        if (!isAddress(options.auditorElgamalPubkey.trim())) {
+            throw new Error('Auditor ElGamal public key must be a valid Solana address');
+        }
+    }
+
+    // Token-2022 charges min(amount × basisPoints, maximumFee), so a rate with no cap
+    // collects nothing at all.
+    if (options.enableTransferFee) {
+        const basisPoints = options.transferFeeBasisPoints ? parseInt(options.transferFeeBasisPoints, 10) : 0;
+        if (basisPoints > 0 && !options.transferFeeMaximum?.trim()) {
+            throw new Error('A maximum fee cap is required when the transfer fee rate is above zero');
+        }
+    }
+
     // Check for conflicting extensions
     if (options.enableNonTransferable && options.enableTransferFee) {
         throw new Error('Non-transferable tokens cannot have transfer fees');
@@ -126,7 +168,13 @@ export const createCustomToken = async (
 ): Promise<CustomTokenCreationResult> => {
     try {
         const decimals = validateCustomTokenOptions(options);
-        const enableSrfc37 = (options.enableSrfc37 as unknown) === true || (options.enableSrfc37 as unknown) === 'true';
+        const enableSrfc37 = asBoolean(options.enableSrfc37);
+        const enableDefaultAccountState = asBoolean(options.enableDefaultAccountState);
+        // `true` = Initialized, `false` = Frozen. Defaults to Initialized when unset.
+        const defaultAccountStateInitialized =
+            options.defaultAccountStateInitialized === undefined
+                ? true
+                : asBoolean(options.defaultAccountStateInitialized);
 
         // Get wallet public key
         const walletPublicKey = signer.address;
@@ -193,7 +241,10 @@ export const createCustomToken = async (
                 enableMetadata: options.enableMetadata !== false, // Default to true
                 enablePausable: options.enablePausable ?? false,
                 enablePermanentDelegate: options.enablePermanentDelegate ?? false,
-                enableDefaultAccountState: options.enableDefaultAccountState ?? false,
+                // Send `undefined` rather than `false` when the extension is off. The SDK now
+                // gates on truthiness, but a defined `false` used to still add the extension —
+                // which is why every UI-created token carried DefaultAccountState.
+                enableDefaultAccountState: enableDefaultAccountState || undefined,
                 enableConfidentialBalances: options.enableConfidentialBalances ?? false,
                 enableScaledUiAmount: options.enableScaledUiAmount ?? false,
                 enableSrfc37,
@@ -243,8 +294,15 @@ export const createCustomToken = async (
                     }
                     return 0n;
                 })(),
-                defaultAccountStateInitialized: options.defaultAccountStateInitialized ?? true,
+                // Left undefined when the extension is off so the SDK's aclMode-aware default
+                // can fire on the sRFC-37 path.
+                defaultAccountStateInitialized: enableDefaultAccountState ? defaultAccountStateInitialized : undefined,
                 freezeAuthority,
+                // Confidential Balances configuration
+                confidentialBalancesPolicy: options.confidentialBalancesPolicy,
+                auditorElgamalPubkey: options.auditorElgamalPubkey?.trim()
+                    ? (options.auditorElgamalPubkey.trim() as Address)
+                    : undefined,
                 // Transfer Fee configuration
                 transferFeeAuthority,
                 withdrawWithheldAuthority,
@@ -275,12 +333,21 @@ export const createCustomToken = async (
         if (options.enableMetadata !== false) extensions.push('Metadata');
         if (options.enablePausable) extensions.push('Pausable');
         if (options.enablePermanentDelegate) extensions.push('Permanent Delegate');
-        if (options.enableDefaultAccountState) {
+        // sRFC-37 pulls the extension in even when it wasn't selected, so report it either way
+        // rather than letting the summary disagree with the mint.
+        if (enableDefaultAccountState || enableSrfc37) {
+            const initialized = enableDefaultAccountState
+                ? defaultAccountStateInitialized
+                : options.aclMode !== 'allowlist';
+            extensions.push(`Default Account State (${initialized ? 'Initialized' : 'Frozen'})`);
+        }
+        if (options.enableConfidentialBalances) {
             extensions.push(
-                `Default Account State (${options.defaultAccountStateInitialized !== false ? 'Initialized' : 'Frozen'})`,
+                `Confidential Balances (${
+                    options.confidentialBalancesPolicy === 'opt-in' ? 'Opt-in' : 'Approval required'
+                })`,
             );
         }
-        if (options.enableConfidentialBalances) extensions.push('Confidential Balances');
         if (options.enableScaledUiAmount) extensions.push('Scaled UI Amount');
         if (options.enableTransferFee) extensions.push('Transfer Fee');
         if (options.enableInterestBearing) extensions.push('Interest Bearing');
@@ -308,7 +375,13 @@ export const createCustomToken = async (
                 scaledUiAmountMultiplier: options.scaledUiAmountMultiplier
                     ? parseFloat(options.scaledUiAmountMultiplier)
                     : undefined,
-                defaultAccountStateInitialized: options.defaultAccountStateInitialized ?? true,
+                defaultAccountStateInitialized: enableDefaultAccountState ? defaultAccountStateInitialized : undefined,
+                freezeAuthority: freezeAuthority?.toString(),
+                // Confidential Balances details
+                confidentialBalancesPolicy: options.enableConfidentialBalances
+                    ? options.confidentialBalancesPolicy || 'whitelist'
+                    : undefined,
+                auditorElgamalPubkey: options.auditorElgamalPubkey?.trim() || undefined,
                 // Transfer Fee details
                 transferFeeBasisPoints: options.transferFeeBasisPoints
                     ? parseInt(options.transferFeeBasisPoints, 10)

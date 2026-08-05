@@ -108,6 +108,22 @@ export function StablecoinCreationResultDisplay({ result, onClose }: StablecoinC
                                     {result.details?.permanentDelegateAuthority}
                                 </code>
                             </div>
+                            {result.details?.freezeAuthority && (
+                                <div className="md:col-span-2">
+                                    <strong>Freeze Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.freezeAuthority}
+                                    </code>
+                                </div>
+                            )}
+                            {result.details?.auditorElgamalPubkey && (
+                                <div className="md:col-span-2">
+                                    <strong>Auditor ElGamal Key:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.auditorElgamalPubkey}
+                                    </code>
+                                </div>
+                            )}
                         </div>
 
                         <CreationResultActions mintAddress={result.mintAddress} onClose={onClose} />

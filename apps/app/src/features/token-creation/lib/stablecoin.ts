@@ -14,6 +14,7 @@ import {
 import { StablecoinCreationResult, StablecoinOptions } from '@/types/token';
 import { createStablecoinInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
+import { assertValidAddressFields } from './validate-authorities';
 
 /**
  * Validates stablecoin options and returns parsed decimals
@@ -30,6 +31,16 @@ function validateStablecoinOptions(options: StablecoinOptions): number {
     if (isNaN(decimals) || decimals < 0 || decimals > 9) {
         throw new Error('Decimals must be a number between 0 and 9');
     }
+
+    assertValidAddressFields(options, {
+        mintAuthority: 'Mint authority',
+        metadataAuthority: 'Metadata authority',
+        pausableAuthority: 'Pausable authority',
+        confidentialBalancesAuthority: 'Confidential balances authority',
+        permanentDelegateAuthority: 'Permanent delegate authority',
+        freezeAuthority: 'Freeze authority',
+        auditorElgamalPubkey: 'Auditor ElGamal public key',
+    });
 
     return decimals;
 }
@@ -75,6 +86,11 @@ export const createStablecoin = async (
         const permanentDelegateAuthority = options.permanentDelegateAuthority
             ? (options.permanentDelegateAuthority as Address)
             : undefined;
+        // Ignored by the SDK on the sRFC-37 path, which forces the mint authority.
+        const freezeAuthority = options.freezeAuthority ? (options.freezeAuthority as Address) : undefined;
+        const auditorElgamalPubkey = options.auditorElgamalPubkey?.trim()
+            ? (options.auditorElgamalPubkey.trim() as Address)
+            : undefined;
 
         // Create RPC client using standardized URL handling
         const rpcUrl = getRpcUrl(options.rpcUrl);
@@ -97,6 +113,11 @@ export const createStablecoin = async (
             confidentialBalancesAuthority,
             permanentDelegateAuthority,
             enableSrfc37,
+            freezeAuthority,
+            {
+                confidentialBalancesPolicy: options.confidentialBalancesPolicy,
+                auditorElgamalPubkey,
+            },
         );
 
         // Sign the transaction with the modifying signer
@@ -122,7 +143,21 @@ export const createStablecoin = async (
                 pausableAuthority: pausableAuthority?.toString(),
                 confidentialBalancesAuthority: confidentialBalancesAuthority?.toString(),
                 permanentDelegateAuthority: permanentDelegateAuthority?.toString(),
-                extensions: ['Metadata', 'Pausable', 'Confidential Balances', 'Permanent Delegate'],
+                freezeAuthority: freezeAuthority?.toString(),
+                confidentialBalancesPolicy: options.confidentialBalancesPolicy || 'whitelist',
+                auditorElgamalPubkey: auditorElgamalPubkey?.toString(),
+                extensions: [
+                    'Metadata',
+                    'Pausable',
+                    // The template always adds this; `blocklist || !srfc37` decides the state.
+                    `Default Account State (${
+                        options.aclMode === 'blocklist' || !enableSrfc37 ? 'Initialized' : 'Frozen'
+                    })`,
+                    `Confidential Balances (${
+                        options.confidentialBalancesPolicy === 'opt-in' ? 'Opt-in' : 'Approval required'
+                    })`,
+                    'Permanent Delegate',
+                ],
             },
         };
     } catch (error) {

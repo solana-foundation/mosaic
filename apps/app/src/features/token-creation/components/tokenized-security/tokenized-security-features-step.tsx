@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { TokenizedSecurityOptions } from '@/types/token';
 import { ShieldCheck, ShieldX, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ConfidentialBalancesConfig } from '../confidential-balances-config';
 
 interface TokenizedSecurityFeaturesStepProps {
     options: TokenizedSecurityOptions;
@@ -114,6 +115,16 @@ export function TokenizedSecurityFeaturesStep({ options, onInputChange }: Tokeni
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Tokenized securities always carry the Confidential Balances extension, so this is
+                unconditional — unlike the Custom Token form, where it is gated on the checkbox.
+                `onInputChange` is keyed to this options type, so widen it for the shared card;
+                both fields it writes are keys of TokenizedSecurityOptions. */}
+            <ConfidentialBalancesConfig
+                idPrefix="tokenized-security"
+                options={options}
+                onInputChange={(field, value) => onInputChange(field as keyof TokenizedSecurityOptions, value)}
+            />
         </div>
     );
 }

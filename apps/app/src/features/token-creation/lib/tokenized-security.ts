@@ -14,6 +14,7 @@ import {
 import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/types/token';
 import { createTokenizedSecurityInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
+import { assertValidAddressFields } from './validate-authorities';
 
 function validateOptions(options: TokenizedSecurityOptions): number {
     if (!options.name || !options.symbol) {
@@ -27,6 +28,19 @@ function validateOptions(options: TokenizedSecurityOptions): number {
     if (!Number.isFinite(multiplier) || multiplier <= 0) {
         throw new Error('Multiplier must be a positive number');
     }
+
+    assertValidAddressFields(options, {
+        mintAuthority: 'Mint authority',
+        metadataAuthority: 'Metadata authority',
+        pausableAuthority: 'Pausable authority',
+        confidentialBalancesAuthority: 'Confidential balances authority',
+        permanentDelegateAuthority: 'Permanent delegate authority',
+        permissionedBurnAuthority: 'Permissioned burn authority',
+        scaledUiAmountAuthority: 'Scaled UI amount authority',
+        freezeAuthority: 'Freeze authority',
+        auditorElgamalPubkey: 'Auditor ElGamal public key',
+    });
+
     return decimals;
 }
 
@@ -68,6 +82,14 @@ export const createTokenizedSecurity = async (
         const scaledUiAmountAuthority = options.scaledUiAmountAuthority
             ? (options.scaledUiAmountAuthority as Address)
             : undefined;
+        const permissionedBurnAuthority = options.permissionedBurnAuthority
+            ? (options.permissionedBurnAuthority as Address)
+            : undefined;
+        // Ignored by the SDK on the sRFC-37 path, which forces the mint authority.
+        const freezeAuthority = options.freezeAuthority ? (options.freezeAuthority as Address) : undefined;
+        const auditorElgamalPubkey = options.auditorElgamalPubkey?.trim()
+            ? (options.auditorElgamalPubkey.trim() as Address)
+            : undefined;
 
         const multiplier = Number(options.multiplier ?? '1');
 
@@ -85,7 +107,7 @@ export const createTokenizedSecurity = async (
             mintAuthority,
             mintKeypair,
             signer,
-            undefined, // freezeAuthority - TODO add argument for this
+            freezeAuthority,
             {
                 aclMode: options.aclMode || 'blocklist',
                 enableSrfc37,
@@ -93,6 +115,9 @@ export const createTokenizedSecurity = async (
                 pausableAuthority,
                 confidentialBalancesAuthority,
                 permanentDelegateAuthority,
+                permissionedBurnAuthority,
+                confidentialBalancesPolicy: options.confidentialBalancesPolicy,
+                auditorElgamalPubkey,
                 scaledUiAmount: {
                     authority: scaledUiAmountAuthority,
                     multiplier,
@@ -123,13 +148,25 @@ export const createTokenizedSecurity = async (
                 pausableAuthority: pausableAuthority?.toString(),
                 confidentialBalancesAuthority: confidentialBalancesAuthority?.toString(),
                 permanentDelegateAuthority: permanentDelegateAuthority?.toString(),
+                permissionedBurnAuthority: permissionedBurnAuthority?.toString(),
+                scaledUiAmountAuthority: scaledUiAmountAuthority?.toString(),
+                freezeAuthority: freezeAuthority?.toString(),
+                confidentialBalancesPolicy: options.confidentialBalancesPolicy || 'whitelist',
+                auditorElgamalPubkey: auditorElgamalPubkey?.toString(),
                 multiplier,
                 extensions: [
                     'Metadata',
                     'Pausable',
-                    `Default Account State (${(options.aclMode || 'blocklist') === 'allowlist' ? 'Allowlist' : 'Blocklist'})`,
-                    'Confidential Balances',
+                    // Report the state that actually lands, not the list mode: the template
+                    // uses `blocklist || !srfc37` to pick Initialized vs Frozen.
+                    `Default Account State (${
+                        options.aclMode === 'blocklist' || !enableSrfc37 ? 'Initialized' : 'Frozen'
+                    })`,
+                    `Confidential Balances (${
+                        options.confidentialBalancesPolicy === 'opt-in' ? 'Opt-in' : 'Approval required'
+                    })`,
                     'Permanent Delegate',
+                    'Permissioned Burn',
                     'Scaled UI Amount',
                 ],
             },

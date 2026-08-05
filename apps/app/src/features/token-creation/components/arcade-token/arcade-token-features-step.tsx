@@ -13,8 +13,11 @@ const DEFAULT_FEATURES = [
         description: 'Ability to pause token transfers',
     },
     {
-        name: 'Default Account State (Allowlist)',
-        description: 'New accounts start frozen until added to allowlist',
+        // The template sets `withDefaultAccountState(!useSrfc37)`, and sRFC-37 is not
+        // configurable from this form, so new accounts start Initialized. The previous copy
+        // ("start frozen until added to allowlist") described behaviour the form can't produce.
+        name: 'Default Account State',
+        description: 'New accounts start active and can be frozen individually',
     },
     {
         name: 'Permanent Delegate',
