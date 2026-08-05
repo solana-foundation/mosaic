@@ -115,7 +115,7 @@ export const createStablecoin = async (
             enableSrfc37,
             freezeAuthority,
             {
-                confidentialBalancesPolicy: options.confidentialBalancesPolicy,
+                policy: options.confidentialBalancesPolicy,
                 auditorElgamalPubkey,
             },
         );

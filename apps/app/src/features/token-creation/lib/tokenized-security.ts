@@ -116,8 +116,10 @@ export const createTokenizedSecurity = async (
                 confidentialBalancesAuthority,
                 permanentDelegateAuthority,
                 permissionedBurnAuthority,
-                confidentialBalancesPolicy: options.confidentialBalancesPolicy,
-                auditorElgamalPubkey,
+                confidentialBalances: {
+                    policy: options.confidentialBalancesPolicy,
+                    auditorElgamalPubkey,
+                },
                 scaledUiAmount: {
                     authority: scaledUiAmountAuthority,
                     multiplier,

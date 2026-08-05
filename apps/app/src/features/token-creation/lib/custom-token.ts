@@ -299,10 +299,12 @@ export const createCustomToken = async (
                 defaultAccountStateInitialized: enableDefaultAccountState ? defaultAccountStateInitialized : undefined,
                 freezeAuthority,
                 // Confidential Balances configuration
-                confidentialBalancesPolicy: options.confidentialBalancesPolicy,
-                auditorElgamalPubkey: options.auditorElgamalPubkey?.trim()
-                    ? (options.auditorElgamalPubkey.trim() as Address)
-                    : undefined,
+                confidentialBalances: {
+                    policy: options.confidentialBalancesPolicy,
+                    auditorElgamalPubkey: options.auditorElgamalPubkey?.trim()
+                        ? (options.auditorElgamalPubkey.trim() as Address)
+                        : undefined,
+                },
                 // Transfer Fee configuration
                 transferFeeAuthority,
                 withdrawWithheldAuthority,
