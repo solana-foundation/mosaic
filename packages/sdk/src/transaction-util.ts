@@ -20,7 +20,7 @@ import {
     getTransactionCodec,
     getBase64EncodedWireTransaction,
 } from '@solana/kit';
-import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import { fetchMint, findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { TOKEN_ACL_PROGRAM_ID } from './token-acl/utils';
 
@@ -233,6 +233,44 @@ export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address, comm
         /** The token program that owns this mint (Token-2022 or SPL Token) */
         programAddress: accountInfo.value.owner,
     };
+}
+
+/**
+ * Whether a mint carries the Token-2022 `ConfidentialMintBurn` extension.
+ *
+ * A `ConfidentialMintBurn` mint tracks its supply as an encrypted value, so the
+ * Token-2022 program rejects plaintext `MintTo` / `Burn` on it
+ * (`IllegalMintBurnConversion`). All issuance/redemption must go through the
+ * confidential mint/burn path in `@solana/mosaic-sdk/confidential`. The plaintext
+ * mint/burn builders use this to fail fast with an actionable message instead of
+ * building a transaction the chain would reject.
+ *
+ * This does its own `fetchMint` and is provided for standalone callers. Builders
+ * that already fetch the mint (via {@link getMintDetails}) should instead pass
+ * the decoded `extensions` to {@link mintHasConfidentialMintBurnExtension} to
+ * avoid a second mint read.
+ *
+ * @param rpc - The Solana RPC client instance
+ * @param mint - The mint address
+ * @returns Promise resolving to true if the mint has the ConfidentialMintBurn extension
+ */
+export async function isConfidentialMintBurnMint(rpc: Rpc<SolanaRpcApi>, mint: Address): Promise<boolean> {
+    const { data } = await fetchMint(rpc, mint);
+    return data.extensions.__option === 'Some' && data.extensions.value.some(e => e.__kind === 'ConfidentialMintBurn');
+}
+
+/**
+ * Pure counterpart to {@link isConfidentialMintBurnMint}: checks the jsonParsed
+ * extensions already returned by {@link getMintDetails} for `confidentialMintBurn`,
+ * so a caller that has fetched the mint doesn't need a second read to fail fast.
+ *
+ * @param extensions - The jsonParsed extensions from {@link getMintDetails}
+ * @returns True if the mint has the ConfidentialMintBurn extension
+ */
+export function mintHasConfidentialMintBurnExtension(
+    extensions: Array<{ extension: string; state?: Record<string, unknown> }>,
+): boolean {
+    return extensions.some(ext => ext.extension === 'confidentialMintBurn');
 }
 
 /**
