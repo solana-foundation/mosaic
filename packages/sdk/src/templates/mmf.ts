@@ -1,4 +1,5 @@
 import { Token } from '../issuance';
+import type { ConfidentialBalancesConfig } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -62,6 +63,9 @@ export const createMmfInitTransaction = async (
         transferHookAuthority?: Address | TransactionSigner<string>;
         enableConfidentialBalances?: boolean;
         enableSrfc37?: boolean;
+        // Confidential Balances policy / auditor (only read when
+        // `enableConfidentialBalances` is truthy).
+        confidentialBalances?: ConfidentialBalancesConfig;
     },
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
@@ -113,7 +117,10 @@ export const createMmfInitTransaction = async (
 
     if (enableConfidential) {
         const confidentialBalancesAuthority = options?.confidentialBalancesAuthority || mintAuthorityAddress;
-        tokenBuilder = tokenBuilder.withConfidentialBalances(confidentialBalancesAuthority);
+        tokenBuilder = tokenBuilder.withConfidentialBalances({
+            authority: confidentialBalancesAuthority,
+            ...options?.confidentialBalances,
+        });
     }
 
     const instructions = await tokenBuilder.buildInstructions({

@@ -175,8 +175,7 @@ export const createStablecoinCommand = new Command('stablecoin')
                 permanentDelegateAuthority,
                 options.enableSrfc37,
                 undefined, // freezeAuthority
-                confidentialPolicy,
-                auditorElgamalPubkey,
+                { policy: confidentialPolicy, auditorElgamalPubkey },
                 confidentialMintBurnInit,
             );
 

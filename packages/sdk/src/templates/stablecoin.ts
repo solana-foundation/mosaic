@@ -1,5 +1,5 @@
 import { Token } from '../issuance';
-import type { ConfidentialApprovePolicy, ConfidentialMintBurnOptions } from '../issuance/create-mint';
+import type { ConfidentialBalancesConfig, ConfidentialMintBurnOptions } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -36,6 +36,13 @@ import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
  * @param pausableAuthority - The address with authority over the pausable functionality.
  * @param confidentialBalancesAuthority - The address with authority over the confidential balances extension.
  * @param permanentDelegateAuthority - The address with authority over the permanent delegate.
+ * @param confidentialBalances - Confidential Balances configuration: `policy` defaults to `'whitelist'`,
+ * which leaves the extension gated so the authority must approve each account, while `'opt-in'` lets
+ * holders configure their own confidential account permissionlessly; `auditorElgamalPubkey` optionally
+ * records an auditor able to decode every confidential transfer amount.
+ * @param confidentialMintBurn - Optional Confidential Mint/Burn init values (supply ElGamal pubkey and
+ * encrypted zero supply, from `getConfidentialMintBurnInit`). Adds the extension so supply can be
+ * minted and burned confidentially; omit to leave it off (it cannot be added after mint creation).
  * @returns A promise that resolves to a FullTransaction object for initializing the stablecoin mint.
  */
 export const createStablecoinInitTransaction = async (
@@ -54,8 +61,7 @@ export const createStablecoinInitTransaction = async (
     permanentDelegateAuthority?: Address,
     enableSrfc37?: boolean,
     freezeAuthority?: Address,
-    confidentialPolicy?: ConfidentialApprovePolicy,
-    auditorElgamalPubkey?: Address,
+    confidentialBalances?: ConfidentialBalancesConfig,
     confidentialMintBurn?: ConfidentialMintBurnOptions,
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
@@ -80,13 +86,13 @@ export const createStablecoinInitTransaction = async (
             additionalMetadata: new Map(),
         })
         .withPausable(pausableAuthority || mintAuthorityAddress)
-        // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
-        // default frozen and the permissionless-thaw path against the blocklist fires.
+        // Blocklist mints are born Initialized: accounts are usable by default and only
+        // blocked wallets get frozen. Allowlist mints are born Frozen, so membership is what
+        // unlocks an account via permissionless thaw.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
         .withConfidentialBalances({
             authority: confidentialBalancesAuthority || mintAuthorityAddress,
-            policy: confidentialPolicy,
-            auditorElgamalPubkey,
+            ...confidentialBalances,
         })
         .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress);
 

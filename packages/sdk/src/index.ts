@@ -1,9 +1,10 @@
-export { Token } from './issuance';
-export type {
-    ConfidentialApprovePolicy,
-    ConfidentialBalancesOptions,
-    ConfidentialMintBurnOptions,
-} from './issuance/create-mint';
+export {
+    Token,
+    type ConfidentialApprovePolicy,
+    type ConfidentialBalancesConfig,
+    type ConfidentialBalancesOptions,
+    type ConfidentialMintBurnOptions,
+} from './issuance';
 export {
     createUpdateFieldInstruction,
     createReallocateInstruction,
