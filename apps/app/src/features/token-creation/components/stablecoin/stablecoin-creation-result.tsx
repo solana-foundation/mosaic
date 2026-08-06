@@ -67,10 +67,12 @@ export function StablecoinCreationResultDisplay({ result, onClose }: StablecoinC
                             <div>
                                 <strong>Decimals:</strong> {result.details?.decimals}
                             </div>
-                            <div>
-                                <strong>ACL Mode:</strong>{' '}
-                                {result.details?.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
-                            </div>
+                            {result.details?.enableSrfc37 && (
+                                <div>
+                                    <strong>ACL Mode:</strong>{' '}
+                                    {result.details.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+                                </div>
+                            )}
                             <div>
                                 <strong>Extensions:</strong> {result.details?.extensions?.join(', ')}
                             </div>
@@ -108,6 +110,22 @@ export function StablecoinCreationResultDisplay({ result, onClose }: StablecoinC
                                     {result.details?.permanentDelegateAuthority}
                                 </code>
                             </div>
+                            {result.details?.freezeAuthority && (
+                                <div className="md:col-span-2">
+                                    <strong>Freeze Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.freezeAuthority}
+                                    </code>
+                                </div>
+                            )}
+                            {result.details?.auditorElgamalPubkey && (
+                                <div className="md:col-span-2">
+                                    <strong>Auditor ElGamal Key:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.auditorElgamalPubkey}
+                                    </code>
+                                </div>
+                            )}
                         </div>
 
                         <CreationResultActions mintAddress={result.mintAddress} onClose={onClose} />
