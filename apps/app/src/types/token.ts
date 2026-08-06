@@ -60,6 +60,8 @@ export interface StablecoinCreationResult {
         symbol: string;
         decimals: number;
         aclMode?: 'allowlist' | 'blocklist';
+        /** Whether the mint actually has an sRFC-37 access list; `aclMode` is meaningless without it. */
+        enableSrfc37?: boolean;
         mintAuthority: string;
         metadataAuthority?: string;
         pausableAuthority?: string;
@@ -140,6 +142,8 @@ export interface TokenizedSecurityCreationResult {
         symbol: string;
         decimals: number;
         aclMode?: 'allowlist' | 'blocklist';
+        /** Whether the mint actually has an sRFC-37 access list; `aclMode` is meaningless without it. */
+        enableSrfc37?: boolean;
         mintAuthority: string;
         metadataAuthority?: string;
         pausableAuthority?: string;
@@ -217,6 +221,8 @@ export interface CustomTokenCreationResult {
         symbol: string;
         decimals: number;
         aclMode?: 'allowlist' | 'blocklist';
+        /** Whether the mint actually has an sRFC-37 access list; `aclMode` is meaningless without it. */
+        enableSrfc37?: boolean;
         mintAuthority: string;
         metadataAuthority?: string;
         pausableAuthority?: string;

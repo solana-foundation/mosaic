@@ -72,7 +72,7 @@ export function CustomTokenCreationResultDisplay({
                             <div>
                                 <strong>Decimals:</strong> {result.details?.decimals}
                             </div>
-                            {result.details?.aclMode && (
+                            {result.details?.enableSrfc37 && (
                                 <div>
                                     <strong>ACL Mode:</strong>{' '}
                                     {result.details.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}

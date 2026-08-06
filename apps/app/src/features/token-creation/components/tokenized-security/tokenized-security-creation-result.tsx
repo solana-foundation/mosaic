@@ -65,10 +65,12 @@ export function TokenizedSecurityCreationResultDisplay({ result, onClose }: Toke
                             <div>
                                 <strong>Decimals:</strong> {result.details?.decimals}
                             </div>
-                            <div>
-                                <strong>ACL Mode:</strong>{' '}
-                                {result.details?.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
-                            </div>
+                            {result.details?.enableSrfc37 && (
+                                <div>
+                                    <strong>ACL Mode:</strong>{' '}
+                                    {result.details.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+                                </div>
+                            )}
                             <div>
                                 <strong>Multiplier:</strong> {result.details?.multiplier}
                             </div>

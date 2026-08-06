@@ -67,10 +67,12 @@ export function StablecoinCreationResultDisplay({ result, onClose }: StablecoinC
                             <div>
                                 <strong>Decimals:</strong> {result.details?.decimals}
                             </div>
-                            <div>
-                                <strong>ACL Mode:</strong>{' '}
-                                {result.details?.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
-                            </div>
+                            {result.details?.enableSrfc37 && (
+                                <div>
+                                    <strong>ACL Mode:</strong>{' '}
+                                    {result.details.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+                                </div>
+                            )}
                             <div>
                                 <strong>Extensions:</strong> {result.details?.extensions?.join(', ')}
                             </div>

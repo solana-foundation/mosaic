@@ -130,6 +130,9 @@ export const createStablecoin = async (
                 symbol: options.symbol,
                 decimals,
                 aclMode: options.aclMode || 'blocklist',
+                // Reported so the result panel can hide the ACL row: with sRFC-37 off the mint has
+                // no access list, and `aclMode` has no on-chain effect at all.
+                enableSrfc37,
                 mintAuthority: mintAuthority === signer ? signer.address : (mintAuthority as Address),
                 metadataAuthority: metadataAuthority?.toString(),
                 pausableAuthority: pausableAuthority?.toString(),
