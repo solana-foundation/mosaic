@@ -2,7 +2,6 @@ import {
     generateKeyPairSigner,
     createSolanaRpc,
     createSolanaRpcSubscriptions,
-    type Address,
     type Rpc,
     type SolanaRpcApi,
     signTransactionMessageWithSigners,
@@ -14,7 +13,7 @@ import {
 import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/types/token';
 import { createTokenizedSecurityInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
-import { assertValidAddressFields } from './validate-authorities';
+import { assertValidAddressFields, toAuthorityAddress } from './validate-authorities';
 
 function validateOptions(options: TokenizedSecurityOptions): number {
     if (!options.name || !options.symbol) {
@@ -65,31 +64,19 @@ export const createTokenizedSecurity = async (
 
         // Set authorities (default to signer if not provided)
         // When TokenMetadata extension is present, mintAuthority must be a TransactionSigner
-        const mintAuthority = options.mintAuthority
-            ? options.mintAuthority === signerAddress
-                ? signer
-                : (options.mintAuthority as Address)
-            : signer;
+        const requestedMintAuthority = toAuthorityAddress(options.mintAuthority);
+        const mintAuthority =
+            requestedMintAuthority && requestedMintAuthority !== signerAddress ? requestedMintAuthority : signer;
 
-        const metadataAuthority = options.metadataAuthority ? (options.metadataAuthority as Address) : undefined;
-        const pausableAuthority = options.pausableAuthority ? (options.pausableAuthority as Address) : undefined;
-        const confidentialBalancesAuthority = options.confidentialBalancesAuthority
-            ? (options.confidentialBalancesAuthority as Address)
-            : undefined;
-        const permanentDelegateAuthority = options.permanentDelegateAuthority
-            ? (options.permanentDelegateAuthority as Address)
-            : undefined;
-        const scaledUiAmountAuthority = options.scaledUiAmountAuthority
-            ? (options.scaledUiAmountAuthority as Address)
-            : undefined;
-        const permissionedBurnAuthority = options.permissionedBurnAuthority
-            ? (options.permissionedBurnAuthority as Address)
-            : undefined;
+        const metadataAuthority = toAuthorityAddress(options.metadataAuthority);
+        const pausableAuthority = toAuthorityAddress(options.pausableAuthority);
+        const confidentialBalancesAuthority = toAuthorityAddress(options.confidentialBalancesAuthority);
+        const permanentDelegateAuthority = toAuthorityAddress(options.permanentDelegateAuthority);
+        const scaledUiAmountAuthority = toAuthorityAddress(options.scaledUiAmountAuthority);
+        const permissionedBurnAuthority = toAuthorityAddress(options.permissionedBurnAuthority);
         // Ignored by the SDK on the sRFC-37 path, which forces the mint authority.
-        const freezeAuthority = options.freezeAuthority ? (options.freezeAuthority as Address) : undefined;
-        const auditorElgamalPubkey = options.auditorElgamalPubkey?.trim()
-            ? (options.auditorElgamalPubkey.trim() as Address)
-            : undefined;
+        const freezeAuthority = toAuthorityAddress(options.freezeAuthority);
+        const auditorElgamalPubkey = toAuthorityAddress(options.auditorElgamalPubkey);
 
         const multiplier = Number(options.multiplier ?? '1');
 

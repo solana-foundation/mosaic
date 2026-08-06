@@ -14,7 +14,7 @@ import {
 import { StablecoinCreationResult, StablecoinOptions } from '@/types/token';
 import { createStablecoinInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
-import { assertValidAddressFields } from './validate-authorities';
+import { assertValidAddressFields, toAuthorityAddress } from './validate-authorities';
 
 /**
  * Validates stablecoin options and returns parsed decimals
@@ -72,25 +72,17 @@ export const createStablecoin = async (
 
         // Set authorities (default to signer if not provided)
         // When TokenMetadata extension is present, mintAuthority must be a TransactionSigner
-        const mintAuthority = options.mintAuthority
-            ? options.mintAuthority === signerAddress
-                ? signer
-                : (options.mintAuthority as Address)
-            : signer;
+        const requestedMintAuthority = toAuthorityAddress(options.mintAuthority);
+        const mintAuthority =
+            requestedMintAuthority && requestedMintAuthority !== signerAddress ? requestedMintAuthority : signer;
 
-        const metadataAuthority = options.metadataAuthority ? (options.metadataAuthority as Address) : undefined;
-        const pausableAuthority = options.pausableAuthority ? (options.pausableAuthority as Address) : undefined;
-        const confidentialBalancesAuthority = options.confidentialBalancesAuthority
-            ? (options.confidentialBalancesAuthority as Address)
-            : undefined;
-        const permanentDelegateAuthority = options.permanentDelegateAuthority
-            ? (options.permanentDelegateAuthority as Address)
-            : undefined;
+        const metadataAuthority = toAuthorityAddress(options.metadataAuthority);
+        const pausableAuthority = toAuthorityAddress(options.pausableAuthority);
+        const confidentialBalancesAuthority = toAuthorityAddress(options.confidentialBalancesAuthority);
+        const permanentDelegateAuthority = toAuthorityAddress(options.permanentDelegateAuthority);
         // Ignored by the SDK on the sRFC-37 path, which forces the mint authority.
-        const freezeAuthority = options.freezeAuthority ? (options.freezeAuthority as Address) : undefined;
-        const auditorElgamalPubkey = options.auditorElgamalPubkey?.trim()
-            ? (options.auditorElgamalPubkey.trim() as Address)
-            : undefined;
+        const freezeAuthority = toAuthorityAddress(options.freezeAuthority);
+        const auditorElgamalPubkey = toAuthorityAddress(options.auditorElgamalPubkey);
 
         // Create RPC client using standardized URL handling
         const rpcUrl = getRpcUrl(options.rpcUrl);

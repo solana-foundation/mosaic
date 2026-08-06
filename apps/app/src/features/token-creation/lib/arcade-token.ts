@@ -2,7 +2,6 @@ import {
     generateKeyPairSigner,
     createSolanaRpc,
     createSolanaRpcSubscriptions,
-    type Address,
     type Rpc,
     type SolanaRpcApi,
     signTransactionMessageWithSigners,
@@ -14,7 +13,7 @@ import {
 import { ArcadeTokenCreationResult, ArcadeTokenOptions } from '@/types/token';
 import { createArcadeTokenInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
-import { assertValidAddressFields } from './validate-authorities';
+import { assertValidAddressFields, toAuthorityAddress } from './validate-authorities';
 
 /**
  * Validates arcade token options and returns parsed decimals
@@ -101,19 +100,15 @@ export const createArcadeToken = async (
 
         // Set authorities (default to signer if not provided)
         // When TokenMetadata extension is present, mintAuthority must be a TransactionSigner
-        const mintAuthority = options.mintAuthority
-            ? options.mintAuthority === signerAddress
-                ? signer
-                : (options.mintAuthority as Address)
-            : signer;
+        const requestedMintAuthority = toAuthorityAddress(options.mintAuthority);
+        const mintAuthority =
+            requestedMintAuthority && requestedMintAuthority !== signerAddress ? requestedMintAuthority : signer;
 
-        const metadataAuthority = options.metadataAuthority ? (options.metadataAuthority as Address) : undefined;
-        const pausableAuthority = options.pausableAuthority ? (options.pausableAuthority as Address) : undefined;
-        const permanentDelegateAuthority = options.permanentDelegateAuthority
-            ? (options.permanentDelegateAuthority as Address)
-            : undefined;
+        const metadataAuthority = toAuthorityAddress(options.metadataAuthority);
+        const pausableAuthority = toAuthorityAddress(options.pausableAuthority);
+        const permanentDelegateAuthority = toAuthorityAddress(options.permanentDelegateAuthority);
         // Ignored by the SDK on the sRFC-37 path, which forces the mint authority.
-        const freezeAuthority = options.freezeAuthority ? (options.freezeAuthority as Address) : undefined;
+        const freezeAuthority = toAuthorityAddress(options.freezeAuthority);
 
         // Create RPC client using standardized URL handling
         const rpcUrl = getRpcUrl(options.rpcUrl);

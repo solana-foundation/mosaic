@@ -15,7 +15,7 @@ import {
 import { CustomTokenCreationResult, CustomTokenOptions } from '@/types/token';
 import { createCustomTokenInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
-import { assertValidAddressFields } from './validate-authorities';
+import { assertValidAddressFields, toAuthorityAddress } from './validate-authorities';
 
 /**
  * Normalises a form boolean.
@@ -107,31 +107,53 @@ function validateCustomTokenOptions(options: CustomTokenOptions): number {
         }
     }
 
-    // Validate Transfer Hook configuration if enabled
+    // Validate Transfer Hook configuration if enabled. Compare the trimmed value, since that is
+    // what gets sent — `canProceed` also trims, so an unpadded check here would pass Continue and
+    // then reject at submit.
     if (options.enableTransferHook) {
-        if (!options.transferHookProgramId) {
+        const programId = options.transferHookProgramId?.trim();
+        if (!programId) {
             throw new Error('Transfer hook program ID is required');
         }
-        if (!isAddress(options.transferHookProgramId)) {
+        if (!isAddress(programId)) {
             throw new Error('Transfer hook program ID must be a valid Solana address');
         }
     }
 
     // Every authority is cast straight to `Address` further down, so validate here rather
     // than letting a malformed string fail deep inside kit with an opaque message.
-    assertValidAddressFields(options, {
-        mintAuthority: 'Mint authority',
-        metadataAuthority: 'Metadata authority',
-        pausableAuthority: 'Pausable authority',
-        permanentDelegateAuthority: 'Permanent delegate authority',
-        confidentialBalancesAuthority: 'Confidential balances authority',
-        scaledUiAmountAuthority: 'Scaled UI amount authority',
-        freezeAuthority: 'Freeze authority',
-        transferFeeAuthority: 'Transfer fee authority',
-        withdrawWithheldAuthority: 'Withdraw withheld authority',
-        interestBearingAuthority: 'Interest bearing authority',
-        transferHookAuthority: 'Transfer hook authority',
-    });
+    //
+    // Only the fields this mint will actually use: the form hides an authority input when its
+    // extension is unticked but keeps whatever was typed, and sRFC-37 disables the freeze
+    // input while the template overrides it. Validating those anyway would block submit over
+    // a value the user can no longer see and the SDK would never read.
+    const authorityLabels: Partial<Record<Extract<keyof CustomTokenOptions, string>, string>> = {};
+    // The template forces the mint authority as freeze authority under sRFC-37, so the form
+    // disables the input and whatever it holds is discarded. `hasInvalidAuthority` already
+    // exempts disabled fields; match it here or Continue passes and submit throws.
+    if (!asBoolean(options.enableSrfc37)) {
+        authorityLabels.freezeAuthority = 'Freeze authority';
+    }
+    if (options.enableMetadata === false) {
+        authorityLabels.mintAuthority = 'Mint authority';
+    } else {
+        authorityLabels.metadataAuthority = 'Metadata authority';
+    }
+    if (options.enablePausable) authorityLabels.pausableAuthority = 'Pausable authority';
+    if (options.enablePermanentDelegate) {
+        authorityLabels.permanentDelegateAuthority = 'Permanent delegate authority';
+    }
+    if (options.enableConfidentialBalances) {
+        authorityLabels.confidentialBalancesAuthority = 'Confidential balances authority';
+    }
+    if (options.enableScaledUiAmount) authorityLabels.scaledUiAmountAuthority = 'Scaled UI amount authority';
+    if (options.enableTransferFee) {
+        authorityLabels.transferFeeAuthority = 'Transfer fee authority';
+        authorityLabels.withdrawWithheldAuthority = 'Withdraw withheld authority';
+    }
+    if (options.enableInterestBearing) authorityLabels.interestBearingAuthority = 'Interest bearing authority';
+    if (options.enableTransferHook) authorityLabels.transferHookAuthority = 'Transfer hook authority';
+    assertValidAddressFields(options, authorityLabels);
 
     if (options.enableConfidentialBalances && options.auditorElgamalPubkey?.trim()) {
         if (!isAddress(options.auditorElgamalPubkey.trim())) {
@@ -188,40 +210,26 @@ export const createCustomToken = async (
         const mintKeypair = await generateKeyPairSigner();
 
         // Set authorities (default to signer if not provided)
-        // When TokenMetadata extension is present, mintAuthority must be a TransactionSigner
-        const mintAuthority = options.mintAuthority
-            ? options.mintAuthority === signerAddress
-                ? signer
-                : (options.mintAuthority as Address)
-            : signer;
+        // When TokenMetadata extension is present, mintAuthority must be a TransactionSigner, so
+        // the form only offers the field with metadata off. Honour that here too: a value typed
+        // before metadata was re-enabled is still in `options`, and passing it would trip the
+        // SDK's own guard over a field the user can no longer see.
+        const requestedMintAuthority =
+            options.enableMetadata === false ? toAuthorityAddress(options.mintAuthority) : undefined;
+        const mintAuthority =
+            requestedMintAuthority && requestedMintAuthority !== signerAddress ? requestedMintAuthority : signer;
 
-        const metadataAuthority = options.metadataAuthority ? (options.metadataAuthority as Address) : undefined;
-        const pausableAuthority = options.pausableAuthority ? (options.pausableAuthority as Address) : undefined;
-        const confidentialBalancesAuthority = options.confidentialBalancesAuthority
-            ? (options.confidentialBalancesAuthority as Address)
-            : undefined;
-        const permanentDelegateAuthority = options.permanentDelegateAuthority
-            ? (options.permanentDelegateAuthority as Address)
-            : undefined;
-        const scaledUiAmountAuthority = options.scaledUiAmountAuthority
-            ? (options.scaledUiAmountAuthority as Address)
-            : undefined;
-        const freezeAuthority = options.freezeAuthority ? (options.freezeAuthority as Address) : undefined;
-        const transferFeeAuthority = options.transferFeeAuthority
-            ? (options.transferFeeAuthority as Address)
-            : undefined;
-        const withdrawWithheldAuthority = options.withdrawWithheldAuthority
-            ? (options.withdrawWithheldAuthority as Address)
-            : undefined;
-        const interestBearingAuthority = options.interestBearingAuthority
-            ? (options.interestBearingAuthority as Address)
-            : undefined;
-        const transferHookAuthority = options.transferHookAuthority
-            ? (options.transferHookAuthority as Address)
-            : undefined;
-        const transferHookProgramId = options.transferHookProgramId
-            ? (options.transferHookProgramId as Address)
-            : undefined;
+        const metadataAuthority = toAuthorityAddress(options.metadataAuthority);
+        const pausableAuthority = toAuthorityAddress(options.pausableAuthority);
+        const confidentialBalancesAuthority = toAuthorityAddress(options.confidentialBalancesAuthority);
+        const permanentDelegateAuthority = toAuthorityAddress(options.permanentDelegateAuthority);
+        const scaledUiAmountAuthority = toAuthorityAddress(options.scaledUiAmountAuthority);
+        const freezeAuthority = toAuthorityAddress(options.freezeAuthority);
+        const transferFeeAuthority = toAuthorityAddress(options.transferFeeAuthority);
+        const withdrawWithheldAuthority = toAuthorityAddress(options.withdrawWithheldAuthority);
+        const interestBearingAuthority = toAuthorityAddress(options.interestBearingAuthority);
+        const transferHookAuthority = toAuthorityAddress(options.transferHookAuthority);
+        const transferHookProgramId = toAuthorityAddress(options.transferHookProgramId);
 
         const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
