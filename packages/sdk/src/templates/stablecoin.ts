@@ -1,5 +1,5 @@
 import { Token } from '../issuance';
-import type { ConfidentialBalancesConfig } from '../issuance/create-mint';
+import type { ConfidentialBalancesConfig, ConfidentialMintBurnOptions } from '../issuance/create-mint';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util';
 import {
@@ -40,6 +40,9 @@ import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
  * which leaves the extension gated so the authority must approve each account, while `'opt-in'` lets
  * holders configure their own confidential account permissionlessly; `auditorElgamalPubkey` optionally
  * records an auditor able to decode every confidential transfer amount.
+ * @param confidentialMintBurn - Optional Confidential Mint/Burn init values (supply ElGamal pubkey and
+ * encrypted zero supply, from `getConfidentialMintBurnInit`). Adds the extension so supply can be
+ * minted and burned confidentially; omit to leave it off (it cannot be added after mint creation).
  * @returns A promise that resolves to a FullTransaction object for initializing the stablecoin mint.
  */
 export const createStablecoinInitTransaction = async (
@@ -59,6 +62,7 @@ export const createStablecoinInitTransaction = async (
     enableSrfc37?: boolean,
     freezeAuthority?: Address,
     confidentialBalances?: ConfidentialBalancesConfig,
+    confidentialMintBurn?: ConfidentialMintBurnOptions,
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
@@ -69,7 +73,7 @@ export const createStablecoinInitTransaction = async (
 
     // 1. create token
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
-    const instructions = await new Token()
+    let tokenBuilder = new Token()
         .withMetadata({
             mintAddress: mintSigner.address,
             authority: metadataAuthority || mintAuthorityAddress,
@@ -90,20 +94,27 @@ export const createStablecoinInitTransaction = async (
             authority: confidentialBalancesAuthority || mintAuthorityAddress,
             ...confidentialBalances,
         })
-        .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
-        .buildInstructions({
-            rpc,
-            decimals,
-            mintAuthority,
-            // On the sRFC-37 path the freeze authority MUST be the mint authority: the
-            // Token-ACL `create_config` instruction requires the mint's current freeze
-            // authority to equal its signer (the mint authority) and then reassigns it to
-            // the config PDA itself. Pre-setting it to anything else (e.g. the program id)
-            // fails create_config with InvalidAuthority.
-            freezeAuthority: useSrfc37 ? mintAuthorityAddress : freezeAuthority,
-            mint: mintSigner,
-            feePayer: feePayerSigner,
-        });
+        .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress);
+
+    // ConfidentialMintBurn needs ConfidentialTransferMint (added above) to hold the
+    // minted balance; both extensions must be present on the mint.
+    if (confidentialMintBurn) {
+        tokenBuilder = tokenBuilder.withConfidentialMintBurn(confidentialMintBurn);
+    }
+
+    const instructions = await tokenBuilder.buildInstructions({
+        rpc,
+        decimals,
+        mintAuthority: mintAuthoritySigner,
+        // On the sRFC-37 path the freeze authority MUST be the mint authority: the
+        // Token-ACL `create_config` instruction requires the mint's current freeze
+        // authority to equal its signer (the mint authority) and then reassigns it to
+        // the config PDA itself. Pre-setting it to anything else (e.g. the program id)
+        // fails create_config with InvalidAuthority.
+        freezeAuthority: useSrfc37 ? mintAuthorityAddress : freezeAuthority,
+        mint: mintSigner,
+        feePayer: feePayerSigner,
+    });
 
     // 2. create mintConfig (Token ACL) - only if SRFC-37 is enabled
     if (!useSrfc37) {

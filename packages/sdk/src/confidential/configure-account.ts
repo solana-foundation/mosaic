@@ -7,10 +7,8 @@ import {
     type TransactionSigner,
     singleInstructionPlan,
 } from '@solana/kit';
-import {
-    getApproveConfidentialTransferAccountInstruction,
-    getCreateConfidentialTransferAccountInstructionPlan,
-} from '@solana-program/token-2022';
+import { getApproveConfidentialTransferAccountInstruction } from '@solana-program/token-2022';
+import { getCreateConfidentialTransferAccountInstructionPlan } from '@solana-program/token-2022/confidential';
 import type { ConfidentialKeys } from './keys';
 
 /**
