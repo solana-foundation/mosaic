@@ -17,6 +17,7 @@ import { TransactionSuccessView } from '@/components/shared/modals/transaction-s
 import { useTransactionModal, useWalletConnection } from '@/features/token-management/hooks/use-transaction-modal';
 import { MODAL_ERRORS } from '@/features/token-management/constants/modal-text';
 import { humanizeError } from '@/lib/errors';
+import { getRpcUrl } from '@/lib/solana/rpc';
 
 interface UpdateMetadataModalContentProps {
     mintAddress: string;
@@ -100,7 +101,7 @@ export function UpdateMetadataModalContent({
         setError('');
 
         try {
-            const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+            const rpcUrl = getRpcUrl(cluster?.url);
 
             // Only include fields that have changed
             const updates: MetadataUpdate[] = [];

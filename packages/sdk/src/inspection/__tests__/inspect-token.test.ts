@@ -109,6 +109,53 @@ describe('inspectToken', () => {
             expect(confidentialExt?.details?.auditorElgamalPubkey).toEqual(mockAuthority);
         });
 
+        it('should surface the ConfidentialMintBurn supply pubkey + decryptable supply', async () => {
+            const supplyPubkey = address('4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU');
+            const decryptableSupply = new Uint8Array(36).fill(5);
+            const mockEncodedAccount = {
+                exists: true,
+                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+                data: new Uint8Array(100),
+            };
+            const mockDecodedMint = {
+                data: {
+                    supply: 0n,
+                    decimals: 6,
+                    isInitialized: true,
+                    mintAuthority: { __option: 'Some', value: mockAuthority },
+                    freezeAuthority: { __option: 'None' },
+                    extensions: {
+                        __option: 'Some',
+                        value: [
+                            {
+                                __kind: 'ConfidentialTransferMint',
+                                autoApproveNewAccounts: false,
+                                auditorElgamalPubkey: { __option: 'None' },
+                                authority: { __option: 'Some', value: mockAuthority },
+                            },
+                            {
+                                __kind: 'ConfidentialMintBurn',
+                                confidentialSupply: new Uint8Array(64),
+                                decryptableSupply,
+                                supplyElgamalPubkey: supplyPubkey,
+                                pendingBurn: new Uint8Array(64),
+                            },
+                        ],
+                    },
+                },
+            };
+
+            (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
+            (decodeMint as jest.Mock).mockReturnValue(mockDecodedMint);
+
+            const result = await inspectToken(mockRpc, mockMintAddress);
+
+            const mintBurnExt = result.extensions.find(e => e.name === 'ConfidentialMintBurn');
+            expect(mintBurnExt).toBeDefined();
+            expect(mintBurnExt?.details?.supplyElgamalPubkey).toBe(supplyPubkey);
+            expect(mintBurnExt?.details?.decryptableSupply).toBe(decryptableSupply);
+        });
+
         it('should correctly parse an arcade token', async () => {
             const mockEncodedAccount = {
                 exists: true,
