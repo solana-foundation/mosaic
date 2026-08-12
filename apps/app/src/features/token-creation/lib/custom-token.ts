@@ -395,11 +395,15 @@ export const createCustomToken = async (
                     ? options.confidentialBalancesPolicy || 'whitelist'
                     : undefined,
                 auditorElgamalPubkey: options.auditorElgamalPubkey?.trim() || undefined,
-                // Transfer Fee details
-                transferFeeBasisPoints: options.transferFeeBasisPoints
-                    ? parseInt(options.transferFeeBasisPoints, 10)
+                // Transfer Fee details — reported only when the extension is actually on. The form
+                // seeds `transferFeeBasisPoints: '0'` so the input shows the value that really
+                // lands, and `'0'` is a *truthy* string, so a plain truthiness check here would
+                // report a fee config on every custom token and the result panel would render its
+                // "Transfer Fee Configuration" block for a mint with no TransferFeeConfig.
+                transferFeeBasisPoints: options.enableTransferFee
+                    ? parseInt(options.transferFeeBasisPoints || '0', 10)
                     : undefined,
-                transferFeeMaximum: options.transferFeeMaximum,
+                transferFeeMaximum: options.enableTransferFee ? options.transferFeeMaximum : undefined,
                 transferFeeAuthority: transferFeeAuthority?.toString(),
                 withdrawWithheldAuthority: withdrawWithheldAuthority?.toString(),
                 // Interest Bearing details
