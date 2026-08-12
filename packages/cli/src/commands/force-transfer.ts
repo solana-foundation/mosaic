@@ -63,7 +63,7 @@ export const forceTransferCommand = new Command('force-transfer')
                 options.mintAddress as Address,
                 options.fromAccount as Address,
                 options.recipient as Address,
-                decimalAmount,
+                options.amount,
                 authority.address,
                 payer.address,
             );
