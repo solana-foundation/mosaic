@@ -90,7 +90,7 @@ export const burnCommand = new Command('burn')
                 rpc,
                 options.mintAddress as Address,
                 owner,
-                decimalAmount,
+                options.amount,
                 payer,
                 permissionedBurnAuthority,
             );

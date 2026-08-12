@@ -37,7 +37,7 @@ export const createMintToTransaction = async (
     rpc: Rpc<SolanaRpcApi>,
     mint: Address,
     recipient: Address,
-    amount: number,
+    amount: number | string,
     mintAuthority: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
 ): Promise<FullTransaction> => {
