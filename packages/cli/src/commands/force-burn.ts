@@ -93,7 +93,7 @@ export const forceBurnCommand = new Command('force-burn')
                 rpc,
                 options.mintAddress as Address,
                 options.fromAccount as Address,
-                decimalAmount,
+                options.amount,
                 authority,
                 payer,
                 permissionedBurnAuthority,

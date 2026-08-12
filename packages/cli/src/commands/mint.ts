@@ -67,7 +67,7 @@ export const mintCommand = new Command('mint')
                 rpc,
                 options.mintAddress as Address,
                 options.recipient as Address,
-                decimalAmount,
+                options.amount,
                 mintAuthority,
                 feePayer,
             );

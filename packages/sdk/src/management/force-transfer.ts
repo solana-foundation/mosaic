@@ -39,7 +39,7 @@ export const createForceTransferTransaction = async (
     mint: Address,
     fromAccount: Address,
     toAccount: Address,
-    decimalAmount: number,
+    decimalAmount: number | string,
     permanentDelegate: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
 ): Promise<FullTransaction> => {
