@@ -68,8 +68,10 @@ export const createTransferInstructions = async (input: {
     const { decimals, extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
     const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
-    // Convert decimal amount to raw amount
-    const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
+    // Convert decimal amount to raw amount. Pass the original string, not the
+    // parsed float: decimalAmountToRaw scales a string digit by digit, so a
+    // float round-trip here would lose precision for large (u64-scale) amounts.
+    const rawAmount = decimalAmountToRaw(amount, decimals);
 
     // Resolve sender's token account
     const senderTokenAccountInfo = await resolveTokenAccount(rpc, from, mint as Address);
