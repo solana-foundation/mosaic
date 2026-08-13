@@ -5,8 +5,14 @@ import {
     hasExtensionConflicts,
     hasExtensionsRequiringConfig,
 } from './custom-token-extension-selector';
-import { CustomTokenExtensionConfig } from './custom-token-extension-config';
+import {
+    CustomTokenExtensionConfig,
+    isCustomTokenAuditorKeyInvalid,
+    isTransferFeeCapMissing,
+} from './custom-token-extension-config';
 import { CustomTokenCreationResultDisplay } from './custom-token-creation-result';
+import { AuthorityParams, hasInvalidAuthority } from '../authority-params';
+import { customTokenAuthorityFields } from '../authority-fields';
 import { createCustomToken } from '@/features/token-creation/lib/custom-token';
 import type { TransactionModifyingSigner } from '@solana/kit';
 import { useTokenCreationForm } from '@/features/token-creation/hooks/use-token-creation-form';
@@ -36,14 +42,19 @@ function canProceed(step: number, options: CustomTokenOptions): boolean {
     if (step === 0) {
         return !!(options.name && options.symbol && options.decimals);
     }
-    // Step 1: Extensions - check for conflicts
+    // Step 1: Extensions - conflicts, plus the authority overrides rendered alongside them
     if (step === 1) {
-        return !hasExtensionConflicts(options);
+        return !hasExtensionConflicts(options) && !hasInvalidAuthority(options, customTokenAuthorityFields(options));
     }
-    // Step 2: Configuration - validate required fields for enabled extensions
+    // Step 2: Configuration - validate required fields for enabled extensions.
+    // These mirror the inline field errors so Continue can't skip past them; the remaining
+    // numeric rules still live in validateCustomTokenOptions and run at submit.
     if (step === 2) {
         // Transfer Hook requires a program ID
         if (options.enableTransferHook && !options.transferHookProgramId?.trim()) {
+            return false;
+        }
+        if (isTransferFeeCapMissing(options) || isCustomTokenAuditorKeyInvalid(options)) {
             return false;
         }
     }
@@ -75,7 +86,26 @@ const INITIAL_OPTIONS: CustomTokenOptions = {
     scaledUiAmountMultiplier: '1',
     scaledUiAmountNewMultiplier: '1',
     scaledUiAmountEffectiveTimestamp: '',
+    // Now reachable from the Configuration step; `true` = Initialized.
     defaultAccountStateInitialized: true,
+    // Matches the SDK default, so enabling Confidential Balances without touching the
+    // policy tiles produces the same mint it always did.
+    confidentialBalancesPolicy: 'whitelist',
+    auditorElgamalPubkey: '',
+    // Pre-filled rather than placeholder-hinted, so the displayed rate is the real one.
+    transferFeeBasisPoints: '0',
+    // Authority overrides — empty means "use the connected wallet".
+    mintAuthority: '',
+    metadataAuthority: '',
+    pausableAuthority: '',
+    permanentDelegateAuthority: '',
+    confidentialBalancesAuthority: '',
+    scaledUiAmountAuthority: '',
+    freezeAuthority: '',
+    transferFeeAuthority: '',
+    withdrawWithheldAuthority: '',
+    interestBearingAuthority: '',
+    transferHookAuthority: '',
 };
 
 export function CustomTokenCreateForm({
@@ -109,7 +139,19 @@ export function CustomTokenCreateForm({
                     case 0:
                         return <CustomTokenBasicParams options={options} onInputChange={setOption} />;
                     case 1:
-                        return <CustomTokenExtensionSelector options={options} onInputChange={setOption} />;
+                        // Authorities live here rather than in the Configuration step, which
+                        // only exists for some extension selections.
+                        return (
+                            <div className="space-y-4">
+                                <CustomTokenExtensionSelector options={options} onInputChange={setOption} />
+                                <AuthorityParams
+                                    idPrefix="custom-token"
+                                    options={options}
+                                    fields={customTokenAuthorityFields(options)}
+                                    onInputChange={setOption}
+                                />
+                            </div>
+                        );
                     case 2:
                         return <CustomTokenExtensionConfig options={options} onInputChange={setOption} />;
                     default:
