@@ -27,7 +27,12 @@
         }
     },
     "files": [
-        "dist"
+        "dist",
+        "!dist/**/__tests__",
+        "!dist/**/__mocks__",
+        "!dist/**/__devnet__",
+        "!dist/scripts",
+        "!dist/**/*.test.*"
     ],
     "scripts": {
         "build": "tsc -b",
