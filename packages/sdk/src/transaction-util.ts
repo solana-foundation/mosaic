@@ -76,26 +76,21 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
         throw new Error('Amount must be positive');
     }
 
-    // Split into integer and fractional parts
-    const [integerPart, fractionalPart = ''] = amountStr.split('.');
-
-    // Pad or truncate fractional part to match decimals
-    let adjustedFractional: string;
-    if (fractionalPart.length > decimals) {
-        // Truncate if fractional part is longer than decimals
-        adjustedFractional = fractionalPart.slice(0, decimals);
-    } else {
-        // Pad with zeros if fractional part is shorter than decimals
-        adjustedFractional = fractionalPart.padEnd(decimals, '0');
+    const match = /^(?:(\d+)(?:\.(\d*))?|\.(\d+))$/.exec(amountStr);
+    if (!match) {
+        throw new Error('Invalid amount format');
     }
+
+    const integerPart = match[1] ?? '0';
+    const fractionalPart = match[2] ?? match[3] ?? '';
+    if (fractionalPart.length > decimals) {
+        throw new Error(`Amount cannot have more than ${decimals} decimal places`);
+    }
+
+    const adjustedFractional = fractionalPart.padEnd(decimals, '0');
 
     // Concatenate integer and fractional parts
     const rawAmountStr = integerPart + adjustedFractional;
-
-    // Validate that the resulting string is a valid numeric representation
-    if (!/^\d+$/.test(rawAmountStr)) {
-        throw new Error('Invalid amount format');
-    }
 
     // Convert to BigInt
     return BigInt(rawAmountStr);
