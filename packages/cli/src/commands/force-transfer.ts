@@ -62,8 +62,8 @@ export const forceTransferCommand = new Command('force-transfer')
                 options.fromAccount as Address,
                 options.recipient as Address,
                 options.amount,
-                authority.address,
-                payer.address,
+                authority,
+                payer,
             );
 
             const { raw, signature } = await sendOrOutputTransaction(
