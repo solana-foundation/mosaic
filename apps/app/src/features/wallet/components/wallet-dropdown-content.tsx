@@ -11,6 +11,9 @@ import { useCluster } from '@solana/connector/react';
 import { motion } from 'motion/react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { useRpcStore, type NetworkName } from '@/stores/rpc-store';
+import { getDefaultClusterId } from '@/lib/solana/network';
+import { markNetworkNoticeSeen } from '@/stores/network-notice-store';
+import { toast } from '@/components/ui/sonner';
 
 interface WalletDropdownContentProps {
     selectedAccount: string;
@@ -28,9 +31,10 @@ interface NetworkOption {
     isCustom?: boolean;
 }
 
+// Keep in sync with the cluster list in src/app/providers.tsx.
 const DEFAULT_NETWORKS: NetworkOption[] = [
-    { id: 'solana:mainnet', label: 'Mainnet', name: 'mainnet-beta' },
     { id: 'solana:devnet', label: 'Devnet', name: 'devnet' },
+    { id: 'solana:mainnet', label: 'Mainnet', name: 'mainnet-beta' },
     { id: 'solana:testnet', label: 'Testnet', name: 'testnet' },
 ];
 
@@ -49,12 +53,12 @@ export function WalletDropdownContent({
     const [isAddingRpc, setIsAddingRpc] = useState(false);
     const [newRpcLabel, setNewRpcLabel] = useState('');
     const [newRpcUrl, setNewRpcUrl] = useState('');
-    const [newRpcNetwork, setNewRpcNetwork] = useState<NetworkName>('mainnet-beta');
+    const [newRpcNetwork, setNewRpcNetwork] = useState<NetworkName>('devnet');
 
     const shortAddress = `${selectedAccount.slice(0, 4)}...${selectedAccount.slice(-4)}`;
 
     // Get current cluster id for selection
-    const currentClusterId = (cluster as { id?: string })?.id || 'solana:mainnet';
+    const currentClusterId = (cluster as { id?: string })?.id || getDefaultClusterId();
 
     // Build all networks list (default + custom)
     const allNetworks = useMemo<NetworkOption[]>(() => {
@@ -68,7 +72,13 @@ export function WalletDropdownContent({
     }, [customRpcs]);
 
     async function handleNetworkSwitch(networkId: string) {
-        await setCluster(networkId as `solana:${string}`);
+        try {
+            await setCluster(networkId as `solana:${string}`);
+            // An explicit choice: never nag about the active network again.
+            markNetworkNoticeSeen();
+        } catch {
+            toast.error('Failed to switch network');
+        }
     }
 
     function handleRemoveCustomRpc(e: React.MouseEvent, rpcId: string) {
@@ -88,14 +98,14 @@ export function WalletDropdownContent({
         // Reset form
         setNewRpcLabel('');
         setNewRpcUrl('');
-        setNewRpcNetwork('mainnet-beta');
+        setNewRpcNetwork('devnet');
         setIsAddingRpc(false);
     }
 
     function handleCancelAddRpc() {
         setNewRpcLabel('');
         setNewRpcUrl('');
-        setNewRpcNetwork('mainnet-beta');
+        setNewRpcNetwork('devnet');
         setIsAddingRpc(false);
     }
 
@@ -195,11 +205,11 @@ export function WalletDropdownContent({
                             key={network.id}
                             role="button"
                             tabIndex={0}
-                            onClick={() => handleNetworkSwitch(network.id)}
+                            onClick={() => void handleNetworkSwitch(network.id)}
                             onKeyDown={e => {
                                 if (e.key === 'Enter' || e.key === ' ') {
                                     e.preventDefault();
-                                    handleNetworkSwitch(network.id);
+                                    void handleNetworkSwitch(network.id);
                                 }
                             }}
                             className={`w-full flex items-center justify-between p-4 hover:bg-accent/50 transition-colors cursor-pointer ${
@@ -258,8 +268,8 @@ export function WalletDropdownContent({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="mainnet-beta">Mainnet</SelectItem>
                             <SelectItem value="devnet">Devnet</SelectItem>
+                            <SelectItem value="mainnet-beta">Mainnet</SelectItem>
                             <SelectItem value="testnet">Testnet</SelectItem>
                         </SelectContent>
                     </Select>
