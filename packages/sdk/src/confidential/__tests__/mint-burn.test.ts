@@ -23,7 +23,9 @@ jest.mock('@solana-program/token-2022/confidential', () => ({
 let mockMintDecimals = 6;
 let mockMintExtensions: unknown[] = [];
 let mockTokenExtensions: unknown[] = [];
-const mockMintData = () => ({ data: { decimals: mockMintDecimals, extensions: { __option: 'Some', value: mockMintExtensions } } });
+const mockMintData = () => ({
+    data: { decimals: mockMintDecimals, extensions: { __option: 'Some', value: mockMintExtensions } },
+});
 const mockTokenData = () => ({ data: { extensions: { __option: 'Some', value: mockTokenExtensions } } });
 
 jest.mock('@solana-program/token-2022', () => ({

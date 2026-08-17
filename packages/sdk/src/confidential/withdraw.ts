@@ -43,7 +43,6 @@ export async function createConfidentialWithdrawInstructionPlan(input: {
     return getConfidentialWithdrawInstructionPlan({
         rpc: input.rpc,
         payer: input.payer,
-        proofMode: 'context-state',
         token: input.tokenAccount,
         mint: input.mint,
         tokenAccount: decoded.data,

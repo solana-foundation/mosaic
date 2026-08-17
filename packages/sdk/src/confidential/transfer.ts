@@ -120,7 +120,6 @@ export async function createConfidentialTransferInstructionPlan(input: {
     return getConfidentialTransferInstructionPlan({
         rpc: input.rpc,
         payer: input.payer,
-        proofMode: 'context-state',
         mint: input.mint,
         mintAccount: mintDecoded.data,
         sourceToken: input.sourceToken,

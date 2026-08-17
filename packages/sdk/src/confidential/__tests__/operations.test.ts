@@ -211,7 +211,7 @@ describe('confidential operation builders', () => {
     });
 
     describe('withdraw', () => {
-        it('uses context-state proof mode and the raw amount', async () => {
+        it('passes the decoded token account, decimals, and the raw amount', async () => {
             const plan = await createConfidentialWithdrawInstructionPlan({
                 rpc: rpc as never,
                 payer,
@@ -224,7 +224,6 @@ describe('confidential operation builders', () => {
             expect(plan).toBe(mockWithdrawPlan);
             expect(getConfidentialWithdrawInstructionPlan).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    proofMode: 'context-state',
                     amount: 2_000_000n,
                     decimals: 6,
                     tokenAccount: mockSourceToken.data,
@@ -234,7 +233,7 @@ describe('confidential operation builders', () => {
     });
 
     describe('transfer', () => {
-        it('passes source/destination accounts, raw amount, and context-state mode', async () => {
+        it('passes source/destination accounts, raw amount, and the resolved auditor', async () => {
             const plan = await createConfidentialTransferInstructionPlan({
                 rpc: rpc as never,
                 payer,
@@ -248,7 +247,6 @@ describe('confidential operation builders', () => {
             expect(plan).toBe(mockTransferPlan);
             expect(getConfidentialTransferInstructionPlan).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    proofMode: 'context-state',
                     amount: 3_000_000n,
                     mintAccount: { decimals: 6, extensions: mockMintExtensions },
                     sourceTokenAccount: mockSourceToken.data,

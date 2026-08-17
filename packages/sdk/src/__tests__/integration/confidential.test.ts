@@ -21,7 +21,7 @@ import {
 import { findAssociatedTokenPda, getMintToInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 import { Token } from '../../issuance';
 import {
     createApplyConfidentialPendingBalanceInstructionPlan,
@@ -84,6 +84,8 @@ function clusterParam(rpcUrl: string): string {
 }
 
 interface Artefacts {
+    /** Short name of the flow this run covers; keeps the two runs' files apart. */
+    run: string;
     cluster: string;
     mint: Address;
     payer: Address;
@@ -91,6 +93,18 @@ interface Artefacts {
     senderAta: Address;
     recipientAta: Address;
     transactions: Array<{ step: string; signature: string }>;
+}
+
+/**
+ * Where a run's artefacts JSON goes. The base path (overridable via
+ * CONFIDENTIAL_ARTEFACTS_PATH) gets the run name spliced in before its
+ * extension, so the two flows land in separate files instead of the second
+ * clobbering the first.
+ */
+function artefactsPath(run: string): string {
+    const base = process.env.CONFIDENTIAL_ARTEFACTS_PATH ?? join(tmpdir(), 'confidential-e2e-artefacts.json');
+    const ext = extname(base);
+    return join(dirname(base), `${basename(base, ext)}.${run}${ext}`);
 }
 
 /**
@@ -103,7 +117,7 @@ function emitArtefacts(a: Artefacts): void {
     const acct = (addr: string) => `https://explorer.solana.com/address/${addr}?cluster=${a.cluster}`;
     const lines = [
         '',
-        '═══════════ confidential-transfer e2e artefacts ═══════════',
+        `═══════════ confidential e2e artefacts — ${a.run} ═══════════`,
         `mint          ${acct(a.mint)}`,
         `payer         ${acct(a.payer)}`,
         `recipient     ${acct(a.recipient)}`,
@@ -117,7 +131,7 @@ function emitArtefacts(a: Artefacts): void {
     // eslint-disable-next-line no-console
     console.log(lines.join('\n'));
 
-    const path = process.env.CONFIDENTIAL_ARTEFACTS_PATH ?? join(tmpdir(), 'confidential-e2e-artefacts.json');
+    const path = artefactsPath(a.run);
     writeFileSync(path, JSON.stringify(a, null, 2));
     // eslint-disable-next-line no-console
     console.log(`artefacts written to ${path}\n`);
@@ -467,6 +481,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
             freeConfidentialKeys(senderKeys);
             freeConfidentialKeys(recipientKeys);
             emitArtefacts({
+                run: 'transfer',
                 cluster: clusterParam(RPC_URL),
                 mint: mint.address,
                 payer: payer.address,
@@ -597,6 +612,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
             freeConfidentialKeys(supplyKeys);
             freeConfidentialKeys(ownerKeys);
             emitArtefacts({
+                run: 'mint-burn',
                 cluster: clusterParam(RPC_URL),
                 mint: mint.address,
                 payer: payer.address,
