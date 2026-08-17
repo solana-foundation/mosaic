@@ -72,7 +72,7 @@ export const resumeCommand = new Command('resume')
             spinner.succeed('Token resumed successfully!');
 
             // Display results
-            console.log(chalk.green('\\n✅ Token Resumed Successfully'));
+            console.log(chalk.green('\n✅ Token Resumed Successfully'));
             console.log(chalk.cyan('📋 Details:'));
             console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
             if (signature) {
@@ -81,7 +81,7 @@ export const resumeCommand = new Command('resume')
             console.log(`   ${chalk.bold('Pause Authority:')} ${pauseAuthorityAddress}`);
             console.log(`   ${chalk.bold('Status:')} Token transfers are now enabled`);
 
-            console.log(chalk.cyan('\\n🎯 Result:'));
+            console.log(chalk.cyan('\n🎯 Result:'));
             console.log(`   ${chalk.green('✓')} Token is now active`);
             console.log(`   ${chalk.green('✓')} All transfers can proceed normally`);
             console.log(`   ${chalk.green('✓')} DeFi protocols can interact with the token`);

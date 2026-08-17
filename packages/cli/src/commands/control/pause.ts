@@ -38,7 +38,7 @@ export const pauseCommand = new Command('pause')
             // Show warning if not skipped
             if (!options.skipWarning && !rawTx) {
                 spinner.stop();
-                console.log(chalk.yellow('\\n⚠️  WARNING: Pausing Token'));
+                console.log(chalk.yellow('\n⚠️  WARNING: Pausing Token'));
                 console.log(chalk.yellow('━'.repeat(50)));
                 console.log(chalk.white('You are about to pause the token at:'));
                 console.log(chalk.cyan(`  ${options.mintAddress}`));
@@ -85,7 +85,7 @@ export const pauseCommand = new Command('pause')
             spinner.succeed('Token paused successfully!');
 
             // Display results
-            console.log(chalk.green('\\n✅ Token Paused Successfully'));
+            console.log(chalk.green('\n✅ Token Paused Successfully'));
             console.log(chalk.cyan('📋 Details:'));
             console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
             if (signature) {
@@ -94,7 +94,7 @@ export const pauseCommand = new Command('pause')
             console.log(`   ${chalk.bold('Pause Authority:')} ${pauseAuthorityAddress}`);
             console.log(`   ${chalk.bold('Status:')} Token transfers are now blocked`);
 
-            console.log(chalk.cyan('\\n🎯 Next Steps:'));
+            console.log(chalk.cyan('\n🎯 Next Steps:'));
             console.log(`   • Use ${chalk.bold('mosaic control resume')} command to resume transfers`);
             console.log(`   • Monitor token holder communications`);
             console.log(`   • Ensure pause authority is secure`);

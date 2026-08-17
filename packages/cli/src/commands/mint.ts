@@ -94,7 +94,7 @@ export const mintCommand = new Command('mint')
             console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
             console.log(`   ${chalk.bold('Mint Authority:')} ${mintAuthority.address}`);
 
-            console.log(chalk.cyan('\\n🎯 Result:'));
+            console.log(chalk.cyan('\n🎯 Result:'));
             console.log(`   ${chalk.green('✓')} Associated Token Account created/updated`);
             console.log(`   ${chalk.green('✓')} ${decimalAmount} tokens minted to recipient`);
         } catch (error) {
