@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useCluster } from '@solana/connector/react';
 import { toast } from '@/components/ui/sonner';
 import { getClusterName } from '@/lib/solana/explorer';
+import { getConfiguredNetwork } from '@/lib/solana/network';
 import { useNetworkNoticeStore } from '@/stores/network-notice-store';
 
 /**
@@ -38,11 +39,11 @@ export function NetworkNotice() {
         // need to re-render when the flag flips.
         if (useNetworkNoticeStore.getState().hasSeenNetworkNotice) return;
 
-        const label = (cluster as { label?: string }).label ?? getClusterName(cluster) ?? 'Devnet';
+        const label = (cluster as { label?: string }).label ?? getClusterName(cluster) ?? getConfiguredNetwork();
 
         toast.info(`You're on ${label}`, {
             id: 'network-notice',
-            description: 'Mosaic defaults to Devnet. Change it any time under the wallet menu → Network Settings.',
+            description: 'Change it any time under the wallet menu → Network Settings.',
             duration: 8000,
         });
 
