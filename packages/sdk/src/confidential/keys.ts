@@ -7,7 +7,14 @@ import {
     signBytes,
 } from '@solana/kit';
 import { deriveAeKeyForOwnerMint, deriveElGamalKeypairForOwnerMint } from '@solana-program/token-2022/confidential';
-import { ElGamalKeypair, AeKey, ElGamalSecretKey, ElGamalCiphertext, AeCiphertext } from '@solana/mosaic-sdk/_zk';
+import {
+    ElGamalKeypair,
+    AeKey,
+    ElGamalSecretKey,
+    ConfidentialKeys as ZkConfidentialKeys,
+    ElGamalCiphertext,
+    AeCiphertext,
+} from '@solana/mosaic-sdk/_zk';
 
 /**
  * Confidential Transfer key derivation.
@@ -19,10 +26,19 @@ import { ElGamalKeypair, AeKey, ElGamalSecretKey, ElGamalCiphertext, AeCiphertex
  *
  * Both are derived deterministically from an Ed25519 signature over a canonical,
  * token-account-bound message, so they never need to be stored — the authority
- * can always re-derive them by signing again. This mirrors the Agave
- * `ElGamalKeypair::new_from_signer` / `AeKey::new_from_signer` scheme: the public
- * seed is the token account address, and the message to sign is produced by
- * `ElGamalSecretKey.signerMessage(seed)` / `AeKey.signerMessage(seed)`.
+ * can always re-derive them by signing again. The public seed is the token
+ * account address and the message to sign is produced by
+ * `ConfidentialKeys.signerMessage(seed)`; a single signature yields BOTH keys
+ * (`.elgamal()` / `.ae()`).
+ *
+ * NOTE: as of `@solana/zk-sdk` 0.5.x this is ONE signature over one canonical
+ * message (`b"solana-conf-bal/v1" || seed`). It replaces the previous 0.4.x
+ * scheme of two independent signatures over `b"ElGamalSecretKey" || seed` and
+ * `b"AeKey" || seed`. The keys the two schemes produce are DIFFERENT, so an
+ * account configured under the old scheme cannot be re-derived under this one —
+ * its balances are still decryptable, but only with the retained key bytes.
+ * token-2022 0.15.0 made the same switch in `deriveElGamalKeypairForOwnerMint` /
+ * `deriveAeKeyForOwnerMint`, so this is an upstream-wide change, not a local one.
  *
  * `@solana/zk-sdk` (the WASM crypto dependency) is imported only here and in
  * `proof.ts`, so the rest of the SDK stays free of the WASM dependency and these
@@ -70,11 +86,24 @@ export interface DeriveConfidentialKeysInput {
 
 /**
  * Derives (or accepts overrides for) the ElGamal keypair and AES key for a
- * confidential token account.
+ * confidential token account, seeded by the **token account address**.
+ *
+ * ⚠️ **Prefer {@link deriveConfidentialKeysForOwnerMint} for ordinary wallets.**
+ * That one binds to `(owner, mint)`, so the keys survive closing and reopening
+ * the account; these are bound to the account address, so a reopened account
+ * derives *different* keys and can no longer read its old balances.
+ *
+ * Reach for this function when you need control over the seed rather than the
+ * `(owner, mint)` convention — most notably PDA / passkey wallets, which key off
+ * `ConfidentialKeys.pdaWalletPublicSeed(...)` instead of a plain address. It is
+ * the thin wrapper over the canonical upstream scheme; the `(owner, mint)`
+ * helper is the opinionated default layered on top.
  *
  * Derivation is deterministic: the same authority + token account always yields
  * the same keys. Pass `elgamalKeypair`/`aesKey` to bypass derivation (e.g. tests,
  * or callers that manage their own key material).
+ *
+ * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
  */
 export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput): Promise<ConfidentialKeys> {
     const { tokenAccount, signMessage, elgamalKeypair, aesKey } = input;
@@ -91,11 +120,20 @@ export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput)
     // The token account address is the public seed (32 bytes).
     const seed = new Uint8Array(getAddressEncoder().encode(tokenAccount));
 
-    const elgamal =
-        elgamalKeypair ?? ElGamalKeypair.fromSignature(await signMessage(ElGamalSecretKey.signerMessage(seed)));
-    const aes = aesKey ?? AeKey.fromSignature(await signMessage(AeKey.signerMessage(seed)));
-
-    return { elgamal, aes };
+    // One signature over the single canonical message yields both components.
+    // Only reached when at least one key still has to be derived (see the
+    // both-overrides early return above).
+    const derived = ZkConfidentialKeys.fromSignature(await signMessage(ZkConfidentialKeys.signerMessage(seed)));
+    try {
+        return {
+            elgamal: elgamalKeypair ?? derived.elgamal(),
+            aes: aesKey ?? derived.ae(),
+        };
+    } finally {
+        // `elgamal()`/`ae()` hand back independently-owned objects, so the pair
+        // itself is ours to release — otherwise every derivation leaks it.
+        derived.free();
+    }
 }
 
 export interface DeriveConfidentialKeysForOwnerMintInput {

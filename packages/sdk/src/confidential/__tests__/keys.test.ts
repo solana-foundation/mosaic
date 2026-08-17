@@ -68,6 +68,36 @@ describe('deriveConfidentialKeys', () => {
     it('throws when neither signMessage nor both key overrides are provided', async () => {
         await expect(deriveConfidentialKeys({ tokenAccount: TOKEN_ACCOUNT_A })).rejects.toThrow(/signMessage/);
     });
+
+    // The derivation frees the intermediate `ConfidentialKeys` pair once it has
+    // taken the two components out. Both must survive that: exercise each with a
+    // real crypto round-trip, which would fault on a dangling WASM pointer.
+    it('produces usable keys after the intermediate pair is freed', async () => {
+        const keys = await deriveConfidentialKeys({ tokenAccount: TOKEN_ACCOUNT_A, signMessage });
+
+        const aesCiphertext = new Uint8Array(keys.aes.encrypt(7_777n).toBytes());
+        expect(decryptAesBalance(keys.aes, aesCiphertext)).toBe(7_777n);
+
+        const pubkey = keys.elgamal.pubkey();
+        const elgamalCiphertext = new Uint8Array(pubkey.encryptU64(42n).toBytes());
+        expect(decryptElGamalBalance(keys.elgamal, elgamalCiphertext)).toBe(42n);
+        pubkey.free();
+
+        freeConfidentialKeys(keys);
+    });
+
+    // Taking only one component still frees the pair; the other must be unaffected.
+    it('produces a usable key when only one component is derived', async () => {
+        const aesKey = AeKey.fromSeed(new Uint8Array(32).fill(3));
+        const keys = await deriveConfidentialKeys({ tokenAccount: TOKEN_ACCOUNT_A, signMessage, aesKey });
+
+        const pubkey = keys.elgamal.pubkey();
+        const ciphertext = new Uint8Array(pubkey.encryptU64(9n).toBytes());
+        expect(decryptElGamalBalance(keys.elgamal, ciphertext)).toBe(9n);
+        pubkey.free();
+
+        freeConfidentialKeys(keys);
+    });
 });
 
 describe('deriveConfidentialKeysForOwnerMint', () => {
