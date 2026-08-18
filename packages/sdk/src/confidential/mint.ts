@@ -8,35 +8,9 @@ import {
 } from '@solana/kit';
 import { fetchMint, fetchToken } from '@solana-program/token-2022';
 import { getConfidentialMintInstructionPlan } from '@solana-program/token-2022/confidential';
+import { isConfidentialMintBurn, isConfidentialTransferAccount, isConfidentialTransferMint } from './extensions';
 import type { ConfidentialKeys } from './keys';
 import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
-
-type DecodedMint = Awaited<ReturnType<typeof fetchMint>>;
-type DecodedToken = Awaited<ReturnType<typeof fetchToken>>;
-
-/** Whether a decoded mint carries the `ConfidentialMintBurn` extension. */
-function isConfidentialMintBurn(mint: DecodedMint): boolean {
-    return (
-        mint.data.extensions.__option === 'Some' &&
-        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialMintBurn')
-    );
-}
-
-/** Whether a decoded mint carries the `ConfidentialTransferMint` extension. */
-function isConfidentialTransferMint(mint: DecodedMint): boolean {
-    return (
-        mint.data.extensions.__option === 'Some' &&
-        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferMint')
-    );
-}
-
-/** Whether a decoded token account carries the `ConfidentialTransferAccount` extension. */
-function isConfidentialTransferAccount(token: DecodedToken): boolean {
-    return (
-        token.data.extensions.__option === 'Some' &&
-        token.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferAccount')
-    );
-}
 
 /**
  * Confidentially **mints** tokens directly into a confidential balance,

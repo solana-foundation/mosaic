@@ -59,10 +59,10 @@ export interface ConfidentialMintBurnOptions {
     /**
      * The mint authority's **supply** ElGamal public key — the encrypted total
      * supply is maintained under it, and it backs the mint/burn equality proof.
-     * Conceptually the supply key rather than an account balance key, though it
-     * shares the standard `(owner, mint)` derivation (with `owner = mintAuthority`)
-     * so it is not domain-separated from the authority's own account keys. Derive
-     * it alongside {@link getConfidentialMintBurnInit} in
+     * A supply key, not an account balance key: `deriveConfidentialSupplyKeys`
+     * binds it to `(mintAuthority, mint)` under its own domain tag, so it is
+     * distinct from any account keys the same authority derives for this mint.
+     * Derive it alongside {@link getConfidentialMintBurnInit} in
      * `@solana/mosaic-sdk/confidential`.
      */
     supplyElgamalPubkey: Address;

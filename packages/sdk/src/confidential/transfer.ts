@@ -8,39 +8,13 @@ import {
 } from '@solana/kit';
 import { fetchMint, fetchToken } from '@solana-program/token-2022';
 import { getConfidentialTransferInstructionPlan } from '@solana-program/token-2022/confidential';
+import {
+    isConfidentialTransferAccount,
+    isConfidentialTransferMint,
+    mintHasConfidentialTransferFee,
+} from './extensions';
 import type { ConfidentialKeys } from './keys';
 import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
-
-type DecodedMint = Awaited<ReturnType<typeof fetchMint>>;
-type DecodedToken = Awaited<ReturnType<typeof fetchToken>>;
-
-/** Whether a decoded token account carries the `ConfidentialTransferAccount` extension. */
-function isConfidentialTransferAccount(token: DecodedToken): boolean {
-    return (
-        token.data.extensions.__option === 'Some' &&
-        token.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferAccount')
-    );
-}
-
-/** Whether a decoded mint carries the `ConfidentialTransferMint` extension. */
-function isConfidentialTransferMint(mint: DecodedMint): boolean {
-    return (
-        mint.data.extensions.__option === 'Some' &&
-        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferMint')
-    );
-}
-
-/**
- * Whether a decoded mint carries the `ConfidentialTransferFee` extension. Such
- * mints require the fee-aware confidential transfer variant, which this helper
- * does not yet build.
- */
-function mintHasConfidentialTransferFee(mint: DecodedMint): boolean {
-    return (
-        mint.data.extensions.__option === 'Some' &&
-        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferFee')
-    );
-}
 
 /**
  * Confidentially transfers tokens from one account to another. Wraps the

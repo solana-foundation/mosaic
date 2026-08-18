@@ -15,6 +15,7 @@ import {
 } from '@solana-program/token-2022';
 import { getThawPermissionlessInstructions } from '../token-acl';
 import {
+    confidentialMintBurnConversionError,
     decimalAmountToRaw,
     getMintDetails,
     mintHasConfidentialMintBurnExtension,
@@ -53,11 +54,7 @@ export const createMintToTransaction = async (
     // plaintext MintTo (IllegalMintBurnConversion). Fail fast with an actionable
     // message rather than building a transaction the chain would reject.
     if (mintHasConfidentialMintBurnExtension(extensions)) {
-        throw new Error(
-            `Mint ${mint} has the ConfidentialMintBurn extension enabled; plaintext minting is not supported. ` +
-                `Use the confidential mint path (createConfidentialMintInstructionPlan) from ` +
-                `@solana/mosaic-sdk/confidential instead.`,
-        );
+        throw confidentialMintBurnConversionError(mint, 'plaintext minting', 'createConfidentialMintInstructionPlan');
     }
 
     const { tokenAccount: destinationAta, isFrozen } = await resolveTokenAccount(rpc, recipient, mint);

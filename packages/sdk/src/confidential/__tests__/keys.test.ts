@@ -1,9 +1,11 @@
 import type { Address } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
 import { ElGamalKeypair, AeKey } from '@solana/zk-sdk/node';
+import { deriveAeKeyForOwnerMint, deriveElGamalKeypairForOwnerMint } from '@solana-program/token-2022/confidential';
 import {
     deriveConfidentialKeys,
     deriveConfidentialKeysForOwnerMint,
+    deriveConfidentialSupplyKeys,
     createKeyPairMessageSigner,
     freeConfidentialKeys,
     decryptAesBalance,
@@ -130,6 +132,112 @@ describe('deriveConfidentialKeysForOwnerMint', () => {
         const keys = await deriveConfidentialKeysForOwnerMint({ signer, owner: signer.address, mint: MINT_A });
         const ciphertext = new Uint8Array(keys.aes.encrypt(7_777n).toBytes());
         expect(decryptAesBalance(keys.aes, ciphertext)).toBe(7_777n);
+        freeConfidentialKeys(keys);
+    });
+
+    // We derive both keys from ONE signature rather than calling upstream's two
+    // helpers, which sign the same canonical message twice (two wallet prompts).
+    // That requires replicating upstream's `ownerMintSeed`, so pin the result
+    // against upstream: if their seed or message scheme ever changes, this fails
+    // instead of silently producing keys that can't read existing balances.
+    it('matches the upstream two-call derivation byte for byte', async () => {
+        const signer = await generateKeyPairSigner();
+        const keys = await deriveConfidentialKeysForOwnerMint({ signer, owner: signer.address, mint: MINT_A });
+
+        const [upstreamElGamal, upstreamAesBytes] = await Promise.all([
+            deriveElGamalKeypairForOwnerMint({ signer, owner: signer.address, mint: MINT_A }),
+            deriveAeKeyForOwnerMint({ signer, owner: signer.address, mint: MINT_A }),
+        ]);
+
+        expect(new Uint8Array(keys.elgamal.secret().toBytes())).toEqual(new Uint8Array(upstreamElGamal.secretKey));
+        expect(new Uint8Array(keys.aes.toBytes())).toEqual(new Uint8Array(upstreamAesBytes));
+
+        freeConfidentialKeys(keys);
+    });
+
+    // One signature per derivation, not two — the regression this guards against
+    // is a user-visible double wallet prompt on the recommended key path.
+    it('requests exactly one signature', async () => {
+        const signer = await generateKeyPairSigner();
+        const signMessages = jest.fn(signer.signMessages.bind(signer));
+        const spySigner = { ...signer, signMessages };
+
+        const keys = await deriveConfidentialKeysForOwnerMint({
+            signer: spySigner,
+            owner: signer.address,
+            mint: MINT_A,
+        });
+
+        expect(signMessages).toHaveBeenCalledTimes(1);
+        freeConfidentialKeys(keys);
+    });
+});
+
+describe('deriveConfidentialSupplyKeys', () => {
+    it('is deterministic: same mint authority + mint yields the same supply keys', async () => {
+        const signer = await generateKeyPairSigner();
+        const a = await deriveConfidentialSupplyKeys({ signer, mint: MINT_A });
+        const b = await deriveConfidentialSupplyKeys({ signer, mint: MINT_A });
+
+        expect(a.elgamal.pubkey().toBytes()).toEqual(b.elgamal.pubkey().toBytes());
+        expect(a.aes.toBytes()).toEqual(b.aes.toBytes());
+
+        freeConfidentialKeys(a);
+        freeConfidentialKeys(b);
+    });
+
+    it('binds supply keys to the mint', async () => {
+        const signer = await generateKeyPairSigner();
+        const a = await deriveConfidentialSupplyKeys({ signer, mint: MINT_A });
+        const b = await deriveConfidentialSupplyKeys({ signer, mint: MINT_B });
+
+        expect(a.elgamal.pubkey().toBytes()).not.toEqual(b.elgamal.pubkey().toBytes());
+        expect(a.aes.toBytes()).not.toEqual(b.aes.toBytes());
+
+        freeConfidentialKeys(a);
+        freeConfidentialKeys(b);
+    });
+
+    // The point of the domain tag: without it these two derivations are identical
+    // whenever owner === mintAuthority, so handing out account keys (to an auditor,
+    // to support, in a backup) would also hand out the total-supply keys.
+    it('is domain-separated from the (owner, mint) account derivation', async () => {
+        const signer = await generateKeyPairSigner();
+        const supply = await deriveConfidentialSupplyKeys({ signer, mint: MINT_A });
+        const account = await deriveConfidentialKeysForOwnerMint({
+            signer,
+            owner: signer.address,
+            mint: MINT_A,
+        });
+
+        expect(supply.elgamal.pubkey().toBytes()).not.toEqual(account.elgamal.pubkey().toBytes());
+        expect(supply.aes.toBytes()).not.toEqual(account.aes.toBytes());
+
+        freeConfidentialKeys(supply);
+        freeConfidentialKeys(account);
+    });
+
+    it('requests exactly one signature', async () => {
+        const signer = await generateKeyPairSigner();
+        const signMessages = jest.fn(signer.signMessages.bind(signer));
+        const keys = await deriveConfidentialSupplyKeys({
+            signer: { ...signer, signMessages },
+            mint: MINT_A,
+        });
+
+        expect(signMessages).toHaveBeenCalledTimes(1);
+        freeConfidentialKeys(keys);
+    });
+
+    it('produces usable keys (AES + ElGamal round-trip)', async () => {
+        const signer = await generateKeyPairSigner();
+        const keys = await deriveConfidentialSupplyKeys({ signer, mint: MINT_A });
+
+        expect(decryptAesBalance(keys.aes, new Uint8Array(keys.aes.encrypt(4_200n).toBytes()))).toBe(4_200n);
+        const pubkey = keys.elgamal.pubkey();
+        expect(decryptElGamalBalance(keys.elgamal, new Uint8Array(pubkey.encryptU64(11n).toBytes()))).toBe(11n);
+        pubkey.free();
+
         freeConfidentialKeys(keys);
     });
 });

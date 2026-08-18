@@ -202,9 +202,11 @@ where new supply is minted straight into an encrypted balance and burned from it
 > kept out of the root barrel so plain (non-confidential) imports stay lightweight.
 >
 > **Cluster requirement.** Confidential operations verify zero-knowledge proofs via
-> the ZK ElGamal Proof Program, which must be live on the target cluster (devnet and
-> local validators; not always enabled on mainnet). Several operations span multiple
-> transactions to set up and reclaim proof context-state accounts.
+> the ZK ElGamal Proof Program, which must be live on the target cluster. In practice
+> that means **devnet**: it is not always enabled on mainnet, and a stock local
+> validator fails these flows (deposit returns `InvalidInstructionData`), which is why
+> `pnpm test:integration` skips every confidential suite. Several operations span
+> multiple transactions to set up and reclaim proof context-state accounts.
 >
 > **Memory.** `ConfidentialKeys` hold WASM-backed memory — call
 > `freeConfidentialKeys(keys)` when you're done with them.
@@ -234,23 +236,42 @@ const tx2 = await new Token()
     .withConfidentialBalances({ authority: mintAuthority.address, policy: 'opt-in' })
     .withConfidentialMintBurn(getConfidentialMintBurnInit(supplyKeys))
     .buildTransaction({ rpc, decimals: 2, mintAuthority, mint, feePayer });
+freeConfidentialKeys(supplyKeys); // once you no longer need them for mint/burn
 ```
 
-> **`withConfidentialMintBurn` forces a confidential-only supply.** A mint with the
-> `ConfidentialMintBurn` extension tracks its total supply as an encrypted value, so
-> Token-2022 **rejects plaintext `MintTo` / `Burn`** on it (`IllegalMintBurnConversion`).
-> All issuance and redemption must go through `createConfidentialMintInstructionPlan` /
-> `createConfidentialBurnInstructionPlan` (step 5) — the plaintext `createMintToTransaction`
-> / `createBurnTransaction` builders fail fast on such a mint. Enable the extension only
-> when you want the supply itself to be confidential. If you instead want a **public
-> supply with confidential balances**, use `withConfidentialBalances` **without**
-> `withConfidentialMintBurn`: mint in cleartext with `createMintToTransaction`, then move
-> value into the confidential balance with a `deposit` (step 4).
+> **`withConfidentialMintBurn` forces a confidential-only supply — there is no
+> plaintext side at all.** Such a mint tracks its total supply purely as an encrypted
+> value, so Token-2022 rejects **every** plaintext↔confidential conversion on it with
+> `IllegalMintBurnConversion`:
+>
+> | Operation                                              | On a `ConfidentialMintBurn` mint       |
+> | ------------------------------------------------------ | -------------------------------------- |
+> | `createMintToTransaction` (plaintext mint)             | ✗ rejected — use the confidential mint |
+> | `createBurnTransaction` / `createForceBurnTransaction` | ✗ rejected — use the confidential burn |
+> | `createConfidentialDepositInstructionPlan`             | ✗ rejected — nothing to deposit from   |
+> | `createConfidentialWithdrawInstructionPlan`            | ✗ rejected — nowhere to withdraw to    |
+> | `createConfidentialTransferInstructionPlan`            | ✓ supported                            |
+>
+> All five rejected builders fail fast client-side rather than emitting a doomed
+> transaction. Issuance and redemption go exclusively through
+> `createConfidentialMintInstructionPlan` / `createConfidentialBurnInstructionPlan`
+> (step 5), and **holders have no route back to a plaintext balance** — plan for that
+> before enabling the extension.
+>
+> If you instead want a **public supply with confidential balances**, use
+> `withConfidentialBalances` **without** `withConfidentialMintBurn`: mint in cleartext
+> with `createMintToTransaction`, then move value into the confidential balance with a
+> `deposit` (step 4), and back out with a `withdraw`.
 
 ### 2. Derive account keys
 
 Each holder derives ElGamal + AES keys bound to `(owner, mint)` from a signature —
-they are deterministic and never stored on-chain.
+they are deterministic and never stored on-chain. One signature yields both keys.
+
+> Account keys and the mint authority's **supply** keys (step 1) use separate
+> derivation domains, so a mint authority that also holds a confidential account of its
+> own mint gets two independent key sets. Sharing account keys — with an auditor, with
+> support, in a backup — therefore never exposes the total-supply keys.
 
 ```ts
 import { deriveConfidentialKeysForOwnerMint, freeConfidentialKeys } from '@solana/mosaic-sdk/confidential';
@@ -296,6 +317,10 @@ const approvePlan = createApproveConfidentialAccountInstructionPlan({
 
 The standard confidential-balance lifecycle. All functions return an
 `InstructionPlan` — see [Executing plans](#executing-plans) below.
+
+> Deposit and withdraw are **not available on a `ConfidentialMintBurn` mint** (see the
+> table in step 1); on such a mint use the confidential mint/burn flow in step 5
+> instead. Everything else here works on both kinds of confidential mint.
 
 ```ts
 import {
@@ -367,6 +392,7 @@ import {
     createConfidentialMintInstructionPlan,
     createConfidentialBurnInstructionPlan,
     createApplyConfidentialPendingBurnInstructionPlan,
+    createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan,
 } from '@solana/mosaic-sdk/confidential';
 
 // Mint straight into a confidential (pending) balance — amount never appears in cleartext.
@@ -396,7 +422,32 @@ const applyBurn = createApplyConfidentialPendingBurnInstructionPlan({
     mint: 'MintPubkey...',
     authority: mintAuthority,
 });
+
+// REQUIRED after every applyBurn — see the warning below.
+const resync = createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan({
+    mint: 'MintPubkey...',
+    authority: mintAuthority,
+    supplyKeys,
+    rawSupply: 300n, // true supply after the burn, in raw base units
+});
 ```
+
+> ⚠️ **`applyBurn` must always be followed by the supply re-sync above, or your next
+> confidential mint will be rejected on-chain.** The mint keeps its supply twice: as an
+> ElGamal ciphertext (`confidentialSupply`) and as a cheap-to-decrypt AES value
+> (`decryptableSupply`). `ApplyPendingBurn` advances the ElGamal form but **cannot**
+> re-encrypt the AES form, so the two drift apart. A confidential mint's equality proof
+> is built from the AES value and checked against the ElGamal one, so once they differ
+> the proof fails verification and the mint transaction is rejected — with no hint that
+> a stale decryptable supply is the cause.
+>
+> `rawSupply` is asserted, not verified: the program re-encrypts whatever you pass, in
+> **raw base units** (no decimal string form). Track the true supply yourself — mint
+> amounts added, applied burn amounts subtracted — because passing the wrong value
+> leaves the mint in exactly the broken state this instruction exists to repair.
+>
+> The full safe cycle is therefore:
+> `confidential mint → apply pending balance → confidential burn → apply pending burn → update decryptable supply`.
 
 <a id="executing-plans"></a>
 

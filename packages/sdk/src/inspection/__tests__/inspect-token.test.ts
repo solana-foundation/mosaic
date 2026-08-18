@@ -153,7 +153,12 @@ describe('inspectToken', () => {
             const mintBurnExt = result.extensions.find(e => e.name === 'ConfidentialMintBurn');
             expect(mintBurnExt).toBeDefined();
             expect(mintBurnExt?.details?.supplyElgamalPubkey).toBe(supplyPubkey);
-            expect(mintBurnExt?.details?.decryptableSupply).toBe(decryptableSupply);
+            // Base64-encoded, so the result survives JSON.stringify as a string
+            // rather than an indexed byte object.
+            expect(mintBurnExt?.details?.decryptableSupply).toBe(Buffer.from(decryptableSupply).toString('base64'));
+            expect(JSON.parse(JSON.stringify(mintBurnExt)).details.decryptableSupply).toBe(
+                Buffer.from(decryptableSupply).toString('base64'),
+            );
         });
 
         it('should correctly parse an arcade token', async () => {
