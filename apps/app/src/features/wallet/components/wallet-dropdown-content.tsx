@@ -11,7 +11,7 @@ import { useCluster } from '@solana/connector/react';
 import { motion } from 'motion/react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { useRpcStore, type NetworkName } from '@/stores/rpc-store';
-import { getDefaultClusterId } from '@/lib/solana/network';
+import { BUILTIN_CLUSTERS, getConfiguredNetwork, getDefaultClusterId } from '@/lib/solana/network';
 import { markNetworkNoticeSeen } from '@/stores/network-notice-store';
 import { toast } from '@/components/ui/sonner';
 
@@ -31,12 +31,7 @@ interface NetworkOption {
     isCustom?: boolean;
 }
 
-// Keep in sync with the cluster list in src/app/providers.tsx.
-const DEFAULT_NETWORKS: NetworkOption[] = [
-    { id: 'solana:devnet', label: 'Devnet', name: 'devnet' },
-    { id: 'solana:mainnet', label: 'Mainnet', name: 'mainnet-beta' },
-    { id: 'solana:testnet', label: 'Testnet', name: 'testnet' },
-];
+const DEFAULT_NETWORKS: NetworkOption[] = BUILTIN_CLUSTERS.map(({ id, label, name }) => ({ id, label, name }));
 
 export function WalletDropdownContent({
     selectedAccount,
@@ -53,7 +48,7 @@ export function WalletDropdownContent({
     const [isAddingRpc, setIsAddingRpc] = useState(false);
     const [newRpcLabel, setNewRpcLabel] = useState('');
     const [newRpcUrl, setNewRpcUrl] = useState('');
-    const [newRpcNetwork, setNewRpcNetwork] = useState<NetworkName>('devnet');
+    const [newRpcNetwork, setNewRpcNetwork] = useState<NetworkName>(getConfiguredNetwork);
 
     const shortAddress = `${selectedAccount.slice(0, 4)}...${selectedAccount.slice(-4)}`;
 
@@ -76,8 +71,13 @@ export function WalletDropdownContent({
             await setCluster(networkId as `solana:${string}`);
             // An explicit choice: never nag about the active network again.
             markNetworkNoticeSeen();
-        } catch {
-            toast.error('Failed to switch network');
+        } catch (error) {
+            const label = allNetworks.find(network => network.id === networkId)?.label ?? networkId;
+            // eslint-disable-next-line no-console
+            console.error(`Failed to switch to cluster ${networkId}`, error);
+            toast.error(`Failed to switch to ${label}`, {
+                description: error instanceof Error ? error.message : String(error),
+            });
         }
     }
 
@@ -98,14 +98,14 @@ export function WalletDropdownContent({
         // Reset form
         setNewRpcLabel('');
         setNewRpcUrl('');
-        setNewRpcNetwork('devnet');
+        setNewRpcNetwork(getConfiguredNetwork());
         setIsAddingRpc(false);
     }
 
     function handleCancelAddRpc() {
         setNewRpcLabel('');
         setNewRpcUrl('');
-        setNewRpcNetwork('devnet');
+        setNewRpcNetwork(getConfiguredNetwork());
         setIsAddingRpc(false);
     }
 
@@ -268,9 +268,11 @@ export function WalletDropdownContent({
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="devnet">Devnet</SelectItem>
-                            <SelectItem value="mainnet-beta">Mainnet</SelectItem>
-                            <SelectItem value="testnet">Testnet</SelectItem>
+                            {BUILTIN_CLUSTERS.map(cluster => (
+                                <SelectItem key={cluster.name} value={cluster.name}>
+                                    {cluster.label}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                     <div className="flex gap-2">
