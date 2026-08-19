@@ -21,7 +21,7 @@ import {
 import { findAssociatedTokenPda, getMintToInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 import { Token } from '../../issuance';
 import {
     createApplyConfidentialPendingBalanceInstructionPlan,
@@ -33,6 +33,7 @@ import {
     createConfidentialWithdrawInstructionPlan,
     createConfigureConfidentialAccountInstructionPlan,
     createEmptyConfidentialAccountInstructionPlan,
+    createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan,
     deriveConfidentialKeysForOwnerMint,
     deriveConfidentialSupplyKeys,
     freeConfidentialKeys,
@@ -84,6 +85,8 @@ function clusterParam(rpcUrl: string): string {
 }
 
 interface Artefacts {
+    /** Short name of the flow this run covers; keeps the two runs' files apart. */
+    run: string;
     cluster: string;
     mint: Address;
     payer: Address;
@@ -91,6 +94,18 @@ interface Artefacts {
     senderAta: Address;
     recipientAta: Address;
     transactions: Array<{ step: string; signature: string }>;
+}
+
+/**
+ * Where a run's artefacts JSON goes. The base path (overridable via
+ * CONFIDENTIAL_ARTEFACTS_PATH) gets the run name spliced in before its
+ * extension, so the two flows land in separate files instead of the second
+ * clobbering the first.
+ */
+function artefactsPath(run: string): string {
+    const base = process.env.CONFIDENTIAL_ARTEFACTS_PATH ?? join(tmpdir(), 'confidential-e2e-artefacts.json');
+    const ext = extname(base);
+    return join(dirname(base), `${basename(base, ext)}.${run}${ext}`);
 }
 
 /**
@@ -103,7 +118,7 @@ function emitArtefacts(a: Artefacts): void {
     const acct = (addr: string) => `https://explorer.solana.com/address/${addr}?cluster=${a.cluster}`;
     const lines = [
         '',
-        '═══════════ confidential-transfer e2e artefacts ═══════════',
+        `═══════════ confidential e2e artefacts — ${a.run} ═══════════`,
         `mint          ${acct(a.mint)}`,
         `payer         ${acct(a.payer)}`,
         `recipient     ${acct(a.recipient)}`,
@@ -117,7 +132,7 @@ function emitArtefacts(a: Artefacts): void {
     // eslint-disable-next-line no-console
     console.log(lines.join('\n'));
 
-    const path = process.env.CONFIDENTIAL_ARTEFACTS_PATH ?? join(tmpdir(), 'confidential-e2e-artefacts.json');
+    const path = artefactsPath(a.run);
     writeFileSync(path, JSON.stringify(a, null, 2));
     // eslint-disable-next-line no-console
     console.log(`artefacts written to ${path}\n`);
@@ -467,6 +482,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
             freeConfidentialKeys(senderKeys);
             freeConfidentialKeys(recipientKeys);
             emitArtefacts({
+                run: 'transfer',
                 cluster: clusterParam(RPC_URL),
                 mint: mint.address,
                 payer: payer.address,
@@ -482,8 +498,17 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
         const rpc = client.rpc as Rpc<SolanaRpcApi>;
         const mint = await generateKeyPairSigner();
 
+        // The holder is deliberately NOT the mint authority. Supply keys derive from
+        // (mintAuthority, mint) and account keys from (owner, mint), so reusing `payer`
+        // for both would make the two key sets identical — and a wrapper that passed
+        // account keys where supply keys belong (or vice versa) would still pass on
+        // chain. A separate holder keeps the two distinguishable. It needs no SOL:
+        // `payer` covers every fee and rent, and `signTransactionMessageWithSigners`
+        // picks up the holder's signature from the message.
+        const holder = await generateKeyPairSigner();
+
         const [ownerAta] = await findAssociatedTokenPda({
-            owner: payer.address,
+            owner: holder.address,
             mint: mint.address,
             tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
         });
@@ -504,10 +529,13 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
         // be baked into the ConfidentialMintBurn extension.
         const supplyKeys = await deriveConfidentialSupplyKeys({ signer: payer, mint: mint.address });
         const ownerKeys = await deriveConfidentialKeysForOwnerMint({
-            signer: payer,
-            owner: payer.address,
+            signer: holder,
+            owner: holder.address,
             mint: mint.address,
         });
+        // Guard the point of using a separate holder: if these ever coincide, the
+        // supply/account key assertions below stop proving anything.
+        expect(new Uint8Array(supplyKeys.aes.toBytes())).not.toEqual(new Uint8Array(ownerKeys.aes.toBytes()));
 
         try {
             // 1. Create the mint with BOTH confidential-transfer and mint-burn
@@ -534,7 +562,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
                 await createConfigureConfidentialAccountInstructionPlan({
                     rpc,
                     payer,
-                    owner: payer,
+                    owner: holder,
                     mint: mint.address,
                     keys: ownerKeys,
                 }),
@@ -563,7 +591,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
                 await createApplyConfidentialPendingBalanceInstructionPlan({
                     rpc,
                     tokenAccount: ownerAta,
-                    authority: payer,
+                    authority: holder,
                     keys: ownerKeys,
                 }),
             );
@@ -579,7 +607,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
                     payer,
                     mint: mint.address,
                     tokenAccount: ownerAta,
-                    authority: payer,
+                    authority: holder,
                     amount: CONFIDENTIAL_BURN_AMOUNT,
                     keys: ownerKeys,
                 }),
@@ -588,19 +616,67 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
             expect(afterBurn?.decrypted?.availableBalance).toBe(CONFIDENTIAL_MINT_AMOUNT - CONFIDENTIAL_BURN_AMOUNT);
 
             // 6. Apply the mint's pending burn on the supply side (mint authority).
+            //    This advances the ElGamal supply but leaves the AES "decryptable
+            //    supply" stale, so the two now disagree.
             await step(
                 'apply-pending-burn',
                 payer,
                 createApplyConfidentialPendingBurnInstructionPlan({ mint: mint.address, authority: payer }),
             );
+
+            // 7. Re-sync the decryptable supply to the true post-burn supply. This is
+            //    MANDATORY: a confidential mint's equality proof is built from the AES
+            //    value and checked against the ElGamal one, so step 8 is rejected
+            //    on-chain while they disagree. Removing this step must fail the test —
+            //    that is what makes it a regression gate rather than decoration.
+            const supplyAfterBurn = CONFIDENTIAL_MINT_AMOUNT - CONFIDENTIAL_BURN_AMOUNT;
+            await step(
+                'update-decryptable-supply',
+                payer,
+                createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan({
+                    mint: mint.address,
+                    authority: payer,
+                    supplyKeys,
+                    rawSupply: supplyAfterBurn,
+                }),
+            );
+
+            // 8. Mint again after the re-sync: proves the supply representations are
+            //    back in agreement and the documented cycle is actually repeatable.
+            await step(
+                'confidential-mint-after-resync',
+                payer,
+                await createConfidentialMintInstructionPlan({
+                    rpc,
+                    payer,
+                    mint: mint.address,
+                    destinationToken: ownerAta,
+                    authority: payer,
+                    amount: CONFIDENTIAL_MINT_AMOUNT,
+                    supplyKeys,
+                }),
+            );
+            await step(
+                'apply-after-second-mint',
+                payer,
+                await createApplyConfidentialPendingBalanceInstructionPlan({
+                    rpc,
+                    tokenAccount: ownerAta,
+                    authority: holder,
+                    keys: ownerKeys,
+                }),
+            );
+            const afterSecondMint = await inspectConfidentialAccount(rpc, ownerAta, ownerKeys);
+            expect(afterSecondMint?.decrypted?.availableBalance).toBe(supplyAfterBurn + CONFIDENTIAL_MINT_AMOUNT);
         } finally {
             freeConfidentialKeys(supplyKeys);
             freeConfidentialKeys(ownerKeys);
             emitArtefacts({
+                run: 'mint-burn',
                 cluster: clusterParam(RPC_URL),
                 mint: mint.address,
                 payer: payer.address,
-                recipient: payer.address,
+                recipient: holder.address,
                 senderAta: ownerAta,
                 recipientAta: ownerAta,
                 transactions: txLog,

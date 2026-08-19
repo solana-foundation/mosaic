@@ -18,6 +18,7 @@ import {
     resolveTokenAccount,
     decimalAmountToRaw,
     getMintDetails,
+    getPermissionedBurnAuthorityFromMint,
     isDefaultAccountStateSetFrozen,
 } from '../transaction-util';
 import { getThawPermissionlessInstructions } from '../token-acl';
@@ -44,15 +45,7 @@ export async function getPermissionedBurnAuthority(
     if (!encodedAccount.exists) {
         return null;
     }
-    const decodedMint = decodeMint(encodedAccount);
-    if (decodedMint.data.extensions?.__option !== 'Some') {
-        return null;
-    }
-    const permissionedBurnExtension = decodedMint.data.extensions.value.find(ext => ext.__kind === 'PermissionedBurn');
-    if (!permissionedBurnExtension || permissionedBurnExtension.__kind !== 'PermissionedBurn') {
-        return null;
-    }
-    return permissionedBurnExtension.authority?.__option === 'Some' ? permissionedBurnExtension.authority.value : null;
+    return getPermissionedBurnAuthorityFromMint(decodeMint(encodedAccount));
 }
 
 /**

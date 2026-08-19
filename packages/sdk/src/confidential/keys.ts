@@ -2,12 +2,20 @@ import {
     type Address,
     type MessagePartialSigner,
     type ReadonlyUint8Array,
+    createSignableMessage,
     getAddressDecoder,
     getAddressEncoder,
+    getTupleEncoder,
+    getUtf8Encoder,
     signBytes,
 } from '@solana/kit';
-import { deriveAeKeyForOwnerMint, deriveElGamalKeypairForOwnerMint } from '@solana-program/token-2022/confidential';
-import { ElGamalKeypair, AeKey, ElGamalSecretKey, ElGamalCiphertext, AeCiphertext } from '@solana/mosaic-sdk/_zk';
+import {
+    ElGamalKeypair,
+    AeKey,
+    ConfidentialKeys as ZkConfidentialKeys,
+    ElGamalCiphertext,
+    AeCiphertext,
+} from '@solana/mosaic-sdk/_zk';
 
 /**
  * Confidential Transfer key derivation.
@@ -19,10 +27,19 @@ import { ElGamalKeypair, AeKey, ElGamalSecretKey, ElGamalCiphertext, AeCiphertex
  *
  * Both are derived deterministically from an Ed25519 signature over a canonical,
  * token-account-bound message, so they never need to be stored — the authority
- * can always re-derive them by signing again. This mirrors the Agave
- * `ElGamalKeypair::new_from_signer` / `AeKey::new_from_signer` scheme: the public
- * seed is the token account address, and the message to sign is produced by
- * `ElGamalSecretKey.signerMessage(seed)` / `AeKey.signerMessage(seed)`.
+ * can always re-derive them by signing again. The public seed is the token
+ * account address and the message to sign is produced by
+ * `ConfidentialKeys.signerMessage(seed)`; a single signature yields BOTH keys
+ * (`.elgamal()` / `.ae()`).
+ *
+ * NOTE: as of `@solana/zk-sdk` 0.5.x this is ONE signature over one canonical
+ * message (`b"solana-conf-bal/v1" || seed`). It replaces the previous 0.4.x
+ * scheme of two independent signatures over `b"ElGamalSecretKey" || seed` and
+ * `b"AeKey" || seed`. The keys the two schemes produce are DIFFERENT, so an
+ * account configured under the old scheme cannot be re-derived under this one —
+ * its balances are still decryptable, but only with the retained key bytes.
+ * token-2022 0.15.0 made the same switch in `deriveElGamalKeypairForOwnerMint` /
+ * `deriveAeKeyForOwnerMint`, so this is an upstream-wide change, not a local one.
  *
  * `@solana/zk-sdk` (the WASM crypto dependency) is imported only here and in
  * `proof.ts`, so the rest of the SDK stays free of the WASM dependency and these
@@ -70,11 +87,24 @@ export interface DeriveConfidentialKeysInput {
 
 /**
  * Derives (or accepts overrides for) the ElGamal keypair and AES key for a
- * confidential token account.
+ * confidential token account, seeded by the **token account address**.
+ *
+ * ⚠️ **Prefer {@link deriveConfidentialKeysForOwnerMint} for ordinary wallets.**
+ * That one binds to `(owner, mint)`, so the keys survive closing and reopening
+ * the account; these are bound to the account address, so a reopened account
+ * derives *different* keys and can no longer read its old balances.
+ *
+ * Reach for this function when you need control over the seed rather than the
+ * `(owner, mint)` convention — most notably PDA / passkey wallets, which key off
+ * `ConfidentialKeys.pdaWalletPublicSeed(...)` instead of a plain address. It is
+ * the thin wrapper over the canonical upstream scheme; the `(owner, mint)`
+ * helper is the opinionated default layered on top.
  *
  * Derivation is deterministic: the same authority + token account always yields
  * the same keys. Pass `elgamalKeypair`/`aesKey` to bypass derivation (e.g. tests,
  * or callers that manage their own key material).
+ *
+ * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
  */
 export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput): Promise<ConfidentialKeys> {
     const { tokenAccount, signMessage, elgamalKeypair, aesKey } = input;
@@ -91,11 +121,20 @@ export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput)
     // The token account address is the public seed (32 bytes).
     const seed = new Uint8Array(getAddressEncoder().encode(tokenAccount));
 
-    const elgamal =
-        elgamalKeypair ?? ElGamalKeypair.fromSignature(await signMessage(ElGamalSecretKey.signerMessage(seed)));
-    const aes = aesKey ?? AeKey.fromSignature(await signMessage(AeKey.signerMessage(seed)));
-
-    return { elgamal, aes };
+    // One signature over the single canonical message yields both components.
+    // Only reached when at least one key still has to be derived (see the
+    // both-overrides early return above).
+    const derived = ZkConfidentialKeys.fromSignature(await signMessage(ZkConfidentialKeys.signerMessage(seed)));
+    try {
+        return {
+            elgamal: elgamalKeypair ?? derived.elgamal(),
+            aes: aesKey ?? derived.ae(),
+        };
+    } finally {
+        // `elgamal()`/`ae()` hand back independently-owned objects, so the pair
+        // itself is ours to release — otherwise every derivation leaks it.
+        derived.free();
+    }
 }
 
 export interface DeriveConfidentialKeysForOwnerMintInput {
@@ -111,14 +150,56 @@ export interface DeriveConfidentialKeysForOwnerMintInput {
 }
 
 /**
- * Derives the ElGamal keypair and AES key for a confidential token account using
- * the official Token-2022 `(owner, mint)`-bound derivation
- * (`deriveElGamalKeypairForOwnerMint` / `deriveAeKeyForOwnerMint`), then
- * reconstructs the `@solana/zk-sdk` WASM objects the operation helpers consume.
+ * The public seed behind Token-2022's `(owner, mint)` key derivation: the two
+ * addresses concatenated, exactly as upstream's (unexported) `ownerMintSeed`
+ * builds it. Replicated here so a single signature can yield both keys — see
+ * {@link deriveConfidentialKeysForOwnerMint}. Verified against upstream by
+ * `keys.test.ts`, which asserts the keys match
+ * `deriveElGamalKeypairForOwnerMint` / `deriveAeKeyForOwnerMint`.
+ */
+function ownerMintSeed(owner: Address, mint: Address): Uint8Array {
+    return new Uint8Array(getTupleEncoder([getAddressEncoder(), getAddressEncoder()]).encode([owner, mint]));
+}
+
+/**
+ * Derives an ElGamal keypair + AES key from a public seed with a **single**
+ * signature over `ConfidentialKeys.signerMessage(seed)`. Shared by every
+ * derivation in this module so they all cost one signature (one wallet prompt)
+ * and all free the intermediate pair.
+ */
+async function deriveKeysFromSeed(signer: MessagePartialSigner, seed: Uint8Array): Promise<ConfidentialKeys> {
+    const message = ZkConfidentialKeys.signerMessage(seed);
+    const [signatures] = await signer.signMessages([createSignableMessage(message)]);
+    const signature = signatures?.[signer.address];
+    if (signature == null) {
+        throw new Error(`Signer ${signer.address} did not return a signature`);
+    }
+
+    const derived = ZkConfidentialKeys.fromSignature(new Uint8Array(signature));
+    try {
+        // `elgamal()`/`ae()` hand back independently-owned objects, so the pair
+        // itself is ours to release — otherwise every derivation leaks it.
+        return { elgamal: derived.elgamal(), aes: derived.ae() };
+    } finally {
+        derived.free();
+    }
+}
+
+/**
+ * Derives the ElGamal keypair and AES key for a confidential token account with
+ * Token-2022's `(owner, mint)`-bound derivation, as `@solana/zk-sdk` WASM objects
+ * the operation helpers consume.
  *
  * Binding to `(owner, mint)` (rather than the token account address) keeps the
  * keys stable across closing and reopening the token account and prevents key
  * reuse across mints. Derivation is deterministic and requires no storage.
+ *
+ * Takes **one** signature. Both keys come from the same canonical message
+ * (`ConfidentialKeys.signerMessage(ownerMintSeed(owner, mint))`), so calling
+ * upstream's `deriveElGamalKeypairForOwnerMint` and `deriveAeKeyForOwnerMint`
+ * would sign identical bytes twice — two wallet prompts for one derivation. This
+ * derives the pair directly instead, exactly as {@link deriveConfidentialKeys}
+ * does; the resulting keys are byte-identical to the two-call form.
  *
  * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
  */
@@ -126,26 +207,14 @@ export async function deriveConfidentialKeysForOwnerMint(
     input: DeriveConfidentialKeysForOwnerMintInput,
 ): Promise<ConfidentialKeys> {
     const { signer, owner, mint } = input;
-
-    const [derivedElGamal, aesBytes] = await Promise.all([
-        deriveElGamalKeypairForOwnerMint({ signer, owner, mint }),
-        deriveAeKeyForOwnerMint({ signer, owner, mint }),
-    ]);
-
-    // `fromSecretKey` consumes the secret-key WASM object (by value), so it must
-    // not be freed afterwards.
-    const secret = ElGamalSecretKey.fromBytes(new Uint8Array(derivedElGamal.secretKey));
-    const elgamal = ElGamalKeypair.fromSecretKey(secret);
-    const aes = AeKey.fromBytes(new Uint8Array(aesBytes));
-
-    return { elgamal, aes };
+    return deriveKeysFromSeed(signer, ownerMintSeed(owner, mint));
 }
 
 export interface DeriveConfidentialSupplyKeysInput {
     /**
-     * The **mint authority** — signs the canonical derivation messages. The
-     * supply keys are bound to `(mintAuthority, mint)`, so the same authority
-     * always re-derives the same supply keys.
+     * The **mint authority** — signs the canonical derivation message. The supply
+     * keys are bound to `(mintAuthority, mint)`, so the same authority always
+     * re-derives the same supply keys.
      */
     signer: MessagePartialSigner;
     /** The mint the supply keys are bound to. */
@@ -153,25 +222,46 @@ export interface DeriveConfidentialSupplyKeysInput {
 }
 
 /**
- * Derives the **supply** ElGamal keypair + AES key for a `ConfidentialMintBurn`
- * mint. These are the mint authority's keys for the encrypted total supply
- * (conceptually separate from any account's balance keys): the supply AES key
- * encrypts the decryptable supply, and the supply ElGamal keypair backs the
- * mint/burn equality proof.
+ * Domain tag that separates supply-key derivation from account-key derivation.
  *
- * Bound to `(mintAuthority, mint)` via the same `(owner, mint)` derivation as
- * {@link deriveConfidentialKeysForOwnerMint} (with `owner = signer.address`), so
- * the keys are stable and need no storage. Because the derivation is identical,
- * the supply keys are not cryptographically domain-separated from account keys —
- * if the mint authority also derives account keys for itself under the same
- * mint, the material coincides.
+ * Account keys seed on `(owner, mint)` — two bare addresses. Prefixing this tag
+ * makes the supply seed unreachable from any `(owner, mint)` pair, so the mint
+ * authority's supply keys can never coincide with its own (or anyone's) account
+ * keys for the same mint. Without it the two derivations are identical whenever
+ * `owner === mintAuthority`, and disclosing account keys — to an auditor, to
+ * support, in a backup — would also disclose the keys guarding the total supply.
+ *
+ * This is Mosaic's own seed, not an upstream convention: it is not interchangeable
+ * with `spl-token`'s supply-key derivation, and changing the tag changes every
+ * derived supply key.
+ */
+const SUPPLY_KEY_DOMAIN = 'mosaic-conf-supply/v1';
+
+/**
+ * Derives the **supply** ElGamal keypair + AES key for a `ConfidentialMintBurn`
+ * mint. These are the mint authority's keys for the encrypted total supply,
+ * distinct from any account's balance keys: the supply AES key encrypts the
+ * decryptable supply, and the supply ElGamal keypair backs the mint/burn equality
+ * proof.
+ *
+ * Bound to `(mintAuthority, mint)` under the {@link SUPPLY_KEY_DOMAIN} tag, so the
+ * keys are stable, need no storage, and are cryptographically separated from the
+ * `(owner, mint)` account derivation — a mint authority that also holds a
+ * confidential account of the same mint gets two independent key sets.
+ *
+ * Takes one signature, like {@link deriveConfidentialKeysForOwnerMint}.
  *
  * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
  */
 export async function deriveConfidentialSupplyKeys(
     input: DeriveConfidentialSupplyKeysInput,
 ): Promise<ConfidentialKeys> {
-    return deriveConfidentialKeysForOwnerMint({ signer: input.signer, owner: input.signer.address, mint: input.mint });
+    const seed = getTupleEncoder([getUtf8Encoder(), getAddressEncoder(), getAddressEncoder()]).encode([
+        SUPPLY_KEY_DOMAIN,
+        input.signer.address,
+        input.mint,
+    ]);
+    return deriveKeysFromSeed(input.signer, new Uint8Array(seed));
 }
 
 /** The two init values a `ConfidentialMintBurn` mint needs for its initial (zero) supply. */

@@ -15,6 +15,7 @@ import {
 } from '@solana-program/token-2022';
 import {
     resolveTokenAccount,
+    confidentialMintBurnConversionError,
     decimalAmountToRaw,
     getMintDetails,
     mintHasConfidentialMintBurnExtension,
@@ -62,11 +63,7 @@ export const createForceBurnTransaction = async (
     // Fail fast with an actionable message rather than building a transaction the chain
     // would reject.
     if (mintHasConfidentialMintBurnExtension(extensions)) {
-        throw new Error(
-            `Mint ${mint} has the ConfidentialMintBurn extension enabled; plaintext burning is not supported. ` +
-                `Use the confidential burn path (createConfidentialBurnInstructionPlan) from ` +
-                `@solana/mosaic-sdk/confidential instead.`,
-        );
+        throw confidentialMintBurnConversionError(mint, 'plaintext burning', 'createConfidentialBurnInstructionPlan');
     }
 
     const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);

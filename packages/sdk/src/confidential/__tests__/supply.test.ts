@@ -37,7 +37,7 @@ describe('createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan', () 
             mint: MINT,
             authority: AUTHORITY,
             supplyKeys: keys,
-            supply: 1_000n,
+            rawSupply: 1_000n,
         });
 
         expect(plan.kind).toBe('single');
@@ -53,7 +53,7 @@ describe('createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan', () 
             mint: MINT,
             authority: AUTHORITY,
             supplyKeys: keys,
-            supply: 1_000n,
+            rawSupply: 1_000n,
         });
 
         const data = getUpdateConfidentialMintBurnDecryptableSupplyInstructionDataDecoder().decode(
@@ -69,11 +69,11 @@ describe('createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan', () 
                 mint: MINT,
                 authority: AUTHORITY,
                 supplyKeys: keys,
-                supply,
+                rawSupply: supply,
             });
 
-        expect(() => call(-1n)).toThrow('supply must be a u64');
-        expect(() => call(2n ** 64n)).toThrow('supply must be a u64');
+        expect(() => call(-1n)).toThrow('rawSupply must be a u64');
+        expect(() => call(2n ** 64n)).toThrow('rawSupply must be a u64');
         // Boundary values are accepted.
         expect(() => call(0n)).not.toThrow();
         expect(() => call(2n ** 64n - 1n)).not.toThrow();
@@ -84,7 +84,7 @@ describe('createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan', () 
             mint: MINT,
             authority: AUTHORITY,
             supplyKeys: keys,
-            supply: 123_456n,
+            rawSupply: 123_456n,
         });
 
         const data = getUpdateConfidentialMintBurnDecryptableSupplyInstructionDataDecoder().decode(

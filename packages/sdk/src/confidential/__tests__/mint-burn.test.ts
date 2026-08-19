@@ -13,17 +13,23 @@ import type { ConfidentialKeys } from '../keys';
 
 const mintPlan = { kind: 'sequential' as const, id: 'mint-plan' };
 const burnPlan = { kind: 'sequential' as const, id: 'burn-plan' };
+const permissionedBurnPlan = { kind: 'sequential' as const, id: 'permissioned-burn-plan' };
 const mockGetConfidentialMintInstructionPlan = jest.fn(async (_input: unknown) => mintPlan);
 const mockGetConfidentialBurnInstructionPlan = jest.fn(async (_input: unknown) => burnPlan);
+const mockGetPermissionedConfidentialBurnInstructionPlan = jest.fn(async (_input: unknown) => permissionedBurnPlan);
 jest.mock('@solana-program/token-2022/confidential', () => ({
     getConfidentialMintInstructionPlan: (input: unknown) => mockGetConfidentialMintInstructionPlan(input),
     getConfidentialBurnInstructionPlan: (input: unknown) => mockGetConfidentialBurnInstructionPlan(input),
+    getPermissionedConfidentialBurnInstructionPlan: (input: unknown) =>
+        mockGetPermissionedConfidentialBurnInstructionPlan(input),
 }));
 
 let mockMintDecimals = 6;
 let mockMintExtensions: unknown[] = [];
 let mockTokenExtensions: unknown[] = [];
-const mockMintData = () => ({ data: { decimals: mockMintDecimals, extensions: { __option: 'Some', value: mockMintExtensions } } });
+const mockMintData = () => ({
+    data: { decimals: mockMintDecimals, extensions: { __option: 'Some', value: mockMintExtensions } },
+});
 const mockTokenData = () => ({ data: { extensions: { __option: 'Some', value: mockTokenExtensions } } });
 
 jest.mock('@solana-program/token-2022', () => ({
@@ -55,6 +61,14 @@ const MINT_BURN_EXT = {
     pendingBurn: new Uint8Array(64),
 };
 const TRANSFER_MINT_EXT = { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } };
+const BURN_AUTHORITY = 'BurnAuth1111111111111111111111111111111111' as Address;
+/** `PermissionedBurn` with a set authority — forces the permissioned burn variant. */
+const PERMISSIONED_BURN_EXT = {
+    __kind: 'PermissionedBurn',
+    authority: { __option: 'Some', value: BURN_AUTHORITY },
+};
+/** `PermissionedBurn` with a cleared authority — the standard variant stays allowed. */
+const PERMISSIONED_BURN_EXT_CLEARED = { __kind: 'PermissionedBurn', authority: { __option: 'None' } };
 const ACCOUNT_EXT = {
     __kind: 'ConfidentialTransferAccount',
     elgamalPubkey: ACCOUNT_PK,
@@ -219,6 +233,22 @@ describe('confidential burn (wrapper)', () => {
         expect(mockGetConfidentialBurnInstructionPlan).not.toHaveBeenCalled();
     });
 
+    it('fails fast when the mint lacks the ConfidentialTransferMint extension', async () => {
+        mockMintExtensions = [MINT_BURN_EXT];
+        await expect(
+            createConfidentialBurnInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                mint: MINT,
+                tokenAccount: SOURCE_TOKEN,
+                authority: AUTHORITY,
+                amount: '1',
+                keys: fakeKeys,
+            }),
+        ).rejects.toThrow(/ConfidentialTransferMint/);
+        expect(mockGetConfidentialBurnInstructionPlan).not.toHaveBeenCalled();
+    });
+
     it('fails fast when the account is not confidential-transfer configured', async () => {
         mockTokenExtensions = [];
         await expect(
@@ -233,6 +263,91 @@ describe('confidential burn (wrapper)', () => {
             }),
         ).rejects.toThrow(/ConfidentialTransferAccount/);
         expect(mockGetConfidentialBurnInstructionPlan).not.toHaveBeenCalled();
+    });
+
+    // Token-2022 rejects the standard ConfidentialBurn on a mint whose
+    // PermissionedBurn authority is set (TokenError::InvalidInstruction), and
+    // allows it again once that authority is cleared. Branch selection therefore
+    // has to key off the authority, not the extension's presence.
+    describe('PermissionedBurn mints', () => {
+        it('uses the permissioned variant, with the burn authority as an extra signer', async () => {
+            mockMintExtensions = [MINT_BURN_EXT, TRANSFER_MINT_EXT, PERMISSIONED_BURN_EXT];
+
+            const plan = await createConfidentialBurnInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                mint: MINT,
+                tokenAccount: SOURCE_TOKEN,
+                authority: AUTHORITY,
+                amount: '1',
+                keys: fakeKeys,
+                permissionedBurnAuthority: BURN_AUTHORITY,
+            });
+
+            expect(plan).toBe(permissionedBurnPlan);
+            expect(mockGetConfidentialBurnInstructionPlan).not.toHaveBeenCalled();
+            expect(mockGetPermissionedConfidentialBurnInstructionPlan).toHaveBeenCalledTimes(1);
+            const arg = mockGetPermissionedConfidentialBurnInstructionPlan.mock.calls[0][0] as any;
+            // A bare address becomes a no-op signer for raw-transaction flows.
+            expect(arg.permissionedBurnAuthority.address).toBe(BURN_AUTHORITY);
+            // The account owner still authors the burn.
+            expect(arg.authority.address).toBe(AUTHORITY);
+            expect(arg.amount).toBe(1_000_000n);
+            expect(arg.sourceElgamalKeypair).toBe(fakeKeys.elgamal);
+        });
+
+        it('fails fast, naming the configured authority, when it is not supplied', async () => {
+            mockMintExtensions = [MINT_BURN_EXT, TRANSFER_MINT_EXT, PERMISSIONED_BURN_EXT];
+
+            await expect(
+                createConfidentialBurnInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    mint: MINT,
+                    tokenAccount: SOURCE_TOKEN,
+                    authority: AUTHORITY,
+                    amount: '1',
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(new RegExp(`permissioned burn authority \\(${BURN_AUTHORITY}\\)`));
+            expect(mockGetConfidentialBurnInstructionPlan).not.toHaveBeenCalled();
+            expect(mockGetPermissionedConfidentialBurnInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('uses the standard variant when the burn authority is cleared', async () => {
+            mockMintExtensions = [MINT_BURN_EXT, TRANSFER_MINT_EXT, PERMISSIONED_BURN_EXT_CLEARED];
+
+            const plan = await createConfidentialBurnInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                mint: MINT,
+                tokenAccount: SOURCE_TOKEN,
+                authority: AUTHORITY,
+                amount: '1',
+                keys: fakeKeys,
+            });
+
+            expect(plan).toBe(burnPlan);
+            expect(mockGetPermissionedConfidentialBurnInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('ignores a supplied burn authority on a mint without the extension', async () => {
+            mockMintExtensions = [MINT_BURN_EXT, TRANSFER_MINT_EXT];
+
+            const plan = await createConfidentialBurnInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                mint: MINT,
+                tokenAccount: SOURCE_TOKEN,
+                authority: AUTHORITY,
+                amount: '1',
+                keys: fakeKeys,
+                permissionedBurnAuthority: BURN_AUTHORITY,
+            });
+
+            expect(plan).toBe(burnPlan);
+            expect(mockGetPermissionedConfidentialBurnInstructionPlan).not.toHaveBeenCalled();
+        });
     });
 });
 
