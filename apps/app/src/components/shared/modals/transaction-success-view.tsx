@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, ExternalLink } from 'lucide-react';
 import { useConnector } from '@solana/connector/react';
-import { getClusterName, buildExplorerUrl, getExplorerClusterParam } from '@/lib/solana/explorer';
+import { getEffectiveClusterName, buildExplorerUrl, getExplorerClusterParam } from '@/lib/solana/explorer';
 import { CopyButton } from '@/components/ui/copy-button';
 import { IconCircleDashed, IconSignature } from 'symbols-react';
 
@@ -22,8 +22,10 @@ export function TransactionSuccessView({
 }: TransactionSuccessViewProps) {
     const { cluster: connectorCluster } = useConnector();
 
-    // Use provided cluster prop, fall back to connector cluster, then to undefined
-    const clusterName = clusterProp || getClusterName(connectorCluster);
+    // Use provided cluster prop, fall back to connector cluster, then to the
+    // configured default. Must not be undefined: the Helius link below feeds it
+    // straight into getExplorerClusterParam, which would silently mean mainnet.
+    const clusterName = getEffectiveClusterName(clusterProp, connectorCluster);
 
     const handleExplorerClick = () => {
         if (!transactionSignature) return;
