@@ -25,9 +25,9 @@ on:
       - main
   workflow_dispatch:
 
-permissions:
-  contents: write # push tags, create GitHub releases
-  id-token: write # npm trusted publishing (OIDC) + provenance
+# Granted per job rather than here, so the detection job never holds the
+# credentials the publish job needs.
+permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -39,6 +39,8 @@ jobs:
   # entirely instead of running it to no effect.
   detect:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # checkout only
     outputs:
       pending: ${{ steps.changesets.outputs.pending }}
     steps:
@@ -65,6 +67,9 @@ jobs:
     needs: detect
     if: needs.detect.outputs.pending == '0'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # push tags, create GitHub releases
+      id-token: write # npm trusted publishing (OIDC) + provenance
     env:
       NPM_CONFIG_PROVENANCE: true
 
