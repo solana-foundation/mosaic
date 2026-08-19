@@ -1,3 +1,22 @@
+# Publishes @solana/mosaic-sdk and @solana/mosaic-cli to npm.
+#
+# Release procedure (the version bump is deliberately manual):
+#   1. Land feature PRs carrying `.changeset/*.md` entries as usual.
+#   2. When cutting a release, run `pnpm version:packages` locally, commit the
+#      result (consumed changesets + bumped package.json + CHANGELOGs) and open
+#      a normal PR.
+#   3. Merging that PR leaves `.changeset/` empty, which is this workflow's
+#      signal to publish.
+#
+# The workflow never opens a pull request. `changesets/action` can do that, but
+# it needs a token allowed to create PRs, and the org policy "Allow GitHub
+# Actions to create and approve pull requests" is off — that is what broke run
+# 31835528605. Publishing, tagging and GitHub releases only need
+# `contents: write`, which the default GITHUB_TOKEN has.
+#
+# Do not rename this file: npm trusted publishing is keyed on repository +
+# workflow path, so a rename silently invalidates the trusted-publisher config.
+
 name: Version & Publish Packages
 
 on:
@@ -7,16 +26,44 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
+  contents: write # push tags, create GitHub releases
+  id-token: write # npm trusted publishing (OIDC) + provenance
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  # A push carrying changesets is a normal feature merge, not a release. Decide
+  # that in a cheap job so ordinary merges skip the build/test/publish job
+  # entirely instead of running it to no effect.
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      pending: ${{ steps.changesets.outputs.pending }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Count pending changesets
+        id: changesets
+        run: |
+          set -euo pipefail
+          pending=0
+          if [ -d .changeset ]; then
+            pending=$(find .changeset -maxdepth 1 -name '*.md' \
+              ! -iname 'README.md' | wc -l | tr -d '[:space:]')
+          fi
+          echo "pending=$pending" >> "$GITHUB_OUTPUT"
+          if [ "$pending" -eq 0 ]; then
+            echo "No pending changesets — treating this as a release commit." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "$pending pending changeset(s) — not a release commit, skipping publish." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
   publish-packages:
+    needs: detect
+    if: needs.detect.outputs.pending == '0'
     runs-on: ubuntu-latest
     env:
       NPM_CONFIG_PROVENANCE: true
@@ -28,15 +75,14 @@ jobs:
           fetch-depth: 0
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
-          version: 10.24.0
           run_install: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
 
@@ -52,12 +98,11 @@ jobs:
       - name: Test
         run: pnpm run test:unit
 
-      - name: Create Changesets Pull Request or Publish
+      # `changeset publish` is a no-op when every version already exists on the
+      # registry, so a re-run after a failed publish is safe.
+      - name: Publish to npm
         uses: changesets/action@v1
         with:
-          commit: 'chore: version packages'
-          title: 'chore: version packages'
-          version: pnpm version:packages
           publish: pnpm publish-packages
           createGithubReleases: true
         env:
