@@ -1,10 +1,10 @@
-import setupTestSuite from './setup';
-import type { Client } from './setup';
+import setupTestSuite from './setup.js';
+import type { Client } from './setup.js';
 import type { Address, KeyPairSigner, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
-import { sendAndConfirmTransaction, DEFAULT_TIMEOUT, DEFAULT_COMMITMENT } from './helpers';
-import { createCustomTokenInitTransaction, createStablecoinInitTransaction } from '../../templates';
-import { inspectToken } from '../../inspection';
+import { sendAndConfirmTransaction, DEFAULT_TIMEOUT, DEFAULT_COMMITMENT } from './helpers.js';
+import { createCustomTokenInitTransaction, createStablecoinInitTransaction } from '../../templates/index.js';
+import { inspectToken } from '../../inspection/index.js';
 
 /**
  * On-chain coverage for the template options exposed in HOO-904.

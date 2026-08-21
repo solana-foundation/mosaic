@@ -11,12 +11,12 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
-import { getMintDetails, resolveTokenAccount } from '../transaction-util';
-import { getAddWalletInstructions, getList, getListConfigPda, getRemoveWalletInstructions } from '../abl';
+import type { FullTransaction } from '../transaction-util.js';
+import { getMintDetails, resolveTokenAccount } from '../transaction-util.js';
+import { getAddWalletInstructions, getList, getListConfigPda, getRemoveWalletInstructions } from '../abl/index.js';
 import { Mode } from '@solana/token-acl-gate-sdk';
-import { getFreezeInstructions } from '../token-acl/freeze';
-import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless';
+import { getFreezeInstructions } from '../token-acl/freeze.js';
+import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless.js';
 import {
     getFreezeAccountInstruction,
     getThawAccountInstruction,

@@ -22,7 +22,7 @@ import { findAssociatedTokenPda, getMintToInstruction, TOKEN_2022_PROGRAM_ADDRES
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Token } from '../../issuance';
+import { Token } from '../../issuance/index.js';
 import {
     createApplyConfidentialPendingBalanceInstructionPlan,
     createConfidentialDepositInstructionPlan,
@@ -34,11 +34,11 @@ import {
     freeConfidentialKeys,
     inspectConfidentialAccount,
     planConfidentialInstructions,
-} from '../../confidential';
-import type { FullTransaction } from '../../transaction-util';
-import type { Client } from './setup';
-import { airdropAndWait } from './chain-helpers';
-import { describeSkipIf } from './helpers';
+} from '../../confidential/index.js';
+import type { FullTransaction } from '../../transaction-util.js';
+import type { Client } from './setup.js';
+import { airdropAndWait } from './chain-helpers.js';
+import { describeSkipIf } from './helpers.js';
 
 /**
  * Real end-to-end confidential-transfer run against a live cluster (devnet by

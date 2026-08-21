@@ -10,11 +10,11 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import { findMintConfigPda, getThawInstruction } from '@solana/token-acl-sdk';
 import { getThawAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-import { TOKEN_ACL_PROGRAM_ID } from './utils';
-import { getMintDetails } from '../transaction-util';
+import { TOKEN_ACL_PROGRAM_ID } from './utils.js';
+import { getMintDetails } from '../transaction-util.js';
 
 /**
  * Generates instructions for thawing a token account.

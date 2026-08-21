@@ -1,8 +1,8 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import { fetchEncodedAccount } from '@solana/kit';
 import { decodeMint } from '@solana-program/token-2022';
-import { getTokenPauseState } from '../pause';
-import { createMockRpc, createMockSigner } from '../../__tests__/test-utils';
+import { getTokenPauseState } from '../pause.js';
+import { createMockRpc, createMockSigner } from '../../__tests__/test-utils.js';
 
 // Mock @solana/kit modules
 jest.mock('@solana/kit', () => ({

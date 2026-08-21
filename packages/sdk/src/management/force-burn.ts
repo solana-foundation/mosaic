@@ -1,5 +1,5 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner, Instruction } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     pipe,
@@ -18,9 +18,9 @@ import {
     decimalAmountToRaw,
     getMintDetails,
     isDefaultAccountStateSetFrozen,
-} from '../transaction-util';
-import { getThawPermissionlessInstructions } from '../token-acl';
-import { getPermissionedBurnAuthority } from './permissioned-burn';
+} from '../transaction-util.js';
+import { getThawPermissionlessInstructions } from '../token-acl/index.js';
+import { getPermissionedBurnAuthority } from './permissioned-burn.js';
 
 /**
  * Creates a transaction to force burn tokens using the permanent delegate extension.

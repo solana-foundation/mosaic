@@ -15,12 +15,12 @@ import {
     TOKEN_2022_PROGRAM_ADDRESS,
     Token2022Instruction,
 } from '@solana-program/token-2022';
-import { Token } from '../../issuance';
-import { createMintToTransaction } from '../../management';
-import { parseTokenTransaction } from '../../inspection';
-import { fetchOnChainTransaction, sendAndPollConfirm, setupChainSuite } from './chain-helpers';
-import { describeSkipIf, DEFAULT_TIMEOUT } from './helpers';
-import type { FullTransaction } from '../../transaction-util';
+import { Token } from '../../issuance/index.js';
+import { createMintToTransaction } from '../../management/index.js';
+import { parseTokenTransaction } from '../../inspection/index.js';
+import { fetchOnChainTransaction, sendAndPollConfirm, setupChainSuite } from './chain-helpers.js';
+import { describeSkipIf, DEFAULT_TIMEOUT } from './helpers.js';
+import type { FullTransaction } from '../../transaction-util.js';
 
 // One end-to-end integration test: build a single transaction that combines an
 // idempotent ATA create, a Thaw (no-op if already thawed; here we Freeze first

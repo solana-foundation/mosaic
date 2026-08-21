@@ -67,11 +67,15 @@ import { createConfidentialTransactionPlanner } from '@solana/mosaic-sdk/confide
 
 **Template surface** — `tokenized-security` and `custom-token` templates gained `permissionedBurnAuthority`, `confidentialBalances`, transfer-fee and confidential-transfer-fee options; templates also expose the confidential approve policy and auditor ElGamal key.
 
-## Known limitation: neither package runs under plain Node ESM
+## Node ESM resolution
 
-`packages/sdk` and `packages/cli` still build with `"moduleResolution": "bundler"`, so `tsc` accepts extensionless relative import specifiers and emits them verbatim. Node's ESM loader requires the explicit `.js`, so:
+**The SDK now builds with `"module"` / `"moduleResolution": "nodenext"`** and emits an explicit `.js` on every relative specifier, so `@solana/mosaic-sdk`'s own module graph resolves under Node's ESM loader. `0.1.3` built with `"moduleResolution": "bundler"`, which let `tsc` accept extensionless specifiers and emit them verbatim; importing the published package therefore failed with `ERR_UNSUPPORTED_DIR_IMPORT` on the root barrel and `ERR_MODULE_NOT_FOUND` on `./confidential`. Both are gone.
 
-- **`@solana/mosaic-cli@0.2.0` cannot execute a single command.** `node dist/index.js` fails with `ERR_MODULE_NOT_FOUND`; running from source hits `ERR_UNKNOWN_FILE_EXTENSION ".wasm"` on `@solana/zk-sdk`'s bundler-target build. This is not a regression — `0.1.2` is equally broken — and the version bump here is a consequence of the workspace dependency on the SDK, not a signal that the CLI works. **The CLI is published in this release but is not usable.**
-- **`import '@solana/mosaic-sdk'` fails under plain Node ESM** for the same reason. It works through any bundler, and through Vite/Vitest with `server.deps.inline`, which is the workaround consumers are currently carrying.
+**Importing the SDK under plain Node ESM still fails, but no longer because of this package.** `@solana-program/token-2022@0.10.0`'s root entry statically imports `@solana/zk-sdk/bundler`, and `@solana/zk-sdk@0.4.2` — the version its optional peer range `^0.4.2` resolves to — declares no `node` condition on that subpath, so Node loads the wasm-bindgen ESM build and throws `ERR_UNKNOWN_FILE_EXTENSION ".wasm"`. Because token-2022's _root_ entry is what carries the import, this affects `import '@solana/mosaic-sdk'` as much as `@solana/mosaic-sdk/confidential`. Verified by installing the packed tarball into a bare Node ESM project.
 
-A fix (`nodenext` resolution across both packages, plus a `.wasm` resolve hook for the CLI binary) is tracked and targeted at `0.2.1`. `tsc -b` passes cleanly in both cases, which is why CI has never caught it.
+What this means for consumers:
+
+- Bundlers are unaffected, as are Vite/Vitest setups using `server.deps.inline` — that workaround is still required at `0.2.0` for plain-Node consumers.
+- Removing it depends on two upstream steps, neither in this release: `@solana/zk-sdk` gaining a `node` condition on `./bundler` (proposed in [solana-program/zk-elgamal-proof#519](https://github.com/solana-program/zk-elgamal-proof/pull/519)), and a `@solana-program/token-2022` release whose peer range admits that version.
+
+**`@solana/mosaic-cli@0.2.0` still cannot execute a single command.** The CLI keeps `"moduleResolution": "bundler"` in this release, so `node dist/index.js` fails with `ERR_MODULE_NOT_FOUND`, and it additionally needs the `.wasm` resolve hook for its binary. This is not a regression — `0.1.2` is equally broken — and the version bump here is a consequence of the workspace dependency on the SDK, not a signal that the CLI works. **The CLI is published in this release but is not usable.** Its fix is targeted at `0.2.1`. `tsc -b` passes cleanly either way, which is why CI has never caught it.

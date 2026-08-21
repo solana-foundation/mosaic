@@ -1,5 +1,5 @@
-import setupTestSuite from './setup';
-import type { Client } from './setup';
+import setupTestSuite from './setup.js';
+import type { Client } from './setup.js';
 import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
 import {
@@ -10,8 +10,8 @@ import {
     DEFAULT_TIMEOUT,
     DEFAULT_COMMITMENT,
     describeSkipIf,
-} from './helpers';
-import { Token } from '../../issuance';
+} from './helpers.js';
+import { Token } from '../../issuance/index.js';
 import {
     createMintToTransaction,
     createBurnTransaction,
@@ -19,11 +19,11 @@ import {
     createPermissionedBurnTransaction,
     getPermissionedBurnAuthority,
     validatePermissionedBurnForMint,
-} from '../../management';
-import { getUpdateAuthorityTransaction, getRemoveAuthorityTransaction } from '../../administration';
-import { createTokenizedSecurityInitTransaction } from '../../templates';
-import { inspectToken } from '../../inspection';
-import { decimalAmountToRaw } from '../../transaction-util';
+} from '../../management/index.js';
+import { getUpdateAuthorityTransaction, getRemoveAuthorityTransaction } from '../../administration/index.js';
+import { createTokenizedSecurityInitTransaction } from '../../templates/index.js';
+import { inspectToken } from '../../inspection/index.js';
+import { decimalAmountToRaw } from '../../transaction-util.js';
 import { AuthorityType } from '@solana-program/token-2022';
 
 // Requires a local validator whose Token-2022 program supports permissioned burn (program >= v11).

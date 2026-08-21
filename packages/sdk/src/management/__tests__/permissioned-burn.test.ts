@@ -8,7 +8,7 @@ import {
     PERMISSIONED_BURN_CHECKED_DISCRIMINATOR,
     PERMISSIONED_BURN_CHECKED_PERMISSIONED_BURN_DISCRIMINATOR,
 } from '@solana-program/token-2022';
-import { createMockSigner, createMockRpc, TEST_AUTHORITY } from '../../__tests__/test-utils';
+import { createMockSigner, createMockRpc, TEST_AUTHORITY } from '../../__tests__/test-utils.js';
 
 // Valid base58 addresses (must decode to 32 bytes for the mint encoder)
 const mint = 'So11111111111111111111111111111111111111112' as Address;
@@ -41,7 +41,7 @@ function seedEncodedMint(rpc: Rpc<SolanaRpcApi>, input: { permissionedBurnAuthor
 }
 
 function mockTransactionUtil(): void {
-    jest.doMock('../../transaction-util', () => ({
+    jest.doMock('../../transaction-util.js', () => ({
         resolveTokenAccount: jest.fn().mockResolvedValue({
             tokenAccount,
             isInitialized: true,
@@ -74,24 +74,24 @@ describe('permissioned-burn', () => {
     describe('getPermissionedBurnAuthority', () => {
         test('returns the configured authority', async () => {
             seedEncodedMint(rpc, { permissionedBurnAuthority: burnAuthority });
-            const { getPermissionedBurnAuthority } = await import('../permissioned-burn');
+            const { getPermissionedBurnAuthority } = await import('../permissioned-burn.js');
             await expect(getPermissionedBurnAuthority(rpc, mint)).resolves.toBe(burnAuthority);
         });
 
         test('returns null when the extension is absent', async () => {
             seedEncodedMint(rpc, {});
-            const { getPermissionedBurnAuthority } = await import('../permissioned-burn');
+            const { getPermissionedBurnAuthority } = await import('../permissioned-burn.js');
             await expect(getPermissionedBurnAuthority(rpc, mint)).resolves.toBeNull();
         });
 
         test('returns null when the authority was cleared', async () => {
             seedEncodedMint(rpc, { permissionedBurnAuthority: null });
-            const { getPermissionedBurnAuthority } = await import('../permissioned-burn');
+            const { getPermissionedBurnAuthority } = await import('../permissioned-burn.js');
             await expect(getPermissionedBurnAuthority(rpc, mint)).resolves.toBeNull();
         });
 
         test('returns null when the mint account does not exist', async () => {
-            const { getPermissionedBurnAuthority } = await import('../permissioned-burn');
+            const { getPermissionedBurnAuthority } = await import('../permissioned-burn.js');
             await expect(getPermissionedBurnAuthority(rpc, mint)).resolves.toBeNull();
         });
     });
@@ -99,13 +99,13 @@ describe('permissioned-burn', () => {
     describe('validatePermissionedBurnForMint', () => {
         test('passes with the correct authority', async () => {
             seedEncodedMint(rpc, { permissionedBurnAuthority: burnAuthority });
-            const { validatePermissionedBurnForMint } = await import('../permissioned-burn');
+            const { validatePermissionedBurnForMint } = await import('../permissioned-burn.js');
             await expect(validatePermissionedBurnForMint(rpc, mint, burnAuthority)).resolves.toBeUndefined();
         });
 
         test('throws when the extension is absent', async () => {
             seedEncodedMint(rpc, {});
-            const { validatePermissionedBurnForMint } = await import('../permissioned-burn');
+            const { validatePermissionedBurnForMint } = await import('../permissioned-burn.js');
             await expect(validatePermissionedBurnForMint(rpc, mint)).rejects.toThrow(
                 'does not have permissioned burn extension enabled',
             );
@@ -113,7 +113,7 @@ describe('permissioned-burn', () => {
 
         test('throws on authority mismatch', async () => {
             seedEncodedMint(rpc, { permissionedBurnAuthority: burnAuthority });
-            const { validatePermissionedBurnForMint } = await import('../permissioned-burn');
+            const { validatePermissionedBurnForMint } = await import('../permissioned-burn.js');
             await expect(validatePermissionedBurnForMint(rpc, mint, wallet)).rejects.toThrow(
                 'Permissioned burn authority mismatch',
             );
@@ -123,7 +123,7 @@ describe('permissioned-burn', () => {
     describe('createPermissionedBurnTransaction', () => {
         test('builds a permissioned burn checked instruction with both signers', async () => {
             mockTransactionUtil();
-            const { createPermissionedBurnTransaction } = await import('../permissioned-burn');
+            const { createPermissionedBurnTransaction } = await import('../permissioned-burn.js');
             const tx = await createPermissionedBurnTransaction(rpc, mint, wallet, 1, burnAuthoritySigner, feePayer);
 
             expect(tx.instructions).toHaveLength(1);
@@ -142,7 +142,7 @@ describe('permissioned-burn', () => {
         test('createBurnTransaction routes to permissioned burn when the extension is present', async () => {
             seedEncodedMint(rpc, { permissionedBurnAuthority: burnAuthority });
             mockTransactionUtil();
-            const { createBurnTransaction } = await import('../burn');
+            const { createBurnTransaction } = await import('../burn.js');
             const tx = await createBurnTransaction(rpc, mint, wallet, 1, feePayer);
 
             expect(tx.instructions).toHaveLength(1);
@@ -156,7 +156,7 @@ describe('permissioned-burn', () => {
         test('createBurnTransaction uses a regular burn when the extension is absent', async () => {
             seedEncodedMint(rpc, {});
             mockTransactionUtil();
-            const { createBurnTransaction } = await import('../burn');
+            const { createBurnTransaction } = await import('../burn.js');
             const tx = await createBurnTransaction(rpc, mint, wallet, 1, feePayer);
 
             expect(tx.instructions).toHaveLength(1);
@@ -166,7 +166,7 @@ describe('permissioned-burn', () => {
         test('createForceBurnTransaction co-signs with the delegate when it is the burn authority', async () => {
             seedEncodedMint(rpc, { permissionedBurnAuthority: burnAuthority });
             mockTransactionUtil();
-            const { createForceBurnTransaction } = await import('../force-burn');
+            const { createForceBurnTransaction } = await import('../force-burn.js');
             const tx = await createForceBurnTransaction(rpc, mint, wallet, 1, burnAuthoritySigner, feePayer);
 
             expect(tx.instructions).toHaveLength(1);
@@ -179,7 +179,7 @@ describe('permissioned-burn', () => {
         test('createForceBurnTransaction keeps a regular burn when the extension is absent', async () => {
             seedEncodedMint(rpc, {});
             mockTransactionUtil();
-            const { createForceBurnTransaction } = await import('../force-burn');
+            const { createForceBurnTransaction } = await import('../force-burn.js');
             const tx = await createForceBurnTransaction(rpc, mint, wallet, 1, burnAuthoritySigner, feePayer);
 
             expect(tx.instructions).toHaveLength(1);

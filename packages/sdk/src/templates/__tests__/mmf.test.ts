@@ -1,6 +1,6 @@
 import type { Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
-import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
+import { createMockSigner, createMockRpc } from '../../__tests__/test-utils.js';
 import {
     AccountState,
     TOKEN_2022_PROGRAM_ADDRESS,
@@ -12,7 +12,7 @@ import {
     identifyToken2022Instruction,
 } from '@solana-program/token-2022';
 import { none } from '@solana/kit';
-import { createMmfInitTransaction } from '../mmf';
+import { createMmfInitTransaction } from '../mmf.js';
 
 const matchesIx = (a: Instruction, b: Instruction) =>
     a.programAddress === b.programAddress && Buffer.compare(Buffer.from(a.data ?? []), Buffer.from(b.data ?? [])) === 0;

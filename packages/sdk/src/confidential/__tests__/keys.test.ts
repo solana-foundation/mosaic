@@ -9,7 +9,7 @@ import {
     decryptAesBalance,
     decryptElGamalBalance,
     type SignMessage,
-} from '../keys';
+} from '../keys.js';
 
 // Uses the real @solana/zk-sdk WASM (verified to load under ts-jest ESM).
 const TOKEN_ACCOUNT_A = 'sAPDrViGV3C6PaT4xD7uRDDvB4xCURfZzDkGEd8Yv4v' as Address;

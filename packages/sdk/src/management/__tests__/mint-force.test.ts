@@ -1,7 +1,7 @@
 import type { Address, Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
-import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
+import { createMockSigner, createMockRpc } from '../../__tests__/test-utils.js';
+import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl/index.js';
 
 describe('non-SRFC-37: mint/force-transfer should not include permissionless thaw', () => {
     let rpc: Rpc<SolanaRpcApi>;
@@ -17,7 +17,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
     });
 
     test('createMintToTransaction: no thaw permissionless when SRFC-37 disabled', async () => {
-        jest.doMock('../../transaction-util', () => ({
+        jest.doMock('../../transaction-util.js', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata77777777777777777777777777777777777777',
                 isInitialized: true,
@@ -34,14 +34,14 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
         }));
-        const { createMintToTransaction } = await import('../mint');
+        const { createMintToTransaction } = await import('../mint.js');
         const tx = await createMintToTransaction(rpc, mint, wallet, 1, mintAuthority, feePayer);
         expect(tx.instructions.some((i: Instruction) => i.programAddress !== undefined)).toBe(true);
         expect(tx.instructions.length).toBe(2);
     });
 
     test('createForceTransferTransaction: no thaw permissionless when SRFC-37 disabled', async () => {
-        jest.doMock('../../transaction-util', () => ({
+        jest.doMock('../../transaction-util.js', () => ({
             resolveTokenAccount: jest
                 .fn()
                 .mockResolvedValueOnce({
@@ -67,14 +67,14 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
         }));
-        const { createForceTransferTransaction } = await import('../force-transfer');
+        const { createForceTransferTransaction } = await import('../force-transfer.js');
         const tx = await createForceTransferTransaction(rpc, mint, wallet, wallet, 1, permDel, feePayer);
         // Should only include transfer (and create ATA) but not thaw-permissionless
         expect(tx.instructions.length).toBe(2);
     });
 
     test('createMintToTransaction: thaw permissionless when SRFC-37 is enabled', async () => {
-        jest.doMock('../../transaction-util', () => ({
+        jest.doMock('../../transaction-util.js', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata77777777777777777777777777777777777777',
                 isInitialized: false,
@@ -92,14 +92,14 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
         }));
-        const { createMintToTransaction } = await import('../mint');
+        const { createMintToTransaction } = await import('../mint.js');
         const tx = await createMintToTransaction(rpc, mint, wallet, 1, mintAuthority, feePayer);
         // Should include mint, create ATA, and thaw-permissionless
         expect(tx.instructions.length).toBe(3);
     });
 
     test('createForceTransferTransaction: thaw permissionless when SRFC-37 is enabled', async () => {
-        jest.doMock('../../transaction-util', () => ({
+        jest.doMock('../../transaction-util.js', () => ({
             resolveTokenAccount: jest
                 .fn()
                 .mockResolvedValueOnce({
@@ -126,7 +126,7 @@ describe('non-SRFC-37: mint/force-transfer should not include permissionless tha
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
         }));
-        const { createForceTransferTransaction } = await import('../force-transfer');
+        const { createForceTransferTransaction } = await import('../force-transfer.js');
         const tx = await createForceTransferTransaction(rpc, mint, wallet, wallet, 1, permDel, feePayer);
         // Should include transfer, create ATA, and thaw-permissionless
         expect(tx.instructions.length).toBe(3);

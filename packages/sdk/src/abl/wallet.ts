@@ -10,8 +10,8 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
-import { ABL_PROGRAM_ID } from './utils';
+import type { FullTransaction } from '../transaction-util.js';
+import { ABL_PROGRAM_ID } from './utils.js';
 import { findWalletEntryPda, getAddWalletInstruction, getRemoveWalletInstruction } from '@solana/token-acl-gate-sdk';
 
 /**

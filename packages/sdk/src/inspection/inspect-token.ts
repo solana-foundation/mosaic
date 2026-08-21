@@ -10,8 +10,8 @@ import type {
     TokenMetadata,
     TokenSupplyInfo,
     TokenType,
-} from './types';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
+} from './types.js';
+import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/index.js';
 
 const STABLECOIN_EXTENSIONS = ['TokenMetadata', 'PermanentDelegate', 'DefaultAccountState', 'ConfidentialTransferMint'];
 

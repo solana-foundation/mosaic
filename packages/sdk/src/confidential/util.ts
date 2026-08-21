@@ -1,5 +1,5 @@
 import { type Address, type Rpc, type SolanaRpcApi, type TransactionSigner, createNoopSigner } from '@solana/kit';
-import { decimalAmountToRaw, getMintDetails } from '../transaction-util';
+import { decimalAmountToRaw, getMintDetails } from '../transaction-util.js';
 
 /**
  * Normalizes an authority that may be given as a bare `Address` into a
