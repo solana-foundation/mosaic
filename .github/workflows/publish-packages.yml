@@ -52,6 +52,9 @@ jobs:
       - name: Test
         run: pnpm run test:unit
 
+      - name: CLI package smoke test
+        run: ./scripts/cli-package-smoke.sh
+
       - name: Create Changesets Pull Request or Publish
         uses: changesets/action@v1
         with:

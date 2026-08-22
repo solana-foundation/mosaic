@@ -10,6 +10,13 @@ const nextConfig = {
     // build production with webpack (`next build --webpack`) and split the two
     // compilations — see below. See HOO-628.
     webpack: (config, { isServer }) => {
+        // The SDK is consumed from source (transpilePackages + the tsconfig
+        // paths alias) but its relative imports carry explicit `.js`
+        // extensions for Node ESM; map them back onto the `.ts` sources.
+        config.resolve.extensionAlias = {
+            ...config.resolve.extensionAlias,
+            '.js': ['.ts', '.tsx', '.js'],
+        };
         if (isServer) {
             // The browser `bundler` wasm build cannot be emitted/resolved in
             // Next's server bundle (webpack emits it inside `.next/server` but

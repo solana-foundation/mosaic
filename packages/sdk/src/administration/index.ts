@@ -1,1 +1,1 @@
-export * from './update-authority';
+export * from './update-authority.js';

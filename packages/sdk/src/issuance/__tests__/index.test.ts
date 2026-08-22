@@ -2,7 +2,7 @@
 import type { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
 import { AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-import { Token, getCreateMintInstructions } from '../index';
+import { Token, getCreateMintInstructions } from '../index.js';
 import {
     createMockRpc,
     createMockSigner,
@@ -10,7 +10,7 @@ import {
     TEST_METADATA,
     TEST_AUTHORITY,
     generateMockAddress,
-} from '../../__tests__/test-utils';
+} from '../../__tests__/test-utils.js';
 
 describe('Token', () => {
     let token: Token;

@@ -2,13 +2,13 @@ import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
 import { fetchEncodedAccount } from '@solana/kit';
 import { decodeToken, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { ElGamalKeypair, AeKey } from '@solana/zk-sdk/node';
-import { createMockRpc } from '../../__tests__/test-utils';
+import { createMockRpc } from '../../__tests__/test-utils.js';
 import {
     fetchConfidentialAccountState,
     decryptConfidentialBalances,
     type ConfidentialAccountState,
-} from '../account-state';
-import type { ConfidentialKeys } from '../keys';
+} from '../account-state.js';
+import type { ConfidentialKeys } from '../keys.js';
 
 jest.mock('@solana/kit', () => ({
     ...jest.requireActual('@solana/kit'),

@@ -4,8 +4,8 @@ import {
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
 import { SystemInstruction, SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
-import { parseTokenTransaction } from '../parse-transaction';
-import { ONCHAIN_FIXTURES } from './__fixtures__/onchain-transactions';
+import { parseTokenTransaction } from '../parse-transaction.js';
+import { ONCHAIN_FIXTURES } from './__fixtures__/onchain-transactions.js';
 
 // These tests run parseTokenTransaction against real wire bytes captured from a
 // local Solana cluster (see src/__tests__/integration/capture-fixtures.test.ts

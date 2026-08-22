@@ -1,26 +1,31 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { createStablecoinCommand } from './commands/create/stablecoin';
-import { createArcadeTokenCommand } from './commands/create/arcade-token';
-import { mintCommand } from './commands/mint';
-import { createTokenizedSecurityCommand } from './commands/create/tokenized-security';
-import { forceTransferCommand } from './commands/force-transfer';
-import { forceBurnCommand } from './commands/force-burn';
-import { burnCommand } from './commands/burn';
-import { transferCommand } from './commands/transfer';
-import { inspectMintCommand } from './commands/inspect-mint';
-import { tokenAclCommand } from './commands/token-acl/index';
-import { ablCommand } from './commands/abl/abl';
-import { addCommand as addToBlocklistCommand } from './commands/blocklist/add';
-import { removeCommand as removeFromBlocklistCommand } from './commands/blocklist/remove';
-import { addCommand as addToAllowlistCommand } from './commands/allowlist/add';
-import { removeCommand as removeFromAllowlistCommand } from './commands/allowlist/remove';
-import { controlCommand } from './commands/control/index';
+import { createRequire } from 'node:module';
+import { createStablecoinCommand } from './commands/create/stablecoin.js';
+import { createArcadeTokenCommand } from './commands/create/arcade-token.js';
+import { mintCommand } from './commands/mint.js';
+import { createTokenizedSecurityCommand } from './commands/create/tokenized-security.js';
+import { forceTransferCommand } from './commands/force-transfer.js';
+import { forceBurnCommand } from './commands/force-burn.js';
+import { burnCommand } from './commands/burn.js';
+import { transferCommand } from './commands/transfer.js';
+import { inspectMintCommand } from './commands/inspect-mint.js';
+import { tokenAclCommand } from './commands/token-acl/index.js';
+import { ablCommand } from './commands/abl/abl.js';
+import { addCommand as addToBlocklistCommand } from './commands/blocklist/add.js';
+import { removeCommand as removeFromBlocklistCommand } from './commands/blocklist/remove.js';
+import { addCommand as addToAllowlistCommand } from './commands/allowlist/add.js';
+import { removeCommand as removeFromAllowlistCommand } from './commands/allowlist/remove.js';
+import { controlCommand } from './commands/control/index.js';
 
 const program = new Command();
 
-program.name('mosaic').description('CLI for managing Token-2022 tokens with extensions').version('0.1.2');
+// Read the version from package.json so changeset bumps can't drift it. A JSON
+// import would need import attributes under nodenext; createRequire is simpler.
+const { version } = createRequire(import.meta.url)('../package.json') as { version: string };
+
+program.name('mosaic').description('CLI for managing Token-2022 tokens with extensions').version(version);
 
 // Create command group
 const createCommand = program.command('create').description('Create new tokens with Token-2022 extensions');

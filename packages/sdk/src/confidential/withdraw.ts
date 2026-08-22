@@ -7,8 +7,8 @@ import {
     type TransactionSigner,
 } from '@solana/kit';
 import { fetchToken, getConfidentialWithdrawInstructionPlan } from '@solana-program/token-2022';
-import type { ConfidentialKeys } from './keys';
-import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util';
+import type { ConfidentialKeys } from './keys.js';
+import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util.js';
 
 /**
  * Withdraws tokens from the account's **available confidential** balance back to

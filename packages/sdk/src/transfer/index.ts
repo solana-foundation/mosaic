@@ -10,20 +10,20 @@ import {
     appendTransactionMessageInstructions,
     createNoopSigner,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     decimalAmountToRaw,
     resolveTokenAccount,
     getMintDetails,
     isDefaultAccountStateSetFrozen,
-} from '../transaction-util';
+} from '../transaction-util.js';
 import {
     getCreateAssociatedTokenIdempotentInstruction,
     getTransferCheckedInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
 import { getAddMemoInstruction } from '@solana-program/memo';
-import { getThawPermissionlessInstructions } from '../token-acl';
+import { getThawPermissionlessInstructions } from '../token-acl/index.js';
 
 /**
  * Creates a list of instructions to transfer SPL tokens (Token-2022) from one account to another.

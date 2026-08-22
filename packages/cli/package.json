@@ -10,15 +10,20 @@
     "type": "module",
     "main": "./dist/index.js",
     "bin": {
-        "mosaic": "./dist/index.js"
+        "mosaic": "./bin/mosaic.mjs"
     },
     "files": [
-        "dist"
+        "dist",
+        "bin"
     ],
+    "engines": {
+        "node": ">=20.6.0"
+    },
     "scripts": {
         "build": "tsc -b",
         "dev": "tsc --watch",
-        "start": "node dist/index.js",
+        "dev:run": "tsx --import ./bin/register-zk-node.mjs src/index.ts",
+        "start": "node bin/mosaic.mjs",
         "test": "echo 'Tests will be implemented'",
         "lint": "eslint src --ext .ts",
         "lint:fix": "eslint src --ext .ts --fix",
@@ -32,6 +37,7 @@
         "@solana-program/token-2022": "^0.10.0",
         "@solana/token-acl-sdk": "^0.4.0",
         "@solana/token-acl-gate-sdk": "^0.3.0",
+        "@solana/zk-sdk": "^0.4.2",
         "chalk": "^5.6.2",
         "commander": "^12.0.0",
         "ora": "^8.0.1"

@@ -1,6 +1,6 @@
 import type { Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
 import { address } from '@solana/kit';
-import { createMockRpc, createMockSigner, seedMintDetails, seedTokenAccount } from '../../__tests__/test-utils';
+import { createMockRpc, createMockSigner, seedMintDetails, seedTokenAccount } from '../../__tests__/test-utils.js';
 import { Token2022Instruction, identifyToken2022Instruction } from '@solana-program/token-2022';
 import {
     createBurnLockTransaction,
@@ -9,8 +9,8 @@ import {
     createMintLockTransaction,
     createSettleBurnLockTransaction,
     createSettleMintLockTransaction,
-} from '../lock-ops';
-import { deriveLockAccountAddress } from '../lock-address';
+} from '../lock-ops.js';
+import { deriveLockAccountAddress } from '../lock-address.js';
 
 const MINT = address('HA3KcFsXNjRJsRZq1P1Y8qPAeSZnZsFyauCDEsSSGqTj');
 const HOLDER = address('FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT');
