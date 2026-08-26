@@ -266,3 +266,135 @@ describe('templates fee-payer / authority decoupling (sRFC-37)', () => {
         expectDecoupledAblSetup();
     });
 });
+
+/**
+ * The custom-token DefaultAccountState matrix.
+ *
+ * Two bugs are locked down here:
+ *
+ * 1. The gate used to be `enableDefaultAccountState !== undefined`, so a caller passing an
+ *    explicit `false` still got the extension. `apps/app` always passes a defined boolean,
+ *    which is why every UI-created custom token carried DefaultAccountState regardless of
+ *    the user's choice.
+ * 2. The sRFC-37 fallback used to hardcode Initialized, ignoring `aclMode`, so an allowlist
+ *    token came out Initialized instead of Frozen — the opposite of what an allowlist needs
+ *    and out of step with stablecoin / tokenized-security / arcade-token.
+ *
+ * Convention (see __tests__/integration/inspection.test.ts): `true` = Initialized = blocklist,
+ * `false` = Frozen = allowlist.
+ */
+describe('custom token default account state', () => {
+    let rpc: Rpc<SolanaRpcApi>;
+    const feePayer = createMockSigner();
+    const mint = createMockSigner();
+    const mintAuthority = createMockSigner();
+    const decimals = 6;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        rpc = createMockRpc();
+    });
+
+    const hasDefaultAccountState = (instructions: readonly Instruction[], state: AccountState): boolean => {
+        const [expected] = getPreInitializeInstructionsForMintExtensions(mint.address, [
+            extension('DefaultAccountState', { state }),
+        ]);
+        return instructions.some(
+            (i: Instruction) =>
+                i.programAddress === expected.programAddress &&
+                Buffer.compare(Buffer.from(i.data ?? []), Buffer.from(expected.data ?? [])) === 0,
+        );
+    };
+
+    const build = async (options: Record<string, unknown>) => {
+        const { createCustomTokenInitTransaction } = await import('../custom-token.js');
+        return createCustomTokenInitTransaction(
+            rpc,
+            'Name',
+            'SYM',
+            decimals,
+            'uri',
+            mintAuthority,
+            mint,
+            feePayer,
+            options,
+        );
+    };
+
+    test('enableDefaultAccountState false omits the extension entirely', async () => {
+        const { instructions } = await build({ enableDefaultAccountState: false });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(false);
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(false);
+    });
+
+    test('omitting enableDefaultAccountState omits the extension entirely', async () => {
+        const { instructions } = await build({ enablePausable: true });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(false);
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(false);
+    });
+
+    test('enableDefaultAccountState true defaults to Initialized without sRFC-37', async () => {
+        const { instructions } = await build({ enableDefaultAccountState: true });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(true);
+    });
+
+    test('defaultAccountStateInitialized false makes Frozen reachable', async () => {
+        const { instructions } = await build({
+            enableDefaultAccountState: true,
+            defaultAccountStateInitialized: false,
+        });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(true);
+    });
+
+    test('sRFC-37 blocklist still gets the extension as Initialized when not asked for', async () => {
+        const { instructions } = await build({
+            enableDefaultAccountState: false,
+            enableSrfc37: true,
+            aclMode: 'blocklist',
+        });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(true);
+    });
+
+    test('sRFC-37 allowlist defaults to Frozen, matching the other templates', async () => {
+        const { instructions } = await build({
+            enableDefaultAccountState: false,
+            enableSrfc37: true,
+            aclMode: 'allowlist',
+        });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(true);
+    });
+
+    // The implicit branch — `enableDefaultAccountState` omitted entirely, so sRFC-37 alone
+    // pulls the extension in. This is where the allowlist bug lived: the old fallback
+    // hardcoded Initialized, which is the opposite of what an allowlist needs.
+    test('sRFC-37 allowlist without an explicit toggle defaults to Frozen', async () => {
+        const { instructions } = await build({ enableSrfc37: true, aclMode: 'allowlist' });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(true);
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(false);
+    });
+
+    test('sRFC-37 blocklist without an explicit toggle defaults to Initialized', async () => {
+        const { instructions } = await build({ enableSrfc37: true, aclMode: 'blocklist' });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(true);
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(false);
+    });
+
+    test('an explicit defaultAccountStateInitialized overrides the sRFC-37 default', async () => {
+        const { instructions } = await build({
+            enableDefaultAccountState: true,
+            defaultAccountStateInitialized: true,
+            enableSrfc37: true,
+            aclMode: 'allowlist',
+        });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(true);
+    });
+});

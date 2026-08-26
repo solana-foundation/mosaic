@@ -1,4 +1,5 @@
 import { Token } from '../issuance/index.js';
+import type { ConfidentialBalancesConfig } from '../issuance/create-mint.js';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
 import {
@@ -39,6 +40,8 @@ export const createTokenizedSecurityInitTransaction = async (
         permanentDelegateAuthority?: Address;
         permissionedBurnAuthority?: Address;
         enableSrfc37?: boolean;
+        // Confidential Balances policy / auditor.
+        confidentialBalances?: ConfidentialBalancesConfig;
         scaledUiAmount?: {
             authority?: Address;
             multiplier?: number;
@@ -76,7 +79,10 @@ export const createTokenizedSecurityInitTransaction = async (
         // blocked wallets get frozen. Allowlist mints are born Frozen, so membership is what
         // unlocks an account via permissionless thaw.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
-        .withConfidentialBalances(confidentialBalancesAuthority)
+        .withConfidentialBalances({
+            authority: confidentialBalancesAuthority,
+            ...options?.confidentialBalances,
+        })
         .withPermanentDelegate(permanentDelegateAuthority)
         .withPermissionedBurn(permissionedBurnAuthority);
 

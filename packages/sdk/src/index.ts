@@ -1,4 +1,9 @@
-export { Token } from './issuance/index.js';
+export {
+    Token,
+    type ConfidentialApprovePolicy,
+    type ConfidentialBalancesConfig,
+    type ConfidentialBalancesOptions,
+} from './issuance/index.js';
 export {
     createUpdateFieldInstruction,
     createReallocateInstruction,

@@ -2,6 +2,8 @@
  * Solana Explorer utilities for building URLs and extracting cluster information.
  */
 
+import { getConfiguredNetwork } from '@/lib/solana/network';
+
 /**
  * Safely extracts cluster name from cluster object.
  * Handles different cluster object structures from @solana/connector.
@@ -65,7 +67,7 @@ export function getExplorerClusterParam(clusterName?: string): string | undefine
  * 1. Provided cluster name
  * 2. Connector cluster
  * 3. Environment variable NEXT_PUBLIC_SOLANA_NETWORK
- * 4. Default to 'mainnet-beta'
+ * 4. Default to 'devnet'
  */
 export function getEffectiveClusterName(clusterName?: string, connectorCluster?: unknown): string {
     if (clusterName) return clusterName;
@@ -74,18 +76,8 @@ export function getEffectiveClusterName(clusterName?: string, connectorCluster?:
     const connectorClusterName = getClusterName(connectorCluster);
     if (connectorClusterName) return connectorClusterName;
 
-    // Check environment variable as fallback
-    const envNetwork = process.env.NEXT_PUBLIC_SOLANA_NETWORK;
-    if (envNetwork) {
-        // Sanitize and validate the env value
-        const sanitized = envNetwork.trim().toLowerCase();
-        if (['devnet', 'testnet', 'mainnet', 'mainnet-beta'].includes(sanitized)) {
-            return sanitized === 'mainnet' ? 'mainnet-beta' : sanitized;
-        }
-    }
-
-    // Default fallback to mainnet-beta
-    return 'mainnet-beta';
+    // Fall back to the configured default: NEXT_PUBLIC_SOLANA_NETWORK, else devnet.
+    return getConfiguredNetwork();
 }
 
 /**

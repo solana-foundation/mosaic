@@ -1,13 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { CheckCircle, Settings, CandlestickChart } from 'lucide-react';
+import { CheckCircle, CandlestickChart } from 'lucide-react';
 import { CopyableExplorerField } from '@/components/copyable-explorer-field';
 import { TokenizedSecurityCreationResult } from '@/types/token';
-import Link from 'next/link';
 import { useConnector } from '@solana/connector/react';
 import { getEffectiveClusterName } from '@/lib/solana/explorer';
+import { CreationResultActions } from '../creation-result-actions';
 
-export function TokenizedSecurityCreationResultDisplay({ result }: { result: TokenizedSecurityCreationResult }) {
+interface TokenizedSecurityCreationResultProps {
+    result: TokenizedSecurityCreationResult;
+    onClose?: () => void;
+}
+
+export function TokenizedSecurityCreationResultDisplay({ result, onClose }: TokenizedSecurityCreationResultProps) {
     const { cluster: connectorCluster } = useConnector();
     const cluster = getEffectiveClusterName(undefined, connectorCluster) as 'devnet' | 'testnet' | 'mainnet-beta';
     return (
@@ -61,10 +65,12 @@ export function TokenizedSecurityCreationResultDisplay({ result }: { result: Tok
                             <div>
                                 <strong>Decimals:</strong> {result.details?.decimals}
                             </div>
-                            <div>
-                                <strong>ACL Mode:</strong>{' '}
-                                {result.details?.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
-                            </div>
+                            {result.details?.enableSrfc37 && (
+                                <div>
+                                    <strong>ACL Mode:</strong>{' '}
+                                    {result.details.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+                                </div>
+                            )}
                             <div>
                                 <strong>Multiplier:</strong> {result.details?.multiplier}
                             </div>
@@ -105,22 +111,48 @@ export function TokenizedSecurityCreationResultDisplay({ result }: { result: Tok
                                     {result.details?.permanentDelegateAuthority}
                                 </code>
                             </div>
+                            {result.details?.permissionedBurnAuthority && (
+                                <div>
+                                    <strong>Permissioned Burn Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.permissionedBurnAuthority}
+                                    </code>
+                                </div>
+                            )}
+                            {result.details?.scaledUiAmountAuthority && (
+                                <div>
+                                    <strong>Scaled UI Amount Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.scaledUiAmountAuthority}
+                                    </code>
+                                </div>
+                            )}
+                            {result.details?.freezeAuthority && (
+                                <div className="md:col-span-2">
+                                    <strong>Freeze Authority:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.freezeAuthority}
+                                    </code>
+                                </div>
+                            )}
+                            {result.details?.auditorElgamalPubkey && (
+                                <div className="md:col-span-2">
+                                    <strong>Auditor ElGamal Key:</strong>{' '}
+                                    <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
+                                        {result.details.auditorElgamalPubkey}
+                                    </code>
+                                </div>
+                            )}
                         </div>
 
-                        {result.mintAddress && (
-                            <div className="pt-4 border-t">
-                                <Link href={`/manage/${result.mintAddress}`}>
-                                    <Button className="w-full">
-                                        <Settings className="h-4 w-4 mr-2" />
-                                        Manage Token
-                                    </Button>
-                                </Link>
-                            </div>
-                        )}
+                        <CreationResultActions mintAddress={result.mintAddress} onClose={onClose} />
                     </div>
                 ) : (
-                    <div className="text-red-600">
-                        <strong>Error:</strong> {result.error}
+                    <div className="space-y-4">
+                        <div className="text-red-600">
+                            <strong>Error:</strong> {result.error}
+                        </div>
+                        <CreationResultActions onClose={onClose} closeLabel="Close" />
                     </div>
                 )}
             </CardContent>
