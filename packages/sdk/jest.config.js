@@ -34,8 +34,10 @@ export default {
         // indirection (resolved via package `exports` conditions in real builds);
         // under jest, resolve it to the node shim directly.
         '^@solana/mosaic-sdk/_zk$': '<rootDir>/src/confidential/_zk.node.ts',
-        // token-2022's CJS build imports the ESM+wasm bundler entry; use the CJS node build under jest
-        '^@solana/zk-sdk/bundler$': '@solana/zk-sdk/node',
+        // NOTE: no '^@solana/zk-sdk/bundler$' remap is needed. token-2022 imports the
+        // ESM+wasm bundler entry, but as of @solana/zk-sdk 0.5.2 that subpath carries a
+        // `node` condition pointing at the CJS node build, which jest honours under
+        // testEnvironment: 'node'. (Before 0.5.2 this was a local pnpm patch + a remap here.)
         '^@solana/token-acl-sdk$': '<rootDir>/src/__mocks__/@mosaic/token-acl.ts',
         '^@solana/token-acl-gate-sdk$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',
         '^@mosaic/abl$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',

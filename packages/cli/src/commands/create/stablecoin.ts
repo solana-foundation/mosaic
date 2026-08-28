@@ -155,8 +155,7 @@ export const createStablecoinCommand = new Command('stablecoin')
             // present. In the signing path the loaded keypair IS the mint authority, so hand the
             // template the signer itself; a custom --mint-authority that isn't the signer can't sign
             // the metadata init here (that needs --raw-tx and an external signature).
-            const mintAuthorityArg =
-                !rawTx && mintAuthority === signerAddress ? signerKeypair! : mintAuthority;
+            const mintAuthorityArg = !rawTx && mintAuthority === signerAddress ? signerKeypair! : mintAuthority;
 
             // Create stablecoin transaction
             const transaction = await createStablecoinInitTransaction(

@@ -232,6 +232,74 @@ describe('confidential operation builders', () => {
         });
     });
 
+    // Token-2022's process_deposit and process_withdraw both reject a mint
+    // carrying ConfidentialMintBurn with IllegalMintBurnConversion: such a mint's
+    // supply exists only as an encrypted value, so there is no plaintext side to
+    // convert to or from. Both builders must fail fast instead of emitting a
+    // transaction the chain is guaranteed to reject.
+    describe('plaintext conversions on a ConfidentialMintBurn mint', () => {
+        beforeEach(() => {
+            seedMintDetails(rpc, {
+                address: MINT,
+                decimals: 6,
+                extensions: [{ extension: 'confidentialTransferMint' }, { extension: 'confidentialMintBurn' }],
+            });
+        });
+
+        it('deposit fails fast and builds no instruction', async () => {
+            await expect(
+                createConfidentialDepositInstructionPlan({
+                    rpc,
+                    mint: MINT,
+                    tokenAccount: SOURCE_TOKEN,
+                    authority: AUTHORITY,
+                    amount: '1',
+                }),
+            ).rejects.toThrow(/ConfidentialMintBurn extension enabled; confidential deposit is not supported/);
+        });
+
+        it('withdraw fails fast without calling the upstream helper', async () => {
+            await expect(
+                createConfidentialWithdrawInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    mint: MINT,
+                    tokenAccount: SOURCE_TOKEN,
+                    authority: AUTHORITY,
+                    amount: '1',
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(/ConfidentialMintBurn extension enabled; confidential withdrawal is not supported/);
+            expect(getConfidentialWithdrawInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('points the caller at the confidential mint/burn path', async () => {
+            await expect(
+                createConfidentialDepositInstructionPlan({
+                    rpc,
+                    mint: MINT,
+                    tokenAccount: SOURCE_TOKEN,
+                    authority: AUTHORITY,
+                    amount: '1',
+                }),
+            ).rejects.toThrow(/createConfidentialMintInstructionPlan \/ createConfidentialBurnInstructionPlan/);
+        });
+
+        it('still allows a confidential transfer (not a plaintext conversion)', async () => {
+            const plan = await createConfidentialTransferInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                mint: MINT,
+                sourceToken: SOURCE_TOKEN,
+                destinationToken: DEST_TOKEN,
+                authority: AUTHORITY,
+                amount: '1',
+                keys: fakeKeys,
+            });
+            expect(plan).toBe(mockTransferPlan);
+        });
+    });
+
     describe('transfer', () => {
         it('passes source/destination accounts, raw amount, and the resolved auditor', async () => {
             const plan = await createConfidentialTransferInstructionPlan({

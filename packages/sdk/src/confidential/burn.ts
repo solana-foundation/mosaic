@@ -12,54 +12,10 @@ import {
     getConfidentialBurnInstructionPlan,
     getPermissionedConfidentialBurnInstructionPlan,
 } from '@solana-program/token-2022/confidential';
+import { getPermissionedBurnAuthorityFromMint } from '../transaction-util';
+import { isConfidentialMintBurn, isConfidentialTransferAccount, isConfidentialTransferMint } from './extensions';
 import type { ConfidentialKeys } from './keys';
 import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
-
-type DecodedMint = Awaited<ReturnType<typeof fetchMint>>;
-type DecodedToken = Awaited<ReturnType<typeof fetchToken>>;
-
-/** Whether a decoded mint carries the `ConfidentialMintBurn` extension. */
-function isConfidentialMintBurn(mint: DecodedMint): boolean {
-    return (
-        mint.data.extensions.__option === 'Some' &&
-        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialMintBurn')
-    );
-}
-
-/** Whether a decoded mint carries the `ConfidentialTransferMint` extension. */
-function isConfidentialTransferMint(mint: DecodedMint): boolean {
-    return (
-        mint.data.extensions.__option === 'Some' &&
-        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferMint')
-    );
-}
-
-/** Whether a decoded token account carries the `ConfidentialTransferAccount` extension. */
-function isConfidentialTransferAccount(token: DecodedToken): boolean {
-    return (
-        token.data.extensions.__option === 'Some' &&
-        token.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferAccount')
-    );
-}
-
-/**
- * Returns the `PermissionedBurn` extension's configured authority, or `null` if
- * the mint has no `PermissionedBurn` extension or its authority is cleared (both
- * cases allow the standard confidential burn variant). When set, token-2022
- * rejects the standard burn and requires the permissioned variant with this
- * authority as an extra signer. Mirrors `getPermissionedBurnAuthority` in
- * `../management/permissioned-burn`, but reads the already-decoded mint.
- */
-function getPermissionedBurnAuthorityFromMint(mint: DecodedMint): Address | null {
-    if (mint.data.extensions.__option !== 'Some') {
-        return null;
-    }
-    const ext = mint.data.extensions.value.find(e => e.__kind === 'PermissionedBurn');
-    if (!ext || ext.__kind !== 'PermissionedBurn') {
-        return null;
-    }
-    return ext.authority.__option === 'Some' ? ext.authority.value : null;
-}
 
 /**
  * Confidentially **burns** tokens from an account's available confidential
@@ -178,6 +134,27 @@ export async function createConfidentialBurnInstructionPlan(input: {
  * Applies the mint's accumulated **pending burn** into its confidential supply,
  * finalizing prior confidential burns on the supply side. Signed by the mint
  * authority. No proof is required — returns a `singleInstructionPlan`.
+ *
+ * ⚠️ **This desynchronizes the mint's two supply representations, and the next
+ * confidential mint will fail until you re-sync.** `ApplyPendingBurn` advances
+ * the ElGamal `confidentialSupply` but cannot re-encrypt the AES
+ * `decryptableSupply`. A confidential mint's equality proof is built from the AES
+ * form and checked against the ElGamal one, so once they drift the proof is
+ * **rejected on-chain**. Always follow this with
+ * {@link createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan},
+ * passing the true post-burn supply in raw units:
+ *
+ * ```ts
+ * await step(applyPendingBurn({ mint, authority: mintAuthority }));
+ * await step(
+ *     createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan({
+ *         mint,
+ *         authority: mintAuthority,
+ *         supplyKeys,
+ *         rawSupply: supplyAfterBurn,
+ *     }),
+ * );
+ * ```
  */
 export function createApplyConfidentialPendingBurnInstructionPlan(input: {
     /** The token mint (must carry `ConfidentialMintBurn`). */

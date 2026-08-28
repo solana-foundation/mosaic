@@ -48,7 +48,7 @@ export const updateSupplyCommand = new Command('update-supply')
                     mint,
                     authority: signer,
                     supplyKeys,
-                    supply,
+                    rawSupply: supply,
                 });
                 const { signatures } = await sendOrOutputInstructionPlan(plan, signer, rpc, opts.rawTx, spinner);
                 spinner.succeed('Confidential supply updated!');

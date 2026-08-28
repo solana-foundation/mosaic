@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import { createRpcClient } from '../utils/rpc.js';
-import { type Address } from '@solana/kit';
+import { type Address, getBase64Decoder } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from '@solana-program/token-2022';
 import { fetchEncodedAccount } from '@solana/accounts';
 
@@ -194,14 +194,17 @@ export const inspectMintCommand = new Command('inspect-mint')
                             }
                             break;
                         case 'ConfidentialMintBurn':
-                            // Mint/burn directly into/from a confidential balance; the supply
-                            // is tracked under the mint authority's supply keys.
+                            // Separate extension from ConfidentialTransferMint: mint/burn
+                            // directly into/from a confidential balance. The supply itself is
+                            // encrypted under the mint authority's supply keys, so only those
+                            // keys can read it — print it base64-encoded rather than as a raw
+                            // byte array (matches the SDK's inspectToken output).
                             if ('supplyElgamalPubkey' in ext) {
                                 console.log(`     Supply ElGamal Pubkey: ${ext.supplyElgamalPubkey}`);
                             }
                             if ('decryptableSupply' in ext) {
                                 console.log(
-                                    `     Decryptable Supply: ${ext.decryptableSupply} ${chalk.gray('(encrypted)')}`,
+                                    `     Decryptable Supply: ${getBase64Decoder().decode(ext.decryptableSupply)} ${chalk.gray('(encrypted; requires the supply keys)')}`,
                                 );
                             }
                             break;
