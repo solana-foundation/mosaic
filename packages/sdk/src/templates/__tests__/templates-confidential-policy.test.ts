@@ -1,8 +1,8 @@
 import type { Address, Instruction, Rpc, SolanaRpcApi } from '@solana/kit';
 import { some } from '@solana/kit';
 import { extension, getPreInitializeInstructionsForMintExtensions } from '@solana-program/token-2022';
-import { createMockRpc, createMockSigner } from '../../__tests__/test-utils';
-import type { ConfidentialApprovePolicy } from '../../issuance/create-mint';
+import { createMockRpc, createMockSigner } from '../../__tests__/test-utils.js';
+import type { ConfidentialApprovePolicy } from '../../issuance/create-mint.js';
 
 /**
  * Covers the confidential-balances `policy` / `auditorElgamalPubkey` passthrough on every
@@ -61,7 +61,7 @@ describe('templates confidential balances policy / auditor passthrough', () => {
         {
             name: 'custom-token',
             build: async ({ policy, auditorElgamalPubkey }) => {
-                const { createCustomTokenInitTransaction } = await import('../custom-token');
+                const { createCustomTokenInitTransaction } = await import('../custom-token.js');
                 return createCustomTokenInitTransaction(
                     rpc,
                     'Name',
@@ -81,7 +81,7 @@ describe('templates confidential balances policy / auditor passthrough', () => {
         {
             name: 'stablecoin',
             build: async ({ policy, auditorElgamalPubkey }) => {
-                const { createStablecoinInitTransaction } = await import('../stablecoin');
+                const { createStablecoinInitTransaction } = await import('../stablecoin.js');
                 return createStablecoinInitTransaction(
                     rpc,
                     'Name',
@@ -105,7 +105,7 @@ describe('templates confidential balances policy / auditor passthrough', () => {
         {
             name: 'tokenized-security',
             build: async ({ policy, auditorElgamalPubkey }) => {
-                const { createTokenizedSecurityInitTransaction } = await import('../tokenized-security');
+                const { createTokenizedSecurityInitTransaction } = await import('../tokenized-security.js');
                 return createTokenizedSecurityInitTransaction(
                     rpc,
                     'Name',
@@ -123,7 +123,7 @@ describe('templates confidential balances policy / auditor passthrough', () => {
         {
             name: 'mmf',
             build: async ({ policy, auditorElgamalPubkey }) => {
-                const { createMmfInitTransaction } = await import('../mmf');
+                const { createMmfInitTransaction } = await import('../mmf.js');
                 return createMmfInitTransaction(
                     rpc,
                     'Name',

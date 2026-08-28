@@ -1,5 +1,5 @@
-import setupTestSuite from './setup';
-import type { Client } from './setup';
+import setupTestSuite from './setup.js';
+import type { Client } from './setup.js';
 import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
 import { AuthorityType } from '@solana-program/token-2022';
@@ -11,10 +11,10 @@ import {
     DEFAULT_COMMITMENT,
     assertToken,
     describeSkipIf,
-} from './helpers';
-import { Token } from '../../issuance';
-import { createMintToTransaction } from '../../management';
-import { getUpdateAuthorityTransaction, getRemoveAuthorityTransaction } from '../../administration';
+} from './helpers.js';
+import { Token } from '../../issuance/index.js';
+import { createMintToTransaction } from '../../management/index.js';
+import { getUpdateAuthorityTransaction, getRemoveAuthorityTransaction } from '../../administration/index.js';
 
 describeSkipIf()('Administration Integration Tests', () => {
     let client: Client;

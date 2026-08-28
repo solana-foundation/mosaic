@@ -7,8 +7,8 @@ import {
     type TransactionSigner,
 } from '@solana/kit';
 import { fetchMint, fetchToken, getConfidentialTransferInstructionPlan } from '@solana-program/token-2022';
-import type { ConfidentialKeys } from './keys';
-import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
+import type { ConfidentialKeys } from './keys.js';
+import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util.js';
 
 type DecodedMint = Awaited<ReturnType<typeof fetchMint>>;
 type DecodedToken = Awaited<ReturnType<typeof fetchToken>>;

@@ -8,10 +8,10 @@ import {
 } from '@solana/kit';
 import { getEmptyConfidentialTransferAccountInstruction } from '@solana-program/token-2022';
 import { SYSVAR_INSTRUCTIONS_ADDRESS } from '@solana/sysvars';
-import type { ConfidentialKeys } from './keys';
-import { fetchConfidentialAccountState } from './account-state';
-import { buildZeroCiphertextProofIxs } from './proof';
-import { toAuthoritySigner } from './util';
+import type { ConfidentialKeys } from './keys.js';
+import { fetchConfidentialAccountState } from './account-state.js';
+import { buildZeroCiphertextProofIxs } from './proof.js';
+import { toAuthoritySigner } from './util.js';
 
 /**
  * Empties a confidential token account's **available** balance so it can be

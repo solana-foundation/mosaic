@@ -1,6 +1,6 @@
 import { type Address, address } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-import { computeLockSeed, deriveLockAccountAddress } from '../lock-address';
+import { computeLockSeed, deriveLockAccountAddress } from '../lock-address.js';
 
 const MINT = address('HA3KcFsXNjRJsRZq1P1Y8qPAeSZnZsFyauCDEsSSGqTj');
 const HOLDER = address('FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT');

@@ -1,5 +1,5 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     pipe,
@@ -13,13 +13,13 @@ import {
     getMintToInstruction,
     getCreateAssociatedTokenIdempotentInstruction,
 } from '@solana-program/token-2022';
-import { getThawPermissionlessInstructions } from '../token-acl';
+import { getThawPermissionlessInstructions } from '../token-acl/index.js';
 import {
     decimalAmountToRaw,
     getMintDetails,
     isDefaultAccountStateSetFrozen,
     resolveTokenAccount,
-} from '../transaction-util';
+} from '../transaction-util.js';
 
 /**
  * Creates a transaction to mint tokens to a recipient's associated token account.

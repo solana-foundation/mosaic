@@ -9,11 +9,11 @@ export {
     type ConfidentialKeys,
     type DeriveConfidentialKeysInput,
     type DeriveConfidentialKeysForOwnerMintInput,
-} from './keys';
+} from './keys.js';
 
-export { createConfidentialTransactionPlanner, planConfidentialInstructions } from './plan';
+export { createConfidentialTransactionPlanner, planConfidentialInstructions } from './plan.js';
 
-export { type TokenAmount } from './util';
+export { type TokenAmount } from './util.js';
 
 export {
     createEnableConfidentialCreditsInstructionPlan,
@@ -21,22 +21,22 @@ export {
     createEnableNonConfidentialCreditsInstructionPlan,
     createDisableNonConfidentialCreditsInstructionPlan,
     type CreditsInput,
-} from './credits';
+} from './credits.js';
 
-export { createConfidentialDepositInstructionPlan } from './deposit';
+export { createConfidentialDepositInstructionPlan } from './deposit.js';
 
 export {
     createConfigureConfidentialAccountInstructionPlan,
     createApproveConfidentialAccountInstructionPlan,
-} from './configure-account';
+} from './configure-account.js';
 
-export { createApplyConfidentialPendingBalanceInstructionPlan } from './apply-pending-balance';
+export { createApplyConfidentialPendingBalanceInstructionPlan } from './apply-pending-balance.js';
 
-export { createConfidentialWithdrawInstructionPlan } from './withdraw';
+export { createConfidentialWithdrawInstructionPlan } from './withdraw.js';
 
-export { createConfidentialTransferInstructionPlan } from './transfer';
+export { createConfidentialTransferInstructionPlan } from './transfer.js';
 
-export { createEmptyConfidentialAccountInstructionPlan } from './empty-account';
+export { createEmptyConfidentialAccountInstructionPlan } from './empty-account.js';
 
 export {
     buildProofVerificationIxs,
@@ -49,7 +49,7 @@ export {
     type ProofMode,
     type ProofInstructions,
     type ProofWithMode,
-} from './proof';
+} from './proof.js';
 
 export {
     fetchConfidentialAccountState,
@@ -58,7 +58,7 @@ export {
     type ConfidentialAccountCiphertexts,
     type ConfidentialDecryptedBalances,
     type FetchConfidentialAccountStateOptions,
-} from './account-state';
+} from './account-state.js';
 
 // Account-level inspector (counterpart to root `inspectToken`). Surfaced from
 // this WASM-bearing subpath rather than the root inspection barrel so root
@@ -67,4 +67,4 @@ export {
     inspectConfidentialAccount,
     type ConfidentialAccountInfo,
     type InspectConfidentialAccountOptions,
-} from '../inspection/inspect-confidential-account';
+} from '../inspection/inspect-confidential-account.js';

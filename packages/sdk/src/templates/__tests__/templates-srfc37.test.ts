@@ -1,5 +1,5 @@
 import type { Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
-import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
+import { createMockSigner, createMockRpc } from '../../__tests__/test-utils.js';
 import {
     TOKEN_2022_PROGRAM_ADDRESS,
     getInitializeMintInstruction,
@@ -7,11 +7,11 @@ import {
     AccountState,
     getPreInitializeInstructionsForMintExtensions,
 } from '@solana-program/token-2022';
-import * as createConfigModule from '../../token-acl/create-config';
-import * as setGatingProgramModule from '../../token-acl/set-gating-program';
-import * as enableThawModule from '../../token-acl/enable-permissionless-thaw';
-import * as createListModule from '../../abl/list';
-import * as setExtraMetasModule from '../../abl/set-extra-metas';
+import * as createConfigModule from '../../token-acl/create-config.js';
+import * as setGatingProgramModule from '../../token-acl/set-gating-program.js';
+import * as enableThawModule from '../../token-acl/enable-permissionless-thaw.js';
+import * as createListModule from '../../abl/list.js';
+import * as setExtraMetasModule from '../../abl/set-extra-metas.js';
 
 describe('templates enableSrfc37 option', () => {
     let rpc: Rpc<SolanaRpcApi>;
@@ -26,7 +26,7 @@ describe('templates enableSrfc37 option', () => {
     test('arcade token: enableSrfc37 false uses default account state initialized', async () => {
         const mintAuthoritySigner = createMockSigner();
         const decimals = 6;
-        const { createArcadeTokenInitTransaction } = await import('../arcade-token');
+        const { createArcadeTokenInitTransaction } = await import('../arcade-token.js');
         const tx = await createArcadeTokenInitTransaction(
             rpc,
             'Name',
@@ -78,7 +78,7 @@ describe('templates enableSrfc37 option', () => {
     test('arcade token: enableSrfc37 true uses default account state frozen and the mint authority as freeze authority', async () => {
         const mintAuthoritySigner = createMockSigner();
         const decimals = 6;
-        const { createArcadeTokenInitTransaction } = await import('../arcade-token');
+        const { createArcadeTokenInitTransaction } = await import('../arcade-token.js');
         const tx = await createArcadeTokenInitTransaction(
             rpc,
             'Name',
@@ -198,7 +198,7 @@ describe('templates fee-payer / authority decoupling (sRFC-37)', () => {
     };
 
     test('stablecoin: sponsored deploy emits decoupled ABL setup', async () => {
-        const { createStablecoinInitTransaction } = await import('../stablecoin');
+        const { createStablecoinInitTransaction } = await import('../stablecoin.js');
         await createStablecoinInitTransaction(
             rpc,
             'Name',
@@ -219,7 +219,7 @@ describe('templates fee-payer / authority decoupling (sRFC-37)', () => {
     });
 
     test('tokenized-security: sponsored deploy emits decoupled ABL setup', async () => {
-        const { createTokenizedSecurityInitTransaction } = await import('../tokenized-security');
+        const { createTokenizedSecurityInitTransaction } = await import('../tokenized-security.js');
         await createTokenizedSecurityInitTransaction(
             rpc,
             'Name',
@@ -239,7 +239,7 @@ describe('templates fee-payer / authority decoupling (sRFC-37)', () => {
     });
 
     test('arcade token: sponsored deploy emits decoupled ABL setup', async () => {
-        const { createArcadeTokenInitTransaction } = await import('../arcade-token');
+        const { createArcadeTokenInitTransaction } = await import('../arcade-token.js');
         await createArcadeTokenInitTransaction(
             rpc,
             'Name',
@@ -258,7 +258,7 @@ describe('templates fee-payer / authority decoupling (sRFC-37)', () => {
     });
 
     test('custom token: sponsored deploy emits decoupled ABL setup', async () => {
-        const { createCustomTokenInitTransaction } = await import('../custom-token');
+        const { createCustomTokenInitTransaction } = await import('../custom-token.js');
         await createCustomTokenInitTransaction(rpc, 'Name', 'SYM', decimals, 'uri', mintAuthority, mint, feePayer, {
             enableSrfc37: true,
             aclMode: 'blocklist',
@@ -307,7 +307,7 @@ describe('custom token default account state', () => {
     };
 
     const build = async (options: Record<string, unknown>) => {
-        const { createCustomTokenInitTransaction } = await import('../custom-token');
+        const { createCustomTokenInitTransaction } = await import('../custom-token.js');
         return createCustomTokenInitTransaction(
             rpc,
             'Name',

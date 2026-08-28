@@ -1,5 +1,5 @@
 import type { Address, KeyPairSigner, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
-import { createMockRpc, createMockSigner } from '../../__tests__/test-utils';
+import { createMockRpc, createMockSigner } from '../../__tests__/test-utils.js';
 
 // Shared mock proof-data instances so we can assert `.free()` is called.
 const mockPubkeyProof = { toBytes: () => new Uint8Array([4]), free: jest.fn() };
@@ -38,7 +38,7 @@ import {
     buildTransferProofIxs,
     type ProofData,
     type ProofMode,
-} from '../proof';
+} from '../proof.js';
 
 const tag = (ixs: unknown[]) => ixs.map(ix => (ix as { tag: string }).tag);
 const fakeProof = (t: number): ProofData => ({ toBytes: () => new Uint8Array([t]), free: jest.fn() });
