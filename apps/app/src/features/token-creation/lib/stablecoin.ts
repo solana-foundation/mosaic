@@ -14,6 +14,7 @@ import {
 import { StablecoinCreationResult, StablecoinOptions } from '@/types/token';
 import { createStablecoinInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
+import { assertValidAddressFields, toAuthorityAddress } from './validate-authorities';
 
 /**
  * Validates stablecoin options and returns parsed decimals
@@ -30,6 +31,16 @@ function validateStablecoinOptions(options: StablecoinOptions): number {
     if (isNaN(decimals) || decimals < 0 || decimals > 9) {
         throw new Error('Decimals must be a number between 0 and 9');
     }
+
+    assertValidAddressFields(options, {
+        mintAuthority: 'Mint authority',
+        metadataAuthority: 'Metadata authority',
+        pausableAuthority: 'Pausable authority',
+        confidentialBalancesAuthority: 'Confidential balances authority',
+        permanentDelegateAuthority: 'Permanent delegate authority',
+        freezeAuthority: 'Freeze authority',
+        auditorElgamalPubkey: 'Auditor ElGamal public key',
+    });
 
     return decimals;
 }
@@ -61,20 +72,17 @@ export const createStablecoin = async (
 
         // Set authorities (default to signer if not provided)
         // When TokenMetadata extension is present, mintAuthority must be a TransactionSigner
-        const mintAuthority = options.mintAuthority
-            ? options.mintAuthority === signerAddress
-                ? signer
-                : (options.mintAuthority as Address)
-            : signer;
+        const requestedMintAuthority = toAuthorityAddress(options.mintAuthority);
+        const mintAuthority =
+            requestedMintAuthority && requestedMintAuthority !== signerAddress ? requestedMintAuthority : signer;
 
-        const metadataAuthority = options.metadataAuthority ? (options.metadataAuthority as Address) : undefined;
-        const pausableAuthority = options.pausableAuthority ? (options.pausableAuthority as Address) : undefined;
-        const confidentialBalancesAuthority = options.confidentialBalancesAuthority
-            ? (options.confidentialBalancesAuthority as Address)
-            : undefined;
-        const permanentDelegateAuthority = options.permanentDelegateAuthority
-            ? (options.permanentDelegateAuthority as Address)
-            : undefined;
+        const metadataAuthority = toAuthorityAddress(options.metadataAuthority);
+        const pausableAuthority = toAuthorityAddress(options.pausableAuthority);
+        const confidentialBalancesAuthority = toAuthorityAddress(options.confidentialBalancesAuthority);
+        const permanentDelegateAuthority = toAuthorityAddress(options.permanentDelegateAuthority);
+        // Ignored by the SDK on the sRFC-37 path, which forces the mint authority.
+        const freezeAuthority = toAuthorityAddress(options.freezeAuthority);
+        const auditorElgamalPubkey = toAuthorityAddress(options.auditorElgamalPubkey);
 
         // Create RPC client using standardized URL handling
         const rpcUrl = getRpcUrl(options.rpcUrl);
@@ -97,6 +105,11 @@ export const createStablecoin = async (
             confidentialBalancesAuthority,
             permanentDelegateAuthority,
             enableSrfc37,
+            freezeAuthority,
+            {
+                policy: options.confidentialBalancesPolicy,
+                auditorElgamalPubkey,
+            },
         );
 
         // Sign the transaction with the modifying signer
@@ -117,12 +130,29 @@ export const createStablecoin = async (
                 symbol: options.symbol,
                 decimals,
                 aclMode: options.aclMode || 'blocklist',
+                // Reported so the result panel can hide the ACL row: with sRFC-37 off the mint has
+                // no access list, and `aclMode` has no on-chain effect at all.
+                enableSrfc37,
                 mintAuthority: mintAuthority === signer ? signer.address : (mintAuthority as Address),
                 metadataAuthority: metadataAuthority?.toString(),
                 pausableAuthority: pausableAuthority?.toString(),
                 confidentialBalancesAuthority: confidentialBalancesAuthority?.toString(),
                 permanentDelegateAuthority: permanentDelegateAuthority?.toString(),
-                extensions: ['Metadata', 'Pausable', 'Confidential Balances', 'Permanent Delegate'],
+                freezeAuthority: freezeAuthority?.toString(),
+                confidentialBalancesPolicy: options.confidentialBalancesPolicy || 'whitelist',
+                auditorElgamalPubkey: auditorElgamalPubkey?.toString(),
+                extensions: [
+                    'Metadata',
+                    'Pausable',
+                    // The template always adds this; `blocklist || !srfc37` decides the state.
+                    `Default Account State (${
+                        options.aclMode === 'blocklist' || !enableSrfc37 ? 'Initialized' : 'Frozen'
+                    })`,
+                    `Confidential Balances (${
+                        options.confidentialBalancesPolicy === 'opt-in' ? 'Opt-in' : 'Approval required'
+                    })`,
+                    'Permanent Delegate',
+                ],
             },
         };
     } catch (error) {

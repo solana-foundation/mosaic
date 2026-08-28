@@ -3,14 +3,49 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertTriangle, ShieldCheck, ShieldX, Lock, CalendarClock, RefreshCw, Info } from 'lucide-react';
+import {
+    AlertTriangle,
+    ShieldCheck,
+    ShieldX,
+    Lock,
+    CalendarClock,
+    RefreshCw,
+    Info,
+    Snowflake,
+    Unlock,
+} from 'lucide-react';
 import { CustomTokenOptions } from '@/types/token';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { ConfidentialBalancesConfig, isAuditorKeyInvalid } from '../confidential-balances-config';
 
 interface CustomTokenExtensionConfigProps {
     options: CustomTokenOptions;
     onInputChange: (field: string, value: string | boolean) => void;
+}
+
+/**
+ * True when a transfer fee is configured but its cap is blank.
+ *
+ * Token-2022 charges `min(amount × basisPoints, maximumFee)`, and a blank cap reaches the SDK
+ * as `undefined` → `0n`, so the mint advertises a rate while collecting nothing. Exported so
+ * the wizard's `canProceed` blocks on exactly the rule the field renders.
+ */
+export function isTransferFeeCapMissing(options: CustomTokenOptions): boolean {
+    if (!options.enableTransferFee) return false;
+    const basisPoints = parseInt(options.transferFeeBasisPoints || '0', 10) || 0;
+    return basisPoints > 0 && !options.transferFeeMaximum?.trim();
+}
+
+/**
+ * True when this form's auditor ElGamal pubkey is present but invalid.
+ *
+ * Wraps the shared check with the Custom-token-only gate: the extension is optional here, so a
+ * stale value left behind after unticking Confidential Balances must not block the wizard.
+ */
+export function isCustomTokenAuditorKeyInvalid(options: CustomTokenOptions): boolean {
+    if (!options.enableConfidentialBalances) return false;
+    return isAuditorKeyInvalid(options.auditorElgamalPubkey);
 }
 
 export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTokenExtensionConfigProps) {
@@ -63,8 +98,99 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
         };
     })();
 
+    // Default Account State: `true` = Initialized, `false` = Frozen. `setOption` is typed
+    // `string | boolean`, so tolerate the stringified form the way lib/custom-token.ts does.
+    const accountStateInitialized =
+        options.defaultAccountStateInitialized !== false &&
+        (options.defaultAccountStateInitialized as unknown) !== 'false';
+
+    const transferFeeCapMissing = isTransferFeeCapMissing(options);
+
     return (
         <div className="space-y-4">
+            {/* Default Account State Configuration */}
+            {options.enableDefaultAccountState && (
+                <Card className="py-4">
+                    <CardHeader className="pb-3">
+                        <div className="flex items-center gap-2">
+                            <div>
+                                <CardTitle className="text-base">Default Account State</CardTitle>
+                                <CardDescription className="text-xs">
+                                    Choose the state new token accounts start in
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                            <button
+                                type="button"
+                                onClick={() => onInputChange('defaultAccountStateInitialized', true)}
+                                className={cn(
+                                    'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer',
+                                    accountStateInitialized
+                                        ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
+                                )}
+                            >
+                                <Unlock
+                                    className={cn(
+                                        'h-6 w-6',
+                                        accountStateInitialized ? 'text-primary' : 'text-muted-foreground',
+                                    )}
+                                />
+                                <div className="text-center">
+                                    <p className="text-sm font-medium">Initialized</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        New accounts can transfer immediately
+                                    </p>
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onInputChange('defaultAccountStateInitialized', false)}
+                                className={cn(
+                                    'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer',
+                                    !accountStateInitialized
+                                        ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                                        : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
+                                )}
+                            >
+                                <Snowflake
+                                    className={cn(
+                                        'h-6 w-6',
+                                        !accountStateInitialized ? 'text-primary' : 'text-muted-foreground',
+                                    )}
+                                />
+                                <div className="text-center">
+                                    <p className="text-sm font-medium">Frozen</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        New accounts must be thawed before use
+                                    </p>
+                                </div>
+                            </button>
+                        </div>
+                        {!accountStateInitialized && (
+                            <Alert variant="warning" className="border-amber-500/50">
+                                <AlertTriangle className="h-4 w-4" />
+                                <AlertDescription>
+                                    <p className="text-xs">
+                                        Every new token account starts frozen and cannot transfer until the freeze
+                                        authority thaws it. Pair this with an sRFC-37 allowlist, or plan to thaw
+                                        accounts yourself.
+                                    </p>
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Confidential Balances Configuration */}
+            {options.enableConfidentialBalances && (
+                <ConfidentialBalancesConfig idPrefix="custom-token" options={options} onInputChange={onInputChange} />
+            )}
+
             {/* Scaled UI Amount Configuration */}
             {options.enableScaledUiAmount && (
                 <Card className="py-4">
@@ -458,13 +584,15 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     <Label htmlFor="transferFeeBasisPoints" className="text-xs text-muted-foreground">
                                         Fee Rate (basis points)
                                     </Label>
+                                    {/* No placeholder: a greyed "100" read as a preset 1% that was
+                                        never actually sent. The field is pre-filled with 0 instead,
+                                        so the displayed value is the value that reaches the chain. */}
                                     <Input
                                         id="transferFeeBasisPoints"
                                         type="number"
                                         min="0"
                                         max="10000"
-                                        placeholder="100"
-                                        value={options.transferFeeBasisPoints || ''}
+                                        value={options.transferFeeBasisPoints ?? ''}
                                         onChange={e => onInputChange('transferFeeBasisPoints', e.target.value)}
                                     />
                                     <p className="text-xs text-muted-foreground">
@@ -477,18 +605,31 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                 <div className="space-y-1">
                                     <Label htmlFor="transferFeeMaximum" className="text-xs text-muted-foreground">
                                         Maximum Fee Cap
+                                        {transferFeeBasisPoints > 0 && <span className="text-destructive"> *</span>}
                                     </Label>
                                     <Input
                                         id="transferFeeMaximum"
                                         type="text"
                                         placeholder="1000000"
                                         value={options.transferFeeMaximum || ''}
+                                        aria-invalid={transferFeeCapMissing}
                                         onChange={e => onInputChange('transferFeeMaximum', e.target.value)}
+                                        className={cn(
+                                            transferFeeCapMissing &&
+                                                'border-destructive focus-visible:ring-destructive',
+                                        )}
                                     />
-                                    <p className="text-xs text-muted-foreground">
-                                        In smallest units (with {decimals} decimals = {transferFeeMaximumDisplay} tokens
-                                        max)
-                                    </p>
+                                    {transferFeeCapMissing ? (
+                                        <p role="alert" className="text-xs text-destructive">
+                                            Required — Token-2022 charges min(amount × rate, cap), so an empty cap means
+                                            every transfer collects 0.
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground">
+                                            In smallest units (with {decimals} decimals = {transferFeeMaximumDisplay}{' '}
+                                            tokens max)
+                                        </p>
+                                    )}
                                 </div>
                             </div>
 
