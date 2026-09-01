@@ -5,6 +5,7 @@ import {
     type Rpc,
     type SolanaRpcApi,
     type TransactionSigner,
+    sequentialInstructionPlan,
     singleInstructionPlan,
 } from '@solana/kit';
 import { fetchMint, fetchToken, getApplyConfidentialPendingBurnInstruction } from '@solana-program/token-2022';
@@ -15,6 +16,7 @@ import {
 import { getPermissionedBurnAuthorityFromMint } from '../transaction-util';
 import { isConfidentialMintBurn, isConfidentialTransferAccount, isConfidentialTransferMint } from './extensions';
 import type { ConfidentialKeys } from './keys';
+import { createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan } from './supply';
 import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
 
 /**
@@ -133,39 +135,74 @@ export async function createConfidentialBurnInstructionPlan(input: {
 /**
  * Applies the mint's accumulated **pending burn** into its confidential supply,
  * finalizing prior confidential burns on the supply side. Signed by the mint
- * authority. No proof is required — returns a `singleInstructionPlan`.
+ * authority. No proof is required.
  *
- * ⚠️ **This desynchronizes the mint's two supply representations, and the next
- * confidential mint will fail until you re-sync.** `ApplyPendingBurn` advances
- * the ElGamal `confidentialSupply` but cannot re-encrypt the AES
- * `decryptableSupply`. A confidential mint's equality proof is built from the AES
- * form and checked against the ElGamal one, so once they drift the proof is
- * **rejected on-chain**. Always follow this with
- * {@link createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan},
- * passing the true post-burn supply in raw units:
+ * ⚠️ **On its own, this desynchronizes the mint's two supply representations, and
+ * the next confidential mint will fail.** `ApplyPendingBurn` advances the ElGamal
+ * `confidentialSupply` but cannot re-encrypt the AES `decryptableSupply`. A
+ * confidential mint's equality proof is built from the AES form and checked
+ * against the ElGamal one, so once they drift the proof is **rejected on-chain**.
+ *
+ * Pass {@link resyncSupply} to get both halves in one ordered plan — the
+ * recommended form, since it makes the re-sync impossible to forget:
  *
  * ```ts
- * await step(applyPendingBurn({ mint, authority: mintAuthority }));
  * await step(
- *     createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan({
+ *     createApplyConfidentialPendingBurnInstructionPlan({
  *         mint,
  *         authority: mintAuthority,
- *         supplyKeys,
- *         rawSupply: supplyAfterBurn,
+ *         resyncSupply: { supplyKeys, rawSupply: supplyAfterBurn },
  *     }),
  * );
  * ```
+ *
+ * Omitting it returns the bare `ApplyPendingBurn` as a `singleInstructionPlan`,
+ * in which case the caller **must** itself follow up with
+ * {@link createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan} before
+ * the next confidential mint.
  */
 export function createApplyConfidentialPendingBurnInstructionPlan(input: {
     /** The token mint (must carry `ConfidentialMintBurn`). */
     mint: Address;
     /** The mint authority. A bare address becomes a no-op signer. */
     authority: Address | TransactionSigner;
+    /**
+     * Re-assert the AES `decryptableSupply` in the same plan, immediately after
+     * the `ApplyPendingBurn` — repairing the desync this instruction otherwise
+     * leaves behind. Omit only if you sequence
+     * {@link createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan}
+     * yourself.
+     */
+    resyncSupply?: {
+        /** The mint authority's supply keys (the AES key encrypts the decryptable supply). */
+        supplyKeys: ConfidentialKeys;
+        /**
+         * The true total supply **after** this apply, in raw base units. Asserted,
+         * not verified — see the warning on
+         * {@link createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan}.
+         */
+        rawSupply: bigint;
+    };
 }): InstructionPlan {
-    return singleInstructionPlan(
+    const applyPlan = singleInstructionPlan(
         getApplyConfidentialPendingBurnInstruction({
             mint: input.mint,
             authority: toAuthoritySigner(input.authority),
         }),
     );
+    if (input.resyncSupply === undefined) {
+        return applyPlan;
+    }
+    // Divisibly sequential: the two instructions are small enough to share a
+    // transaction, but order is what matters — re-asserting the decryptable
+    // supply before the apply would be overwritten by it.
+    return sequentialInstructionPlan([
+        applyPlan,
+        createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan({
+            mint: input.mint,
+            authority: input.authority,
+            supplyKeys: input.resyncSupply.supplyKeys,
+            rawSupply: input.resyncSupply.rawSupply,
+        }),
+    ]);
 }

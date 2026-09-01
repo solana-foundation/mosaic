@@ -392,7 +392,6 @@ import {
     createConfidentialMintInstructionPlan,
     createConfidentialBurnInstructionPlan,
     createApplyConfidentialPendingBurnInstructionPlan,
-    createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan,
 } from '@solana/mosaic-sdk/confidential';
 
 // Mint straight into a confidential (pending) balance — amount never appears in cleartext.
@@ -417,23 +416,20 @@ const burn = await createConfidentialBurnInstructionPlan({
     keys,
 });
 
-// Apply the mint's accumulated pending burn into its confidential supply (mint authority).
+// Apply the mint's accumulated pending burn into its confidential supply (mint authority),
+// re-syncing the decryptable supply in the same plan — see the warning below.
 const applyBurn = createApplyConfidentialPendingBurnInstructionPlan({
     mint: 'MintPubkey...',
     authority: mintAuthority,
-});
-
-// REQUIRED after every applyBurn — see the warning below.
-const resync = createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan({
-    mint: 'MintPubkey...',
-    authority: mintAuthority,
-    supplyKeys,
-    rawSupply: 300n, // true supply after the burn, in raw base units
+    resyncSupply: {
+        supplyKeys,
+        rawSupply: 300n, // true supply after the burn, in raw base units
+    },
 });
 ```
 
-> ⚠️ **`applyBurn` must always be followed by the supply re-sync above, or your next
-> confidential mint will be rejected on-chain.** The mint keeps its supply twice: as an
+> ⚠️ **Never omit `resyncSupply`, or your next confidential mint will be rejected
+> on-chain.** The mint keeps its supply twice: as an
 > ElGamal ciphertext (`confidentialSupply`) and as a cheap-to-decrypt AES value
 > (`decryptableSupply`). `ApplyPendingBurn` advances the ElGamal form but **cannot**
 > re-encrypt the AES form, so the two drift apart. A confidential mint's equality proof
@@ -446,8 +442,13 @@ const resync = createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan(
 > amounts added, applied burn amounts subtracted — because passing the wrong value
 > leaves the mint in exactly the broken state this instruction exists to repair.
 >
+> If you need the two steps as separate plans (e.g. to sign them from different places),
+> omit `resyncSupply` and sequence
+> `createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan` yourself — but then
+> the ordering is on you.
+>
 > The full safe cycle is therefore:
-> `confidential mint → apply pending balance → confidential burn → apply pending burn → update decryptable supply`.
+> `confidential mint → apply pending balance → confidential burn → apply pending burn (+ re-sync)`.
 
 <a id="executing-plans"></a>
 

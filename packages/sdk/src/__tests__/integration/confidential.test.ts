@@ -33,7 +33,6 @@ import {
     createConfidentialWithdrawInstructionPlan,
     createConfigureConfidentialAccountInstructionPlan,
     createEmptyConfidentialAccountInstructionPlan,
-    createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan,
     deriveConfidentialKeysForOwnerMint,
     deriveConfidentialSupplyKeys,
     freeConfidentialKeys,
@@ -615,33 +614,28 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
             const afterBurn = await inspectConfidentialAccount(rpc, ownerAta, ownerKeys);
             expect(afterBurn?.decrypted?.availableBalance).toBe(CONFIDENTIAL_MINT_AMOUNT - CONFIDENTIAL_BURN_AMOUNT);
 
-            // 6. Apply the mint's pending burn on the supply side (mint authority).
-            //    This advances the ElGamal supply but leaves the AES "decryptable
-            //    supply" stale, so the two now disagree.
-            await step(
-                'apply-pending-burn',
-                payer,
-                createApplyConfidentialPendingBurnInstructionPlan({ mint: mint.address, authority: payer }),
-            );
-
-            // 7. Re-sync the decryptable supply to the true post-burn supply. This is
-            //    MANDATORY: a confidential mint's equality proof is built from the AES
-            //    value and checked against the ElGamal one, so step 8 is rejected
-            //    on-chain while they disagree. Removing this step must fail the test —
-            //    that is what makes it a regression gate rather than decoration.
+            // 6. Apply the mint's pending burn on the supply side (mint authority),
+            //    re-syncing the AES "decryptable supply" in the same plan.
+            //
+            //    `ApplyPendingBurn` alone advances the ElGamal supply but leaves the
+            //    AES value stale, and a confidential mint's equality proof is built
+            //    from the AES value and checked against the ElGamal one — so step 7
+            //    would be rejected on-chain while the two disagree. Passing
+            //    `resyncSupply` is what makes that impossible to forget; dropping it
+            //    here must fail the test, which is what makes this a regression gate
+            //    rather than decoration.
             const supplyAfterBurn = CONFIDENTIAL_MINT_AMOUNT - CONFIDENTIAL_BURN_AMOUNT;
             await step(
-                'update-decryptable-supply',
+                'apply-pending-burn-with-resync',
                 payer,
-                createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan({
+                createApplyConfidentialPendingBurnInstructionPlan({
                     mint: mint.address,
                     authority: payer,
-                    supplyKeys,
-                    rawSupply: supplyAfterBurn,
+                    resyncSupply: { supplyKeys, rawSupply: supplyAfterBurn },
                 }),
             );
 
-            // 8. Mint again after the re-sync: proves the supply representations are
+            // 7. Mint again after the re-sync: proves the supply representations are
             //    back in agreement and the documented cycle is actually repeatable.
             await step(
                 'confidential-mint-after-resync',
