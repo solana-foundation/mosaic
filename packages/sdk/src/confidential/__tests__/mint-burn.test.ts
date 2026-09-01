@@ -17,11 +17,25 @@ const permissionedBurnPlan = { kind: 'sequential' as const, id: 'permissioned-bu
 const mockGetConfidentialMintInstructionPlan = jest.fn(async (_input: unknown) => mintPlan);
 const mockGetConfidentialBurnInstructionPlan = jest.fn(async (_input: unknown) => burnPlan);
 const mockGetPermissionedConfidentialBurnInstructionPlan = jest.fn(async (_input: unknown) => permissionedBurnPlan);
+/**
+ * The decryptable-supply instruction the real helper builds; stubbed here because
+ * `burn.ts`'s `resyncSupply` path only needs to be shown to sequence it after the
+ * apply and to forward the supply keys. Its real AES encoding + encoding-level
+ * assertions live in `supply.test.ts`, against real WASM keys.
+ */
+const updateDecryptableSupplyIx = {
+    programAddress: 'TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb' as Address,
+    accounts: [],
+    data: new Uint8Array([0xff]),
+};
+const mockGetUpdateDecryptableSupplyInstruction = jest.fn((_input: unknown) => updateDecryptableSupplyIx);
 jest.mock('@solana-program/token-2022/confidential', () => ({
     getConfidentialMintInstructionPlan: (input: unknown) => mockGetConfidentialMintInstructionPlan(input),
     getConfidentialBurnInstructionPlan: (input: unknown) => mockGetConfidentialBurnInstructionPlan(input),
     getPermissionedConfidentialBurnInstructionPlan: (input: unknown) =>
         mockGetPermissionedConfidentialBurnInstructionPlan(input),
+    getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply: (input: unknown) =>
+        mockGetUpdateDecryptableSupplyInstruction(input),
 }));
 
 let mockMintDecimals = 6;
@@ -352,16 +366,66 @@ describe('confidential burn (wrapper)', () => {
 });
 
 describe('apply confidential pending burn', () => {
-    it('returns a single-instruction plan targeting the mint + authority', () => {
-        const plan: any = createApplyConfidentialPendingBurnInstructionPlan({ mint: MINT, authority: AUTHORITY });
-        expect(plan.kind).toBe('single');
-        const data = getApplyConfidentialPendingBurnInstructionDataDecoder().decode(plan.instruction.data);
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    const expectApplyInstruction = (instruction: any) => {
+        const data = getApplyConfidentialPendingBurnInstructionDataDecoder().decode(instruction.data);
         expect(data.discriminator).toBe(APPLY_CONFIDENTIAL_PENDING_BURN_DISCRIMINATOR);
         expect(data.confidentialMintBurnDiscriminator).toBe(
             APPLY_CONFIDENTIAL_PENDING_BURN_CONFIDENTIAL_MINT_BURN_DISCRIMINATOR,
         );
-        const accounts = plan.instruction.accounts.map((a: any) => a.address);
+        const accounts = instruction.accounts.map((a: any) => a.address);
         expect(accounts).toContain(MINT);
         expect(accounts).toContain(AUTHORITY);
+    };
+
+    it('returns a single-instruction plan targeting the mint + authority', () => {
+        const plan: any = createApplyConfidentialPendingBurnInstructionPlan({ mint: MINT, authority: AUTHORITY });
+        expect(plan.kind).toBe('single');
+        expectApplyInstruction(plan.instruction);
+        // Without `resyncSupply` the decryptable supply is left to the caller.
+        expect(mockGetUpdateDecryptableSupplyInstruction).not.toHaveBeenCalled();
+    });
+
+    it('sequences the decryptable-supply re-sync after the apply when resyncSupply is given', () => {
+        const plan: any = createApplyConfidentialPendingBurnInstructionPlan({
+            mint: MINT,
+            authority: AUTHORITY,
+            resyncSupply: { supplyKeys: fakeKeys, rawSupply: 250n },
+        });
+
+        expect(plan.kind).toBe('sequential');
+        expect(plan.plans).toHaveLength(2);
+        // Order matters: re-asserting the decryptable supply before the apply
+        // would be overwritten by it.
+        expectApplyInstruction(plan.plans[0].instruction);
+        expect(plan.plans[1].instruction).toBe(updateDecryptableSupplyIx);
+    });
+
+    it('forwards the mint, authority, supply AES key and raw supply to the re-sync helper', () => {
+        createApplyConfidentialPendingBurnInstructionPlan({
+            mint: MINT,
+            authority: AUTHORITY,
+            resyncSupply: { supplyKeys: fakeKeys, rawSupply: 250n },
+        });
+
+        expect(mockGetUpdateDecryptableSupplyInstruction).toHaveBeenCalledTimes(1);
+        const args: any = mockGetUpdateDecryptableSupplyInstruction.mock.calls[0][0];
+        expect(args.mint).toBe(MINT);
+        expect(args.authority.address).toBe(AUTHORITY);
+        expect(args.supplyAesKey).toBe(fakeKeys.aes);
+        expect(args.supply).toBe(250n);
+    });
+
+    it('rejects an out-of-range resync supply before building anything', () => {
+        expect(() =>
+            createApplyConfidentialPendingBurnInstructionPlan({
+                mint: MINT,
+                authority: AUTHORITY,
+                resyncSupply: { supplyKeys: fakeKeys, rawSupply: 2n ** 64n },
+            }),
+        ).toThrow('rawSupply must be a u64');
     });
 });

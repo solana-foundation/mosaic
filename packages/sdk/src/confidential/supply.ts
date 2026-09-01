@@ -26,8 +26,10 @@ import { toAuthoritySigner } from './util';
  * ElGamal `confidentialSupply` but cannot re-encrypt the AES form, and a
  * confidential mint's equality proof is built from the AES form and checked
  * against the ElGamal one — so until this runs, the next
- * {@link createConfidentialMintInstructionPlan} is **rejected on-chain**. See
- * `createApplyConfidentialPendingBurnInstructionPlan` in `./burn`.
+ * {@link createConfidentialMintInstructionPlan} is **rejected on-chain**. Rather
+ * than sequencing this call yourself, prefer passing `resyncSupply` to
+ * `createApplyConfidentialPendingBurnInstructionPlan` (`./burn`), which returns
+ * both steps as one ordered plan.
  *
  * The value written here is asserted, not verified: the program re-encrypts
  * whatever it is given. Passing a value that does not match the supply the
