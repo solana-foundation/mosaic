@@ -62,6 +62,14 @@ export const transactionToB64 = (transaction: FullTransaction): string => {
  * @param decimals - The number of decimals the token has
  * @returns The raw token amount as bigint
  */
+/**
+ * Decimal amounts accepted by {@link decimalAmountToRaw}: digits with at most
+ * one decimal point, and at least one digit. Deliberately rejects exponential
+ * notation, signs, separators and whitespace, none of which the digit-by-digit
+ * scaling below can interpret.
+ */
+const DECIMAL_AMOUNT_PATTERN = /^(?:\d+(?:\.\d*)?|\.\d+)$/;
+
 export function decimalAmountToRaw(decimalAmount: number | string, decimals: number): bigint {
     if (decimals < 0 || decimals > 9) {
         throw new Error('Decimals must be between 0 and 9');
@@ -74,6 +82,13 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
     // Reject negative amounts
     if (amountStr.startsWith('-')) {
         throw new Error('Amount must be positive');
+    }
+
+    // Validate the whole string up front. Splitting on '.' and destructuring
+    // the first two parts silently discards anything after a second dot, so
+    // '1.5.5' would be accepted as '1.5'; an empty string would yield 0.
+    if (!DECIMAL_AMOUNT_PATTERN.test(amountStr)) {
+        throw new Error('Invalid amount format');
     }
 
     // Split into integer and fractional parts
