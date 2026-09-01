@@ -7,8 +7,8 @@ import {
     singleInstructionPlan,
 } from '@solana/kit';
 import { getConfidentialDepositInstruction } from '@solana-program/token-2022';
-import { confidentialMintBurnConversionError, mintHasConfidentialMintBurnExtension } from '../transaction-util';
-import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util';
+import { confidentialMintBurnConversionError, mintHasConfidentialMintBurnExtension } from '../transaction-util.js';
+import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util.js';
 
 /**
  * Deposits tokens from the account's **non-confidential** (plaintext) balance

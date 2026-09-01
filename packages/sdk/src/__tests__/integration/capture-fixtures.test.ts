@@ -14,9 +14,9 @@ import {
     getThawAccountInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
-import { Token } from '../../issuance';
-import { createMintToTransaction } from '../../management';
-import { createTransferTransaction } from '../../transfer';
+import { Token } from '../../issuance/index.js';
+import { createMintToTransaction } from '../../management/index.js';
+import { createTransferTransaction } from '../../transfer/index.js';
 import {
     fetchConfirmedTransactionSnapshot,
     fetchOnChainTransaction,
@@ -24,9 +24,9 @@ import {
     setupChainSuite,
     type ConfirmedTransactionSnapshot,
     type OnChainTransaction,
-} from './chain-helpers';
-import { DEFAULT_TIMEOUT } from './helpers';
-import type { FullTransaction } from '../../transaction-util';
+} from './chain-helpers.js';
+import { DEFAULT_TIMEOUT } from './helpers.js';
+import type { FullTransaction } from '../../transaction-util.js';
 
 // This test only runs when REGENERATE_FIXTURES=true. It builds a representative
 // set of transactions, lands them on a local cluster, fetches them back as wire

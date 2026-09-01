@@ -11,17 +11,17 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     getFreezeAccountInstruction,
     getThawAccountInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
 import { Mode } from '@solana/token-acl-gate-sdk';
-import { getMintDetails, resolveTokenAccount } from '../transaction-util';
-import { getAddWalletInstructions, getList, getListConfigPda, getRemoveWalletInstructions } from '../abl';
-import { getFreezeInstructions } from '../token-acl/freeze';
-import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless';
+import { getMintDetails, resolveTokenAccount } from '../transaction-util.js';
+import { getAddWalletInstructions, getList, getListConfigPda, getRemoveWalletInstructions } from '../abl/index.js';
+import { getFreezeInstructions } from '../token-acl/freeze.js';
+import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless.js';
 
 export const isAblBlocklist = async (rpc: Rpc<SolanaRpcApi>, listConfig: Address) => {
     const list = await getList({ rpc, listConfig });

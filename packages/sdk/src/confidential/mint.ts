@@ -8,9 +8,9 @@ import {
 } from '@solana/kit';
 import { fetchMint, fetchToken } from '@solana-program/token-2022';
 import { getConfidentialMintInstructionPlan } from '@solana-program/token-2022/confidential';
-import { isConfidentialMintBurn, isConfidentialTransferAccount, isConfidentialTransferMint } from './extensions';
-import type { ConfidentialKeys } from './keys';
-import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
+import { isConfidentialMintBurn, isConfidentialTransferAccount, isConfidentialTransferMint } from './extensions.js';
+import type { ConfidentialKeys } from './keys.js';
+import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util.js';
 
 /**
  * Confidentially **mints** tokens directly into a confidential balance,

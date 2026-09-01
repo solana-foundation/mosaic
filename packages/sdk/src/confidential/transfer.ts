@@ -12,9 +12,9 @@ import {
     isConfidentialTransferAccount,
     isConfidentialTransferMint,
     mintHasConfidentialTransferFee,
-} from './extensions';
-import type { ConfidentialKeys } from './keys';
-import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
+} from './extensions.js';
+import type { ConfidentialKeys } from './keys.js';
+import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util.js';
 
 /**
  * Confidentially transfers tokens from one account to another. Wraps the

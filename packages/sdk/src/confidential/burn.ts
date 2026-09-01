@@ -13,11 +13,11 @@ import {
     getConfidentialBurnInstructionPlan,
     getPermissionedConfidentialBurnInstructionPlan,
 } from '@solana-program/token-2022/confidential';
-import { getPermissionedBurnAuthorityFromMint } from '../transaction-util';
-import { isConfidentialMintBurn, isConfidentialTransferAccount, isConfidentialTransferMint } from './extensions';
-import type { ConfidentialKeys } from './keys';
-import { createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan } from './supply';
-import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util';
+import { getPermissionedBurnAuthorityFromMint } from '../transaction-util.js';
+import { isConfidentialMintBurn, isConfidentialTransferAccount, isConfidentialTransferMint } from './extensions.js';
+import type { ConfidentialKeys } from './keys.js';
+import { createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan } from './supply.js';
+import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util.js';
 
 /**
  * Confidentially **burns** tokens from an account's available confidential

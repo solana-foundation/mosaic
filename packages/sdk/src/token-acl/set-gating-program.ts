@@ -10,9 +10,9 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import { findMintConfigPda, getSetGatingProgramInstruction } from '@solana/token-acl-sdk';
-import { TOKEN_ACL_PROGRAM_ID } from './utils';
+import { TOKEN_ACL_PROGRAM_ID } from './utils.js';
 
 /**
  * Generates instructions for setting or updating the gating program for a mint.

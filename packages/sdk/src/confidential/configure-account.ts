@@ -9,7 +9,7 @@ import {
 } from '@solana/kit';
 import { getApproveConfidentialTransferAccountInstruction } from '@solana-program/token-2022';
 import { getCreateConfidentialTransferAccountInstructionPlan } from '@solana-program/token-2022/confidential';
-import type { ConfidentialKeys } from './keys';
+import type { ConfidentialKeys } from './keys.js';
 
 /**
  * Configures an associated token account for confidential transfers. Wraps the

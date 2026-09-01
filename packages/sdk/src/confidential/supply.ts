@@ -1,7 +1,7 @@
 import { type Address, type InstructionPlan, type TransactionSigner, singleInstructionPlan } from '@solana/kit';
 import { getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply } from '@solana-program/token-2022/confidential';
-import type { ConfidentialKeys } from './keys';
-import { toAuthoritySigner } from './util';
+import type { ConfidentialKeys } from './keys.js';
+import { toAuthoritySigner } from './util.js';
 
 /**
  * Management for a `ConfidentialMintBurn` mint's supply-side state.

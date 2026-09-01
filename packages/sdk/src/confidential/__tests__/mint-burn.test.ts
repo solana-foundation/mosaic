@@ -1,6 +1,6 @@
 import type { Address } from '@solana/kit';
-import { createMockRpc, createMockSigner } from '../../__tests__/test-utils';
-import type { ConfidentialKeys } from '../keys';
+import { createMockRpc, createMockSigner } from '../../__tests__/test-utils.js';
+import type { ConfidentialKeys } from '../keys.js';
 
 // --- Mocks --------------------------------------------------------------------
 // mint.ts / burn.ts are thin wrappers over the official token-2022 confidential
@@ -57,8 +57,8 @@ import {
     APPLY_CONFIDENTIAL_PENDING_BURN_DISCRIMINATOR,
     getApplyConfidentialPendingBurnInstructionDataDecoder,
 } from '@solana-program/token-2022';
-import { createConfidentialMintInstructionPlan } from '../mint';
-import { createApplyConfidentialPendingBurnInstructionPlan, createConfidentialBurnInstructionPlan } from '../burn';
+import { createConfidentialMintInstructionPlan } from '../mint.js';
+import { createApplyConfidentialPendingBurnInstructionPlan, createConfidentialBurnInstructionPlan } from '../burn.js';
 
 const MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Address;
 const DEST_TOKEN = 'HA3KcFsXNjRJsRZq1P1Y8qPAeSZnZsFyauCDEsSSGqTj' as Address;

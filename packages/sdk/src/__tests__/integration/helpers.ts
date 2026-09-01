@@ -8,13 +8,13 @@ import type {
     Commitment,
     Signature,
 } from '@solana/kit';
-import type { FullTransaction } from '../../transaction-util';
+import type { FullTransaction } from '../../transaction-util.js';
 import {
     getSignatureFromTransaction,
     signTransactionMessageWithSigners,
     sendAndConfirmTransactionFactory,
 } from '@solana/kit';
-import type { Client } from './setup';
+import type { Client } from './setup.js';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
     inspectToken,
@@ -25,7 +25,7 @@ import {
     type TokenMetadata,
     type TokenSupplyInfo,
     type TokenType,
-} from '../../inspection';
+} from '../../inspection/index.js';
 
 export const DEFAULT_TIMEOUT = 60000;
 // Use 'confirmed' commitment to ensure transactions are visible to subsequent RPC reads

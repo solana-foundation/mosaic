@@ -8,9 +8,9 @@ import {
 } from '@solana/kit';
 import { fetchToken } from '@solana-program/token-2022';
 import { getConfidentialWithdrawInstructionPlan } from '@solana-program/token-2022/confidential';
-import { confidentialMintBurnConversionError, mintHasConfidentialMintBurnExtension } from '../transaction-util';
-import type { ConfidentialKeys } from './keys';
-import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util';
+import { confidentialMintBurnConversionError, mintHasConfidentialMintBurnExtension } from '../transaction-util.js';
+import type { ConfidentialKeys } from './keys.js';
+import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util.js';
 
 /**
  * Withdraws tokens from the account's **available confidential** balance back to

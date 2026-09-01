@@ -1,9 +1,9 @@
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
-import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
+import { createMockSigner, createMockRpc } from '../../__tests__/test-utils.js';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
-import { ABL_PROGRAM_ID } from '../../abl/utils';
-import { seedTokenAccount } from '../../__tests__/test-utils';
+import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl/index.js';
+import { ABL_PROGRAM_ID } from '../../abl/utils.js';
+import { seedTokenAccount } from '../../__tests__/test-utils.js';
 // Resolved to src/__mocks__/@mosaic/abl.ts by jest moduleNameMapper, where
 // Mode = { Allow: 1, Block: 2 }.
 import { Mode } from '@solana/token-acl-gate-sdk';
@@ -15,7 +15,7 @@ const LIST_CONFIG = 'ListCfg11111111111111111111111111111111' as Address;
  * getListConfigPda, so it must be present here even though the PDA itself is irrelevant.
  */
 const mockAbl = (mode: number) =>
-    jest.doMock('../../abl', () => ({
+    jest.doMock('../../abl/index.js', () => ({
         ABL_PROGRAM_ID,
         getAddWalletInstructions: jest.fn().mockResolvedValue([{ programAddress: ABL_PROGRAM_ID }]),
         getRemoveWalletInstructions: jest.fn().mockResolvedValue([{ programAddress: ABL_PROGRAM_ID }]),
@@ -35,7 +35,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
     });
 
     test('blocklist add returns freeze instruction when SRFC-37 disabled', async () => {
-        jest.doMock('../../transaction-util', () => ({
+        jest.doMock('../../transaction-util.js', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata55555555555555555555555555555555555555',
                 isInitialized: true,
@@ -52,14 +52,14 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
         }));
-        const { getAddToBlocklistInstructions } = await import('../blocklist');
+        const { getAddToBlocklistInstructions } = await import('../blocklist.js');
         const ix = await getAddToBlocklistInstructions(rpc, mint, wallet, authority);
         expect(ix).toHaveLength(1);
         expect(ix[0].programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
     });
 
     test('allowlist add returns thaw instruction when SRFC-37 disabled', async () => {
-        jest.doMock('../../transaction-util', () => ({
+        jest.doMock('../../transaction-util.js', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata66666666666666666666666666666666666666',
                 isInitialized: true,
@@ -76,7 +76,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
         }));
-        const { getAddToAllowlistInstructions } = await import('../allowlist');
+        const { getAddToAllowlistInstructions } = await import('../allowlist.js');
         const ix = await getAddToAllowlistInstructions(rpc, mint, wallet, authority);
         expect(ix).toHaveLength(1);
         expect(ix[0].programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
@@ -90,7 +90,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
             mint,
             state: 'initialized',
         });
-        jest.doMock('../../transaction-util', () => ({
+        jest.doMock('../../transaction-util.js', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata55555555555555555555555555555555555555',
                 isInitialized: true,
@@ -107,7 +107,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
         }));
-        const { getAddToBlocklistInstructions } = await import('../blocklist');
+        const { getAddToBlocklistInstructions } = await import('../blocklist.js');
         const ix = await getAddToBlocklistInstructions(rpc, mint, wallet, authority);
         // 1 for add to blocklist, 1 for freeze
         expect(ix).toHaveLength(2);
@@ -117,7 +117,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
 
     test('allowlist add returns thaw instruction and add to allowlist when SRFC-37 is enabled', async () => {
         mockAbl(Mode.Allow);
-        jest.doMock('../../transaction-util', () => ({
+        jest.doMock('../../transaction-util.js', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata66666666666666666666666666666666666666',
                 isInitialized: true,
@@ -134,7 +134,7 @@ describe('non-SRFC-37 list actions produce direct freeze/thaw', () => {
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
         }));
-        const { getAddToAllowlistInstructions } = await import('../allowlist');
+        const { getAddToAllowlistInstructions } = await import('../allowlist.js');
         const ix = await getAddToAllowlistInstructions(rpc, mint, wallet, authority);
         // 1 for add to allowlist, 1 for thaw permissionless
         expect(ix).toHaveLength(2);
@@ -171,7 +171,7 @@ describe('Token-ACL list actions with DefaultAccountState=Initialized', () => {
     });
 
     const mockTransactionUtil = (account: { isInitialized: boolean; isFrozen: boolean }) =>
-        jest.doMock('../../transaction-util', () => ({
+        jest.doMock('../../transaction-util.js', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount,
                 ...account,
@@ -194,7 +194,7 @@ describe('Token-ACL list actions with DefaultAccountState=Initialized', () => {
         mockAbl(Mode.Block);
         mockTransactionUtil({ isInitialized: true, isFrozen: false });
 
-        const { getAddToBlocklistInstructions } = await import('../blocklist');
+        const { getAddToBlocklistInstructions } = await import('../blocklist.js');
         const ix = await getAddToBlocklistInstructions(rpc, mint, wallet, authority);
 
         expect(ix).toHaveLength(2);
@@ -208,7 +208,7 @@ describe('Token-ACL list actions with DefaultAccountState=Initialized', () => {
         mockAbl(Mode.Block);
         mockTransactionUtil({ isInitialized: true, isFrozen: true });
 
-        const { getRemoveFromBlocklistInstructions } = await import('../blocklist');
+        const { getRemoveFromBlocklistInstructions } = await import('../blocklist.js');
         const ix = await getRemoveFromBlocklistInstructions(rpc, mint, wallet, authority);
 
         expect(ix).toHaveLength(2);
@@ -223,7 +223,7 @@ describe('Token-ACL list actions with DefaultAccountState=Initialized', () => {
         mockAbl(Mode.Allow);
         mockTransactionUtil({ isInitialized: true, isFrozen: true });
 
-        const { getAddToAllowlistInstructions } = await import('../allowlist');
+        const { getAddToAllowlistInstructions } = await import('../allowlist.js');
         const ix = await getAddToAllowlistInstructions(rpc, mint, wallet, authority);
 
         expect(ix).toHaveLength(2);
@@ -239,7 +239,7 @@ describe('Token-ACL list actions with DefaultAccountState=Initialized', () => {
         mockAbl(Mode.Allow);
         mockTransactionUtil({ isInitialized: true, isFrozen: false });
 
-        const { getRemoveFromAllowlistInstructions } = await import('../allowlist');
+        const { getRemoveFromAllowlistInstructions } = await import('../allowlist.js');
         const ix = await getRemoveFromAllowlistInstructions(rpc, mint, wallet, authority);
 
         expect(ix).toHaveLength(2);
@@ -252,7 +252,7 @@ describe('Token-ACL list actions with DefaultAccountState=Initialized', () => {
         mockAbl(Mode.Allow);
         mockTransactionUtil({ isInitialized: true, isFrozen: true });
 
-        const { getRemoveFromAllowlistInstructions } = await import('../allowlist');
+        const { getRemoveFromAllowlistInstructions } = await import('../allowlist.js');
         const ix = await getRemoveFromAllowlistInstructions(rpc, mint, wallet, authority);
 
         expect(ix).toHaveLength(1);
@@ -266,7 +266,7 @@ describe('Token-ACL list actions with DefaultAccountState=Initialized', () => {
         mockAbl(Mode.Block);
         mockTransactionUtil({ isInitialized: false, isFrozen: true });
 
-        const { getAddToBlocklistInstructions } = await import('../blocklist');
+        const { getAddToBlocklistInstructions } = await import('../blocklist.js');
         const ix = await getAddToBlocklistInstructions(rpc, mint, wallet, authority);
 
         expect(ix).toHaveLength(1);
@@ -277,7 +277,7 @@ describe('Token-ACL list actions with DefaultAccountState=Initialized', () => {
         mockAbl(Mode.Allow);
         mockTransactionUtil({ isInitialized: false, isFrozen: true });
 
-        const { getRemoveFromAllowlistInstructions } = await import('../allowlist');
+        const { getRemoveFromAllowlistInstructions } = await import('../allowlist.js');
         const ix = await getRemoveFromAllowlistInstructions(rpc, mint, wallet, authority);
 
         expect(ix).toHaveLength(1);
@@ -288,7 +288,7 @@ describe('Token-ACL list actions with DefaultAccountState=Initialized', () => {
         mockAbl(Mode.Allow);
         mockTransactionUtil({ isInitialized: true, isFrozen: false });
 
-        const { getAddToBlocklistInstructions } = await import('../blocklist');
+        const { getAddToBlocklistInstructions } = await import('../blocklist.js');
         await expect(getAddToBlocklistInstructions(rpc, mint, wallet, authority)).rejects.toThrow(
             /not an ABL blocklist/,
         );
@@ -298,7 +298,7 @@ describe('Token-ACL list actions with DefaultAccountState=Initialized', () => {
         mockAbl(Mode.Block);
         mockTransactionUtil({ isInitialized: true, isFrozen: true });
 
-        const { getAddToAllowlistInstructions } = await import('../allowlist');
+        const { getAddToAllowlistInstructions } = await import('../allowlist.js');
         await expect(getAddToAllowlistInstructions(rpc, mint, wallet, authority)).rejects.toThrow(
             /not an ABL allowlist/,
         );

@@ -22,7 +22,7 @@ import {
 } from '@solana/kit';
 import { fetchMint, findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
-import { TOKEN_ACL_PROGRAM_ID } from './token-acl/utils';
+import { TOKEN_ACL_PROGRAM_ID } from './token-acl/utils.js';
 
 /**
  * Converts a compiled Solana transaction to a base58-encoded string.
