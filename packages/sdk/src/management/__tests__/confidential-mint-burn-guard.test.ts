@@ -97,9 +97,9 @@ describe('confidential mint/burn guard on plaintext mint & burn', () => {
             extensions: [CONFIDENTIAL_MINT_BURN_JSON_EXT],
         });
         const { createPermissionedBurnTransaction } = await import('../permissioned-burn.js');
-        await expect(
-            createPermissionedBurnTransaction(rpc, mint, wallet, 1, authority, feePayer),
-        ).rejects.toThrow(/ConfidentialMintBurn extension enabled; plaintext burning is not supported/);
+        await expect(createPermissionedBurnTransaction(rpc, mint, wallet, 1, authority, feePayer)).rejects.toThrow(
+            /ConfidentialMintBurn extension enabled; plaintext burning is not supported/,
+        );
     });
 
     describe('isConfidentialMintBurnMint', () => {
