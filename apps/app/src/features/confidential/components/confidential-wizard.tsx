@@ -131,6 +131,18 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
     const { isConfigured, refresh } = confAccount;
     const refetchPlaintext = tokenBalance.refetch;
 
+    /**
+     * The panel's refresh control. Both balance views must be refetched: the
+     * public balance is cached until something explicitly refetches it
+     * (`use-token-balance.ts` fetches only while `lastFetched === null`), so
+     * refreshing the confidential state alone leaves a stale public balance on
+     * screen with no way for the user to clear it.
+     */
+    const refreshAll = useCallback(() => {
+        refresh();
+        refetchPlaintext();
+    }, [refresh, refetchPlaintext]);
+
     /** Builds a plan, executes it, then refreshes both balance views. */
     const runPlan = useCallback(
         async (build: () => Promise<InstructionPlan>, onProgress: ConfidentialPlanProgress): Promise<Signature[]> => {
@@ -349,7 +361,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     error={confAccount.error}
                     canReveal={confAccount.canReveal}
                     onReveal={confAccount.reveal}
-                    onRefresh={confAccount.refresh}
+                    onRefresh={refreshAll}
                     decimals={decimals}
                     symbol={symbol}
                     plaintextBalance={tokenBalance.balance?.formattedBalance ?? null}
