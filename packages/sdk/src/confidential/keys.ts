@@ -162,14 +162,49 @@ function ownerMintSeed(owner: Address, mint: Address): Uint8Array {
 }
 
 /**
+ * Did the user dismiss the wallet prompt, rather than the signer refusing the
+ * message outright? A cancellation must not be reported as an incompatibility.
+ */
+function isSignerRejection(error: unknown): boolean {
+    if ((error as { code?: unknown } | null)?.code === 4001) return true;
+    return /reject|denied|declin|cancel/i.test(describeError(error));
+}
+
+function describeError(error: unknown): string {
+    return error instanceof Error ? error.message : String(error ?? 'unknown error');
+}
+
+/**
  * Derives an ElGamal keypair + AES key from a public seed with a **single**
  * signature over `ConfidentialKeys.signerMessage(seed)`. Shared by every
  * derivation in this module so they all cost one signature (one wallet prompt)
  * and all free the intermediate pair.
+ *
+ * A signer that refuses the message gets a diagnosis rather than the wallet's
+ * raw text: the failure is intrinsic to the derivation scheme (the message bytes
+ * are the key material and cannot be reshaped to suit a wallet), so the useful
+ * information is *why* it cannot be fixed and what to do instead.
  */
 async function deriveKeysFromSeed(signer: MessagePartialSigner, seed: Uint8Array): Promise<ConfidentialKeys> {
     const message = ZkConfidentialKeys.signerMessage(seed);
-    const [signatures] = await signer.signMessages([createSignableMessage(message)]);
+
+    let signatures: Awaited<ReturnType<MessagePartialSigner['signMessages']>>[number];
+    try {
+        [signatures] = await signer.signMessages([createSignableMessage(message)]);
+    } catch (error) {
+        if (isSignerRejection(error)) throw error;
+        throw new Error(
+            `The signer refused to sign the confidential-balance key-derivation message ` +
+                `(${describeError(error)}). That message is \`solana-conf-bal/v1 || owner || mint\` — a ` +
+                `domain-separated derivation seed, not a transaction — but some browser wallets classify ` +
+                `binary sign-message payloads as transactions and block them. Its bytes determine the ` +
+                `account keys, so they cannot be changed to satisfy a wallet without making balances ` +
+                `undecryptable by every other tool. Use a wallet that signs arbitrary messages, or key the ` +
+                `account through ConfidentialKeys.fromIkm/fromPrf instead (different keys — no CLI interop).`,
+            { cause: error },
+        );
+    }
+
     const signature = signatures?.[signer.address];
     if (signature == null) {
         throw new Error(`Signer ${signer.address} did not return a signature`);
