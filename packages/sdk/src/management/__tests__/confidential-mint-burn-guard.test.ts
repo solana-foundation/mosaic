@@ -1,5 +1,5 @@
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
-import { createMockRpc, createMockSigner, resetMockRpc, seedMintDetails } from '../../__tests__/test-utils';
+import { createMockRpc, createMockSigner, resetMockRpc, seedMintDetails } from '../../__tests__/test-utils.js';
 
 // A ConfidentialMintBurn mint tracks its supply as an encrypted value, so the
 // Token-2022 program rejects plaintext MintTo / Burn. These tests assert the SDK
@@ -54,7 +54,7 @@ describe('confidential mint/burn guard on plaintext mint & burn', () => {
             mintAuthority: wallet,
             extensions: [CONFIDENTIAL_MINT_BURN_JSON_EXT],
         });
-        const { createMintToTransaction } = await import('../mint');
+        const { createMintToTransaction } = await import('../mint.js');
         await expect(createMintToTransaction(rpc, mint, wallet, 1, authority, feePayer)).rejects.toThrow(
             /ConfidentialMintBurn extension enabled; plaintext minting is not supported/,
         );
@@ -68,7 +68,7 @@ describe('confidential mint/burn guard on plaintext mint & burn', () => {
             mintAuthority: wallet,
             extensions: [CONFIDENTIAL_MINT_BURN_JSON_EXT],
         });
-        const { createBurnTransaction } = await import('../burn');
+        const { createBurnTransaction } = await import('../burn.js');
         await expect(createBurnTransaction(rpc, mint, wallet, 1, feePayer)).rejects.toThrow(
             /ConfidentialMintBurn extension enabled; plaintext burning is not supported/,
         );
@@ -82,7 +82,7 @@ describe('confidential mint/burn guard on plaintext mint & burn', () => {
             mintAuthority: wallet,
             extensions: [CONFIDENTIAL_MINT_BURN_JSON_EXT],
         });
-        const { createForceBurnTransaction } = await import('../force-burn');
+        const { createForceBurnTransaction } = await import('../force-burn.js');
         await expect(createForceBurnTransaction(rpc, mint, wallet, 1, authority, feePayer)).rejects.toThrow(
             /ConfidentialMintBurn extension enabled; plaintext burning is not supported/,
         );
@@ -91,19 +91,19 @@ describe('confidential mint/burn guard on plaintext mint & burn', () => {
     describe('isConfidentialMintBurnMint', () => {
         test('is true when the extension is present', async () => {
             mockMintExtensions = [TRANSFER_MINT_EXT, MINT_BURN_EXT];
-            const { isConfidentialMintBurnMint } = await import('../../transaction-util');
+            const { isConfidentialMintBurnMint } = await import('../../transaction-util.js');
             await expect(isConfidentialMintBurnMint(rpc, mint)).resolves.toBe(true);
         });
 
         test('is false for a confidential-balances-only mint (ConfidentialTransferMint alone)', async () => {
             mockMintExtensions = [TRANSFER_MINT_EXT];
-            const { isConfidentialMintBurnMint } = await import('../../transaction-util');
+            const { isConfidentialMintBurnMint } = await import('../../transaction-util.js');
             await expect(isConfidentialMintBurnMint(rpc, mint)).resolves.toBe(false);
         });
 
         test('is false when the mint has no extensions', async () => {
             mockMintExtensions = [];
-            const { isConfidentialMintBurnMint } = await import('../../transaction-util');
+            const { isConfidentialMintBurnMint } = await import('../../transaction-util.js');
             await expect(isConfidentialMintBurnMint(rpc, mint)).resolves.toBe(false);
         });
     });

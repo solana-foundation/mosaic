@@ -1,5 +1,5 @@
-import setupTestSuite from './setup';
-import type { Client } from './setup';
+import setupTestSuite from './setup.js';
+import type { Client } from './setup.js';
 import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
 import {
@@ -8,18 +8,18 @@ import {
     DEFAULT_TIMEOUT,
     DEFAULT_COMMITMENT,
     describeSkipIf,
-} from './helpers';
-import { Token } from '../../issuance';
-import { createMintToTransaction } from '../../management';
-import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
+} from './helpers.js';
+import { Token } from '../../issuance/index.js';
+import { createMintToTransaction } from '../../management/index.js';
+import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl/index.js';
 import {
     inspectToken,
     getTokenMetadata,
     getTokenExtensionsDetailed,
     inspectionResultToDashboardData,
     getTokenDashboardData,
-} from '../../inspection';
-import { decimalAmountToRaw } from '../../transaction-util';
+} from '../../inspection/index.js';
+import { decimalAmountToRaw } from '../../transaction-util.js';
 
 describeSkipIf()('Inspection Integration Tests', () => {
     let client: Client;

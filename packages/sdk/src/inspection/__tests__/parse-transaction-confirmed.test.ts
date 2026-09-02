@@ -1,7 +1,7 @@
 import { TOKEN_2022_PROGRAM_ADDRESS, Token2022Instruction } from '@solana-program/token-2022';
 import { SYSTEM_PROGRAM_ADDRESS, SystemInstruction } from '@solana-program/system';
-import { parseConfirmedTransaction } from '../parse-transaction';
-import { ONCHAIN_CONFIRMED_FIXTURES } from './__fixtures__/onchain-confirmed-transactions';
+import { parseConfirmedTransaction } from '../parse-transaction.js';
+import { ONCHAIN_CONFIRMED_FIXTURES } from './__fixtures__/onchain-confirmed-transactions.js';
 
 // These tests exercise parseConfirmedTransaction against real getTransaction
 // snapshots captured from a local cluster (see capture-fixtures.test.ts to

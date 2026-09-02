@@ -5,7 +5,7 @@ import {
     createMockSigner,
     seedMintDetails,
     MOCK_RENT_EXEMPT_LAMPORTS,
-} from '../../__tests__/test-utils';
+} from '../../__tests__/test-utils.js';
 import {
     AuthorityType,
     TOKEN_2022_PROGRAM_ADDRESS,
@@ -17,8 +17,8 @@ import {
     getTokenSize,
 } from '@solana-program/token-2022';
 import { SYSTEM_PROGRAM_ADDRESS, getCreateAccountWithSeedInstruction } from '@solana-program/system';
-import { createInitLockAccountTransaction } from '../init-lock-account';
-import { deriveLockAccountAddress } from '../lock-address';
+import { createInitLockAccountTransaction } from '../init-lock-account.js';
+import { deriveLockAccountAddress } from '../lock-address.js';
 
 const MINT = address('HA3KcFsXNjRJsRZq1P1Y8qPAeSZnZsFyauCDEsSSGqTj');
 const HOLDER = address('FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT');

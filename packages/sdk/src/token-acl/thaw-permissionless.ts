@@ -12,9 +12,9 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import { createThawPermissionlessInstructionWithExtraMetas } from '@solana/token-acl-sdk';
-import { TOKEN_ACL_PROGRAM_ID } from './utils';
+import { TOKEN_ACL_PROGRAM_ID } from './utils.js';
 import { getTokenEncoder, AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
 /**

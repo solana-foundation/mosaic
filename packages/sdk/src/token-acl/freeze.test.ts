@@ -1,7 +1,7 @@
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-import { createMockRpc, createMockSigner } from '../__tests__/test-utils';
-import { TOKEN_ACL_PROGRAM_ID } from './utils';
+import { createMockRpc, createMockSigner } from '../__tests__/test-utils.js';
+import { TOKEN_ACL_PROGRAM_ID } from './utils.js';
 
 const ASSOCIATED_TOKEN_PROGRAM_ADDRESS = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address;
 
@@ -25,7 +25,7 @@ describe('freeze wallet instructions', () => {
         tokenAclFreezeAuthority?: boolean;
         defaultFrozen?: boolean;
     }): void {
-        jest.doMock('../transaction-util', () => ({
+        jest.doMock('../transaction-util.js', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount,
                 isInitialized: input.isInitialized,
@@ -50,7 +50,7 @@ describe('freeze wallet instructions', () => {
     test('creates a missing ATA before freezing with standard Token-2022 authority', async () => {
         mockTransactionUtil({ isInitialized: false });
 
-        const { getFreezeWalletInstructions } = await import('./freeze');
+        const { getFreezeWalletInstructions } = await import('./freeze.js');
         const instructions = await getFreezeWalletInstructions({
             rpc,
             payer,
@@ -67,7 +67,7 @@ describe('freeze wallet instructions', () => {
     test('only creates a missing ATA when SRFC-37 default account state will freeze it', async () => {
         mockTransactionUtil({ isInitialized: false, usesTokenAcl: true, defaultFrozen: true });
 
-        const { getFreezeWalletInstructions } = await import('./freeze');
+        const { getFreezeWalletInstructions } = await import('./freeze.js');
         const instructions = await getFreezeWalletInstructions({
             rpc,
             payer,
@@ -83,7 +83,7 @@ describe('freeze wallet instructions', () => {
     test('freezes an existing ATA without creating it again', async () => {
         mockTransactionUtil({ isInitialized: true });
 
-        const { getFreezeWalletInstructions } = await import('./freeze');
+        const { getFreezeWalletInstructions } = await import('./freeze.js');
         const instructions = await getFreezeWalletInstructions({
             rpc,
             payer,

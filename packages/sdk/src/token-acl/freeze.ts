@@ -10,15 +10,15 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import { findMintConfigPda, getFreezeInstruction } from '@solana/token-acl-sdk';
 import {
     getCreateAssociatedTokenIdempotentInstruction,
     getFreezeAccountInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
-import { TOKEN_ACL_PROGRAM_ID } from './utils';
-import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util';
+import { TOKEN_ACL_PROGRAM_ID } from './utils.js';
+import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util.js';
 
 type MintFreezeDetails = Awaited<ReturnType<typeof getMintDetails>>;
 

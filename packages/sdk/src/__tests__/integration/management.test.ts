@@ -1,5 +1,5 @@
-import setupTestSuite from './setup';
-import type { Client } from './setup';
+import setupTestSuite from './setup.js';
+import type { Client } from './setup.js';
 import type { KeyPairSigner, TransactionSigner, Rpc, SolanaRpcApi, Address } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
 import {
@@ -12,11 +12,15 @@ import {
     DEFAULT_TIMEOUT,
     DEFAULT_COMMITMENT,
     describeSkipIf,
-} from './helpers';
-import { Token } from '../../issuance';
-import { createMintToTransaction, createForceTransferTransaction, createForceBurnTransaction } from '../../management';
-import { getFreezeTransaction, getThawTransaction, TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
-import { decimalAmountToRaw } from '../../transaction-util';
+} from './helpers.js';
+import { Token } from '../../issuance/index.js';
+import {
+    createMintToTransaction,
+    createForceTransferTransaction,
+    createForceBurnTransaction,
+} from '../../management/index.js';
+import { getFreezeTransaction, getThawTransaction, TOKEN_ACL_PROGRAM_ID } from '../../token-acl/index.js';
+import { decimalAmountToRaw } from '../../transaction-util.js';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
 describeSkipIf()('Management Integration Tests', () => {
