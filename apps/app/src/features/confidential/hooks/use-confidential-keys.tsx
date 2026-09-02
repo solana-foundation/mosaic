@@ -2,10 +2,14 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { useConnector } from '@solana/connector/react';
-import { useKitTransactionSigner } from '@solana/connector';
+import { useTransactionSigner } from '@solana/connector';
 import type { Address } from '@solana/kit';
 import type { ConfidentialKeys } from '@solana/mosaic-sdk/confidential';
-import { createConnectorMessageSigner, type ConnectorSignMessage } from '../lib/message-signer-adapter';
+import {
+    createConnectorMessageSigner,
+    createResilientSignMessage,
+    type ConnectorSignMessage,
+} from '../lib/message-signer-adapter';
 
 /**
  * In-memory cache of the ElGamal + AES keys for confidential accounts, keyed by
@@ -28,11 +32,25 @@ const ConfidentialKeysContext = createContext<ConfidentialKeysContextValue | nul
 
 export function ConfidentialKeysProvider({ children }: { children: React.ReactNode }) {
     const { selectedAccount } = useConnector();
-    const { signer } = useKitTransactionSigner();
+    // Deliberately the *connector* signer, not the kit-adapted one: the kit
+    // adapter (`createKitTransactionSigner`) returns a fresh object exposing only
+    // `address` and `modifyAndSignTransactions`, dropping `signMessage`. Reading
+    // through it makes `canDerive` false for every wallet and the whole feature
+    // unreachable. The connector signer carries the optional single-message
+    // primitive, gated by `capabilities.canSignMessage`.
+    const { signer, capabilities } = useTransactionSigner();
 
     const owner = selectedAccount ? (String(selectedAccount) as Address) : undefined;
-    // `@solana/connector`'s signer exposes an optional single-message signer.
-    const signMessage = (signer as { signMessage?: ConnectorSignMessage } | null)?.signMessage;
+
+    // The connector's own `signMessage` is broken for any wallet it demotes to
+    // its legacy path (Phantom included), so pair it with a direct call through
+    // the Wallet Standard registry. See `createResilientSignMessage`.
+    const signMessage = useMemo(() => {
+        const connectorSignMessage = capabilities.canSignMessage
+            ? (signer as { signMessage?: ConnectorSignMessage } | null)?.signMessage
+            : undefined;
+        return createResilientSignMessage(owner, connectorSignMessage);
+    }, [owner, capabilities.canSignMessage, signer]);
 
     // Cache + in-flight derivations, keyed by `${owner}:${mint}`.
     const cacheRef = useRef<Map<string, ConfidentialKeys>>(new Map());
