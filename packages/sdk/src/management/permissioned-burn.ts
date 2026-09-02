@@ -16,10 +16,12 @@ import {
 } from '@solana-program/token-2022';
 import {
     resolveTokenAccount,
+    confidentialMintBurnConversionError,
     decimalAmountToRaw,
     getMintDetails,
     getPermissionedBurnAuthorityFromMint,
     isDefaultAccountStateSetFrozen,
+    mintHasConfidentialMintBurnExtension,
 } from '../transaction-util.js';
 import { getThawPermissionlessInstructions } from '../token-acl/index.js';
 
@@ -82,6 +84,14 @@ export const createPermissionedBurnTransaction = async (
     const ownerSigner = owner ? (typeof owner === 'string' ? createNoopSigner(owner) : owner) : undefined;
 
     const { decimals, extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
+
+    // A ConfidentialMintBurn mint keeps its supply encrypted, so Token-2022 rejects
+    // plaintext PermissionedBurnChecked (IllegalMintBurnConversion). Fail fast with
+    // an actionable message rather than building a transaction the chain would reject.
+    if (mintHasConfidentialMintBurnExtension(extensions)) {
+        throw confidentialMintBurnConversionError(mint, 'plaintext burning', 'createConfidentialBurnInstructionPlan');
+    }
+
     const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
     const rawAmount = decimalAmountToRaw(decimalAmount, decimals);

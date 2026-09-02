@@ -88,6 +88,20 @@ describe('confidential mint/burn guard on plaintext mint & burn', () => {
         );
     });
 
+    test('createPermissionedBurnTransaction rejects when the mint has ConfidentialMintBurn', async () => {
+        mockMintExtensions = [TRANSFER_MINT_EXT, MINT_BURN_EXT];
+        seedMintDetails(rpc, {
+            address: mint,
+            decimals: 6,
+            mintAuthority: wallet,
+            extensions: [CONFIDENTIAL_MINT_BURN_JSON_EXT],
+        });
+        const { createPermissionedBurnTransaction } = await import('../permissioned-burn.js');
+        await expect(
+            createPermissionedBurnTransaction(rpc, mint, wallet, 1, authority, feePayer),
+        ).rejects.toThrow(/ConfidentialMintBurn extension enabled; plaintext burning is not supported/);
+    });
+
     describe('isConfidentialMintBurnMint', () => {
         test('is true when the extension is present', async () => {
             mockMintExtensions = [TRANSFER_MINT_EXT, MINT_BURN_EXT];
