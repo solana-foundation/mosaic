@@ -1,5 +1,5 @@
 import type { Address, Commitment, Rpc, SolanaRpcApi, TransactionSigner, Instruction } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     fetchEncodedAccount,
@@ -20,8 +20,8 @@ import {
     getMintDetails,
     getPermissionedBurnAuthorityFromMint,
     isDefaultAccountStateSetFrozen,
-} from '../transaction-util';
-import { getThawPermissionlessInstructions } from '../token-acl';
+} from '../transaction-util.js';
+import { getThawPermissionlessInstructions } from '../token-acl/index.js';
 
 /**
  * Returns the permissioned burn authority configured on a mint, or null if the

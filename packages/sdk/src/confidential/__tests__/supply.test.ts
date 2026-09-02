@@ -5,9 +5,9 @@ import {
     UPDATE_CONFIDENTIAL_MINT_BURN_DECRYPTABLE_SUPPLY_DISCRIMINATOR,
     getUpdateConfidentialMintBurnDecryptableSupplyInstructionDataDecoder,
 } from '@solana-program/token-2022';
-import type { ConfidentialKeys } from '../keys';
-import { decryptAesBalance, freeConfidentialKeys } from '../keys';
-import { createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan } from '../supply';
+import type { ConfidentialKeys } from '../keys.js';
+import { decryptAesBalance, freeConfidentialKeys } from '../keys.js';
+import { createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan } from '../supply.js';
 
 // Uses the real @solana/zk-sdk WASM (verified to load under ts-jest ESM).
 const MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Address;

@@ -17,6 +17,16 @@ export default {
             'ts-jest',
             {
                 useESM: true,
+                // The package tsconfig targets `module: nodenext` for real Node
+                // builds, but ts-jest's transpiler lacks the package-type context
+                // to pick the ESM output format under nodenext and falls back to
+                // CJS, which breaks ESM-mode jest. Pin the transform to classic
+                // ESM emit; module resolution under jest is handled by jest
+                // itself (see moduleNameMapper).
+                tsconfig: {
+                    module: 'esnext',
+                    moduleResolution: 'bundler',
+                },
             },
         ],
     },
@@ -29,6 +39,9 @@ export default {
         '!src/**/__tests__/test-utils.ts',
     ],
     moduleNameMapper: {
+        // Sources use explicit `.js` extensions on relative imports (Node ESM);
+        // strip them so jest resolves back to the `.ts` sources.
+        '^(\\.{1,2}/.*)\\.js$': '$1',
         '^@/(.*)$': '<rootDir>/src/$1',
         // The confidential modules import the internal `@solana/mosaic-sdk/_zk`
         // indirection (resolved via package `exports` conditions in real builds);

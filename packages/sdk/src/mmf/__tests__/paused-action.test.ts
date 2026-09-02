@@ -1,17 +1,17 @@
 import type { Instruction, Rpc, SolanaRpcApi } from '@solana/kit';
 import { address } from '@solana/kit';
-import { createMockRpc, createMockSigner } from '../../__tests__/test-utils';
+import { createMockRpc, createMockSigner } from '../../__tests__/test-utils.js';
 import {
     TOKEN_2022_PROGRAM_ADDRESS,
     Token2022Instruction,
     getMintToCheckedInstruction,
     identifyToken2022Instruction,
 } from '@solana-program/token-2022';
-import { createPausedActionTransaction } from '../paused-action';
-import { getTokenPauseState, MINT_NOT_PAUSED_ERROR } from '../../management/pause';
+import { createPausedActionTransaction } from '../paused-action.js';
+import { getTokenPauseState, MINT_NOT_PAUSED_ERROR } from '../../management/pause.js';
 
-jest.mock('../../management/pause', () => ({
-    ...jest.requireActual('../../management/pause'),
+jest.mock('../../management/pause.js', () => ({
+    ...jest.requireActual('../../management/pause.js'),
     getTokenPauseState: jest.fn(),
 }));
 

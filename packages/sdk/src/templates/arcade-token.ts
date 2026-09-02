@@ -1,6 +1,6 @@
-import { Token } from '../issuance';
+import { Token } from '../issuance/index.js';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     pipe,
@@ -9,12 +9,12 @@ import {
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
 } from '@solana/kit';
-import { getCreateConfigInstructions } from '../token-acl/create-config';
-import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
-import { ABL_PROGRAM_ID } from '../abl/utils';
-import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
-import { getCreateListInstructions } from '../abl/list';
-import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
+import { getCreateConfigInstructions } from '../token-acl/create-config.js';
+import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program.js';
+import { ABL_PROGRAM_ID } from '../abl/utils.js';
+import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw.js';
+import { getCreateListInstructions } from '../abl/list.js';
+import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
 import { Mode } from '@solana/token-acl-gate-sdk';
 
 /**

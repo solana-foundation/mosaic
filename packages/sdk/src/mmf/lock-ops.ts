@@ -19,9 +19,9 @@ import {
     getThawAccountInstruction,
     getTransferCheckedInstruction,
 } from '@solana-program/token-2022';
-import type { FullTransaction } from '../transaction-util';
-import { decimalAmountToRaw, getMintDetails, resolveTokenAccount } from '../transaction-util';
-import { deriveLockAccountAddress, type LockType } from './lock-address';
+import type { FullTransaction } from '../transaction-util.js';
+import { decimalAmountToRaw, getMintDetails, resolveTokenAccount } from '../transaction-util.js';
+import { deriveLockAccountAddress, type LockType } from './lock-address.js';
 
 interface LockOpCommon {
     mint: Address;

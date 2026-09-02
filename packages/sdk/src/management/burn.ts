@@ -1,5 +1,5 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     pipe,
@@ -19,8 +19,8 @@ import {
     decimalAmountToRaw,
     getMintDetails,
     mintHasConfidentialMintBurnExtension,
-} from '../transaction-util';
-import { getPermissionedBurnAuthority } from './permissioned-burn';
+} from '../transaction-util.js';
+import { getPermissionedBurnAuthority } from './permissioned-burn.js';
 
 /**
  * Creates a transaction to burn tokens from the owner's token account.

@@ -35,7 +35,7 @@ import {
 } from '@solana-program/token-2022';
 import { getCreateAccountInstruction, SystemInstruction, SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { getAddMemoInstruction, MEMO_PROGRAM_ADDRESS } from '@solana-program/memo';
-import { parseTokenTransaction, parseTokenTransactionWithLookups } from '../parse-transaction';
+import { parseTokenTransaction, parseTokenTransactionWithLookups } from '../parse-transaction.js';
 
 // Build deterministic but valid Address values from a tag byte. We can't use
 // random keypairs here because we need synchronous, stable test fixtures; the

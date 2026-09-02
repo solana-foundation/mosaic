@@ -7,7 +7,7 @@ import {
     fetchEncodedAccount,
 } from '@solana/kit';
 import { decodeToken, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-import { type ConfidentialKeys, decryptAesBalance, decryptElGamalBalance } from './keys';
+import { type ConfidentialKeys, decryptAesBalance, decryptElGamalBalance } from './keys.js';
 
 /**
  * Reads the `ConfidentialTransferAccount` extension that lives on a **token

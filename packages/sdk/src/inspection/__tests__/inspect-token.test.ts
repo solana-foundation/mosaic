@@ -9,8 +9,8 @@ import {
     inspectionResultToDashboardData,
     getTokenDashboardData,
     detectTokenPatterns,
-} from '../inspect-token';
-import type { TokenInspectionResult } from '../types';
+} from '../inspect-token.js';
+import type { TokenInspectionResult } from '../types.js';
 
 // Mock @solana/kit modules
 jest.mock('@solana/kit', () => ({
@@ -28,7 +28,7 @@ jest.mock('@solana-program/token-2022', () => ({
 
 import { fetchEncodedAccount } from '@solana/kit';
 import { decodeMint } from '@solana-program/token-2022';
-import { createMockRpc } from '../../__tests__/test-utils';
+import { createMockRpc } from '../../__tests__/test-utils.js';
 const mockMintAddress = address('AqQw6rR2Qw2LRp5MNDoAuCEiBzKBdZx2drF6DCJx4w5H');
 const mockAuthority = address('FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT');
 const mockRpc = createMockRpc();

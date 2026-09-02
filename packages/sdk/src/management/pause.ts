@@ -9,9 +9,9 @@ import {
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import { getPauseInstruction, getResumeInstruction } from '@solana-program/token-2022';
-import { inspectToken } from '../inspection';
+import { inspectToken } from '../inspection/index.js';
 
 export interface PauseTokenOptions {
     mint: Address;

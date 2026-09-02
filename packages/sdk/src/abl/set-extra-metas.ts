@@ -10,11 +10,11 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
-import { ABL_PROGRAM_ID } from './utils';
+import type { FullTransaction } from '../transaction-util.js';
+import { ABL_PROGRAM_ID } from './utils.js';
 import { getSetupExtraMetasInstruction } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda, findThawExtraMetasAccountPda } from '@solana/token-acl-sdk';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl';
+import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/index.js';
 
 /**
  * Generates instructions for setting extra metadata thaw configuration for a token.

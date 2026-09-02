@@ -6,7 +6,7 @@ import type {
     SolanaRpcApiMainnet,
     TransactionSigner,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     pipe,
     createTransactionMessage,
@@ -28,7 +28,7 @@ import {
     getInitializeTokenMetadataInstruction,
     getInitializeConfidentialTransferFeeInstruction,
 } from '@solana-program/token-2022';
-import { createUpdateFieldInstruction } from './create-update-field-instruction';
+import { createUpdateFieldInstruction } from './create-update-field-instruction.js';
 
 /**
  * The issuer's "how is the confidential-transfer extension enabled" setting:

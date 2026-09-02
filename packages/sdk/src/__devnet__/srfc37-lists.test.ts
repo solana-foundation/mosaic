@@ -36,11 +36,11 @@ import {
     type TransactionSigner,
 } from '@solana/kit';
 import { readFileSync } from 'node:fs';
-import { createCustomTokenInitTransaction } from '../templates/custom-token';
-import { getAddToBlocklistInstructions, getRemoveFromBlocklistInstructions } from '../management/blocklist';
-import { getAddToAllowlistInstructions, getRemoveFromAllowlistInstructions } from '../management/allowlist';
-import { createMintToTransaction } from '../management/mint';
-import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util';
+import { createCustomTokenInitTransaction } from '../templates/custom-token.js';
+import { getAddToBlocklistInstructions, getRemoveFromBlocklistInstructions } from '../management/blocklist.js';
+import { getAddToAllowlistInstructions, getRemoveFromAllowlistInstructions } from '../management/allowlist.js';
+import { createMintToTransaction } from '../management/mint.js';
+import { getMintDetails, isDefaultAccountStateSetFrozen, resolveTokenAccount } from '../transaction-util.js';
 
 const RPC_URL = process.env.DEVNET_RPC ?? 'https://api.devnet.solana.com';
 const WS_URL = RPC_URL.replace('https', 'wss').replace('http', 'ws');
