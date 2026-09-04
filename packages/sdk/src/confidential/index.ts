@@ -1,6 +1,9 @@
 export {
     deriveConfidentialKeys,
     deriveConfidentialKeysForOwnerMint,
+    deriveConfidentialSupplyKeys,
+    getConfidentialMintBurnInit,
+    assertConfidentialKeysMatchAccount,
     createKeyPairMessageSigner,
     freeConfidentialKeys,
     decryptAesBalance,
@@ -9,6 +12,8 @@ export {
     type ConfidentialKeys,
     type DeriveConfidentialKeysInput,
     type DeriveConfidentialKeysForOwnerMintInput,
+    type DeriveConfidentialSupplyKeysInput,
+    type ConfidentialMintBurnInit,
 } from './keys.js';
 
 export { createConfidentialTransactionPlanner, planConfidentialInstructions } from './plan.js';
@@ -37,6 +42,14 @@ export { createConfidentialWithdrawInstructionPlan } from './withdraw.js';
 export { createConfidentialTransferInstructionPlan } from './transfer.js';
 
 export { createEmptyConfidentialAccountInstructionPlan } from './empty-account.js';
+
+export { createConfidentialMintInstructionPlan } from './mint.js';
+
+export { type ConfidentialMintBurnOptions } from '../issuance/create-mint.js';
+
+export { createConfidentialBurnInstructionPlan, createApplyConfidentialPendingBurnInstructionPlan } from './burn.js';
+
+export { createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan } from './supply.js';
 
 export {
     buildProofVerificationIxs,

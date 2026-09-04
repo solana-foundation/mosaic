@@ -193,6 +193,16 @@ export const inspectMintCommand = new Command('inspect-mint')
                                 console.log(`     Auto-approve: ${ext.autoApproveNewAccounts}`);
                             }
                             break;
+                        case 'ConfidentialMintBurn':
+                            // Separate extension from ConfidentialTransferMint: the
+                            // supply itself is encrypted, under the mint authority's
+                            // supply keys. The ciphertexts are only readable with
+                            // those keys, so print the pubkey and note their sizes.
+                            if ('supplyElgamalPubkey' in ext) {
+                                console.log(`     Supply ElGamal Pubkey: ${ext.supplyElgamalPubkey}`);
+                            }
+                            console.log(`     Supply: encrypted (requires the mint authority's supply keys)`);
+                            break;
                         case 'TransferFeeConfig':
                             if ('transferFeeConfigAuthority' in ext && ext.transferFeeConfigAuthority) {
                                 console.log(`     Authority: ${ext.transferFeeConfigAuthority}`);
