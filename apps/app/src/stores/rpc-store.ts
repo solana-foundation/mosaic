@@ -10,8 +10,12 @@ export interface CustomRpc {
     network: NetworkName;
 }
 
-// Note: the active cluster is owned by @solana/connector (persisted under its
-// own storage key), not by this store. This store only holds user-defined RPCs.
+/**
+ * Persists the user's custom RPC endpoints. Cluster *selection* is not stored
+ * here — the connector owns it (key `connector-kit:cluster`) and its stored value
+ * takes precedence over any initial cluster we pass, so a second copy here would
+ * only ever be a stale duplicate.
+ */
 interface RpcStore {
     customRpcs: CustomRpc[];
     addCustomRpc: (rpc: Omit<CustomRpc, 'id'>) => string;

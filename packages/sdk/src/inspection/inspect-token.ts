@@ -1,4 +1,11 @@
-import { type Address, type Commitment, fetchEncodedAccount, type Rpc, type SolanaRpcApi } from '@solana/kit';
+import {
+    type Address,
+    type Commitment,
+    fetchEncodedAccount,
+    getBase64Decoder,
+    type Rpc,
+    type SolanaRpcApi,
+} from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from '@solana-program/token-2022';
 import type {
     AclMode,
@@ -190,6 +197,23 @@ export async function inspectToken(
 
                     extensions.push({
                         name: 'ConfidentialTransferMint',
+                        details: extensionDetails,
+                    });
+                    break;
+
+                case 'ConfidentialMintBurn':
+                    // Separate extension from ConfidentialTransferMint: enables
+                    // minting into / burning from a confidential balance. The
+                    // supply is tracked under the mint authority's supply keys.
+                    extensionDetails.supplyElgamalPubkey = ext.supplyElgamalPubkey;
+                    // Base64, not the raw byte array: every other extension
+                    // contributes scalars/addresses to `details`, so a Uint8Array
+                    // here would JSON-serialize as {"0":5,"1":…} for any consumer
+                    // that stringifies the result. Only the supply AES key can
+                    // decrypt it, so the value is opaque either way.
+                    extensionDetails.decryptableSupply = getBase64Decoder().decode(ext.decryptableSupply);
+                    extensions.push({
+                        name: 'ConfidentialMintBurn',
                         details: extensionDetails,
                     });
                     break;

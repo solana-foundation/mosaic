@@ -1,5 +1,5 @@
 import type { Address } from '@solana/kit';
-import { generateKeyPairSigner } from '@solana/kit';
+import { generateKeyPairSigner, getAddressEncoder } from '@solana/kit';
 import { createMockRpc, createMockSigner, seedMintDetails } from '../../__tests__/test-utils.js';
 import type { ConfidentialKeys } from '../keys.js';
 
@@ -11,7 +11,18 @@ const mockConfigurePlan = { kind: 'configurePlan' } as const;
 const mockWithdrawPlan = { kind: 'withdrawPlan' } as const;
 const mockTransferPlan = { kind: 'transferPlan' } as const;
 const mockApplyIx = { tag: 'applyIx' } as const;
-const mockSourceToken = { data: { kind: 'sourceTokenData' } };
+// Matches `fakeKeys.elgamal.pubkey()` below, so builders' new
+// `assertConfidentialKeysMatchAccount` check passes for the source account.
+const SOURCE_ELGAMAL_PUBKEY = 'DsT1111111111111111111111111111111111111111' as Address;
+const mockSourceToken = {
+    data: {
+        kind: 'sourceTokenData',
+        extensions: {
+            __option: 'Some',
+            value: [{ __kind: 'ConfidentialTransferAccount', elgamalPubkey: SOURCE_ELGAMAL_PUBKEY }],
+        },
+    },
+};
 const mockDestToken = {
     data: {
         kind: 'destTokenData',
@@ -25,12 +36,17 @@ let mockMintExtensions: { __option: 'None' } | { __option: 'Some'; value: unknow
 
 jest.mock('@solana-program/token-2022', () => ({
     ...jest.requireActual('@solana-program/token-2022'),
+    fetchToken: jest.fn(async (_rpc: unknown, addr: string) => mockTokenByAddr[addr]),
+    fetchMint: jest.fn(async () => ({ data: { decimals: 6, extensions: mockMintExtensions } })),
+}));
+
+// The InstructionPlan/derive helpers live on the `/confidential` subpath (moved
+// off the root barrel in token-2022 0.11+); stub them there.
+jest.mock('@solana-program/token-2022/confidential', () => ({
     getCreateConfidentialTransferAccountInstructionPlan: jest.fn(async () => mockConfigurePlan),
     getConfidentialWithdrawInstructionPlan: jest.fn(async () => mockWithdrawPlan),
     getConfidentialTransferInstructionPlan: jest.fn(async () => mockTransferPlan),
     getApplyConfidentialPendingBalanceInstructionFromToken: jest.fn(() => mockApplyIx),
-    fetchToken: jest.fn(async (_rpc: unknown, addr: string) => mockTokenByAddr[addr]),
-    fetchMint: jest.fn(async () => ({ data: { decimals: 6, extensions: mockMintExtensions } })),
 }));
 
 // Mock the bespoke proof + account-state plumbing used by empty-account.
@@ -39,19 +55,23 @@ jest.mock('../proof.js', () => ({
 }));
 jest.mock('../account-state.js', () => ({
     fetchConfidentialAccountState: jest.fn(async () => ({
+        // Matches `fakeKeys.elgamal.pubkey()` so `assertConfidentialKeysMatchAccount` passes.
+        elgamalPubkey: SOURCE_ELGAMAL_PUBKEY,
         ciphertexts: { availableBalance: new Uint8Array(64) },
     })),
 }));
 
 import {
-    getApplyConfidentialPendingBalanceInstructionFromToken,
     getConfidentialDepositInstructionDataDecoder,
-    getConfidentialTransferInstructionPlan,
-    getConfidentialWithdrawInstructionPlan,
-    getCreateConfidentialTransferAccountInstructionPlan,
     getEmptyConfidentialTransferAccountInstructionDataDecoder,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
+import {
+    getApplyConfidentialPendingBalanceInstructionFromToken,
+    getConfidentialTransferInstructionPlan,
+    getConfidentialWithdrawInstructionPlan,
+    getCreateConfidentialTransferAccountInstructionPlan,
+} from '@solana-program/token-2022/confidential';
 import {
     createApplyConfidentialPendingBalanceInstructionPlan,
     createApproveConfidentialAccountInstructionPlan,
@@ -76,8 +96,12 @@ const AUDITOR = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' as Address;
 // `secret()` returns a single memoized object so tests can assert its WASM
 // `free()` was called (cleared each test via `jest.clearAllMocks()`).
 const fakeElgamalSecret = { free: jest.fn() };
+const fakeElgamalPubkeyBytes = new Uint8Array(getAddressEncoder().encode(SOURCE_ELGAMAL_PUBKEY));
 const fakeKeys = {
-    elgamal: { secret: () => fakeElgamalSecret },
+    elgamal: {
+        secret: () => fakeElgamalSecret,
+        pubkey: () => ({ toBytes: () => fakeElgamalPubkeyBytes, free: jest.fn() }),
+    },
     aes: { tag: 'aes' },
 } as unknown as ConfidentialKeys;
 
@@ -204,7 +228,7 @@ describe('confidential operation builders', () => {
     });
 
     describe('withdraw', () => {
-        it('uses context-state proof mode and the raw amount', async () => {
+        it('passes the decoded token account, decimals, and the raw amount', async () => {
             const plan = await createConfidentialWithdrawInstructionPlan({
                 rpc: rpc as never,
                 payer,
@@ -217,7 +241,6 @@ describe('confidential operation builders', () => {
             expect(plan).toBe(mockWithdrawPlan);
             expect(getConfidentialWithdrawInstructionPlan).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    proofMode: 'context-state',
                     amount: 2_000_000n,
                     decimals: 6,
                     tokenAccount: mockSourceToken.data,
@@ -226,8 +249,76 @@ describe('confidential operation builders', () => {
         });
     });
 
+    // Token-2022's process_deposit and process_withdraw both reject a mint
+    // carrying ConfidentialMintBurn with IllegalMintBurnConversion: such a mint's
+    // supply exists only as an encrypted value, so there is no plaintext side to
+    // convert to or from. Both builders must fail fast instead of emitting a
+    // transaction the chain is guaranteed to reject.
+    describe('plaintext conversions on a ConfidentialMintBurn mint', () => {
+        beforeEach(() => {
+            seedMintDetails(rpc, {
+                address: MINT,
+                decimals: 6,
+                extensions: [{ extension: 'confidentialTransferMint' }, { extension: 'confidentialMintBurn' }],
+            });
+        });
+
+        it('deposit fails fast and builds no instruction', async () => {
+            await expect(
+                createConfidentialDepositInstructionPlan({
+                    rpc,
+                    mint: MINT,
+                    tokenAccount: SOURCE_TOKEN,
+                    authority: AUTHORITY,
+                    amount: '1',
+                }),
+            ).rejects.toThrow(/ConfidentialMintBurn extension enabled; confidential deposit is not supported/);
+        });
+
+        it('withdraw fails fast without calling the upstream helper', async () => {
+            await expect(
+                createConfidentialWithdrawInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    mint: MINT,
+                    tokenAccount: SOURCE_TOKEN,
+                    authority: AUTHORITY,
+                    amount: '1',
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(/ConfidentialMintBurn extension enabled; confidential withdrawal is not supported/);
+            expect(getConfidentialWithdrawInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('points the caller at the confidential mint/burn path', async () => {
+            await expect(
+                createConfidentialDepositInstructionPlan({
+                    rpc,
+                    mint: MINT,
+                    tokenAccount: SOURCE_TOKEN,
+                    authority: AUTHORITY,
+                    amount: '1',
+                }),
+            ).rejects.toThrow(/createConfidentialMintInstructionPlan \/ createConfidentialBurnInstructionPlan/);
+        });
+
+        it('still allows a confidential transfer (not a plaintext conversion)', async () => {
+            const plan = await createConfidentialTransferInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                mint: MINT,
+                sourceToken: SOURCE_TOKEN,
+                destinationToken: DEST_TOKEN,
+                authority: AUTHORITY,
+                amount: '1',
+                keys: fakeKeys,
+            });
+            expect(plan).toBe(mockTransferPlan);
+        });
+    });
+
     describe('transfer', () => {
-        it('passes source/destination accounts, raw amount, and context-state mode', async () => {
+        it('passes source/destination accounts, raw amount, and the resolved auditor', async () => {
             const plan = await createConfidentialTransferInstructionPlan({
                 rpc: rpc as never,
                 payer,
@@ -241,8 +332,8 @@ describe('confidential operation builders', () => {
             expect(plan).toBe(mockTransferPlan);
             expect(getConfidentialTransferInstructionPlan).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    proofMode: 'context-state',
                     amount: 3_000_000n,
+                    mintAccount: { decimals: 6, extensions: mockMintExtensions },
                     sourceTokenAccount: mockSourceToken.data,
                     destinationTokenAccount: mockDestToken.data,
                     auditorElgamalPubkey: undefined,
@@ -250,7 +341,10 @@ describe('confidential operation builders', () => {
             );
         });
 
-        it('detects the auditor pubkey from the mint extension', async () => {
+        it('forwards the decoded mint so the helper resolves the auditor', async () => {
+            // Auditor resolution lives in the upstream helper (token-2022 #1269);
+            // mosaic just forwards the decoded mint as `mintAccount` and leaves
+            // `auditorElgamalPubkey` undefined so the helper reads it from there.
             mockMintExtensions = {
                 __option: 'Some',
                 value: [
@@ -268,7 +362,10 @@ describe('confidential operation builders', () => {
                 keys: fakeKeys,
             });
             expect(getConfidentialTransferInstructionPlan).toHaveBeenCalledWith(
-                expect.objectContaining({ auditorElgamalPubkey: AUDITOR }),
+                expect.objectContaining({
+                    mintAccount: { decimals: 6, extensions: mockMintExtensions },
+                    auditorElgamalPubkey: undefined,
+                }),
             );
         });
 
