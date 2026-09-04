@@ -1,4 +1,5 @@
 import type { Address } from '@solana/kit';
+import { getAddressEncoder } from '@solana/kit';
 import { createMockRpc, createMockSigner } from '../../__tests__/test-utils.js';
 import type { ConfidentialKeys } from '../keys.js';
 
@@ -90,7 +91,13 @@ const ACCOUNT_EXT = {
     decryptableAvailableBalance: new Uint8Array(36),
 };
 
-const fakeKeys = { elgamal: { tag: 'elgamal' }, aes: { tag: 'aes' } } as unknown as ConfidentialKeys;
+// `assertConfidentialKeysMatchAccount` (burn.ts) compares `elgamal.pubkey().toBytes()`
+// against `ACCOUNT_EXT.elgamalPubkey`, so the fake pubkey must decode back to it.
+const fakeElgamalPubkeyBytes = new Uint8Array(getAddressEncoder().encode(ACCOUNT_PK));
+const fakeKeys = {
+    elgamal: { tag: 'elgamal', pubkey: () => ({ toBytes: () => fakeElgamalPubkeyBytes, free: jest.fn() }) },
+    aes: { tag: 'aes' },
+} as unknown as ConfidentialKeys;
 
 describe('confidential mint (wrapper)', () => {
     let rpc: ReturnType<typeof createMockRpc>;

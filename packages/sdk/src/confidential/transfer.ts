@@ -9,11 +9,12 @@ import {
 import { fetchMint, fetchToken } from '@solana-program/token-2022';
 import { getConfidentialTransferInstructionPlan } from '@solana-program/token-2022/confidential';
 import {
+    getConfidentialTransferAccountElgamalPubkey,
     isConfidentialTransferAccount,
     isConfidentialTransferMint,
     mintHasConfidentialTransferFee,
 } from './extensions.js';
-import type { ConfidentialKeys } from './keys.js';
+import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
 import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util.js';
 
 /**
@@ -83,6 +84,14 @@ export async function createConfidentialTransferInstructionPlan(input: {
         throw new Error(
             `Destination token account ${input.destinationToken} is not configured for confidential transfers. ` +
                 `Configure it first with createConfigureConfidentialAccountInstructionPlan.`,
+        );
+    }
+    const sourceElgamalPubkey = getConfidentialTransferAccountElgamalPubkey(sourceDecoded);
+    if (sourceElgamalPubkey !== null) {
+        assertConfidentialKeysMatchAccount(
+            input.keys,
+            sourceElgamalPubkey,
+            `source token account ${input.sourceToken}`,
         );
     }
 

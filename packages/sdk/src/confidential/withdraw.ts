@@ -9,7 +9,8 @@ import {
 import { fetchToken } from '@solana-program/token-2022';
 import { getConfidentialWithdrawInstructionPlan } from '@solana-program/token-2022/confidential';
 import { confidentialMintBurnConversionError, mintHasConfidentialMintBurnExtension } from '../transaction-util.js';
-import type { ConfidentialKeys } from './keys.js';
+import { getConfidentialTransferAccountElgamalPubkey } from './extensions.js';
+import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
 import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util.js';
 
 /**
@@ -49,6 +50,10 @@ export async function createConfidentialWithdrawInstructionPlan(input: {
 
     if (mintHasConfidentialMintBurnExtension(extensions)) {
         throw confidentialMintBurnConversionError(input.mint, 'confidential withdrawal', null);
+    }
+    const registeredElgamalPubkey = getConfidentialTransferAccountElgamalPubkey(decoded);
+    if (registeredElgamalPubkey !== null) {
+        assertConfidentialKeysMatchAccount(input.keys, registeredElgamalPubkey, `token account ${input.tokenAccount}`);
     }
 
     return getConfidentialWithdrawInstructionPlan({

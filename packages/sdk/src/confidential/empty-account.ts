@@ -8,7 +8,7 @@ import {
 } from '@solana/kit';
 import { getEmptyConfidentialTransferAccountInstruction } from '@solana-program/token-2022';
 import { SYSVAR_INSTRUCTIONS_ADDRESS } from '@solana/sysvars';
-import type { ConfidentialKeys } from './keys.js';
+import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
 import { fetchConfidentialAccountState } from './account-state.js';
 import { buildZeroCiphertextProofIxs } from './proof.js';
 import { toAuthoritySigner } from './util.js';
@@ -43,6 +43,7 @@ export async function createEmptyConfidentialAccountInstructionPlan(input: {
     if (!state) {
         throw new Error(`Account ${input.tokenAccount} has no ConfidentialTransferAccount extension.`);
     }
+    assertConfidentialKeysMatchAccount(input.keys, state.elgamalPubkey, `token account ${input.tokenAccount}`);
 
     // ZeroCiphertext proof over the available balance, verified as a sibling.
     const proof = await buildZeroCiphertextProofIxs({

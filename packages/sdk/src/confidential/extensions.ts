@@ -1,3 +1,4 @@
+import type { Address } from '@solana/kit';
 import type { fetchMint, fetchToken } from '@solana-program/token-2022';
 
 /**
@@ -33,6 +34,21 @@ export function isConfidentialTransferAccount(token: DecodedToken): boolean {
         token.data.extensions.__option === 'Some' &&
         token.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferAccount')
     );
+}
+
+/**
+ * The registered ElGamal public key a decoded token account's confidential
+ * balances are encrypted under, or `null` if it has no `ConfidentialTransferAccount`
+ * extension. Used to catch a caller's `ConfidentialKeys` no longer matching what
+ * the account was configured with (e.g. after the zk-sdk 0.5.x key-derivation
+ * change) before attempting to decrypt or build a proof with them.
+ */
+export function getConfidentialTransferAccountElgamalPubkey(token: DecodedToken): Address | null {
+    if (token.data.extensions.__option !== 'Some') {
+        return null;
+    }
+    const ext = token.data.extensions.value.find(e => e.__kind === 'ConfidentialTransferAccount');
+    return ext && ext.__kind === 'ConfidentialTransferAccount' ? ext.elgamalPubkey : null;
 }
 
 /**

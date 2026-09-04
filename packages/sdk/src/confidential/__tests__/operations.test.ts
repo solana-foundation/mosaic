@@ -1,5 +1,5 @@
 import type { Address } from '@solana/kit';
-import { generateKeyPairSigner } from '@solana/kit';
+import { generateKeyPairSigner, getAddressEncoder } from '@solana/kit';
 import { createMockRpc, createMockSigner, seedMintDetails } from '../../__tests__/test-utils.js';
 import type { ConfidentialKeys } from '../keys.js';
 
@@ -11,7 +11,18 @@ const mockConfigurePlan = { kind: 'configurePlan' } as const;
 const mockWithdrawPlan = { kind: 'withdrawPlan' } as const;
 const mockTransferPlan = { kind: 'transferPlan' } as const;
 const mockApplyIx = { tag: 'applyIx' } as const;
-const mockSourceToken = { data: { kind: 'sourceTokenData' } };
+// Matches `fakeKeys.elgamal.pubkey()` below, so builders' new
+// `assertConfidentialKeysMatchAccount` check passes for the source account.
+const SOURCE_ELGAMAL_PUBKEY = 'DsT1111111111111111111111111111111111111111' as Address;
+const mockSourceToken = {
+    data: {
+        kind: 'sourceTokenData',
+        extensions: {
+            __option: 'Some',
+            value: [{ __kind: 'ConfidentialTransferAccount', elgamalPubkey: SOURCE_ELGAMAL_PUBKEY }],
+        },
+    },
+};
 const mockDestToken = {
     data: {
         kind: 'destTokenData',
@@ -44,6 +55,8 @@ jest.mock('../proof.js', () => ({
 }));
 jest.mock('../account-state.js', () => ({
     fetchConfidentialAccountState: jest.fn(async () => ({
+        // Matches `fakeKeys.elgamal.pubkey()` so `assertConfidentialKeysMatchAccount` passes.
+        elgamalPubkey: SOURCE_ELGAMAL_PUBKEY,
         ciphertexts: { availableBalance: new Uint8Array(64) },
     })),
 }));
@@ -83,8 +96,12 @@ const AUDITOR = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' as Address;
 // `secret()` returns a single memoized object so tests can assert its WASM
 // `free()` was called (cleared each test via `jest.clearAllMocks()`).
 const fakeElgamalSecret = { free: jest.fn() };
+const fakeElgamalPubkeyBytes = new Uint8Array(getAddressEncoder().encode(SOURCE_ELGAMAL_PUBKEY));
 const fakeKeys = {
-    elgamal: { secret: () => fakeElgamalSecret },
+    elgamal: {
+        secret: () => fakeElgamalSecret,
+        pubkey: () => ({ toBytes: () => fakeElgamalPubkeyBytes, free: jest.fn() }),
+    },
     aes: { tag: 'aes' },
 } as unknown as ConfidentialKeys;
 
