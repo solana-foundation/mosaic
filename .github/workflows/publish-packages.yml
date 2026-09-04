@@ -103,6 +103,9 @@ jobs:
       - name: Test
         run: pnpm run test:unit
 
+      - name: CLI package smoke test
+        run: ./scripts/cli-package-smoke.sh
+
       # `changeset publish` is a no-op when every version already exists on the
       # registry, so a re-run after a failed publish is safe.
       - name: Publish to npm

@@ -1,5 +1,11 @@
 # @solana/mosaic-sdk
 
+## 0.2.1
+
+### Patch Changes
+
+- [`07f82fd`](https://github.com/solana-foundation/mosaic/commit/07f82fdbc4e6e89c6c3b65e52fa67518a8939b3b) Thanks [@eldarik](https://github.com/eldarik)! - Fix the published CLI failing to run under Node ESM: resolve `@solana/zk-sdk`'s wasm import via a bin-level resolve hook, make `bin/mosaic.mjs` the published entrypoint, and fix mint-type detection in `inspectToken` to correctly recognize tokenized-security and MMF tokens instead of misclassifying them as stablecoin/arcade-token.
+
 ## 0.2.0
 
 ### Minor Changes

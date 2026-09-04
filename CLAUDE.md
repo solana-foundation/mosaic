@@ -83,9 +83,10 @@ pnpm test:coverage  # Generate test coverage report
 
 ```bash
 cd packages/cli
-pnpm dev           # Run CLI in development mode using tsx
+pnpm dev:run <cmd> # Run CLI from source using tsx (e.g. pnpm dev:run inspect-mint --help)
+pnpm dev           # Watch build (tsc --watch)
 pnpm build         # Build CLI binary
-pnpm start         # Run built CLI
+pnpm start         # Run built CLI (bin/mosaic.mjs)
 ```
 
 ### App (apps/app/)
