@@ -5,7 +5,7 @@ import {
     type Rpc,
     type SolanaRpcApi,
     type TransactionSigner,
-    sequentialInstructionPlan,
+    nonDivisibleSequentialInstructionPlan,
     singleInstructionPlan,
 } from '@solana/kit';
 import { fetchMint, fetchToken, getApplyConfidentialPendingBurnInstruction } from '@solana-program/token-2022';
@@ -14,8 +14,13 @@ import {
     getPermissionedConfidentialBurnInstructionPlan,
 } from '@solana-program/token-2022/confidential';
 import { getPermissionedBurnAuthorityFromMint } from '../transaction-util.js';
-import { isConfidentialMintBurn, isConfidentialTransferAccount, isConfidentialTransferMint } from './extensions.js';
-import type { ConfidentialKeys } from './keys.js';
+import {
+    getConfidentialTransferAccountElgamalPubkey,
+    isConfidentialMintBurn,
+    isConfidentialTransferAccount,
+    isConfidentialTransferMint,
+} from './extensions.js';
+import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
 import { createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan } from './supply.js';
 import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util.js';
 
@@ -94,6 +99,10 @@ export async function createConfidentialBurnInstructionPlan(input: {
                 `createConfigureConfidentialAccountInstructionPlan.`,
         );
     }
+    const registeredElgamalPubkey = getConfidentialTransferAccountElgamalPubkey(tokenDecoded);
+    if (registeredElgamalPubkey !== null) {
+        assertConfidentialKeysMatchAccount(input.keys, registeredElgamalPubkey, `token account ${input.tokenAccount}`);
+    }
 
     const amount = tokenAmountToRaw(input.amount, mintDecoded.data.decimals);
 
@@ -123,9 +132,17 @@ export async function createConfidentialBurnInstructionPlan(input: {
                     `(the burn-authority signer, or its address for a raw transaction).`,
             );
         }
+        const providedAuthority = toAuthoritySigner(input.permissionedBurnAuthority);
+        if (providedAuthority.address !== permissionedBurnAuthority) {
+            throw new Error(
+                `Mint ${input.mint}'s configured permissioned burn authority is ${permissionedBurnAuthority}, ` +
+                    `but permissionedBurnAuthority ${providedAuthority.address} was provided. Pass the ` +
+                    `authority currently configured on the mint (it may have been rotated).`,
+            );
+        }
         return getPermissionedConfidentialBurnInstructionPlan({
             ...commonArgs,
-            permissionedBurnAuthority: toAuthoritySigner(input.permissionedBurnAuthority),
+            permissionedBurnAuthority: providedAuthority,
         });
     }
 
@@ -193,10 +210,14 @@ export function createApplyConfidentialPendingBurnInstructionPlan(input: {
     if (input.resyncSupply === undefined) {
         return applyPlan;
     }
-    // Divisibly sequential: the two instructions are small enough to share a
-    // transaction, but order is what matters — re-asserting the decryptable
-    // supply before the apply would be overwritten by it.
-    return sequentialInstructionPlan([
+    // Non-divisibly sequential: a planner must not split these across
+    // transactions. `ApplyPendingBurn` never writes `decryptableSupply` (see
+    // the warning above), so the ordering isn't about one overwriting the
+    // other — it's that the resync's `rawSupply` must reflect the supply
+    // *after* this apply. If the two land in separate transactions and the
+    // second fails or expires, `decryptableSupply` is left stale and every
+    // later confidential mint fails on-chain with an opaque proof error.
+    return nonDivisibleSequentialInstructionPlan([
         applyPlan,
         createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan({
             mint: input.mint,

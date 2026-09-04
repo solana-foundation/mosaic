@@ -298,18 +298,21 @@ export function getPermissionedBurnAuthorityFromMint(mint: DecodedMint): Address
  * so a caller that has fetched the mint doesn't need a second read to fail fast.
  *
  * The key matches Agave's `UiExtension` serialization (`rename_all = "camelCase"`,
- * `tag = "extension"`). Note that an RPC node too old to know the extension emits
- * `unparseableExtension` instead, in which case this returns false and the guard
- * silently passes; {@link isConfidentialMintBurnMint} decodes the mint directly
- * and is immune to that.
+ * `tag = "extension"`). An RPC node too old to know the extension emits
+ * `unparseableExtension` instead of `confidentialMintBurn`, so this also treats
+ * `unparseableExtension` as a potential match — fail-safe rather than fail-open:
+ * a mint that turns out not to be `ConfidentialMintBurn` just makes the guard
+ * over-fire, while a false negative here would let the on-chain
+ * `IllegalMintBurnConversion` surface instead. {@link isConfidentialMintBurnMint}
+ * decodes the mint directly and doesn't need this fallback.
  *
  * @param extensions - The jsonParsed extensions from {@link getMintDetails}
- * @returns True if the mint has the ConfidentialMintBurn extension
+ * @returns True if the mint has (or may have, per an unparseable RPC node) the ConfidentialMintBurn extension
  */
 export function mintHasConfidentialMintBurnExtension(
     extensions: Array<{ extension: string; state?: Record<string, unknown> }>,
 ): boolean {
-    return extensions.some(ext => ext.extension === 'confidentialMintBurn');
+    return extensions.some(ext => ext.extension === 'confidentialMintBurn' || ext.extension === 'unparseableExtension');
 }
 
 /**

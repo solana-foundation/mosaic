@@ -1,8 +1,9 @@
 import type { Address } from '@solana/kit';
-import { generateKeyPairSigner } from '@solana/kit';
+import { generateKeyPairSigner, getAddressDecoder } from '@solana/kit';
 import { ElGamalKeypair, AeKey } from '@solana/zk-sdk/node';
 import { deriveAeKeyForOwnerMint, deriveElGamalKeypairForOwnerMint } from '@solana-program/token-2022/confidential';
 import {
+    assertConfidentialKeysMatchAccount,
     deriveConfidentialKeys,
     deriveConfidentialKeysForOwnerMint,
     deriveConfidentialSupplyKeys,
@@ -239,6 +240,40 @@ describe('deriveConfidentialSupplyKeys', () => {
         pubkey.free();
 
         freeConfidentialKeys(keys);
+    });
+});
+
+describe('assertConfidentialKeysMatchAccount', () => {
+    it('does not throw when the derived pubkey matches the registered one', async () => {
+        const signer = await generateKeyPairSigner();
+        const keys = await deriveConfidentialKeysForOwnerMint({ signer, owner: signer.address, mint: MINT_A });
+        const registered = getAddressDecoder().decode(keys.elgamal.pubkey().toBytes());
+
+        expect(() => assertConfidentialKeysMatchAccount(keys, registered, 'token account X')).not.toThrow();
+
+        freeConfidentialKeys(keys);
+    });
+
+    // The scenario the reviewer flagged: an account configured under the old
+    // (pre-0.5.x zk-sdk) two-signature scheme re-derives to different key bytes
+    // under the current single-signature one. Simulated here by comparing
+    // against a registered pubkey from an unrelated derivation.
+    it('throws a targeted error when the derived pubkey does not match', async () => {
+        const signer = await generateKeyPairSigner();
+        const keys = await deriveConfidentialKeysForOwnerMint({ signer, owner: signer.address, mint: MINT_A });
+        const staleRegistered = await deriveConfidentialKeysForOwnerMint({
+            signer,
+            owner: signer.address,
+            mint: MINT_B,
+        });
+        const registered = getAddressDecoder().decode(staleRegistered.elgamal.pubkey().toBytes());
+
+        expect(() => assertConfidentialKeysMatchAccount(keys, registered, 'token account X')).toThrow(
+            /does not match token account X's registered key/,
+        );
+
+        freeConfidentialKeys(keys);
+        freeConfidentialKeys(staleRegistered);
     });
 });
 

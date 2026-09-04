@@ -330,6 +330,46 @@ export function getConfidentialMintBurnInit(keys: ConfidentialKeys): Confidentia
 }
 
 /**
+ * Asserts that `keys`'s ElGamal public key matches `registeredElgamalPubkey` —
+ * the key an account or mint's confidential-transfer extension was actually
+ * configured with (e.g. {@link getConfidentialTransferAccountElgamalPubkey}).
+ *
+ * Since `@solana/zk-sdk` 0.5.x, key derivation is a single signature over a new
+ * canonical message; an account configured under the previous two-signature
+ * scheme re-derives to *different* key bytes under the same signer and seed
+ * (see the module doc above). Without this check, a caller who re-derives keys
+ * for such an account gets no error — decryption just returns garbage or a WASM
+ * "tampered ciphertext" error, indistinguishable from a corrupt account. Call
+ * this right after fetching the account/mint and before using `keys` to decrypt
+ * or build a proof.
+ *
+ * @param context - What's being checked, for the error message (e.g. the token account or mint address).
+ */
+export function assertConfidentialKeysMatchAccount(
+    keys: ConfidentialKeys,
+    registeredElgamalPubkey: Address,
+    context: string,
+): void {
+    const pubkey = keys.elgamal.pubkey();
+    let derived: Address;
+    try {
+        derived = getAddressDecoder().decode(pubkey.toBytes());
+    } finally {
+        pubkey.free?.();
+    }
+    if (derived !== registeredElgamalPubkey) {
+        throw new Error(
+            `The provided confidential keys' ElGamal public key (${derived}) does not match ${context}'s ` +
+                `registered key (${registeredElgamalPubkey}). This happens when an account was configured ` +
+                `under the previous zk-sdk key-derivation scheme (pre-0.5.x) and its keys are re-derived under ` +
+                `the current one — they are not the same keys. Use the retained key bytes from when the ` +
+                `account was configured, rather than re-deriving; or, if this account is unfamiliar, its data ` +
+                `may be corrupt.`,
+        );
+    }
+}
+
+/**
  * Builds a {@link SignMessage} from a kit `KeyPairSigner` (CLI / Node). The
  * signer must expose its underlying `CryptoKeyPair` (kit's generated keypair
  * signers do).
