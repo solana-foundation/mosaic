@@ -21,17 +21,22 @@ import {
 import { findAssociatedTokenPda, getMintToInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 import { Token } from '../../issuance/index.js';
 import {
     createApplyConfidentialPendingBalanceInstructionPlan,
+    createApplyConfidentialPendingBurnInstructionPlan,
+    createConfidentialBurnInstructionPlan,
     createConfidentialDepositInstructionPlan,
+    createConfidentialMintInstructionPlan,
     createConfidentialTransferInstructionPlan,
     createConfidentialWithdrawInstructionPlan,
     createConfigureConfidentialAccountInstructionPlan,
     createEmptyConfidentialAccountInstructionPlan,
     deriveConfidentialKeysForOwnerMint,
+    deriveConfidentialSupplyKeys,
     freeConfidentialKeys,
+    getConfidentialMintBurnInit,
     inspectConfidentialAccount,
     planConfidentialInstructions,
 } from '../../confidential/index.js';
@@ -65,6 +70,9 @@ const DECIMALS = 2;
 const MINT_AMOUNT = 1_000n; // 10.00 tokens, minted to the sender's plaintext balance
 const TRANSFER_AMOUNT = 400n; // 4.00 tokens, sent confidentially
 
+const CONFIDENTIAL_MINT_AMOUNT = 500n; // 5.00 tokens, minted straight into a confidential balance
+const CONFIDENTIAL_BURN_AMOUNT = 200n; // 2.00 tokens, burned from the confidential balance
+
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 /** Maps an RPC URL to a Solana Explorer `cluster` query param. */
@@ -76,6 +84,8 @@ function clusterParam(rpcUrl: string): string {
 }
 
 interface Artefacts {
+    /** Short name of the flow this run covers; keeps the two runs' files apart. */
+    run: string;
     cluster: string;
     mint: Address;
     payer: Address;
@@ -83,6 +93,18 @@ interface Artefacts {
     senderAta: Address;
     recipientAta: Address;
     transactions: Array<{ step: string; signature: string }>;
+}
+
+/**
+ * Where a run's artefacts JSON goes. The base path (overridable via
+ * CONFIDENTIAL_ARTEFACTS_PATH) gets the run name spliced in before its
+ * extension, so the two flows land in separate files instead of the second
+ * clobbering the first.
+ */
+function artefactsPath(run: string): string {
+    const base = process.env.CONFIDENTIAL_ARTEFACTS_PATH ?? join(tmpdir(), 'confidential-e2e-artefacts.json');
+    const ext = extname(base);
+    return join(dirname(base), `${basename(base, ext)}.${run}${ext}`);
 }
 
 /**
@@ -95,7 +117,7 @@ function emitArtefacts(a: Artefacts): void {
     const acct = (addr: string) => `https://explorer.solana.com/address/${addr}?cluster=${a.cluster}`;
     const lines = [
         '',
-        '═══════════ confidential-transfer e2e artefacts ═══════════',
+        `═══════════ confidential e2e artefacts — ${a.run} ═══════════`,
         `mint          ${acct(a.mint)}`,
         `payer         ${acct(a.payer)}`,
         `recipient     ${acct(a.recipient)}`,
@@ -109,7 +131,7 @@ function emitArtefacts(a: Artefacts): void {
     // eslint-disable-next-line no-console
     console.log(lines.join('\n'));
 
-    const path = process.env.CONFIDENTIAL_ARTEFACTS_PATH ?? join(tmpdir(), 'confidential-e2e-artefacts.json');
+    const path = artefactsPath(a.run);
     writeFileSync(path, JSON.stringify(a, null, 2));
     // eslint-disable-next-line no-console
     console.log(`artefacts written to ${path}\n`);
@@ -459,12 +481,198 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
             freeConfidentialKeys(senderKeys);
             freeConfidentialKeys(recipientKeys);
             emitArtefacts({
+                run: 'transfer',
                 cluster: clusterParam(RPC_URL),
                 mint: mint.address,
                 payer: payer.address,
                 recipient: recipient.address,
                 senderAta,
                 recipientAta,
+                transactions: txLog,
+            });
+        }
+    }, 300_000);
+
+    it('runs confidential mint → apply → burn → apply-pending-burn with decrypted balance checks', async () => {
+        const rpc = client.rpc as Rpc<SolanaRpcApi>;
+        const mint = await generateKeyPairSigner();
+
+        // The holder is deliberately NOT the mint authority. Supply keys derive from
+        // (mintAuthority, mint) and account keys from (owner, mint), so reusing `payer`
+        // for both would make the two key sets identical — and a wrapper that passed
+        // account keys where supply keys belong (or vice versa) would still pass on
+        // chain. A separate holder keeps the two distinguishable. It needs no SOL:
+        // `payer` covers every fee and rent, and `signTransactionMessageWithSigners`
+        // picks up the holder's signature from the message.
+        const holder = await generateKeyPairSigner();
+
+        const [ownerAta] = await findAssociatedTokenPda({
+            owner: holder.address,
+            mint: mint.address,
+            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+        });
+
+        const txLog: Array<{ step: string; signature: string }> = [];
+        const record = (step: string, signatures: Signature[]) =>
+            signatures.forEach((signature, i) =>
+                txLog.push({
+                    step: signatures.length > 1 ? `${step} [${i + 1}/${signatures.length}]` : step,
+                    signature,
+                }),
+            );
+        const step = async (label: string, feePayer: TransactionSigner, plan: InstructionPlan) =>
+            record(label, await runPlan(client, feePayer, plan));
+
+        // Supply keys (bound to the mint authority + mint) back the encrypted
+        // supply; they must be derived before the mint so their init values can
+        // be baked into the ConfidentialMintBurn extension.
+        const supplyKeys = await deriveConfidentialSupplyKeys({ signer: payer, mint: mint.address });
+        const ownerKeys = await deriveConfidentialKeysForOwnerMint({
+            signer: holder,
+            owner: holder.address,
+            mint: mint.address,
+        });
+        // Guard the point of using a separate holder: if these ever coincide, the
+        // supply/account key assertions below stop proving anything.
+        expect(new Uint8Array(supplyKeys.aes.toBytes())).not.toEqual(new Uint8Array(ownerKeys.aes.toBytes()));
+
+        try {
+            // 1. Create the mint with BOTH confidential-transfer and mint-burn
+            //    extensions (mint-burn requires the account to hold a confidential
+            //    balance). opt-in so the account self-configures.
+            const mintInit = getConfidentialMintBurnInit(supplyKeys);
+            const createMintTx = await new Token()
+                .withConfidentialBalances({ authority: payer.address, policy: 'opt-in' })
+                .withConfidentialMintBurn(mintInit)
+                .buildTransaction({
+                    rpc: rpc as Rpc<SolanaRpcApiMainnet>,
+                    decimals: DECIMALS,
+                    mintAuthority: payer,
+                    mint,
+                    feePayer: payer,
+                });
+            record('create-mint-burn-mint', [await signSendConfirm(rpc, createMintTx)]);
+            await waitForToken2022Account(rpc, mint.address);
+
+            // 2. Configure the owner's account for confidential transfers.
+            await step(
+                'configure-owner',
+                payer,
+                await createConfigureConfidentialAccountInstructionPlan({
+                    rpc,
+                    payer,
+                    owner: holder,
+                    mint: mint.address,
+                    keys: ownerKeys,
+                }),
+            );
+            await waitForToken2022Account(rpc, ownerAta);
+
+            // 3. Confidentially mint straight into the owner's pending balance.
+            await step(
+                'confidential-mint',
+                payer,
+                await createConfidentialMintInstructionPlan({
+                    rpc,
+                    payer,
+                    mint: mint.address,
+                    destinationToken: ownerAta,
+                    authority: payer,
+                    amount: CONFIDENTIAL_MINT_AMOUNT,
+                    supplyKeys,
+                }),
+            );
+
+            // 4. Apply the pending balance, then assert the decrypted available balance.
+            await step(
+                'apply-after-mint',
+                payer,
+                await createApplyConfidentialPendingBalanceInstructionPlan({
+                    rpc,
+                    tokenAccount: ownerAta,
+                    authority: holder,
+                    keys: ownerKeys,
+                }),
+            );
+            const afterMint = await inspectConfidentialAccount(rpc, ownerAta, ownerKeys);
+            expect(afterMint?.decrypted?.availableBalance).toBe(CONFIDENTIAL_MINT_AMOUNT);
+
+            // 5. Confidentially burn part of the available balance.
+            await step(
+                'confidential-burn',
+                payer,
+                await createConfidentialBurnInstructionPlan({
+                    rpc,
+                    payer,
+                    mint: mint.address,
+                    tokenAccount: ownerAta,
+                    authority: holder,
+                    amount: CONFIDENTIAL_BURN_AMOUNT,
+                    keys: ownerKeys,
+                }),
+            );
+            const afterBurn = await inspectConfidentialAccount(rpc, ownerAta, ownerKeys);
+            expect(afterBurn?.decrypted?.availableBalance).toBe(CONFIDENTIAL_MINT_AMOUNT - CONFIDENTIAL_BURN_AMOUNT);
+
+            // 6. Apply the mint's pending burn on the supply side (mint authority),
+            //    re-syncing the AES "decryptable supply" in the same plan.
+            //
+            //    `ApplyPendingBurn` alone advances the ElGamal supply but leaves the
+            //    AES value stale, and a confidential mint's equality proof is built
+            //    from the AES value and checked against the ElGamal one — so step 7
+            //    would be rejected on-chain while the two disagree. Passing
+            //    `resyncSupply` is what makes that impossible to forget; dropping it
+            //    here must fail the test, which is what makes this a regression gate
+            //    rather than decoration.
+            const supplyAfterBurn = CONFIDENTIAL_MINT_AMOUNT - CONFIDENTIAL_BURN_AMOUNT;
+            await step(
+                'apply-pending-burn-with-resync',
+                payer,
+                createApplyConfidentialPendingBurnInstructionPlan({
+                    mint: mint.address,
+                    authority: payer,
+                    resyncSupply: { supplyKeys, rawSupply: supplyAfterBurn },
+                }),
+            );
+
+            // 7. Mint again after the re-sync: proves the supply representations are
+            //    back in agreement and the documented cycle is actually repeatable.
+            await step(
+                'confidential-mint-after-resync',
+                payer,
+                await createConfidentialMintInstructionPlan({
+                    rpc,
+                    payer,
+                    mint: mint.address,
+                    destinationToken: ownerAta,
+                    authority: payer,
+                    amount: CONFIDENTIAL_MINT_AMOUNT,
+                    supplyKeys,
+                }),
+            );
+            await step(
+                'apply-after-second-mint',
+                payer,
+                await createApplyConfidentialPendingBalanceInstructionPlan({
+                    rpc,
+                    tokenAccount: ownerAta,
+                    authority: holder,
+                    keys: ownerKeys,
+                }),
+            );
+            const afterSecondMint = await inspectConfidentialAccount(rpc, ownerAta, ownerKeys);
+            expect(afterSecondMint?.decrypted?.availableBalance).toBe(supplyAfterBurn + CONFIDENTIAL_MINT_AMOUNT);
+        } finally {
+            freeConfidentialKeys(supplyKeys);
+            freeConfidentialKeys(ownerKeys);
+            emitArtefacts({
+                run: 'mint-burn',
+                cluster: clusterParam(RPC_URL),
+                mint: mint.address,
+                payer: payer.address,
+                recipient: holder.address,
+                senderAta: ownerAta,
+                recipientAta: ownerAta,
                 transactions: txLog,
             });
         }

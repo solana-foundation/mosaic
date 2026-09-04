@@ -34,7 +34,7 @@ export const statusCommand = new Command('status')
             spinner.stop();
 
             // Display status
-            console.log(chalk.cyan('\\n📋 Token Pause Status'));
+            console.log(chalk.cyan('\n📋 Token Pause Status'));
             console.log(chalk.cyan('━'.repeat(50)));
             console.log(`${chalk.bold('Mint Address:')} ${options.mintAddress}`);
             console.log(

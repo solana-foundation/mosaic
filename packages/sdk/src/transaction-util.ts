@@ -20,7 +20,7 @@ import {
     getTransactionCodec,
     getBase64EncodedWireTransaction,
 } from '@solana/kit';
-import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import { fetchMint, findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { TOKEN_ACL_PROGRAM_ID } from './token-acl/utils.js';
 
@@ -233,6 +233,110 @@ export async function getMintDetails(rpc: Rpc<SolanaRpcApi>, mint: Address, comm
         /** The token program that owns this mint (Token-2022 or SPL Token) */
         programAddress: accountInfo.value.owner,
     };
+}
+
+/**
+ * Whether a mint carries the Token-2022 `ConfidentialMintBurn` extension.
+ *
+ * A `ConfidentialMintBurn` mint tracks its supply as an encrypted value, so the
+ * Token-2022 program rejects plaintext `MintTo` / `Burn` on it
+ * (`IllegalMintBurnConversion`). All issuance/redemption must go through the
+ * confidential mint/burn path in `@solana/mosaic-sdk/confidential`. The plaintext
+ * mint/burn builders use this to fail fast with an actionable message instead of
+ * building a transaction the chain would reject.
+ *
+ * This does its own `fetchMint` and decodes the mint with the Codama decoder, so
+ * unlike {@link mintHasConfidentialMintBurnExtension} it does not depend on the
+ * RPC node recognizing the extension in `jsonParsed` output. Use it for a
+ * standalone check, or where a false negative would be worse than a second mint
+ * read. Builders that already fetch the mint via {@link getMintDetails} pass the
+ * decoded `extensions` to `mintHasConfidentialMintBurnExtension` instead, to
+ * avoid that extra read.
+ *
+ * @param rpc - The Solana RPC client instance
+ * @param mint - The mint address
+ * @returns Promise resolving to true if the mint has the ConfidentialMintBurn extension
+ */
+export async function isConfidentialMintBurnMint(rpc: Rpc<SolanaRpcApi>, mint: Address): Promise<boolean> {
+    const { data } = await fetchMint(rpc, mint);
+    return data.extensions.__option === 'Some' && data.extensions.value.some(e => e.__kind === 'ConfidentialMintBurn');
+}
+
+/** A mint account as decoded by `fetchMint` / `decodeMint`. */
+export type DecodedMint = Awaited<ReturnType<typeof fetchMint>>;
+
+/**
+ * Returns the `PermissionedBurn` extension's configured authority on an
+ * already-decoded mint, or `null` if the mint has no `PermissionedBurn`
+ * extension or its authority is cleared — both of which allow the standard
+ * (non-permissioned) burn variant. When set, Token-2022 rejects the standard
+ * burn and requires the permissioned variant with this authority as an extra
+ * signer.
+ *
+ * Pure counterpart to `getPermissionedBurnAuthority` in
+ * `./management/permissioned-burn`, which fetches and decodes the mint itself
+ * and then delegates here. Both the plaintext and the confidential burn builders
+ * read the authority through this one implementation.
+ *
+ * @param mint - A mint decoded by `fetchMint` / `decodeMint`
+ * @returns The configured burn authority address, or null
+ */
+export function getPermissionedBurnAuthorityFromMint(mint: DecodedMint): Address | null {
+    if (mint.data.extensions?.__option !== 'Some') {
+        return null;
+    }
+    const ext = mint.data.extensions.value.find(e => e.__kind === 'PermissionedBurn');
+    if (!ext || ext.__kind !== 'PermissionedBurn') {
+        return null;
+    }
+    return ext.authority?.__option === 'Some' ? ext.authority.value : null;
+}
+
+/**
+ * Pure counterpart to {@link isConfidentialMintBurnMint}: checks the jsonParsed
+ * extensions already returned by {@link getMintDetails} for `confidentialMintBurn`,
+ * so a caller that has fetched the mint doesn't need a second read to fail fast.
+ *
+ * The key matches Agave's `UiExtension` serialization (`rename_all = "camelCase"`,
+ * `tag = "extension"`). Note that an RPC node too old to know the extension emits
+ * `unparseableExtension` instead, in which case this returns false and the guard
+ * silently passes; {@link isConfidentialMintBurnMint} decodes the mint directly
+ * and is immune to that.
+ *
+ * @param extensions - The jsonParsed extensions from {@link getMintDetails}
+ * @returns True if the mint has the ConfidentialMintBurn extension
+ */
+export function mintHasConfidentialMintBurnExtension(
+    extensions: Array<{ extension: string; state?: Record<string, unknown> }>,
+): boolean {
+    return extensions.some(ext => ext.extension === 'confidentialMintBurn');
+}
+
+/**
+ * The error message used whenever a plaintext↔confidential conversion is
+ * attempted on a `ConfidentialMintBurn` mint. Token-2022 rejects `MintTo`,
+ * `Burn`, `ConfidentialDeposit` and `ConfidentialWithdraw` on such a mint with
+ * `IllegalMintBurnConversion`, because its supply is tracked only as an
+ * encrypted value — there is no plaintext side to convert to or from.
+ *
+ * @param mint - The mint address, for the message
+ * @param operation - What the caller tried to do (e.g. `'plaintext minting'`)
+ * @param alternative - The confidential builder to use instead, or null when the
+ *   operation has no confidential equivalent
+ */
+export function confidentialMintBurnConversionError(
+    mint: Address,
+    operation: string,
+    alternative: string | null,
+): Error {
+    return new Error(
+        `Mint ${mint} has the ConfidentialMintBurn extension enabled; ${operation} is not supported. ` +
+            (alternative
+                ? `Use the confidential path (${alternative}) from @solana/mosaic-sdk/confidential instead.`
+                : `A ConfidentialMintBurn mint has no plaintext balance side: issue and redeem supply with ` +
+                  `createConfidentialMintInstructionPlan / createConfidentialBurnInstructionPlan from ` +
+                  `@solana/mosaic-sdk/confidential.`),
+    );
 }
 
 /**

@@ -42,6 +42,10 @@ function seedEncodedMint(rpc: Rpc<SolanaRpcApi>, input: { permissionedBurnAuthor
 
 function mockTransactionUtil(): void {
     jest.doMock('../../transaction-util.js', () => ({
+        // Keep the real pure helpers (decoded-mint predicates, error builders); only
+        // the RPC-backed ones below are stubbed. Without this, adding a pure helper
+        // to transaction-util silently breaks these tests with "not a function".
+        ...jest.requireActual('../../transaction-util.js'),
         resolveTokenAccount: jest.fn().mockResolvedValue({
             tokenAccount,
             isInitialized: true,
@@ -58,6 +62,7 @@ function mockTransactionUtil(): void {
             programAddress: TOKEN_2022_PROGRAM_ADDRESS,
         }),
         isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
+        mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
     }));
 }
 

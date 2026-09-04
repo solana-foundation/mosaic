@@ -53,20 +53,21 @@
     },
     "packageManager": "pnpm@10.24.0",
     "pnpm": {
-        "_dependencyNotes": "These overrides pin the whole workspace onto the Solana Kit v6 ecosystem. Kit is capped at 6.x (not the newer 7.x) because the token-acl SDKs (@solana/token-acl-sdk, @solana/token-acl-gate-sdk) peer-depend on @solana/kit ^6.0.0. @solana-program/token-2022 is pinned to 0.10.0 (which already peers kit ^6): it still ships the confidential-transfer InstructionPlan/derive helpers the confidential feature needs, which were removed in 0.12.0. @solana/token-acl-sdk@0.4.0 hard-depends on token-2022 0.12.0 but is forced down to 0.10.0 here — safe because it only consumes stable core token-2022 exports unchanged across 0.10-0.12. Two packages still declare v5 kit ranges but are safe on v6 because they only touch codecs/signers/addresses (unchanged v5->v6): @solana-program/zk-elgamal-proof and @solana/connector are forced onto v6 via the @solana/kit override and the @solana/* transitive overrides. See packages/sdk/package.json `_dependencyNotes`.",
+        "_dependencyNotes": "@solana-program/token-2022 is pinned to the PUBLISHED 0.15.0 (no tarball, no patch). 0.15.0 is the FLOOR for confidential mint/burn: it is the first release carrying the upstreamed InstructionPlan helpers (getConfidentialMintInstructionPlan / getConfidentialBurnInstructionPlan / getPermissionedConfidentialBurnInstructionPlan / getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply) from https://github.com/solana-program/token-2022/pull/1357 (merged 2026-08-12, shipped 2026-08-13) — 0.13.0 and 0.14.x do NOT have them. Mosaic's mint.ts/burn.ts/supply.ts delegate straight to @solana-program/token-2022/confidential; the former local proof implementation (ciphertext-math.ts / mint-burn-proof.ts / mint-burn-util.ts, on @noble/curves) is deleted, and @noble/curves is now an internal token-2022 dependency rather than a Mosaic one. Also note token-2022 must be >=0.13.0 on kit v7 regardless: 0.12.0's compiled code imports getMinimumBalanceForRentExemption from @solana/kit, which kit v7 removed. 0.15.0 additionally moves two peers, which is why the pins below moved with it: @solana/zk-sdk to ^0.5.1 (purely additive vs 0.4.2 — it only adds a ConfidentialKeys class, which does not collide with Mosaic's same-named type because zk-sdk is re-exported only through the separate @solana/mosaic-sdk/_zk subpath) and @solana-program/zk-elgamal-proof to ^0.3.2 (every symbol confidential/proof.ts imports still exists, and 0.3.2 declares kit ^7 natively). @solana/token-acl-sdk@0.4.0 declares an exact token-2022 0.12.0 dependency; the override forces it up to 0.15.0 — safe because it only consumes stable core exports (TOKEN_2022_PROGRAM_ADDRESS, getMintDecoder, ATA/metadata helpers, AccountState, Mint), unchanged across 0.10-0.15. @solana/token-acl-sdk / @solana/token-acl-gate-sdk / @solana/connector declare kit <=6 peer ranges but run correctly on kit v7 (they only touch codecs/signers/addresses; the only v7 breaking changes — a type-only codec-union return-type widening, ReactiveStreamStore.connect(), a new instruction-planning error — are not exercised) and are forced onto v7 via the @solana/kit + @solana/* overrides. @solana-program/system and @solana-program/memo are on their kit-v7-native releases (0.13.0 / 0.12.0). See packages/sdk/package.json `_dependencyNotes`. NO PATCHES: nothing in this repo is `pnpm patch`ed any more. Historically @solana/zk-sdk WAS patched (through 0.5.1) to make its ./bundler subpath condition-aware, because token-2022's confidential.mjs hardcodes `@solana/zk-sdk/bundler` (the ESM+wasm bundler build) which can't load under Node (`Unknown file extension .wasm`) and, if forced, yields a dual-WASM `expected instance of ElGamalKeypair` mismatch. @solana/zk-sdk 0.5.2 (published 2026-08-27) ships that fix upstream — https://github.com/solana-program/zk-elgamal-proof/pull/519 added a `node` condition on ./bundler (pointing at the CJS node build, with types) AND a condition-aware root `.` export plus a `main` field, which was the stated removal criterion for the patch. 0.5.2 is otherwise byte-identical to 0.5.1 (dist/node/*, dist/bundler/*, dist/web/index.js all unchanged): the release is packaging metadata only, zero API change. The zk-sdk override REMAINS pinned exactly (0.5.2, not ^0.5.2) for a different reason than before — it guarantees exactly ONE resolved zk-sdk copy across the tree; a second copy reintroduces the dual-WASM class-identity mismatch. The corresponding packages/sdk/jest.config.js `@solana/zk-sdk/bundler` remap is likewise removed: jest runs with testEnvironment 'node' and now honours the upstream `node` condition on its own. NOTE: packages/sdk/src/confidential/_zk.{node,browser}.ts and the `./_zk` export in packages/sdk/package.json are NOT workarounds and must stay — they are Mosaic's own deliberate build-selection indirection.",
         "overrides": {
-            "@solana/kit": "^6.10.0",
-            "@solana/accounts": "^6.0.0",
-            "@solana/addresses": "^6.0.0",
-            "@solana/signers": "^6.0.0",
-            "@solana/rpc": "^6.0.0",
-            "@solana/rpc-types": "^6.0.0",
-            "@solana/transactions": "^6.0.0",
-            "@solana/transaction-messages": "^6.0.0",
-            "@solana/keys": "^6.0.0",
-            "@solana/codecs": "^6.0.0",
-            "@solana-program/system": "0.12.2",
-            "@solana-program/token-2022": "0.10.0"
+            "@solana/kit": "^7.0.0",
+            "@solana/accounts": "^7.0.0",
+            "@solana/addresses": "^7.0.0",
+            "@solana/signers": "^7.0.0",
+            "@solana/rpc": "^7.0.0",
+            "@solana/rpc-types": "^7.0.0",
+            "@solana/transactions": "^7.0.0",
+            "@solana/transaction-messages": "^7.0.0",
+            "@solana/keys": "^7.0.0",
+            "@solana/codecs": "^7.0.0",
+            "@solana-program/system": "0.13.0",
+            "@solana-program/token-2022": "0.15.0",
+            "@solana/zk-sdk": "0.5.2"
         }
     }
 }
