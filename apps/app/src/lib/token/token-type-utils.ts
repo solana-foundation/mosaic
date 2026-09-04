@@ -4,6 +4,7 @@ export const TOKEN_TYPE_LABELS: Record<TokenType, string> = {
     stablecoin: 'Stablecoin',
     'arcade-token': 'Arcade Token',
     'tokenized-security': 'Tokenized Security',
+    mmf: 'Money Market Fund',
     unknown: 'Unknown',
 };
 

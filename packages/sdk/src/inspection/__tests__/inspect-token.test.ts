@@ -343,32 +343,53 @@ describe('Helper functions', () => {
     });
 
     describe('detectTokenPatterns', () => {
-        it('should correctly identify stablecoin pattern', () => {
+        // One case per template in packages/sdk/src/templates/, using the mint
+        // extension set each template actually creates. The patterns must be
+        // mutually exclusive: exactly one match per template.
+        it('identifies the stablecoin template as stablecoin only', () => {
             const extensions = [
+                { name: 'MetadataPointer' },
                 { name: 'TokenMetadata' },
-                { name: 'PermanentDelegate' },
+                { name: 'PausableConfig' },
                 { name: 'DefaultAccountState' },
                 { name: 'ConfidentialTransferMint' },
-            ];
-
-            const patterns = detectTokenPatterns(extensions);
-
-            expect(patterns).toEqual(['stablecoin']);
-        });
-
-        it('should correctly identify arcade token pattern', () => {
-            const extensions = [
-                { name: 'TokenMetadata' },
                 { name: 'PermanentDelegate' },
-                { name: 'DefaultAccountState' },
             ];
 
-            const patterns = detectTokenPatterns(extensions);
-
-            expect(patterns).toEqual(['arcade-token']);
+            expect(detectTokenPatterns(extensions)).toEqual(['stablecoin']);
         });
 
-        it('should correctly identify tokenized security pattern', () => {
+        it('identifies the arcade token template as arcade-token only', () => {
+            const extensions = [
+                { name: 'MetadataPointer' },
+                { name: 'TokenMetadata' },
+                { name: 'PausableConfig' },
+                { name: 'DefaultAccountState' },
+                { name: 'PermanentDelegate' },
+            ];
+
+            expect(detectTokenPatterns(extensions)).toEqual(['arcade-token']);
+        });
+
+        it('identifies the tokenized security template as tokenized-security only', () => {
+            // The tokenized-security template produces the full stablecoin set
+            // plus PermissionedBurn and ScaledUiAmountConfig — it must NOT also
+            // report as a stablecoin or arcade token.
+            const extensions = [
+                { name: 'MetadataPointer' },
+                { name: 'TokenMetadata' },
+                { name: 'PausableConfig' },
+                { name: 'DefaultAccountState' },
+                { name: 'ConfidentialTransferMint' },
+                { name: 'PermanentDelegate' },
+                { name: 'PermissionedBurn' },
+                { name: 'ScaledUiAmountConfig' },
+            ];
+
+            expect(detectTokenPatterns(extensions)).toEqual(['tokenized-security']);
+        });
+
+        it('identifies a minimal security-shaped set as tokenized-security only', () => {
             const extensions = [
                 { name: 'TokenMetadata' },
                 { name: 'PermanentDelegate' },
@@ -376,9 +397,49 @@ describe('Helper functions', () => {
                 { name: 'ScaledUiAmountConfig' },
             ];
 
-            const patterns = detectTokenPatterns(extensions);
+            expect(detectTokenPatterns(extensions)).toEqual(['tokenized-security']);
+        });
 
-            expect(patterns).toEqual(['tokenized-security', 'arcade-token']);
+        it('identifies the mmf template as mmf only', () => {
+            const extensions = [
+                { name: 'MetadataPointer' },
+                { name: 'TokenMetadata' },
+                { name: 'PausableConfig' },
+                { name: 'DefaultAccountState' },
+                { name: 'PermanentDelegate' },
+                { name: 'TransferHook' },
+            ];
+
+            expect(detectTokenPatterns(extensions)).toEqual(['mmf']);
+        });
+
+        it('identifies the mmf template with confidential balances as mmf only', () => {
+            // With enableConfidential the mmf set becomes a superset of the
+            // stablecoin set — it must still report only as mmf.
+            const extensions = [
+                { name: 'MetadataPointer' },
+                { name: 'TokenMetadata' },
+                { name: 'PausableConfig' },
+                { name: 'DefaultAccountState' },
+                { name: 'PermanentDelegate' },
+                { name: 'TransferHook' },
+                { name: 'ConfidentialTransferMint' },
+            ];
+
+            expect(detectTokenPatterns(extensions)).toEqual(['mmf']);
+        });
+
+        it('reports a custom token that matches no template as unknown', () => {
+            // The custom-token template allows arbitrary extension combinations;
+            // one that fits no predefined shape must fall through to 'unknown'.
+            const extensions = [
+                { name: 'MetadataPointer' },
+                { name: 'TokenMetadata' },
+                { name: 'TransferFeeConfig' },
+                { name: 'NonTransferable' },
+            ];
+
+            expect(detectTokenPatterns(extensions)).toEqual(['unknown']);
         });
     });
 
