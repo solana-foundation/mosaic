@@ -28,7 +28,7 @@ import { useTokenExtensionStore, usePauseState } from '@/stores/token-extension-
 import { humanizeError } from '@/lib/errors';
 import { TokenOverview } from '@/features/token-management/components/token-overview';
 import { TokenAuthorities } from '@/features/token-management/components/token-authorities';
-import { TokenExtensions } from '@/features/token-management/components/token-extensions';
+import { TokenExtensions, mapDisplayNameToSdkName } from '@/features/token-management/components/token-extensions';
 import { TransferRestrictions } from '@/features/token-management/components/transfer-restrictions';
 import { AddressModal } from '@/features/token-management/components/modals/address-modal';
 import { MintModalContent } from '@/features/token-management/components/modals/mint-modal-refactored';
@@ -142,6 +142,15 @@ function ManageTokenConnected({ address }: { address: string }) {
         if (!cluster?.url) return null;
         return createSolanaRpc(cluster.url) as Rpc<SolanaRpcApi>;
     }, [cluster?.url]);
+
+    // Creation stores human labels (`Confidential Balances (Opt-in)`) while
+    // on-chain discovery stores SDK names, so normalise before matching —
+    // comparing against the raw SDK name alone never matched an app-created
+    // token and left the wizard with no entry point at all.
+    const hasConfidentialBalances = useMemo(
+        () => !!token?.extensions?.some(ext => mapDisplayNameToSdkName(ext) === 'ConfidentialTransferMint'),
+        [token?.extensions],
+    );
 
     const loadedAccessListRef = useRef<string | null>(null);
 
@@ -494,13 +503,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                         </div>
 
                         <div className="flex space-x-2">
-                            {token?.extensions?.includes('ConfidentialTransferMint') && (
+                            {hasConfidentialBalances && (
                                 <Link href={`/confidential/${address}`}>
-                                    <Button
-                                        size="sm"
-                                        variant="secondary"
-                                        className="bg-primary/5 hover:bg-primary/10"
-                                    >
+                                    <Button size="sm" variant="secondary" className="bg-primary/5 hover:bg-primary/10">
                                         <Lock className="h-4 w-4 mr-1.5 text-primary/60" />
                                         Confidential
                                     </Button>
