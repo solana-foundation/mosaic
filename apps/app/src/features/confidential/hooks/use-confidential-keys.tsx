@@ -1,58 +1,89 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { useConnector } from '@solana/connector/react';
 import { useTransactionSigner } from '@solana/connector';
+import { getWallets } from '@wallet-standard/core';
 import type { Address } from '@solana/kit';
-import type { ConfidentialKeys } from '@solana/mosaic-sdk/confidential';
-import {
-    createConnectorMessageSigner,
-    createResilientSignMessage,
-    type ConnectorSignMessage,
-} from '../lib/message-signer-adapter';
+import type { ConfidentialKeys, SignMessage } from '@solana/mosaic-sdk/confidential';
 
 /**
  * In-memory cache of the ElGamal + AES keys for confidential accounts, keyed by
- * `(owner, mint)`.
+ * the wallet **owner alone**.
  *
- * The keys are derived deterministically from a wallet signature
- * (`deriveConfidentialKeysForOwnerMint`), so they never need persisting — but
- * deriving prompts the wallet, so we derive once per `(owner, mint)` and reuse
- * the result for the session. The keys own WASM memory, so they are freed when
+ * Derivation is wallet-only (`deriveConfidentialKeys` signs the canonical
+ * `solana-conf-bal/v1` message over an empty seed), so one wallet has exactly
+ * one keypair covering every mint and token account it holds — caching per mint
+ * would cost one wallet prompt per mint for identical keys.
+ *
+ * The keys are reproducible from a wallet signature, so they never need
+ * persisting — but deriving prompts the wallet, so we derive once per owner and
+ * reuse the result for the session. They own WASM memory, so they are freed when
  * the wallet disconnects/switches or the provider unmounts.
  */
 interface ConfidentialKeysContextValue {
     /** Whether a wallet capable of message signing is connected. */
     canDerive: boolean;
-    /** Derives (or returns the cached) keys for `mint` under the connected wallet. */
-    getKeys: (mint: Address) => Promise<ConfidentialKeys>;
+    /** Derives (or returns the cached) confidential keys for the connected wallet. */
+    getKeys: () => Promise<ConfidentialKeys>;
 }
 
 const ConfidentialKeysContext = createContext<ConfidentialKeysContextValue | null>(null);
+
+/**
+ * Whether the browser's Wallet Standard registry holds a wallet that can sign
+ * messages for `owner`. This is the path `createResilientSignMessage` tries
+ * first, and checking it costs no WASM — so the page can warn about an
+ * incompatible wallet before anything has been spent on-chain.
+ */
+function useWalletStandardCanSignMessage(owner: Address | undefined): boolean {
+    const subscribe = useCallback((onChange: () => void) => {
+        const wallets = getWallets();
+        const offRegister = wallets.on('register', onChange);
+        const offUnregister = wallets.on('unregister', onChange);
+        return () => {
+            offRegister();
+            offUnregister();
+        };
+    }, []);
+
+    const getSnapshot = useCallback(() => {
+        if (!owner) return false;
+        return getWallets()
+            .get()
+            .some(
+                wallet =>
+                    typeof (wallet.features['solana:signMessage'] as { signMessage?: unknown } | undefined)
+                        ?.signMessage === 'function' && wallet.accounts.some(account => account.address === owner),
+            );
+    }, [owner]);
+
+    // The registry is browser-only; server rendering always reports false.
+    return useSyncExternalStore(subscribe, getSnapshot, () => false);
+}
 
 export function ConfidentialKeysProvider({ children }: { children: React.ReactNode }) {
     const { selectedAccount } = useConnector();
     // Deliberately the *connector* signer, not the kit-adapted one: the kit
     // adapter (`createKitTransactionSigner`) returns a fresh object exposing only
-    // `address` and `modifyAndSignTransactions`, dropping `signMessage`. Reading
-    // through it makes `canDerive` false for every wallet and the whole feature
-    // unreachable. The connector signer carries the optional single-message
-    // primitive, gated by `capabilities.canSignMessage`.
+    // `address` and `modifyAndSignTransactions`, dropping `signMessage`. The
+    // connector signer carries the optional single-message primitive, gated by
+    // `capabilities.canSignMessage`. It is only ever the *fallback* — see
+    // `createResilientSignMessage`, which prefers the Wallet Standard registry
+    // because the connector's own message path is broken for both the wallets it
+    // demotes (Phantom) and the ones it accepts.
     const { signer, capabilities } = useTransactionSigner();
 
     const owner = selectedAccount ? (String(selectedAccount) as Address) : undefined;
 
-    // The connector's own `signMessage` is broken for any wallet it demotes to
-    // its legacy path (Phantom included), so pair it with a direct call through
-    // the Wallet Standard registry. See `createResilientSignMessage`.
-    const signMessage = useMemo(() => {
-        const connectorSignMessage = capabilities.canSignMessage
-            ? (signer as { signMessage?: ConnectorSignMessage } | null)?.signMessage
-            : undefined;
-        return createResilientSignMessage(owner, connectorSignMessage);
-    }, [owner, capabilities.canSignMessage, signer]);
+    const connectorSignMessage = useMemo<SignMessage | undefined>(() => {
+        if (!capabilities.canSignMessage) return undefined;
+        return (signer as { signMessage?: SignMessage } | null)?.signMessage;
+    }, [capabilities.canSignMessage, signer]);
 
-    // Cache + in-flight derivations, keyed by `${owner}:${mint}`.
+    const walletStandardCanSign = useWalletStandardCanSignMessage(owner);
+
+    // Cache + in-flight derivations, keyed by owner.
     const cacheRef = useRef<Map<string, ConfidentialKeys>>(new Map());
     const inflightRef = useRef<Map<string, Promise<ConfidentialKeys>>>(new Map());
 
@@ -77,43 +108,46 @@ export function ConfidentialKeysProvider({ children }: { children: React.ReactNo
         };
     }, [owner, freeAll]);
 
-    const getKeys = useCallback(
-        async (mint: Address): Promise<ConfidentialKeys> => {
-            if (!owner) throw new Error('Connect a wallet to derive confidential keys.');
+    const getKeys = useCallback(async (): Promise<ConfidentialKeys> => {
+        if (!owner) throw new Error('Connect a wallet to derive confidential keys.');
+
+        const cached = cacheRef.current.get(owner);
+        if (cached) return cached;
+
+        const existing = inflightRef.current.get(owner);
+        if (existing) return existing;
+
+        const derivation = (async () => {
+            // Both imports are deferred so the `@solana/zk-sdk` WASM stays off
+            // the initial route bundle — the wallet-standard subpath pulls it at
+            // module scope to precompute the canonical derivation message.
+            const [{ deriveConfidentialKeys }, { createResilientSignMessage, createMessageSigner }] = await Promise.all(
+                [import('@solana/mosaic-sdk/confidential'), import('@solana/mosaic-sdk/confidential/wallet-standard')],
+            );
+
+            const signMessage = createResilientSignMessage(owner, connectorSignMessage);
             if (!signMessage) {
                 throw new Error(
                     'The connected wallet does not support message signing, which is required to derive confidential keys.',
                 );
             }
 
-            const key = `${owner}:${mint}`;
-            const cached = cacheRef.current.get(key);
-            if (cached) return cached;
+            const keys = await deriveConfidentialKeys({ signer: createMessageSigner(owner, signMessage) });
+            cacheRef.current.set(owner, keys);
+            inflightRef.current.delete(owner);
+            return keys;
+        })().catch(err => {
+            inflightRef.current.delete(owner);
+            throw err;
+        });
 
-            const existing = inflightRef.current.get(key);
-            if (existing) return existing;
-
-            const derivation = (async () => {
-                const { deriveConfidentialKeysForOwnerMint } = await import('@solana/mosaic-sdk/confidential');
-                const messageSigner = createConnectorMessageSigner(owner, signMessage);
-                const keys = await deriveConfidentialKeysForOwnerMint({ signer: messageSigner, owner, mint });
-                cacheRef.current.set(key, keys);
-                inflightRef.current.delete(key);
-                return keys;
-            })().catch(err => {
-                inflightRef.current.delete(key);
-                throw err;
-            });
-
-            inflightRef.current.set(key, derivation);
-            return derivation;
-        },
-        [owner, signMessage],
-    );
+        inflightRef.current.set(owner, derivation);
+        return derivation;
+    }, [owner, connectorSignMessage]);
 
     const value = useMemo<ConfidentialKeysContextValue>(
-        () => ({ canDerive: !!owner && !!signMessage, getKeys }),
-        [owner, signMessage, getKeys],
+        () => ({ canDerive: !!owner && (walletStandardCanSign || !!connectorSignMessage), getKeys }),
+        [owner, walletStandardCanSign, connectorSignMessage, getKeys],
     );
 
     return <ConfidentialKeysContext.Provider value={value}>{children}</ConfidentialKeysContext.Provider>;

@@ -33,11 +33,10 @@ export interface UseConfidentialAccountResult {
  * signature; cached thereafter).
  */
 export function useConfidentialAccount(input: {
-    mint: Address;
     tokenAccount: Address | undefined;
     rpc: Rpc<SolanaRpcApi> | null;
 }): UseConfidentialAccountResult {
-    const { mint, tokenAccount, rpc } = input;
+    const { tokenAccount, rpc } = input;
     const { getKeys, canDerive } = useConfidentialKeys();
 
     const [state, setState] = useState<ConfidentialAccountState | null>(null);
@@ -53,7 +52,7 @@ export function useConfidentialAccount(input: {
             setError(null);
             try {
                 const { fetchConfidentialAccountState } = await import('@solana/mosaic-sdk/confidential');
-                const keys = withReveal ? await getKeys(mint) : undefined;
+                const keys = withReveal ? await getKeys() : undefined;
                 const next = await fetchConfidentialAccountState(
                     rpc,
                     tokenAccount,
@@ -68,7 +67,7 @@ export function useConfidentialAccount(input: {
                 setIsLoading(false);
             }
         },
-        [rpc, tokenAccount, mint, getKeys],
+        [rpc, tokenAccount, getKeys],
     );
 
     const refresh = useCallback(() => void load(isRevealed), [load, isRevealed]);

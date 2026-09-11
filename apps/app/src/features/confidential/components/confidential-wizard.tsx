@@ -125,7 +125,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
         };
     }, [rpc, mint]);
 
-    const confAccount = useConfidentialAccount({ mint, tokenAccount, rpc });
+    const confAccount = useConfidentialAccount({ tokenAccount, rpc });
     const tokenBalance = useTokenBalance(mint);
 
     const { isConfigured, refresh } = confAccount;
@@ -189,7 +189,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
 
     const handleConfigure = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
         runPlan(async () => {
-            const keys = await getKeys(mint);
+            const keys = await getKeys();
             return buildConfigurePlan({ rpc: rpc!, payer: authority, owner: authority, mint, keys });
         }, onProgress);
 
@@ -211,13 +211,13 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
 
     const handleApply = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
         runPlan(async () => {
-            const keys = await getKeys(mint);
+            const keys = await getKeys();
             return buildApplyPlan({ rpc: rpc!, tokenAccount: tokenAccount!, authority, keys });
         }, onProgress);
 
     const handleTransfer = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
         runPlan(async () => {
-            const keys = await getKeys(mint);
+            const keys = await getKeys();
             const destinationToken = await resolveAta(v.address! as Address, mint);
             return buildTransferPlan({
                 rpc: rpc!,
@@ -233,7 +233,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
 
     const handleWithdraw = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
         runPlan(async () => {
-            const keys = await getKeys(mint);
+            const keys = await getKeys();
             return buildWithdrawPlan({
                 rpc: rpc!,
                 payer: authority,
@@ -247,7 +247,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
 
     const handleEmpty = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
         runPlan(async () => {
-            const keys = await getKeys(mint);
+            const keys = await getKeys();
             return buildEmptyPlan({ rpc: rpc!, payer: authority, tokenAccount: tokenAccount!, authority, keys });
         }, onProgress);
 
