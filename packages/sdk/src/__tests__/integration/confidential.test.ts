@@ -162,6 +162,27 @@ function emitArtefacts(a: Artefacts): void {
 }
 
 /**
+ * Every message in an error's `cause` chain, joined.
+ *
+ * Kit wraps the underlying failure: a 429 from `simulateTransaction` surfaces as
+ * `SolanaError: Failed to estimate the compute unit consumption for this
+ * transaction message`, with `HTTP error (429): Too Many Requests` only on
+ * `cause`. Matching the outer message alone therefore lets rate limits escape
+ * the backoff below — which is exactly how a version-1 run fails on public
+ * devnet while version 0, making fewer simulate calls, slips under the limit.
+ */
+function messageChain(err: unknown): string {
+    const parts: string[] = [];
+    let current: unknown = err;
+    // Bounded: a malformed `cause` graph could otherwise cycle forever.
+    for (let depth = 0; current instanceof Error && depth < 8; depth++) {
+        parts.push(current.message);
+        current = current.cause;
+    }
+    return parts.join(' | ');
+}
+
+/**
  * Runs an RPC call, retrying on HTTP 429 with exponential backoff. The public
  * devnet endpoint rate-limits this flow's many sequential calls, so every RPC
  * read/send goes through here.
@@ -172,13 +193,46 @@ async function withBackoff<T>(label: string, fn: () => Promise<T>): Promise<T> {
         try {
             return await fn();
         } catch (err) {
-            const msg = (err as Error).message ?? '';
-            if (!/429|Too Many Requests/i.test(msg)) throw err;
+            if (!/429|Too Many Requests/i.test(messageChain(err))) throw err;
             await sleep(delay);
             delay = Math.min(delay * 2, 8_000);
         }
     }
     throw new Error(`${label}: exhausted retries after repeated 429s`);
+}
+
+/**
+ * Wraps an RPC client so every request retries on 429, including the ones the
+ * SDK's own plan builders make internally.
+ *
+ * {@link withBackoff} only covers the calls this file makes by hand. The
+ * confidential builders also hit the RPC while building proofs (rent lookups in
+ * token-2022's `buildContextStateProofPlan`, for one), and those were escaping
+ * the backoff entirely. It shows up at version 1 rather than version 0 because
+ * v1 needs far fewer transactions and so drives the whole flow fast enough to
+ * stay inside the public endpoint's rate-limit window.
+ */
+function withRpcBackoff<TRpc extends object>(rpc: TRpc): TRpc {
+    return new Proxy(rpc, {
+        get(target, prop, receiver) {
+            const method = Reflect.get(target, prop, receiver);
+            if (typeof method !== 'function') return method;
+            return (...args: unknown[]) => {
+                const pending = (method as (...a: unknown[]) => unknown).apply(target, args);
+                if (typeof pending !== 'object' || pending === null || !('send' in pending)) return pending;
+                return new Proxy(pending, {
+                    get(pendingTarget, pendingProp, pendingReceiver) {
+                        if (pendingProp !== 'send') return Reflect.get(pendingTarget, pendingProp, pendingReceiver);
+                        const send = Reflect.get(pendingTarget, 'send', pendingReceiver) as (
+                            ...a: unknown[]
+                        ) => Promise<unknown>;
+                        return (...sendArgs: unknown[]) =>
+                            withBackoff(String(prop), () => send.apply(pendingTarget, sendArgs));
+                    },
+                });
+            };
+        },
+    });
 }
 
 // Transient public-devnet conditions: rate limits, load-balanced nodes lagging
@@ -238,7 +292,7 @@ async function signSendConfirm(rpc: Rpc<SolanaRpcApi>, baseMessage: unknown): Pr
             throw new Error(`Transaction ${signature} not confirmed within 45s`);
         } catch (err) {
             lastErr = err;
-            if (!TRANSIENT.test((err as Error).message ?? '')) throw err;
+            if (!TRANSIENT.test(messageChain(err))) throw err;
             await sleep(2_000); // let lagging nodes catch up, then retry with a fresh blockhash
         }
     }
@@ -326,7 +380,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
     let payer: KeyPairSigner<string>;
 
     beforeAll(async () => {
-        const rpc = createSolanaRpc(RPC_URL);
+        const rpc = withRpcBackoff(createSolanaRpc(RPC_URL));
         client = { rpc, rpcSubscriptions: undefined as never } as unknown as Client;
 
         // Sanity: the proof program must be live on this cluster.
