@@ -58,15 +58,20 @@ export function tokenAmountToRaw(amount: TokenAmount, decimals: number): bigint 
 
 /**
  * Resolves a {@link TokenAmount} to a raw `bigint`, fetching the mint to read
- * its decimals. Returns the resolved raw amount and the decimals. When the mint
- * has already been fetched, prefer {@link tokenAmountToRaw} to avoid a second
- * RPC.
+ * its decimals. Returns the resolved raw amount, the decimals, and the mint's
+ * jsonParsed `extensions` (so callers can fail fast on extension prerequisites
+ * without a second mint read). When the mint has already been fetched, prefer
+ * {@link tokenAmountToRaw} to avoid a second RPC.
  */
 export async function resolveRawAmount(
     rpc: Rpc<SolanaRpcApi>,
     mint: Address,
     amount: TokenAmount,
-): Promise<{ rawAmount: bigint; decimals: number }> {
-    const { decimals } = await getMintDetails(rpc, mint);
-    return { rawAmount: tokenAmountToRaw(amount, decimals), decimals };
+): Promise<{
+    rawAmount: bigint;
+    decimals: number;
+    extensions: Array<{ extension: string; state?: Record<string, unknown> }>;
+}> {
+    const { decimals, extensions } = await getMintDetails(rpc, mint);
+    return { rawAmount: tokenAmountToRaw(amount, decimals), decimals, extensions };
 }

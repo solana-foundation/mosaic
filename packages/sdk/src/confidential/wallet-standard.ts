@@ -92,6 +92,12 @@ function extractSignature(result: unknown, message: Uint8Array): Uint8Array {
 // `ConfidentialKeys.signerMessage(new Uint8Array(0))` — the wallet-only scheme
 // has no seed, so this is the one and only canonical derivation message, not
 // just a prefix a seed gets appended to.
+//
+// `deriveConfidentialSupplyKeys` DOES seed (`mosaic-conf-supply/v1` + authority +
+// mint), so its message is deliberately out of scope here: supply keys are derived
+// by the CLI from a filesystem keypair, never through a browser wallet. Widening
+// this to a second accepted message would weaken the blind-signing guard below for
+// a case nothing needs.
 const CANONICAL_MESSAGE = ZkConfidentialKeys.signerMessage(new Uint8Array(0));
 
 /**

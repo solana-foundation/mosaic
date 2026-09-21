@@ -1,4 +1,14 @@
-import { type MessagePartialSigner, createSignableMessage, signBytes } from '@solana/kit';
+import {
+    type Address,
+    type MessagePartialSigner,
+    type ReadonlyUint8Array,
+    createSignableMessage,
+    getAddressDecoder,
+    getAddressEncoder,
+    getTupleEncoder,
+    getUtf8Encoder,
+    signBytes,
+} from '@solana/kit';
 import {
     ConfidentialKeys as ZkConfidentialKeys,
     ElGamalKeypair,
@@ -24,6 +34,11 @@ import { isSignerRejection, describeError } from './signer-errors.js';
  * implementing `ConfidentialKeys.signerMessage`/`fromSignature` uses, so keys
  * derived here are byte-identical to keys derived anywhere else for the same
  * wallet.
+ *
+ * The one exception is {@link deriveConfidentialSupplyKeys}: a `ConfidentialMintBurn`
+ * mint's *supply* keys are Mosaic's own construction, not a cross-client standard,
+ * and are seeded so they can never coincide with the mint authority's wallet-only
+ * account keys.
  *
  * `@solana/zk-sdk` (the WASM crypto dependency) is imported only here and in
  * `proof.ts`, so the rest of the SDK stays free of the WASM dependency and these
@@ -75,8 +90,19 @@ export interface DeriveConfidentialKeysInput {
  * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
  */
 export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput): Promise<ConfidentialKeys> {
-    const { signer } = input;
-    const message = ZkConfidentialKeys.signerMessage(new Uint8Array(0));
+    // The empty seed IS the standard: `signerMessage(b"")` is the canonical
+    // `solana-conf-bal/v1` message every conforming client signs.
+    return deriveKeysFromSeed(input.signer, new Uint8Array(0));
+}
+
+/**
+ * Derives an ElGamal keypair + AES key from one signature over
+ * `ConfidentialKeys.signerMessage(seed)` (i.e. `b"solana-conf-bal/v1" || seed`).
+ * Shared by every derivation in this module so they all cost exactly one
+ * signature — one wallet prompt — and all free the intermediate pair.
+ */
+async function deriveKeysFromSeed(signer: MessagePartialSigner, seed: Uint8Array): Promise<ConfidentialKeys> {
+    const message = ZkConfidentialKeys.signerMessage(seed);
 
     let signatures: Awaited<ReturnType<MessagePartialSigner['signMessages']>>[number];
     try {
@@ -87,7 +113,7 @@ export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput)
             `The signer refused to sign the confidential-balance key-derivation message ` +
                 `(${describeError(error)}). That message is \`solana-conf-bal/v1\` — a domain-separated ` +
                 `derivation seed, not a transaction — but some browser wallets classify binary sign-message ` +
-                `payloads as transactions and block them. Its bytes determine the account keys, so they ` +
+                `payloads as transactions and block them. Its bytes determine the derived keys, so they ` +
                 `cannot be changed to satisfy a wallet without making balances undecryptable by every other ` +
                 `tool. Use a wallet that signs arbitrary messages, or key the account through ` +
                 `ConfidentialKeys.fromIkm/fromPrf instead (different keys — no cross-tool interop).`,
@@ -113,6 +139,96 @@ export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput)
         throw error;
     } finally {
         derived.free();
+    }
+}
+
+export interface DeriveConfidentialSupplyKeysInput {
+    /**
+     * The **mint authority** — signs the canonical derivation message. The supply
+     * keys are bound to `(mintAuthority, mint)`, so the same authority always
+     * re-derives the same supply keys.
+     */
+    signer: MessagePartialSigner;
+    /** The mint the supply keys are bound to. */
+    mint: Address;
+}
+
+/**
+ * Domain tag that separates supply-key derivation from account-key derivation.
+ *
+ * Account keys are wallet-only — the empty seed. Prefixing this tag makes the
+ * supply seed unreachable from that derivation, so a mint authority's supply keys
+ * can never coincide with its own confidential *balance* keys. Without it the two
+ * would be the same keys for the same signer, and disclosing account keys — to an
+ * auditor, to support, in a backup — would also disclose the keys guarding the
+ * total supply.
+ *
+ * This is Mosaic's own seed, not an upstream convention: it is not interchangeable
+ * with `spl-token`'s supply-key derivation, and changing the tag changes every
+ * derived supply key.
+ */
+const SUPPLY_KEY_DOMAIN = 'mosaic-conf-supply/v1';
+
+/**
+ * Derives the **supply** ElGamal keypair + AES key for a `ConfidentialMintBurn`
+ * mint. These are the mint authority's keys for the encrypted total supply,
+ * distinct from any account's balance keys: the supply AES key encrypts the
+ * decryptable supply, and the supply ElGamal keypair backs the mint/burn equality
+ * proof.
+ *
+ * Bound to `(mintAuthority, mint)` under the {@link SUPPLY_KEY_DOMAIN} tag, so the
+ * keys are stable, need no storage, and are cryptographically separated from the
+ * wallet-only account derivation — a mint authority that also holds a confidential
+ * account of the same mint gets two independent key sets.
+ *
+ * Unlike {@link deriveConfidentialKeys} this is **not** a cross-client standard:
+ * no other tool derives these bytes. It is also not reachable through
+ * `@solana/mosaic-sdk/confidential/wallet-standard`, whose signer only signs the
+ * canonical empty-seed message — derive supply keys from a signer that signs
+ * arbitrary bytes (CLI / filesystem keypair).
+ *
+ * Takes one signature, like {@link deriveConfidentialKeys}.
+ *
+ * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
+ */
+export async function deriveConfidentialSupplyKeys(
+    input: DeriveConfidentialSupplyKeysInput,
+): Promise<ConfidentialKeys> {
+    const seed = getTupleEncoder([getUtf8Encoder(), getAddressEncoder(), getAddressEncoder()]).encode([
+        SUPPLY_KEY_DOMAIN,
+        input.signer.address,
+        input.mint,
+    ]);
+    return deriveKeysFromSeed(input.signer, new Uint8Array(seed));
+}
+
+/** The two init values a `ConfidentialMintBurn` mint needs for its initial (zero) supply. */
+export interface ConfidentialMintBurnInit {
+    /** The supply ElGamal public key, as a kit `Address` (for `Token.withConfidentialMintBurn`). */
+    supplyElgamalPubkey: Address;
+    /** The initial (zero) supply encrypted under the supply AES key — 36-byte ciphertext. */
+    decryptableSupply: ReadonlyUint8Array;
+}
+
+/**
+ * Computes the `{ supplyElgamalPubkey, decryptableSupply }` pair that
+ * {@link Token.withConfidentialMintBurn} needs, from derived supply keys. The
+ * decryptable supply is the supply AES key's encryption of the initial supply
+ * (`0`). Does not free `keys` (the caller owns them).
+ */
+export function getConfidentialMintBurnInit(keys: ConfidentialKeys): ConfidentialMintBurnInit {
+    const pubkey = keys.elgamal.pubkey();
+    const decryptable = keys.aes.encrypt(0n);
+    try {
+        return {
+            supplyElgamalPubkey: getAddressDecoder().decode(pubkey.toBytes()),
+            // Copy out of WASM memory: `toBytes()` may return a view, and
+            // `decryptable` is freed in the `finally` below.
+            decryptableSupply: new Uint8Array(decryptable.toBytes()),
+        };
+    } finally {
+        pubkey.free?.();
+        decryptable.free?.();
     }
 }
 

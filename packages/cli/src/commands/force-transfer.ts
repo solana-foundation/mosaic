@@ -100,12 +100,12 @@ export const forceTransferCommand = new Command('force-transfer')
             if (error instanceof Error) {
                 if (error.message.includes('permanent delegate extension')) {
                     console.error(
-                        chalk.yellow('\\n💡 Tip:'),
+                        chalk.yellow('\n💡 Tip:'),
                         'This mint may not have the permanent delegate extension enabled, or you may not be the designated permanent delegate.',
                     );
                 } else if (error.message.includes('insufficient funds')) {
                     console.error(
-                        chalk.yellow('\\n💡 Tip:'),
+                        chalk.yellow('\n💡 Tip:'),
                         'The source account may not have enough tokens to transfer.',
                     );
                 }

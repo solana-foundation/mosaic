@@ -6,7 +6,9 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import { fetchToken, getConfidentialWithdrawInstructionPlan } from '@solana-program/token-2022';
+import { fetchToken } from '@solana-program/token-2022';
+import { getConfidentialWithdrawInstructionPlan } from '@solana-program/token-2022/confidential';
+import { confidentialMintBurnConversionError, mintHasConfidentialMintBurnExtension } from '../transaction-util.js';
 import type { ConfidentialKeys } from './keys.js';
 import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util.js';
 
@@ -16,6 +18,12 @@ import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util.js
  * `getConfidentialWithdrawInstructionPlan`, which generates and verifies the
  * required equality + batched-range proofs via context-state accounts and emits
  * the multi-transaction plan (setup → withdraw → cleanup).
+ *
+ * Not available on a `ConfidentialMintBurn` mint: Token-2022 rejects
+ * `ConfidentialWithdraw` on such a mint with `IllegalMintBurnConversion`, because
+ * its supply is only ever encrypted and there is no plaintext side to withdraw
+ * to. Holders redeem via `createConfidentialBurnInstructionPlan` instead; this
+ * builder fails fast rather than emitting a transaction the chain would reject.
  *
  * Fetches and decodes the token account to read the current available balance.
  */
@@ -34,15 +42,18 @@ export async function createConfidentialWithdrawInstructionPlan(input: {
     /** ElGamal keypair + AES key for this account. */
     keys: ConfidentialKeys;
 }): Promise<InstructionPlan> {
-    const [{ rawAmount, decimals }, decoded] = await Promise.all([
+    const [{ rawAmount, decimals, extensions }, decoded] = await Promise.all([
         resolveRawAmount(input.rpc, input.mint, input.amount),
         fetchToken(input.rpc, input.tokenAccount),
     ]);
 
+    if (mintHasConfidentialMintBurnExtension(extensions)) {
+        throw confidentialMintBurnConversionError(input.mint, 'confidential withdrawal', null);
+    }
+
     return getConfidentialWithdrawInstructionPlan({
         rpc: input.rpc,
         payer: input.payer,
-        proofMode: 'context-state',
         token: input.tokenAccount,
         mint: input.mint,
         tokenAccount: decoded.data,
