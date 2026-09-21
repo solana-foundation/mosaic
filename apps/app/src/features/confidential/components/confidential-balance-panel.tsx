@@ -48,8 +48,7 @@ export function ConfidentialBalancePanel({
 }: ConfidentialBalancePanelProps) {
     const unit = symbol ? ` ${symbol}` : '';
 
-    const counterAtMax =
-        state != null && state.pendingBalanceCreditCounter >= state.maximumPendingBalanceCreditCounter;
+    const counterAtMax = state != null && state.pendingBalanceCreditCounter >= state.maximumPendingBalanceCreditCounter;
 
     const available = state?.decrypted?.availableBalance;
     const pending = state?.decrypted?.pendingBalance;
