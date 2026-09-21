@@ -10,6 +10,7 @@ import { useTokenStore } from '@/stores/token-store';
 import { ConfidentialKeysProvider } from '@/features/confidential/hooks/use-confidential-keys';
 import { ConfidentialWizard } from '@/features/confidential/components/confidential-wizard';
 import { WalletSupportNotice } from '@/features/confidential/components/wallet-support-notice';
+import { TransactionVersionNotice } from '@/features/confidential/components/transaction-version-notice';
 
 export default function ConfidentialPage() {
     const { connected, selectedAccount } = useConnector();
@@ -64,6 +65,7 @@ function ConfidentialConnected({ address }: { address: string }) {
 
                 <ConfidentialKeysProvider>
                     <WalletSupportNotice />
+                    <TransactionVersionNotice />
                     <ConfidentialWizard mint={address as Address} symbol={token?.symbol} />
                 </ConfidentialKeysProvider>
             </div>

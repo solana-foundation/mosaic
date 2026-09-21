@@ -27,6 +27,7 @@ import { useTokenBalance } from '@/hooks/use-token-balance';
 import { getClusterName } from '@/lib/solana/explorer';
 import { useConfidentialKeys } from '../hooks/use-confidential-keys';
 import { useConfidentialAccount } from '../hooks/use-confidential-account';
+import { useConfidentialTxVersion } from '../hooks/use-confidential-tx-version';
 import { executeConfidentialPlan, type ConfidentialPlanProgress } from '../lib/execute-confidential-plan';
 import {
     buildApplyPlan,
@@ -64,6 +65,9 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
     const { selectedAccount, cluster } = useConnector();
     const signer = useConnectorSigner();
     const { getKeys } = useConfidentialKeys();
+    // Version 0 unless both the selected RPC and the connected wallet prove they
+    // accept SIMD-0385 transactions; see `useConfidentialTxVersion`.
+    const { version: txVersion } = useConfidentialTxVersion();
 
     const owner = selectedAccount ? (String(selectedAccount) as Address) : undefined;
     const clusterName = getClusterName(cluster);
@@ -153,12 +157,13 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                 feePayer: signer as unknown as TransactionSigner,
                 rpc,
                 onProgress,
+                version: txVersion,
             });
             refresh();
             refetchPlaintext();
             return signatures;
         },
-        [rpc, signer, refresh, refetchPlaintext],
+        [rpc, signer, txVersion, refresh, refetchPlaintext],
     );
 
     const authority = signer as unknown as TransactionSigner;
