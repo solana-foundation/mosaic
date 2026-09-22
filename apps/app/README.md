@@ -43,6 +43,7 @@ Notes:
 
 - If fee payer equals mint authority, the app also sets up Token ACL config, gating program, ABL list, extra metas, and enables permissionless thaw.
 - Token entries are persisted in local storage (`TokenStorage`).
+- **Confidential Balances** is available in the dashboard as a token-creation capability (Stablecoin and Tokenized Security). Confidential **mint/burn** is marked "coming soon" in the UI. The full confidential runtime flow (deposit/apply/transfer/withdraw/mint/burn) currently lives in the SDK — see the [SDK confidential guide](../../packages/sdk/README.md#confidential-balances--transfers).
 
 ## Architecture
 
@@ -88,7 +89,7 @@ src/
 Both are inlined at build time, so changing either requires a rebuild/redeploy.
 
 - `NEXT_PUBLIC_SOLANA_NETWORK`: The network the app boots into when the user has never picked one. Accepts `devnet`, `testnet`, or `mainnet-beta` (`mainnet` is an alias). Defaults to `devnet`. This sets the **default**, not a hard override: a user's explicit in-app network choice is persisted and wins on their next visit.
-- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom Solana RPC endpoint URL, attached to the **Mainnet** cluster entry. Since the app defaults to Devnet, a paid mainnet endpoint also needs `NEXT_PUBLIC_SOLANA_NETWORK=mainnet-beta` for users to land on it. This variable is exposed to the client-side and available in production builds. See `.env.example` for more details.
+- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom Solana RPC endpoint URL, applied to whichever cluster is selected. If not set, each network uses its public endpoint (devnet: `https://api.devnet.solana.com`). This variable is exposed to the client-side and available in production builds. See `.env.example` for more details.
 
 ## Development
 

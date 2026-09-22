@@ -390,7 +390,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
 }
 
 // Helper function to map display names (from creation) to SDK extension names
-function mapDisplayNameToSdkName(displayName: string): string {
+export function mapDisplayNameToSdkName(displayName: string): string {
     const mapping: Record<string, string> = {
         Metadata: 'TokenMetadata',
         'Metadata Pointer': 'MetadataPointer',
@@ -402,6 +402,11 @@ function mapDisplayNameToSdkName(displayName: string): string {
         'Default Account State (Allowlist)': 'DefaultAccountState',
         'Default Account State (Blocklist)': 'DefaultAccountState',
         'Confidential Balances': 'ConfidentialTransferMint',
+        // Creation stores the policy alongside the label, so the bare name alone
+        // never matches what is actually persisted — see the three
+        // `token-creation/lib/*.ts` builders.
+        'Confidential Balances (Opt-in)': 'ConfidentialTransferMint',
+        'Confidential Balances (Approval required)': 'ConfidentialTransferMint',
         'Permanent Delegate': 'PermanentDelegate',
         'Transfer Fee': 'TransferFeeConfig',
         'Interest Bearing': 'InterestBearingConfig',

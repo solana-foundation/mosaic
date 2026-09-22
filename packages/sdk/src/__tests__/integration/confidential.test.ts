@@ -11,9 +11,12 @@ import {
     createKeyPairSignerFromBytes,
     createSolanaRpc,
     generateKeyPairSigner,
+    flattenTransactionPlan,
     getBase58Encoder,
     getBase64EncodedWireTransaction,
     getSignatureFromTransaction,
+    getTransactionMessageSize,
+    getTransactionMessageSizeLimit,
     setTransactionMessageLifetimeUsingBlockhash,
     signTransactionMessageWithSigners,
     singleInstructionPlan,
@@ -21,19 +24,25 @@ import {
 import { findAssociatedTokenPda, getMintToInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 import { Token } from '../../issuance/index.js';
 import {
     createApplyConfidentialPendingBalanceInstructionPlan,
+    createApplyConfidentialPendingBurnInstructionPlan,
+    createConfidentialBurnInstructionPlan,
     createConfidentialDepositInstructionPlan,
+    createConfidentialMintInstructionPlan,
     createConfidentialTransferInstructionPlan,
     createConfidentialWithdrawInstructionPlan,
     createConfigureConfidentialAccountInstructionPlan,
     createEmptyConfidentialAccountInstructionPlan,
     deriveConfidentialKeys,
+    estimateAndSetConfidentialResourceLimits,
     freeConfidentialKeys,
+    getConfidentialMintBurnInit,
     inspectConfidentialAccount,
     planConfidentialInstructions,
+    type ConfidentialTransactionVersion,
 } from '../../confidential/index.js';
 import type { FullTransaction } from '../../transaction-util.js';
 import type { Client } from './setup.js';
@@ -56,14 +65,26 @@ import { describeSkipIf } from './helpers.js';
  *                             requesting a devnet airdrop (which is rate-limited).
  *                             ⚠️ A Phantom key is shared across mainnet/devnet — prefer
  *                             a throwaway `solana-keygen` keypair for testing.
+ *   CONFIDENTIAL_TX_VERSION   Transaction format to plan into: `0` (default) or `1`
+ *                             (SIMD-0385, 4096-byte messages). At `1` the send path
+ *                             also simulates each transaction to replace the planner's
+ *                             provisory resource limits, which version 1 requires.
+ *                             Needs an Agave ≥ 4.2.2 RPC; devnet qualifies.
+ *
+ * Every plan logs its transaction count and each message's size against the
+ * version's limit, so the two versions can be compared run to run.
  */
 const RUN = process.env.RUN_CONFIDENTIAL_E2E === '1';
 const RPC_URL = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
+const TX_VERSION: ConfidentialTransactionVersion = process.env.CONFIDENTIAL_TX_VERSION === '1' ? 1 : 0;
 const ZK_PROOF_PROGRAM = 'ZkE1Gama1Proof11111111111111111111111111111' as Address;
 
 const DECIMALS = 2;
 const MINT_AMOUNT = 1_000n; // 10.00 tokens, minted to the sender's plaintext balance
 const TRANSFER_AMOUNT = 400n; // 4.00 tokens, sent confidentially
+
+const CONFIDENTIAL_MINT_AMOUNT = 500n; // 5.00 tokens, minted straight into a confidential balance
+const CONFIDENTIAL_BURN_AMOUNT = 200n; // 2.00 tokens, burned from the confidential balance
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -76,6 +97,8 @@ function clusterParam(rpcUrl: string): string {
 }
 
 interface Artefacts {
+    /** Short name of the flow this run covers; keeps the two runs' files apart. */
+    run: string;
     cluster: string;
     mint: Address;
     payer: Address;
@@ -83,6 +106,18 @@ interface Artefacts {
     senderAta: Address;
     recipientAta: Address;
     transactions: Array<{ step: string; signature: string }>;
+}
+
+/**
+ * Where a run's artefacts JSON goes. The base path (overridable via
+ * CONFIDENTIAL_ARTEFACTS_PATH) gets the run name spliced in before its
+ * extension, so the two flows land in separate files instead of the second
+ * clobbering the first.
+ */
+function artefactsPath(run: string): string {
+    const base = process.env.CONFIDENTIAL_ARTEFACTS_PATH ?? join(tmpdir(), 'confidential-e2e-artefacts.json');
+    const ext = extname(base);
+    return join(dirname(base), `${basename(base, ext)}.${run}${ext}`);
 }
 
 /**
@@ -95,7 +130,7 @@ function emitArtefacts(a: Artefacts): void {
     const acct = (addr: string) => `https://explorer.solana.com/address/${addr}?cluster=${a.cluster}`;
     const lines = [
         '',
-        '═══════════ confidential-transfer e2e artefacts ═══════════',
+        `═══════════ confidential e2e artefacts — ${a.run} ═══════════`,
         `mint          ${acct(a.mint)}`,
         `payer         ${acct(a.payer)}`,
         `recipient     ${acct(a.recipient)}`,
@@ -109,10 +144,31 @@ function emitArtefacts(a: Artefacts): void {
     // eslint-disable-next-line no-console
     console.log(lines.join('\n'));
 
-    const path = process.env.CONFIDENTIAL_ARTEFACTS_PATH ?? join(tmpdir(), 'confidential-e2e-artefacts.json');
+    const path = artefactsPath(a.run);
     writeFileSync(path, JSON.stringify(a, null, 2));
     // eslint-disable-next-line no-console
     console.log(`artefacts written to ${path}\n`);
+}
+
+/**
+ * Every message in an error's `cause` chain, joined.
+ *
+ * Kit wraps the underlying failure: a 429 from `simulateTransaction` surfaces as
+ * `SolanaError: Failed to estimate the compute unit consumption for this
+ * transaction message`, with `HTTP error (429): Too Many Requests` only on
+ * `cause`. Matching the outer message alone therefore lets rate limits escape
+ * the backoff below — which is exactly how a version-1 run fails on public
+ * devnet while version 0, making fewer simulate calls, slips under the limit.
+ */
+function messageChain(err: unknown): string {
+    const parts: string[] = [];
+    let current: unknown = err;
+    // Bounded: a malformed `cause` graph could otherwise cycle forever.
+    for (let depth = 0; current instanceof Error && depth < 8; depth++) {
+        parts.push(current.message);
+        current = current.cause;
+    }
+    return parts.join(' | ');
 }
 
 /**
@@ -126,13 +182,46 @@ async function withBackoff<T>(label: string, fn: () => Promise<T>): Promise<T> {
         try {
             return await fn();
         } catch (err) {
-            const msg = (err as Error).message ?? '';
-            if (!/429|Too Many Requests/i.test(msg)) throw err;
+            if (!/429|Too Many Requests/i.test(messageChain(err))) throw err;
             await sleep(delay);
             delay = Math.min(delay * 2, 8_000);
         }
     }
     throw new Error(`${label}: exhausted retries after repeated 429s`);
+}
+
+/**
+ * Wraps an RPC client so every request retries on 429, including the ones the
+ * SDK's own plan builders make internally.
+ *
+ * {@link withBackoff} only covers the calls this file makes by hand. The
+ * confidential builders also hit the RPC while building proofs (rent lookups in
+ * token-2022's `buildContextStateProofPlan`, for one), and those were escaping
+ * the backoff entirely. It shows up at version 1 rather than version 0 because
+ * v1 needs far fewer transactions and so drives the whole flow fast enough to
+ * stay inside the public endpoint's rate-limit window.
+ */
+function withRpcBackoff<TRpc extends object>(rpc: TRpc): TRpc {
+    return new Proxy(rpc, {
+        get(target, prop, receiver) {
+            const method = Reflect.get(target, prop, receiver);
+            if (typeof method !== 'function') return method;
+            return (...args: unknown[]) => {
+                const pending = (method as (...a: unknown[]) => unknown).apply(target, args);
+                if (typeof pending !== 'object' || pending === null || !('send' in pending)) return pending;
+                return new Proxy(pending, {
+                    get(pendingTarget, pendingProp, pendingReceiver) {
+                        if (pendingProp !== 'send') return Reflect.get(pendingTarget, pendingProp, pendingReceiver);
+                        const send = Reflect.get(pendingTarget, 'send', pendingReceiver) as (
+                            ...a: unknown[]
+                        ) => Promise<unknown>;
+                        return (...sendArgs: unknown[]) =>
+                            withBackoff(String(prop), () => send.apply(pendingTarget, sendArgs));
+                    },
+                });
+            };
+        },
+    });
 }
 
 // Transient public-devnet conditions: rate limits, load-balanced nodes lagging
@@ -148,10 +237,24 @@ async function signSendConfirm(rpc: Rpc<SolanaRpcApi>, baseMessage: unknown): Pr
     for (let attempt = 0; attempt < 6; attempt++) {
         try {
             const { value: bh } = await withBackoff('getLatestBlockhash', () => rpc.getLatestBlockhash().send());
-            const message = setTransactionMessageLifetimeUsingBlockhash(
+            const withLifetime = setTransactionMessageLifetimeUsingBlockhash(
                 bh,
                 baseMessage as Parameters<typeof setTransactionMessageLifetimeUsingBlockhash>[1],
             );
+            // Version 1 carries its resource limits in header fields that default
+            // to zero, so the planner's provisory values must be replaced with
+            // simulated ones before signing — per transaction, here rather than
+            // up front, because later transactions read context-state accounts
+            // that earlier ones in the same plan create.
+            const message =
+                TX_VERSION === 1
+                    ? await withBackoff('estimateResourceLimits', () =>
+                          estimateAndSetConfidentialResourceLimits({
+                              rpc: rpc as Parameters<typeof estimateAndSetConfidentialResourceLimits>[0]['rpc'],
+                              transactionMessage: withLifetime as FullTransaction,
+                          }),
+                      )
+                    : withLifetime;
             const signed = await signTransactionMessageWithSigners(message as FullTransaction);
             const signature = getSignatureFromTransaction(signed);
             const wire = getBase64EncodedWireTransaction(signed);
@@ -178,7 +281,7 @@ async function signSendConfirm(rpc: Rpc<SolanaRpcApi>, baseMessage: unknown): Pr
             throw new Error(`Transaction ${signature} not confirmed within 45s`);
         } catch (err) {
             lastErr = err;
-            if (!TRANSIENT.test((err as Error).message ?? '')) throw err;
+            if (!TRANSIENT.test(messageChain(err))) throw err;
             await sleep(2_000); // let lagging nodes catch up, then retry with a fresh blockhash
         }
     }
@@ -197,13 +300,27 @@ async function waitForToken2022Account(rpc: Rpc<SolanaRpcApi>, account: Address)
     throw new Error(`Account ${account} not visible as a Token-2022 account in time`);
 }
 
+/**
+ * Logs how many transactions a plan needs and how big each message is against
+ * the version's size limit. This is the measurement that decides whether a
+ * version-1 plan is actually cheaper (fewer signatures, fewer round trips,
+ * less context-state rent churn) than the version-0 one it replaces.
+ */
+function logPlanShape(step: string, plan: TransactionPlan): void {
+    const messages = flattenTransactionPlan(plan).map(p => p.message);
+    const sizes = messages.map(m => `${getTransactionMessageSize(m)}/${getTransactionMessageSizeLimit(m)}`);
+    console.log(`  plan[v${TX_VERSION}] ${step}: ${messages.length} tx — ${sizes.join(', ')} bytes`);
+}
+
 /** Walks a TransactionPlan, sending each transaction (in order); returns all signatures. */
 async function runPlan(
     client: Client,
     feePayer: TransactionSigner,
     instructionPlan: InstructionPlan,
+    step = 'plan',
 ): Promise<Signature[]> {
-    const plan = await planConfidentialInstructions({ instructionPlan, feePayer });
+    const plan = await planConfidentialInstructions({ instructionPlan, feePayer, version: TX_VERSION });
+    logPlanShape(step, plan);
     return runTransactionPlan(client, plan);
 }
 
@@ -224,7 +341,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
     let payer: KeyPairSigner<string>;
 
     beforeAll(async () => {
-        const rpc = createSolanaRpc(RPC_URL);
+        const rpc = withRpcBackoff(createSolanaRpc(RPC_URL));
         client = { rpc, rpcSubscriptions: undefined as never } as unknown as Client;
 
         // Sanity: the proof program must be live on this cluster.
@@ -290,7 +407,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
                 }),
             );
         const step = async (label: string, feePayer: TransactionSigner, plan: InstructionPlan) =>
-            record(label, await runPlan(client, feePayer, plan));
+            record(label, await runPlan(client, feePayer, plan, label));
 
         // 1. Create the mint with confidential balances (opt-in so both accounts
         //    are usable immediately, no manual approval step).
@@ -451,12 +568,199 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
             freeConfidentialKeys(senderKeys);
             freeConfidentialKeys(recipientKeys);
             emitArtefacts({
+                run: 'transfer',
                 cluster: clusterParam(RPC_URL),
                 mint: mint.address,
                 payer: payer.address,
                 recipient: recipient.address,
                 senderAta,
                 recipientAta,
+                transactions: txLog,
+            });
+        }
+    }, 300_000);
+
+    it('runs confidential mint → apply → burn → apply-pending-burn with decrypted balance checks', async () => {
+        const rpc = client.rpc as Rpc<SolanaRpcApi>;
+        const mint = await generateKeyPairSigner();
+
+        // The holder is deliberately NOT the mint authority, and the supply authority
+        // is a third wallet again. Key derivation is wallet-only, so a wallet has
+        // exactly one key pair: reusing `payer` as the supply authority would make the
+        // supply keys identical to `payer`'s own balance keys, and a wrapper that
+        // passed account keys where supply keys belong (or vice versa) would still
+        // pass on chain. Three distinct wallets keep the roles distinguishable — and
+        // mirror the rule the SDK now documents, that separation comes from using a
+        // different wallet rather than a different seed. Neither extra wallet needs
+        // SOL: `payer` covers every fee and rent, and `signTransactionMessageWithSigners`
+        // picks up their signatures from the message.
+        const holder = await generateKeyPairSigner();
+        const supplyAuthority = await generateKeyPairSigner();
+
+        const [ownerAta] = await findAssociatedTokenPda({
+            owner: holder.address,
+            mint: mint.address,
+            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+        });
+
+        const txLog: Array<{ step: string; signature: string }> = [];
+        const record = (step: string, signatures: Signature[]) =>
+            signatures.forEach((signature, i) =>
+                txLog.push({
+                    step: signatures.length > 1 ? `${step} [${i + 1}/${signatures.length}]` : step,
+                    signature,
+                }),
+            );
+        const step = async (label: string, feePayer: TransactionSigner, plan: InstructionPlan) =>
+            record(label, await runPlan(client, feePayer, plan, label));
+
+        // The supply authority's wallet-only keys back the encrypted supply; they
+        // must be derived before the mint so their init values can be baked into
+        // the ConfidentialMintBurn extension.
+        const supplyKeys = await deriveConfidentialKeys({ signer: supplyAuthority });
+        const ownerKeys = await deriveConfidentialKeys({ signer: holder });
+        // Guard the point of using a separate holder: if these ever coincide, the
+        // supply/account key assertions below stop proving anything.
+        expect(new Uint8Array(supplyKeys.aes.toBytes())).not.toEqual(new Uint8Array(ownerKeys.aes.toBytes()));
+
+        try {
+            // 1. Create the mint with BOTH confidential-transfer and mint-burn
+            //    extensions (mint-burn requires the account to hold a confidential
+            //    balance). opt-in so the account self-configures.
+            const mintInit = getConfidentialMintBurnInit(supplyKeys);
+            const createMintTx = await new Token()
+                .withConfidentialBalances({ authority: payer.address, policy: 'opt-in' })
+                .withConfidentialMintBurn(mintInit)
+                .buildTransaction({
+                    rpc: rpc as Rpc<SolanaRpcApiMainnet>,
+                    decimals: DECIMALS,
+                    mintAuthority: payer,
+                    mint,
+                    feePayer: payer,
+                });
+            record('create-mint-burn-mint', [await signSendConfirm(rpc, createMintTx)]);
+            await waitForToken2022Account(rpc, mint.address);
+
+            // 2. Configure the owner's account for confidential transfers.
+            await step(
+                'configure-owner',
+                payer,
+                await createConfigureConfidentialAccountInstructionPlan({
+                    rpc,
+                    payer,
+                    owner: holder,
+                    mint: mint.address,
+                    keys: ownerKeys,
+                }),
+            );
+            await waitForToken2022Account(rpc, ownerAta);
+
+            // 3. Confidentially mint straight into the owner's pending balance.
+            await step(
+                'confidential-mint',
+                payer,
+                await createConfidentialMintInstructionPlan({
+                    rpc,
+                    payer,
+                    mint: mint.address,
+                    destinationToken: ownerAta,
+                    authority: payer,
+                    amount: CONFIDENTIAL_MINT_AMOUNT,
+                    supplyKeys,
+                }),
+            );
+
+            // 4. Apply the pending balance, then assert the decrypted available balance.
+            await step(
+                'apply-after-mint',
+                payer,
+                await createApplyConfidentialPendingBalanceInstructionPlan({
+                    rpc,
+                    tokenAccount: ownerAta,
+                    authority: holder,
+                    keys: ownerKeys,
+                }),
+            );
+            const afterMint = await inspectConfidentialAccount(rpc, ownerAta, ownerKeys);
+            expect(afterMint?.decrypted?.availableBalance).toBe(CONFIDENTIAL_MINT_AMOUNT);
+
+            // 5. Confidentially burn part of the available balance.
+            await step(
+                'confidential-burn',
+                payer,
+                await createConfidentialBurnInstructionPlan({
+                    rpc,
+                    payer,
+                    mint: mint.address,
+                    tokenAccount: ownerAta,
+                    authority: holder,
+                    amount: CONFIDENTIAL_BURN_AMOUNT,
+                    keys: ownerKeys,
+                }),
+            );
+            const afterBurn = await inspectConfidentialAccount(rpc, ownerAta, ownerKeys);
+            expect(afterBurn?.decrypted?.availableBalance).toBe(CONFIDENTIAL_MINT_AMOUNT - CONFIDENTIAL_BURN_AMOUNT);
+
+            // 6. Apply the mint's pending burn on the supply side (mint authority),
+            //    re-syncing the AES "decryptable supply" in the same plan.
+            //
+            //    `ApplyPendingBurn` alone advances the ElGamal supply but leaves the
+            //    AES value stale, and a confidential mint's equality proof is built
+            //    from the AES value and checked against the ElGamal one — so step 7
+            //    would be rejected on-chain while the two disagree. Passing
+            //    `resyncSupply` is what makes that impossible to forget; dropping it
+            //    here must fail the test, which is what makes this a regression gate
+            //    rather than decoration.
+            const supplyAfterBurn = CONFIDENTIAL_MINT_AMOUNT - CONFIDENTIAL_BURN_AMOUNT;
+            await step(
+                'apply-pending-burn-with-resync',
+                payer,
+                await createApplyConfidentialPendingBurnInstructionPlan({
+                    rpc,
+                    mint: mint.address,
+                    authority: payer,
+                    resyncSupply: { supplyKeys, rawSupply: supplyAfterBurn },
+                }),
+            );
+
+            // 7. Mint again after the re-sync: proves the supply representations are
+            //    back in agreement and the documented cycle is actually repeatable.
+            await step(
+                'confidential-mint-after-resync',
+                payer,
+                await createConfidentialMintInstructionPlan({
+                    rpc,
+                    payer,
+                    mint: mint.address,
+                    destinationToken: ownerAta,
+                    authority: payer,
+                    amount: CONFIDENTIAL_MINT_AMOUNT,
+                    supplyKeys,
+                }),
+            );
+            await step(
+                'apply-after-second-mint',
+                payer,
+                await createApplyConfidentialPendingBalanceInstructionPlan({
+                    rpc,
+                    tokenAccount: ownerAta,
+                    authority: holder,
+                    keys: ownerKeys,
+                }),
+            );
+            const afterSecondMint = await inspectConfidentialAccount(rpc, ownerAta, ownerKeys);
+            expect(afterSecondMint?.decrypted?.availableBalance).toBe(supplyAfterBurn + CONFIDENTIAL_MINT_AMOUNT);
+        } finally {
+            freeConfidentialKeys(supplyKeys);
+            freeConfidentialKeys(ownerKeys);
+            emitArtefacts({
+                run: 'mint-burn',
+                cluster: clusterParam(RPC_URL),
+                mint: mint.address,
+                payer: payer.address,
+                recipient: holder.address,
+                senderAta: ownerAta,
+                recipientAta: ownerAta,
                 transactions: txLog,
             });
         }

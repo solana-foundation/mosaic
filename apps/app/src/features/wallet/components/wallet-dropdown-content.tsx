@@ -52,7 +52,7 @@ export function WalletDropdownContent({
 
     const shortAddress = `${selectedAccount.slice(0, 4)}...${selectedAccount.slice(-4)}`;
 
-    // Get current cluster id for selection
+    // Get current cluster id for selection (matches the connector's default network).
     const currentClusterId = (cluster as { id?: string })?.id || getDefaultClusterId();
 
     // Build all networks list (default + custom)
