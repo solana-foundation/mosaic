@@ -193,11 +193,15 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
                             <ChevronDown className="h-4 w-4 opacity-50" />
                         </Button>
                     </PopoverTrigger>
+                    {/* `--radix-popover-content-available-height` is the room actually left between
+                        the trigger and the collision boundary, so the list is capped by the real
+                        viewport instead of a blind 50vh that can hang off-screen on short laptops. */}
                     <PopoverContent
-                        className="w-[var(--radix-popover-trigger-width)] p-0 bg-background dark:bg-zinc-900 border-border"
+                        className="w-[var(--radix-popover-trigger-width)] max-h-[min(28rem,var(--radix-popover-content-available-height,50vh))] flex flex-col p-0 bg-background dark:bg-zinc-900 border-border"
                         align="start"
+                        collisionPadding={16}
                     >
-                        <div className="overflow-y-auto p-2" style={{ maxHeight: 'min(450px, 50vh)' }}>
+                        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-2">
                             {extensions.map(extension => {
                                 const Icon = extension.icon;
                                 const isEnabled = isExtensionEnabled(extension);
