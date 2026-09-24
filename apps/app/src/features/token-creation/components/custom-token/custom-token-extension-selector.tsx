@@ -182,7 +182,16 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
             </CardHeader>
             <CardContent className="space-y-2 p-2">
                 {/* Multi-select dropdown */}
-                <Popover open={isOpen} onOpenChange={setIsOpen}>
+                {/* `modal` is load-bearing, not cosmetic. The dialog this selector lives in
+                    wraps its OVERLAY in react-remove-scroll and registers the dialog content
+                    as a `shard`. This popover is portaled to <body>, so it is inside neither:
+                    the lock sees a wheel event it cannot attribute to any shard and calls
+                    preventDefault() on it unconditionally, which kills trackpad scrolling in
+                    the list (dragging the scrollbar still worked, which is what made it look
+                    like a styling bug). `modal` gives the popover its own scroll lock, and
+                    react-remove-scroll only lets the topmost lock in its stack act — so the
+                    popover's lock, which does know about this list, decides instead. */}
+                <Popover open={isOpen} onOpenChange={setIsOpen} modal>
                     <PopoverTrigger asChild>
                         <Button variant="outline" className="w-full justify-between h-auto min-h-10 py-2">
                             <span className="text-muted-foreground">
