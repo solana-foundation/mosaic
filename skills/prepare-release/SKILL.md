@@ -97,14 +97,17 @@ git log <cli-boundary-tag>..HEAD --format='%h %s' --name-only -- packages/cli/
 
 When the boundaries coincide the two ranges are the same; when they diverge, a commit can be relevant to one package and outside the other's range entirely.
 
-Package directories are not the only inputs to what ships. The root `package.json`'s `pnpm.overrides` decide which Solana dependencies the packages are actually built and tested against, whatever their own manifests declare, and the lockfile and shared build config feed every package's build. Walk those from the older of the two boundaries:
+Package directories are not the only inputs to what ships. The root `package.json`'s `pnpm.overrides` decide which Solana dependencies the packages are actually built and tested against, whatever their own manifests declare, and the lockfile and shared build config feed every package's build. Walk those once per package, each from that package's own boundary — never from the older of the two for both:
 
 ```bash
-git log <older-boundary-tag>..HEAD --format='%h %s' --name-only -- \
-  package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json tsconfig.json turbo.json
+SHARED='package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json tsconfig.json turbo.json'
+git log <sdk-boundary-tag>..HEAD --format='%h %s' --name-only -- $SHARED
+git log <cli-boundary-tag>..HEAD --format='%h %s' --name-only -- $SHARED
 ```
 
-For each hit, read the diff and decide per package whether it changes that package's resolved dependencies or build output — an override bump, a lockfile change under a published package's dependency tree, a compiler option in `tsconfig.base.json`. If it does, it is release-relevant for that package even though no file under `packages/` changed. Lockfile churn confined to `apps/app/` or to dev-only tooling is not.
+A hit counts only for the package whose range it appears in. When the boundaries diverge, a shared change between the older and newer tag already shipped in the newer package; walking both from the older tag would mark it `UNCOVERED` there and call for a duplicate changeset, an unnecessary bump, and a repeated release note.
+
+For each hit, read the diff and decide, for the package whose range it is in, whether it changes that package's resolved dependencies or build output — an override bump, a lockfile change under a published package's dependency tree, a compiler option in `tsconfig.base.json`. If it does, it is release-relevant for that package even though no file under `packages/` changed. Lockfile churn confined to `apps/app/` or to dev-only tooling is not.
 
 A commit is **release-relevant** for a package if it touches that package's directory, or one of the shared inputs above, in a way a consumer could observe. Ignore commits confined to:
 
@@ -113,7 +116,7 @@ A commit is **release-relevant** for a package if it touches that package's dire
 
 ### 3c. Map commits to changesets
 
-A commit is covered for a package if it added one of the pending changeset files that names that package (directly, or the SDK via `updateInternalDependencies` for the CLI), or if such a changeset's body plainly describes its work. Print the mapping as a short table — package, commit, subject, covering changeset or `UNCOVERED`.
+A commit is covered for a package if it added one of the pending changeset files that names that package (directly, or the SDK via `updateInternalDependencies` for the CLI), or if such a changeset's body plainly describes its work. A commit needs coverage only for the packages whose 3b range contains it. Print the mapping as a short table — package, commit, subject, covering changeset or `UNCOVERED`.
 
 On the deletion-only path (Phase 2) any `UNCOVERED` row, or any pending changeset not already in the stranded CHANGELOG section, means that path is not available — fall back to burning the version.
 
