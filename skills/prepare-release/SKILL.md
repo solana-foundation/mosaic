@@ -32,10 +32,10 @@ It creates **one** commit, on a **freshly created** `release/*` branch. Invoking
 Abort with a single line naming the problem if any of this fails.
 
 1. Run from the repository root. Working tree clean (`git status --porcelain` empty) and `HEAD` on the `baseBranch` from `.changeset/config.json` (`main`).
-2. `git fetch --all --tags --prune`, then confirm the local branch is not behind its remote.
-3. Resolve the remotes. Do not hardcode them:
+2. Resolve the remotes. Do not hardcode them:
     - **Base repo** — the value of `changelog[1].repo` in `.changeset/config.json` (currently `solana-foundation/mosaic`). The pull request targets this repo, and it is also the repo npm trusted publishing is keyed to. Find the matching git remote by URL; it may be named `upstream`.
     - **Push remote** — the remote you can push to. In a fork checkout that is `origin` (e.g. `eldarik/mosaic`); in a direct checkout it is the same remote as the base repo.
+3. `git fetch --all --tags --prune`, then require local `main` to be **exactly** the base remote's tip: `git rev-parse HEAD` must equal `git rev-parse <base-remote>/main`. "Not behind" is not enough — if local `main` is ahead, the release branch would be cut from that local `HEAD` and carry unpublished local commits into the release pull request, and the ancestor check in guard 2 would still pass. Ahead or diverged is an abort, same as behind; tell the user to reset or move their local commits aside, never do it for them.
 4. `gh auth status`, then `gh repo view <base-repo> --json viewerPermission`. `WRITE`/`ADMIN` means the branch can live in the base repo; anything less (`READ`, `TRIAGE`) means the pull request must be cross-repo from the fork, which is fine — opening a pull request from a fork needs no write access to the base.
 
 Report which remote is which and whether the pull request will be cross-repo, so nothing downstream is a surprise.
@@ -61,12 +61,14 @@ npm view @solana/mosaic-cli version
 
 Tags are created by the publish workflow (`createGithubReleases: true`), so **a version with no tag and no npm entry was never published**, however confidently `package.json` claims it.
 
-Interpreting the table:
+**Each package has its own boundary.** `.changeset/config.json` has empty `fixed` and `linked` arrays, so the SDK and CLI are versioned independently and their published tags can diverge (an SDK-only release, or one package stranded and the other not). Never collapse them into one boundary: picking the newer package's tag silently drops the other package's unreleased commits from the audit. Record a boundary per package — its own last _published_ tag — and carry both into Phase 3.
 
-- **All three agree** — the ordinary case. The release boundary is that tag.
+Interpreting the table, per package:
+
+- **All three agree** — the ordinary case. That package's boundary is that tag.
 - **`package.json` is ahead of npm and the tag** — a previous bump never published. The boundary for the commit range is the last _published_ version's tag, not the last `chore(release): version packages` commit. Surface this and let the user choose:
-    - **Re-publish the stranded version** — if no new changesets are needed, the fix is a pull request that only empties `.changeset/`; `changeset publish` is idempotent and will pick up the versions already in `package.json`.
-    - **Burn it and move on** — `changeset version` bumps from `package.json`, so a patch on top of an unpublished `0.2.1` produces `0.2.2` and `0.2.1` stays burned. Skipping a version is harmless.
+    - **Re-publish the stranded version** — only valid when every pending changeset was already consumed into the stranded version's CHANGELOG section (it was left behind, not new) and nothing uncovered has merged since. This is the **deletion-only path**: the pull request removes the stranded changesets and changes nothing else. `changeset publish` then picks up the versions already in `package.json`. Do **not** run `pnpm version:packages` on this path — with the stranded changeset still pending it would consume it again and bump past the stranded version. Phases 4–7 each note what differs.
+    - **Burn it and move on** — `changeset version` bumps from `package.json`, so a patch on top of an unpublished `0.2.1` produces `0.2.2` and `0.2.1` stays burned. Skipping a version is harmless. This is the normal path; the stranded changeset is consumed again, so check its note does not end up duplicated in the new CHANGELOG section.
 
 Also locate the previous release commit for reference: `git log --oneline --grep='^chore(release)' -5`.
 
@@ -84,20 +86,27 @@ find .changeset -maxdepth 1 -name '*.md' ! -iname 'README.md'
 
 Read each one: frontmatter tells you the bump per package, the body is the release note that will be copied verbatim into the CHANGELOGs.
 
-### 3b. What merged since the boundary
+### 3b. What merged since each boundary
+
+Walk each package from its own boundary (Phase 2):
 
 ```bash
-git log <boundary>..HEAD --format='%h %s' --name-only
+git log <sdk-boundary-tag>..HEAD --format='%h %s' --name-only -- packages/sdk/
+git log <cli-boundary-tag>..HEAD --format='%h %s' --name-only -- packages/cli/
 ```
 
-A commit is **release-relevant** if it touches `packages/sdk/` or `packages/cli/` in a way a consumer could observe. Ignore commits confined to:
+When the boundaries coincide the two ranges are the same; when they diverge, a commit can be relevant to one package and outside the other's range entirely.
+
+A commit is **release-relevant** for a package if it touches that package's directory in a way a consumer could observe. Ignore commits confined to:
 
 - `apps/app/` — private, and listed in the changesets `ignore` array
 - `.github/`, `scripts/`, root config, `README`/docs, and test-only changes
 
 ### 3c. Map commits to changesets
 
-A commit is covered if it added one of the pending changeset files, or if a pending changeset's body plainly describes its work. Print the mapping as a short table — commit, subject, covering changeset or `UNCOVERED`.
+A commit is covered for a package if it added one of the pending changeset files that names that package (directly, or the SDK via `updateInternalDependencies` for the CLI), or if such a changeset's body plainly describes its work. Print the mapping as a short table — package, commit, subject, covering changeset or `UNCOVERED`.
+
+On the deletion-only path (Phase 2) any `UNCOVERED` row, or any pending changeset not already in the stranded CHANGELOG section, means that path is not available — fall back to burning the version.
 
 ### 3d. Write the missing changesets
 
@@ -126,15 +135,26 @@ Bump levels:
 
 List `@solana/mosaic-cli` explicitly only when the CLI itself changed. `updateInternalDependencies: "patch"` already carries an SDK bump into the CLI through the `workspace:*` dependency, and it writes the `Updated dependencies` block in `packages/cli/CHANGELOG.md` for you.
 
-### 3e. Warn about changesets that are not on this branch
+### 3e. Warn about changesets in open pull requests
+
+What can still land on `main` is an open pull request, so inspect the **current tip** of each one — not ref history, which also reports changesets that were later consumed or deleted and says nothing about which branch holds them or at what bump level.
 
 ```bash
-git log --all --not HEAD --diff-filter=A --name-only -- .changeset/
+gh pr list --repo <base-repo> --base main --state open --limit 200 \
+  --json number,title,headRefName,files \
+  --jq '.[] | {number, title, headRefName, changesets: [.files[].path | select(test("^\\.changeset/[^/]+\\.md$")) | select(test("(?i)/readme\\.md$") | not)]} | select(.changesets | length > 0)'
 ```
 
-`--not HEAD` is what makes this the set you care about. Without it the walk also reports every changeset already consumed on `main`, and the one unmerged `major` this section exists to catch is easy to skim past.
+`files` lists paths the pull request touches, which includes deletions. For each hit, read the file at the pull request's tip to confirm it still exists there and to get its frontmatter:
 
-Unmerged branches carrying changesets change what the next version ought to be, and merging one of them after this pull request opens will suppress the publish. Name them and their bump levels so the version choice is deliberate — for example an unmerged branch holding two `major` entries means the next release is very likely a major, and cutting a patch now is probably wrong.
+```bash
+git fetch <base-remote> pull/<n>/head
+git show FETCH_HEAD:.changeset/<file>.md    # missing here = the PR deletes it; ignore
+```
+
+Report pull request number, title, changeset file, and the bump level per package.
+
+Open pull requests carrying changesets change what the next version ought to be, and merging one of them after this pull request opens will suppress the publish. Name them and their bump levels so the version choice is deliberate — for example an unmerged branch holding two `major` entries means the next release is very likely a major, and cutting a patch now is probably wrong.
 
 ## Phase 4 — version
 
@@ -153,13 +173,25 @@ Read the two CHANGELOG diffs before continuing. Two quirks of `@changesets/chang
 - Entries are attributed to the commit that _added the changeset_, not to the pull requests the note describes, and the `[#PR]` prefix is absent entirely when that commit had no associated pull request.
 - A changeset naming both packages has its full body duplicated verbatim into both CHANGELOGs.
 
+### Deletion-only path (re-publishing a stranded version)
+
+Skip `pnpm version:packages` entirely — it would consume the stranded changeset a second time and bump past the version you mean to publish:
+
+```bash
+node -p "require('./packages/sdk/package.json').version"   # the stranded version
+git switch -c release/<stranded-version>
+git rm .changeset/<each stranded changeset>.md
+```
+
+Then `git status` must show only those deletions. No `package.json`, `CHANGELOG.md` or lockfile changes.
+
 ## Phase 5 — guards
 
 These exist because each one has failed in practice. Stop on any failure; do not "fix it in the pull request".
 
 1. **`.changeset/` is empty of `*.md`, and the deletions are staged.** Re-run the `find` from 3a — it must return nothing — and confirm `git diff --cached --name-status` (after `git add -A`) shows a `D` line for every consumed file. A deletion that exists in the working tree but not in the commit is exactly how `0.2.1` was lost.
 2. **The branch sits on the tip of the base branch.** `git fetch <base-remote> && git merge-base --is-ancestor <base-remote>/main HEAD`. A stale base is the root cause of the `0.2.1` miss: the branch commit deleted the changeset, the base had re-added it, and the squash-merge carried the base's copy back onto `main`. Rebase rather than merge. If the release genuinely must be stacked on an unmerged branch, open the pull request as a **draft** and rebase onto `main` before it is marked ready.
-3. **Versions and CHANGELOGs agree.** Every published package's version changed, and each CHANGELOG gained a top section whose heading matches its new version exactly.
+3. **Versions and CHANGELOGs agree.** Every published package's version changed, and each CHANGELOG gained a top section whose heading matches its new version exactly. On the deletion-only path the check inverts: no version changed, no CHANGELOG changed, and each CHANGELOG's existing top heading already equals its `package.json` version — otherwise the stranded bump was incomplete and this path cannot fix it.
 4. **`scripts/check-release-consistency.sh`** — run it if it exists; it encodes guard 1 as a CI job. Its absence means it has not landed yet, not that something is wrong.
 5. **The base branch is green.** `gh run list --repo <base-repo> --branch main --workflow ci.yml --limit 1`. The publish job re-runs `pnpm check`, `pnpm test:unit` and `scripts/cli-package-smoke.sh` _after_ the merge, so a red base means a failed publish with the release commit already on `main`. Optionally run `pnpm check && pnpm test:unit` locally to be sure.
 
@@ -180,6 +212,8 @@ chore(release): version packages for <version>
 ```
 
 Body: the changesets consumed, and one `package  old → new` line each. No trailers.
+
+On the deletion-only path the title is `chore(release): publish stranded <version>` and the body names the removed changesets and why they were stranded. Use the same title for the pull request in Phase 7, and replace the body's opening paragraph with one saying it only removes changesets already consumed into `<version>`, with no version or CHANGELOG changes.
 
 ## Phase 7 — preview, confirm, then push and open the pull request
 
