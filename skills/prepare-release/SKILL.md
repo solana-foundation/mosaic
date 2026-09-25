@@ -97,10 +97,19 @@ git log <cli-boundary-tag>..HEAD --format='%h %s' --name-only -- packages/cli/
 
 When the boundaries coincide the two ranges are the same; when they diverge, a commit can be relevant to one package and outside the other's range entirely.
 
-A commit is **release-relevant** for a package if it touches that package's directory in a way a consumer could observe. Ignore commits confined to:
+Package directories are not the only inputs to what ships. The root `package.json`'s `pnpm.overrides` decide which Solana dependencies the packages are actually built and tested against, whatever their own manifests declare, and the lockfile and shared build config feed every package's build. Walk those from the older of the two boundaries:
+
+```bash
+git log <older-boundary-tag>..HEAD --format='%h %s' --name-only -- \
+  package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc tsconfig.base.json tsconfig.json turbo.json
+```
+
+For each hit, read the diff and decide per package whether it changes that package's resolved dependencies or build output — an override bump, a lockfile change under a published package's dependency tree, a compiler option in `tsconfig.base.json`. If it does, it is release-relevant for that package even though no file under `packages/` changed. Lockfile churn confined to `apps/app/` or to dev-only tooling is not.
+
+A commit is **release-relevant** for a package if it touches that package's directory, or one of the shared inputs above, in a way a consumer could observe. Ignore commits confined to:
 
 - `apps/app/` — private, and listed in the changesets `ignore` array
-- `.github/`, `scripts/`, root config, `README`/docs, and test-only changes
+- `.github/`, `scripts/`, lint/format/editor config (`eslint.config.js`, `.prettierrc.cjs`, `.prettierignore`, `.editorconfig`), `README`/docs, and test-only changes
 
 ### 3c. Map commits to changesets
 
