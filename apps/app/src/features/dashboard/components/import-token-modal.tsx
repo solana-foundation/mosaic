@@ -172,16 +172,25 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
-                <div className="overflow-hidden bg-primary/5">
-                    <DialogHeader className="p-6 pb-4 border-b border-primary/5 bg-primary/5">
+            <DialogContent
+                className={cn(
+                    // Same viewport-capped flex column as the create-token modal: the header
+                    // stays put and the form scrolls. This dialog suppresses the overflow the
+                    // base DialogContent provides, so without its own scroll region the lower
+                    // fields and the Import Token button are unreachable on short screens.
+                    'flex flex-col max-h-[calc(100dvh-1.5rem)] overflow-hidden',
+                    'sm:max-h-[calc(100dvh-4rem)] sm:rounded-3xl p-0 gap-0 max-w-[500px]',
+                )}
+            >
+                <div className="overflow-hidden bg-primary/5 flex flex-1 flex-col min-h-0">
+                    <DialogHeader className="shrink-0 p-6 pb-4 border-b border-primary/5 bg-primary/5">
                         <DialogTitle className="text-xl font-semibold">Import Existing Token</DialogTitle>
                         <DialogDescription>
                             Enter the address of an existing token to import it into the Mosaic platform
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="p-6 space-y-5">
+                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5">
                         <div className="space-y-2">
                             <Label htmlFor="token-address">Token Address</Label>
                             <Input
