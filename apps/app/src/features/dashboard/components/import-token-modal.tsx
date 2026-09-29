@@ -18,10 +18,17 @@ import { cn } from '@/lib/utils';
 interface ImportTokenModalProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onTokenImported?: () => void;
+    onTokenImported?: (mintAddress: string) => void;
+    /** Mint address to prefill the field with, e.g. when importing from a manage page that couldn't find it. */
+    initialAddress?: string;
 }
 
-export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: ImportTokenModalProps) {
+export function ImportTokenModal({
+    isOpen,
+    onOpenChange,
+    onTokenImported,
+    initialAddress = '',
+}: ImportTokenModalProps) {
     const { cluster, selectedAccount } = useConnector();
     const fetchTokenMetadata = useTokenStore(state => state.fetchTokenMetadata);
     const findTokenByAddress = useTokenStore(state => state.findTokenByAddress);
@@ -33,7 +40,7 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
         return createSolanaRpc(cluster.url);
     }, [cluster?.url]);
 
-    const [tokenAddress, setTokenAddress] = useState('');
+    const [tokenAddress, setTokenAddress] = useState(initialAddress);
     const [tokenType, setTokenType] = useState('none');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -124,7 +131,7 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
             setSuccess(true);
 
             // Call the parent callback to refresh the dashboard
-            onTokenImported?.();
+            onTokenImported?.(tokenAddress);
 
             // Close the modal after a short delay
             if (closeTimerRef.current) {
@@ -162,7 +169,7 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
             clearTimeout(closeTimerRef.current);
             closeTimerRef.current = null;
         }
-        setTokenAddress('');
+        setTokenAddress(initialAddress);
         setTokenType('none');
         setError(null);
         setSuccess(false);
