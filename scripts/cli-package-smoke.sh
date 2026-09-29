@@ -69,4 +69,44 @@ try {
 }
 "
 
+# The checks above all stay inside @solana/mosaic-sdk's own dependency cone. The
+# sRFC-37 / ABL paths additionally cross into @solana/token-acl-sdk, which
+# declares HARD deps on @solana/kit ^6 and @solana-program/token-2022 0.12.0
+# while this SDK is on kit ^8 / token-2022 0.18.0. Inside the monorepo the root
+# pnpm overrides reconcile that, but overrides do NOT propagate to a published
+# consumer — which is exactly the tree this scratch project reproduces. Report
+# what actually resolved, then drive one RPC-free token-acl code path through it.
+echo "--- resolved copies in the consumer tree ---"
+for pkg in @solana/kit @solana-program/token-2022 @solana/zk-sdk; do
+    # -not -path prunes nested node_modules of the SAME package from its own subtree.
+    find node_modules -path "*/$pkg/package.json" -not -path '*/.bin/*' 2>/dev/null |
+        while read -r manifest; do
+            printf '  %-32s %s  (%s)\n' "$pkg" \
+                "$(node -p "require('./$manifest').version")" "${manifest%/package.json}"
+        done
+done
+
+node --input-type=module -e "
+const { getCreateConfigInstructions, TOKEN_ACL_PROGRAM_ID } = await import('@solana/mosaic-sdk');
+const authority = {
+    address: 'FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT',
+    signTransactions: async txs => txs.map(() => ({})),
+};
+const { instructions, mintConfig } = await getCreateConfigInstructions({
+    authority,
+    mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+    gatingProgram: TOKEN_ACL_PROGRAM_ID,
+});
+// findMintConfigPda + getCreateConfigInstruction both live in @solana/token-acl-sdk
+// and run against ITS resolved @solana/kit. A second, incompatible kit copy shows
+// up here as a throw or as a malformed address/instruction rather than silently.
+if (typeof mintConfig !== 'string' || mintConfig.length < 32) {
+    throw new Error('token-acl returned a malformed mint config PDA: ' + mintConfig);
+}
+if (!instructions.length || !instructions[0].programAddress) {
+    throw new Error('token-acl returned no usable instruction');
+}
+console.log('token-acl path OK: mintConfig ' + mintConfig);
+"
+
 echo "CLI package smoke test passed"
