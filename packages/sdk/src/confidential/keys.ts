@@ -59,8 +59,13 @@ import { isSignerRejection, describeError } from './signer-errors.js';
  * Signs an arbitrary message with the account authority's Ed25519 key and
  * returns the 64-byte detached signature.
  *
- * - CLI / Node: build one from a kit `KeyPairSigner` via {@link createKeyPairMessageSigner}.
- * - Browser: wrap the wallet adapter's `signMessage` (it must sign the raw bytes).
+ * This is **not** what {@link deriveConfidentialKeys} takes — that wants a kit
+ * `MessagePartialSigner` (see {@link DeriveConfidentialKeysInput}). `SignMessage`
+ * is the lower-level shape the `@solana/mosaic-sdk/confidential/wallet-standard`
+ * subpath is built on: `createResilientSignMessage` produces one from a browser
+ * wallet, {@link createKeyPairMessageSigner} produces one from a keypair, and
+ * `createMessageSigner` adapts either into the `MessagePartialSigner` that
+ * derivation actually consumes.
  */
 export type SignMessage = (message: Uint8Array) => Promise<Uint8Array>;
 
@@ -288,9 +293,14 @@ export function assertConfidentialKeysMatchSupply(
 }
 
 /**
- * Builds a {@link SignMessage} from a kit `KeyPairSigner` (CLI / Node). The
- * signer must expose its underlying `CryptoKeyPair` (kit's generated keypair
- * signers do).
+ * Builds a {@link SignMessage} from a kit `KeyPairSigner`. The signer must expose
+ * its underlying `CryptoKeyPair` (kit's generated keypair signers do).
+ *
+ * Note for CLI / Node callers: you do **not** need this to derive keys. A kit
+ * `KeyPairSigner` is already a `MessagePartialSigner`, so pass it straight to
+ * {@link deriveConfidentialKeys}. This helper exists for the `SignMessage`-shaped
+ * seam in the wallet-standard subpath — for example to stand a keypair in for a
+ * browser wallet as `createResilientSignMessage`'s fallback.
  */
 export function createKeyPairMessageSigner(signer: { keyPair: CryptoKeyPair }): SignMessage {
     return message => signBytes(signer.keyPair.privateKey, message);
