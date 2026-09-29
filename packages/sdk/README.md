@@ -403,6 +403,15 @@ const empty = await createEmptyConfidentialAccountInstructionPlan({
 });
 ```
 
+> **Transfer fees.** On a mint carrying `TransferFeeConfig` + `ConfidentialTransferFee`,
+> `createConfidentialTransferInstructionPlan` routes itself to the fee-aware variant,
+> which verifies five proofs instead of three and withholds the fee into the
+> destination account. That path needs the current epoch to pick between the mint's
+> older and newer fee schedule; it is read via `getEpochInfo` only on that path, and
+> you can pass `currentEpoch` to skip the round trip. A mint with
+> `ConfidentialTransferFee` but no `TransferFeeConfig` is malformed and is rejected
+> before any proof is built.
+
 ### 5. Confidential mint & burn
 
 Requires a mint created with both `withConfidentialBalances` and
@@ -476,6 +485,80 @@ const applyBurn = await createApplyConfidentialPendingBurnInstructionPlan({
 > The full safe cycle is therefore:
 > `confidential mint → apply pending balance → confidential burn → apply pending burn (+ re-sync)`.
 
+### Credits (who may send you what)
+
+Four proof-free toggles, each signed by the token account's owner, controlling
+which kinds of incoming transfer the account accepts. Useful before `empty` /
+account closure, and to park an account that should stop receiving.
+
+```ts
+import {
+    createEnableConfidentialCreditsInstructionPlan,
+    createDisableConfidentialCreditsInstructionPlan,
+    createEnableNonConfidentialCreditsInstructionPlan,
+    createDisableNonConfidentialCreditsInstructionPlan,
+} from '@solana/mosaic-sdk/confidential';
+
+// Stop accepting confidential transfers into this account.
+const plan = createDisableConfidentialCreditsInstructionPlan({
+    tokenAccount: 'OwnerAta...',
+    authority: owner,
+});
+```
+
+The `NonConfidential` pair governs plaintext `Deposit`s into the pending balance
+instead. All four return a single-instruction `InstructionPlan`.
+
+### Reading state before you ask for keys
+
+Deriving keys costs a wallet signature, so a UI usually wants to know what it is
+dealing with first. These readers are WASM-free and take an already-decoded mint or
+token account, so they cost nothing beyond the fetch you were making anyway.
+
+```ts
+import {
+    isConfidentialTransferMint,
+    isConfidentialMintBurn,
+    isConfidentialTransferAccount,
+    mintHasConfidentialTransferFee,
+    mintHasTransferFeeConfig,
+    getConfidentialTransferAccountElgamalPubkey,
+    getConfidentialMintBurnSupplyElgamalPubkey,
+} from '@solana/mosaic-sdk/confidential';
+import { fetchMint } from '@solana-program/token-2022';
+
+const mint = await fetchMint(rpc, 'MintPubkey...');
+if (isConfidentialTransferMint(mint)) {
+    // ... offer the confidential flow
+}
+```
+
+Two guards assert that a caller's `ConfidentialKeys` are the ones a given account
+or mint was actually registered with — `assertConfidentialKeysMatchAccount(keys,
+registeredPubkey, label)` and `assertConfidentialKeysMatchSupply(...)`. The
+builders call them internally; call them yourself to fail early in a UI, before a
+wrong-wallet key surfaces as an opaque on-chain proof rejection.
+
+For raw ciphertexts and their decryption there are `fetchConfidentialAccountState`
+(the lower-level counterpart to `inspectConfidentialAccount`) plus
+`decryptConfidentialBalances`, and the two primitives `decryptAesBalance` (fast and
+exact, for a `decryptableAvailableBalance`) and `decryptElGamalBalance` (a discrete-log
+search — only practical for small amounts).
+
+`isSignerRejection` / `describeError` tell "the user dismissed the wallet prompt"
+apart from "this wallet cannot sign the derivation message at all", which a UI has
+to report differently.
+
+### Amounts
+
+Builders that take a user-facing amount accept a `TokenAmount` — a decimal string
+(`"1.5"`) or a raw `bigint`. Builders that re-assert the encrypted supply
+(`createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan`, and
+`resyncSupply` on apply-pending-burn) take **raw** units only. Scale with
+`tokenAmountToRaw(amount, decimals)`, which rejects non-numeric input, more
+fractional digits than the mint has decimals, and results outside `(0, 2^64)` —
+unlike the root `decimalAmountToRaw`, which silently truncates over-precision.
+
 <a id="executing-plans"></a>
 
 ### Executing plans
@@ -538,6 +621,15 @@ console.log(info?.decrypted?.availableBalance); // bigint (raw units)
 
 For a runnable end-to-end example (both the transfer flow and the mint/burn flow),
 see `packages/sdk/src/__tests__/integration/confidential.test.ts`.
+
+> **Deprecated: `confidential/proof.ts`.** `buildProofVerificationIxs`,
+> `buildTransferProofIxs`, `buildWithdrawProofIxs`, `buildPubkeyValidityProofIxs`,
+> `buildZeroCiphertextProofIxs` and `buildCloseContextStateInstruction` are still
+> exported, but no builder in this SDK constructs proofs by hand any more — every
+> operation delegates to `@solana-program/token-2022/confidential`. They remain only
+> for callers who wired their own flows on them, and are slated for removal in a
+> future breaking release. They are also the only remaining way to reach the
+> sibling/inline proof mode; the supported builders all use context-state proofs.
 
 ## Access lists (ABL, SRFC-37)
 
