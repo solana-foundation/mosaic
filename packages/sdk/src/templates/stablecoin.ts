@@ -1,5 +1,5 @@
 import { Token } from '../issuance/index.js';
-import type { ConfidentialBalancesConfig } from '../issuance/create-mint.js';
+import type { ConfidentialBalancesConfig, ConfidentialMintBurnOptions } from '../issuance/create-mint.js';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
 import {
@@ -36,6 +36,10 @@ import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
  * @param pausableAuthority - The address with authority over the pausable functionality.
  * @param confidentialBalancesAuthority - The address with authority over the confidential balances extension.
  * @param permanentDelegateAuthority - The address with authority over the permanent delegate.
+ * @param confidentialMintBurn - Confidential Mint/Burn init values. Passing them adds the
+ * ConfidentialMintBurn extension, so the supply only ever exists encrypted: plaintext mint, burn,
+ * confidential deposit and confidential withdraw all stop working on the mint. Both values come from
+ * the supply authority's own wallet keys — see `getConfidentialMintBurnInit`.
  * @param confidentialBalances - Confidential Balances configuration: `policy` defaults to `'whitelist'`,
  * which leaves the extension gated so the authority must approve each account, while `'opt-in'` lets
  * holders configure their own confidential account permissionlessly; `auditorElgamalPubkey` optionally
@@ -59,6 +63,7 @@ export const createStablecoinInitTransaction = async (
     enableSrfc37?: boolean,
     freezeAuthority?: Address,
     confidentialBalances?: ConfidentialBalancesConfig,
+    confidentialMintBurn?: ConfidentialMintBurnOptions,
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
@@ -69,7 +74,7 @@ export const createStablecoinInitTransaction = async (
 
     // 1. create token
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
-    const instructions = await new Token()
+    let tokenBuilder = new Token()
         .withMetadata({
             mintAddress: mintSigner.address,
             authority: metadataAuthority || mintAuthorityAddress,
@@ -90,20 +95,27 @@ export const createStablecoinInitTransaction = async (
             authority: confidentialBalancesAuthority || mintAuthorityAddress,
             ...confidentialBalances,
         })
-        .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
-        .buildInstructions({
-            rpc,
-            decimals,
-            mintAuthority,
-            // On the sRFC-37 path the freeze authority MUST be the mint authority: the
-            // Token-ACL `create_config` instruction requires the mint's current freeze
-            // authority to equal its signer (the mint authority) and then reassigns it to
-            // the config PDA itself. Pre-setting it to anything else (e.g. the program id)
-            // fails create_config with InvalidAuthority.
-            freezeAuthority: useSrfc37 ? mintAuthorityAddress : freezeAuthority,
-            mint: mintSigner,
-            feePayer: feePayerSigner,
-        });
+        .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress);
+
+    // Must follow `withConfidentialBalances` above: `withConfidentialMintBurn` refuses
+    // to run before `ConfidentialTransferMint` is on the builder.
+    if (confidentialMintBurn) {
+        tokenBuilder = tokenBuilder.withConfidentialMintBurn(confidentialMintBurn);
+    }
+
+    const instructions = await tokenBuilder.buildInstructions({
+        rpc,
+        decimals,
+        mintAuthority: mintAuthoritySigner,
+        // On the sRFC-37 path the freeze authority MUST be the mint authority: the
+        // Token-ACL `create_config` instruction requires the mint's current freeze
+        // authority to equal its signer (the mint authority) and then reassigns it to
+        // the config PDA itself. Pre-setting it to anything else (e.g. the program id)
+        // fails create_config with InvalidAuthority.
+        freezeAuthority: useSrfc37 ? mintAuthorityAddress : freezeAuthority,
+        mint: mintSigner,
+        feePayer: feePayerSigner,
+    });
 
     // 2. create mintConfig (Token ACL) - only if SRFC-37 is enabled
     if (!useSrfc37) {

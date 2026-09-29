@@ -1,5 +1,5 @@
 import { Token } from '../issuance/index.js';
-import type { ConfidentialBalancesConfig } from '../issuance/create-mint.js';
+import type { ConfidentialBalancesConfig, ConfidentialMintBurnOptions } from '../issuance/create-mint.js';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
 import {
@@ -54,6 +54,12 @@ export const createCustomTokenInitTransaction = async (
         // added at all — except on the sRFC-37 path, which requires it.
         enableDefaultAccountState?: boolean;
         enableConfidentialBalances?: boolean;
+        // Adds the ConfidentialMintBurn extension. Requires `enableConfidentialBalances`:
+        // a mint-burn mint keeps its whole supply encrypted, so it needs the
+        // ConfidentialTransferMint extension to hold that supply in accounts.
+        // Optional when `confidentialMintBurn` is supplied: passing the init values adds
+        // the extension on its own, as in stablecoin.ts / tokenized-security.ts.
+        enableConfidentialMintBurn?: boolean;
         enableScaledUiAmount?: boolean;
         enableSrfc37?: boolean;
         enableTransferFee?: boolean;
@@ -87,6 +93,12 @@ export const createCustomTokenInitTransaction = async (
         // Confidential Balances policy / auditor (only read when
         // `enableConfidentialBalances` is truthy).
         confidentialBalances?: ConfidentialBalancesConfig;
+
+        // Confidential Mint/Burn init values. Supplying them adds the ConfidentialMintBurn
+        // extension whether or not `enableConfidentialMintBurn` is set, and they are
+        // required when it is set. Both come from the supply authority's own wallet keys —
+        // see `getConfidentialMintBurnInit` in `@solana/mosaic-sdk/confidential`.
+        confidentialMintBurn?: ConfidentialMintBurnOptions;
 
         // Freeze authority.
         // Note: ignored when `enableSrfc37: true` — the sRFC-37 path forces the freeze
@@ -184,6 +196,23 @@ export const createCustomTokenInitTransaction = async (
             authority: confidentialBalancesAuthority,
             ...options.confidentialBalances,
         });
+    }
+
+    // Add Confidential Mint/Burn extension. Must follow the confidential-balances
+    // block above: `withConfidentialMintBurn` refuses to run before
+    // `ConfidentialTransferMint` is on the builder.
+    //
+    // The init values alone enable the extension, matching stablecoin.ts /
+    // tokenized-security.ts: a mint extension cannot be added after initialization, so
+    // silently dropping supplied values would hand back an irreversibly wrong mint.
+    const confidentialMintBurn = options?.confidentialMintBurn;
+    if (options?.enableConfidentialMintBurn || confidentialMintBurn) {
+        if (!confidentialMintBurn) {
+            throw new Error(
+                'confidentialMintBurn is required when enableConfidentialMintBurn is set: the supply ElGamal pubkey and the initial decryptable supply are derived from the supply authority wallet (see getConfidentialMintBurnInit).',
+            );
+        }
+        tokenBuilder = tokenBuilder.withConfidentialMintBurn(confidentialMintBurn);
     }
 
     // Add Scaled UI Amount extension
@@ -290,7 +319,7 @@ export const createCustomTokenInitTransaction = async (
     const instructions = await tokenBuilder.buildInstructions({
         rpc,
         decimals,
-        mintAuthority,
+        mintAuthority: mintAuthoritySigner,
         // On the sRFC-37 path the freeze authority MUST be the mint authority: the
         // Token-ACL `create_config` instruction requires the mint's current freeze
         // authority to equal its signer (the mint authority) and then reassigns it to
