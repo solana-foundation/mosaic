@@ -9,6 +9,7 @@ import {
 import { fetchMint, fetchToken } from '@solana-program/token-2022';
 import {
     getConfidentialTransferInstructionPlan,
+    getConfidentialTransferWithFeeInstructionPlan,
     getConfidentialTransferWithRecordInstructionPlan,
 } from '@solana-program/token-2022/confidential';
 import {
@@ -16,6 +17,7 @@ import {
     isConfidentialTransferAccount,
     isConfidentialTransferMint,
     mintHasConfidentialTransferFee,
+    mintHasTransferFeeConfig,
 } from './extensions.js';
 import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
 import {
@@ -39,9 +41,12 @@ import {
  * resolves the configured auditor from it — unless overridden via
  * `auditorElgamalPubkey`.
  *
- * Note: this targets the standard (no-fee) confidential transfer. Mints that
- * also carry `TransferFeeConfig` + `ConfidentialTransferFee` need the fee-aware
- * variant — not yet wired here.
+ * Mints that also carry `TransferFeeConfig` + `ConfidentialTransferFee` are
+ * routed to the fee-aware variant instead, which verifies five proofs rather
+ * than three and withholds the fee into the destination account. That variant
+ * needs the current epoch to pick between the mint's older and newer fee
+ * schedule; it is fetched only on that path, so a no-fee transfer still costs
+ * the same three account reads it always did.
  */
 export async function createConfidentialTransferInstructionPlan(input: {
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
@@ -61,6 +66,12 @@ export async function createConfidentialTransferInstructionPlan(input: {
     keys: ConfidentialKeys;
     /** Override the auditor pubkey; defaults to the mint's configured auditor. */
     auditorElgamalPubkey?: Address;
+    /**
+     * Current epoch, used only on a `ConfidentialTransferFee` mint to select the
+     * older or newer transfer-fee schedule. Fetched via `getEpochInfo` when
+     * omitted; pass it to save that round trip.
+     */
+    currentEpoch?: number | bigint;
     /**
      * Stage the batched range proof in an SPL Record account instead of inline in
      * the verify instruction data. Pass this (`{}` is enough) when sending with an
@@ -84,13 +95,17 @@ export async function createConfidentialTransferInstructionPlan(input: {
         );
     }
 
-    // ...and this helper only builds the standard (no-fee) confidential
-    // transfer. A mint carrying `ConfidentialTransferFee` needs the fee-aware
-    // variant, so fail fast rather than silently building a rejected plan.
-    if (mintHasConfidentialTransferFee(mintDecoded)) {
+    // ...and a mint carrying `ConfidentialTransferFee` takes the fee-aware
+    // variant. Token-2022 reads the basis points and maximum fee from
+    // `TransferFeeConfig`, so both extensions must be present; a mint with only
+    // one of them is malformed and gets a message naming the missing half rather
+    // than upstream's generic missing-extension throw from inside proof
+    // generation.
+    const withFee = mintHasConfidentialTransferFee(mintDecoded);
+    if (withFee && !mintHasTransferFeeConfig(mintDecoded)) {
         throw new Error(
-            `Mint ${input.mint} is configured with confidential transfer fees; ` +
-                `the fee-aware confidential transfer variant is not yet supported.`,
+            `Mint ${input.mint} carries the ConfidentialTransferFee extension without ` +
+                `TransferFeeConfig; a fee-aware confidential transfer needs both.`,
         );
     }
 
@@ -130,6 +145,17 @@ export async function createConfidentialTransferInstructionPlan(input: {
         aesKey: input.keys.aes,
         auditorElgamalPubkey: input.auditorElgamalPubkey,
     };
+
+    // The fee-aware helper has no separate `…WithRecord` twin — it takes the
+    // record fields inline — so the record option folds into the same call.
+    if (withFee) {
+        return getConfidentialTransferWithFeeInstructionPlan({
+            ...args,
+            ...(input.recordBackedProof !== undefined ? toRecordProofArgs(input.recordBackedProof) : {}),
+            mintAccount: mintDecoded.data,
+            currentEpoch: input.currentEpoch ?? (await input.rpc.getEpochInfo().send()).epoch,
+        });
+    }
 
     if (input.recordBackedProof !== undefined) {
         return getConfidentialTransferWithRecordInstructionPlan({

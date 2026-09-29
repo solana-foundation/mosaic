@@ -13,7 +13,7 @@ import {
     parallelInstructionPlan,
     setTransactionMessageLifetimeUsingBlockhash,
 } from '@solana/kit';
-import { createMockRpc, createMockSigner, seedMintDetails } from '../../__tests__/test-utils.js';
+import { createMockRpc, createMockSigner, seedMintDetails, MOCK_EPOCH } from '../../__tests__/test-utils.js';
 import type { ConfidentialKeys } from '../keys.js';
 
 // --- Mocks --------------------------------------------------------------------
@@ -29,6 +29,9 @@ const mockEmptyPlan = { kind: 'emptyPlan' } as const;
 // rather than inline; distinct identities so dispatch can be asserted.
 const mockWithdrawWithRecordPlan = { kind: 'withdrawWithRecordPlan' } as const;
 const mockTransferWithRecordPlan = { kind: 'transferWithRecordPlan' } as const;
+// The fee-aware transfer has no separate `…WithRecord` twin upstream — it takes
+// the record fields inline — so one identity covers both dispatch paths.
+const mockTransferWithFeePlan = { kind: 'transferWithFeePlan' } as const;
 // Matches `fakeKeys.elgamal.pubkey()` below, so builders' new
 // `assertConfidentialKeysMatchAccount` check passes for the source account.
 const SOURCE_ELGAMAL_PUBKEY = 'DsT1111111111111111111111111111111111111111' as Address;
@@ -68,6 +71,7 @@ jest.mock('@solana-program/token-2022/confidential', () => ({
     getEmptyConfidentialTransferAccountInstructionPlan: jest.fn(async () => mockEmptyPlan),
     getConfidentialWithdrawWithRecordInstructionPlan: jest.fn(async () => mockWithdrawWithRecordPlan),
     getConfidentialTransferWithRecordInstructionPlan: jest.fn(async () => mockTransferWithRecordPlan),
+    getConfidentialTransferWithFeeInstructionPlan: jest.fn(async () => mockTransferWithFeePlan),
 }));
 
 import { getConfidentialDepositInstructionDataDecoder, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
@@ -76,6 +80,7 @@ import {
     getConfidentialTransferInstructionPlan,
     getConfidentialWithdrawInstructionPlan,
     getConfidentialTransferWithRecordInstructionPlan,
+    getConfidentialTransferWithFeeInstructionPlan,
     getConfidentialWithdrawWithRecordInstructionPlan,
     getCreateConfidentialTransferAccountInstructionPlan,
     getEmptyConfidentialTransferAccountInstructionPlan,
@@ -89,6 +94,8 @@ import {
     createConfigureConfidentialAccountInstructionPlan,
     createEmptyConfidentialAccountInstructionPlan,
     createEnableConfidentialCreditsInstructionPlan,
+    createDisableConfidentialCreditsInstructionPlan,
+    createEnableNonConfidentialCreditsInstructionPlan,
     createDisableNonConfidentialCreditsInstructionPlan,
     createConfidentialTransactionPlanner,
     estimateAndSetConfidentialResourceLimits,
@@ -152,6 +159,41 @@ describe('confidential operation builders', () => {
                 authority: AUTHORITY,
             });
             expect(plan.kind).toBe('single');
+        });
+
+        it('disable-confidential-credits targets the token account + authority', () => {
+            const plan: any = createDisableConfidentialCreditsInstructionPlan({
+                tokenAccount: SOURCE_TOKEN,
+                authority: AUTHORITY,
+            });
+            expect(plan.kind).toBe('single');
+            expect(plan.instruction.programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
+            const accounts = plan.instruction.accounts.map((a: any) => a.address);
+            expect(accounts).toContain(SOURCE_TOKEN);
+            expect(accounts).toContain(AUTHORITY);
+        });
+
+        it('enable-non-confidential-credits targets the token account + authority', () => {
+            const plan: any = createEnableNonConfidentialCreditsInstructionPlan({
+                tokenAccount: SOURCE_TOKEN,
+                authority: AUTHORITY,
+            });
+            expect(plan.kind).toBe('single');
+            expect(plan.instruction.programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
+            const accounts = plan.instruction.accounts.map((a: any) => a.address);
+            expect(accounts).toContain(SOURCE_TOKEN);
+            expect(accounts).toContain(AUTHORITY);
+        });
+
+        it('each of the four toggles encodes a distinct discriminator', () => {
+            const args = { tokenAccount: SOURCE_TOKEN, authority: AUTHORITY };
+            const discriminators = [
+                createEnableConfidentialCreditsInstructionPlan(args),
+                createDisableConfidentialCreditsInstructionPlan(args),
+                createEnableNonConfidentialCreditsInstructionPlan(args),
+                createDisableNonConfidentialCreditsInstructionPlan(args),
+            ].map((p: any) => Array.from(p.instruction.data as Uint8Array).join(','));
+            expect(new Set(discriminators).size).toBe(4);
         });
     });
 
@@ -412,6 +454,137 @@ describe('confidential operation builders', () => {
                 }),
             ).rejects.toThrow(/not configured for confidential transfers/);
             expect(getConfidentialTransferInstructionPlan).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('transfer on a ConfidentialTransferFee mint', () => {
+        const transferArgs = {
+            mint: MINT,
+            sourceToken: SOURCE_TOKEN,
+            destinationToken: DEST_TOKEN,
+            authority: AUTHORITY,
+            amount: '3',
+        };
+
+        /** A mint carrying both halves the fee-aware transfer needs. */
+        function seedFeeMint() {
+            mockMintExtensions = {
+                __option: 'Some',
+                value: [
+                    { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
+                    { __kind: 'TransferFeeConfig' },
+                    { __kind: 'ConfidentialTransferFee' },
+                ],
+            };
+        }
+
+        it('routes to the fee-aware helper instead of the standard one', async () => {
+            seedFeeMint();
+            const plan = await createConfidentialTransferInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                ...transferArgs,
+                keys: fakeKeys,
+            });
+            expect(plan).toBe(mockTransferWithFeePlan);
+            expect(getConfidentialTransferWithFeeInstructionPlan).toHaveBeenCalledTimes(1);
+            expect(getConfidentialTransferInstructionPlan).not.toHaveBeenCalled();
+            expect(getConfidentialTransferWithRecordInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('reads the current epoch from the RPC when it is not supplied', async () => {
+            seedFeeMint();
+            await createConfidentialTransferInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                ...transferArgs,
+                keys: fakeKeys,
+            });
+            expect(getConfidentialTransferWithFeeInstructionPlan).toHaveBeenCalledWith(
+                expect.objectContaining({ currentEpoch: MOCK_EPOCH }),
+            );
+        });
+
+        it('prefers an explicitly supplied epoch over the RPC', async () => {
+            seedFeeMint();
+            await createConfidentialTransferInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                ...transferArgs,
+                keys: fakeKeys,
+                currentEpoch: 7n,
+            });
+            expect(getConfidentialTransferWithFeeInstructionPlan).toHaveBeenCalledWith(
+                expect.objectContaining({ currentEpoch: 7n }),
+            );
+        });
+
+        it('forwards the decoded mint, which the fee-aware helper requires', async () => {
+            seedFeeMint();
+            await createConfidentialTransferInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                ...transferArgs,
+                keys: fakeKeys,
+            });
+            const args = (getConfidentialTransferWithFeeInstructionPlan as jest.Mock).mock.calls[0][0];
+            expect(args.mintAccount).toEqual(expect.objectContaining({ decimals: 6 }));
+        });
+
+        it('folds recordBackedProof into the same call rather than a WithRecord twin', async () => {
+            seedFeeMint();
+            const recordAuthority = createMockSigner('Rec11111111111111111111111111111111111111');
+            const plan = await createConfidentialTransferInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                ...transferArgs,
+                keys: fakeKeys,
+                recordBackedProof: { authority: recordAuthority },
+            });
+            expect(plan).toBe(mockTransferWithFeePlan);
+            expect(getConfidentialTransferWithRecordInstructionPlan).not.toHaveBeenCalled();
+            expect(getConfidentialTransferWithFeeInstructionPlan).toHaveBeenCalledWith(
+                expect.objectContaining({ recordAuthority }),
+            );
+        });
+
+        it('fails fast when ConfidentialTransferFee is present without TransferFeeConfig', async () => {
+            mockMintExtensions = {
+                __option: 'Some',
+                value: [
+                    { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
+                    { __kind: 'ConfidentialTransferFee' },
+                ],
+            };
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(/without TransferFeeConfig/);
+            expect(getConfidentialTransferWithFeeInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('leaves a plain TransferFeeConfig mint on the standard no-fee path', async () => {
+            // TransferFeeConfig alone is a plaintext transfer fee; only the
+            // confidential half switches the proof set.
+            mockMintExtensions = {
+                __option: 'Some',
+                value: [
+                    { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
+                    { __kind: 'TransferFeeConfig' },
+                ],
+            };
+            const plan = await createConfidentialTransferInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                ...transferArgs,
+                keys: fakeKeys,
+            });
+            expect(plan).toBe(mockTransferPlan);
+            expect(getConfidentialTransferWithFeeInstructionPlan).not.toHaveBeenCalled();
         });
     });
 

@@ -77,3 +77,17 @@ export function mintHasConfidentialTransferFee(mint: DecodedMint): boolean {
         mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferFee')
     );
 }
+
+/**
+ * Whether a decoded mint carries the `TransferFeeConfig` extension. Token-2022
+ * requires it alongside `ConfidentialTransferFee` — the fee-aware transfer reads
+ * the basis points and maximum fee from it — so the transfer builder checks both
+ * rather than letting the upstream helper throw a generic missing-extension
+ * error deep in proof generation.
+ */
+export function mintHasTransferFeeConfig(mint: DecodedMint): boolean {
+    return (
+        mint.data.extensions.__option === 'Some' &&
+        mint.data.extensions.value.some(e => e.__kind === 'TransferFeeConfig')
+    );
+}
