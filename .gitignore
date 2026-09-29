@@ -83,3 +83,7 @@ yarn.lock
 
 #references
 /references/
+
+#agent skills (see skills/README.md)
+.claude/skills/
+.claude/settings.local.json
