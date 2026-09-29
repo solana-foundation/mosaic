@@ -125,7 +125,7 @@ function ManageTokenConnected({ address }: { address: string }) {
     const [supplyRefreshTrigger, setSupplyRefreshTrigger] = useState(0);
     const [reloadKey, setReloadKey] = useState(0);
     const [isImportOpen, setIsImportOpen] = useState(false);
-    const importSucceededRef = useRef(false);
+    const importedMintRef = useRef<string | null>(null);
 
     // Use centralized extension store for pause state
     const { isPaused, isUpdating: isPauseUpdating, error: pauseError } = usePauseState(address);
@@ -417,19 +417,25 @@ function ManageTokenConnected({ address }: { address: string }) {
                     </div>
                 </div>
 
-                {/* Reload only once the modal has closed after a success: reloading on import would
-                    swap this not-found screen for the token view and unmount the open dialog. */}
+                {/* Act only once the modal has closed after a success: reloading on import would
+                    swap this not-found screen for the token view and unmount the open dialog. If the
+                    user edited the prefilled address, go to the mint they actually imported. */}
                 <ImportTokenModal
                     isOpen={isImportOpen}
                     initialAddress={address}
-                    onTokenImported={() => {
-                        importSucceededRef.current = true;
+                    onTokenImported={mintAddress => {
+                        importedMintRef.current = mintAddress;
                     }}
                     onOpenChange={open => {
                         setIsImportOpen(open);
-                        if (!open && importSucceededRef.current) {
-                            importSucceededRef.current = false;
-                            setReloadKey(k => k + 1);
+                        const importedMint = importedMintRef.current;
+                        if (!open && importedMint) {
+                            importedMintRef.current = null;
+                            if (importedMint === address) {
+                                setReloadKey(k => k + 1);
+                            } else {
+                                router.push(`/manage/${importedMint}`);
+                            }
                         }
                     }}
                 />

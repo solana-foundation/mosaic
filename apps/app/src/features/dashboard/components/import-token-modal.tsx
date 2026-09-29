@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 interface ImportTokenModalProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onTokenImported?: () => void;
+    onTokenImported?: (mintAddress: string) => void;
     /** Mint address to prefill the field with, e.g. when importing from a manage page that couldn't find it. */
     initialAddress?: string;
 }
@@ -131,7 +131,7 @@ export function ImportTokenModal({
             setSuccess(true);
 
             // Call the parent callback to refresh the dashboard
-            onTokenImported?.();
+            onTokenImported?.(tokenAddress);
 
             // Close the modal after a short delay
             if (closeTimerRef.current) {
