@@ -3,13 +3,11 @@
 '@solana/mosaic-cli': major
 ---
 
-Add confidential mint & burn, on the published `@solana-program/token-2022@0.15.0`
+Add confidential mint & burn
 
 Token-2022 `ConfidentialMintBurn` support: minting tokens directly **into** a confidential balance and burning them **from** one, with the amount encrypted on-chain rather than routed through a plaintext mint+deposit or withdraw+burn. `ConfidentialMintBurn` is a separate extension from `ConfidentialTransferMint`, and a mint-burn mint needs **both** — accounts must be confidential-transfer configured to hold the minted balance.
 
-The instruction-plan helpers were upstreamed in [token-2022#1357](https://github.com/solana-program/token-2022/pull/1357) and ship in `0.15.0`, so the SDK consumes them directly rather than generating the three mint/burn proofs itself. `0.15.0` is a hard floor — `0.13.0` and `0.14.x` do not carry the helpers.
-
-**Breaking — the SDK moves to the Solana Kit v7 ecosystem.** `@solana/kit` and `@solana/sysvars` go `^6.10` → `^7.0`, and `@solana-program/token-2022` `^0.10` → `0.15.0`. These are regular dependencies, so an app still on kit v6 that upgrades resolves two kit copies and gets structurally incompatible `Rpc`, `TransactionSigner` and `InstructionPlan` types. Upgrade the whole ecosystem together. `@solana/zk-sdk` moves to `^0.5.2` and `@solana-program/zk-elgamal-proof` to `^0.3.2` alongside it.
+The instruction-plan helpers were upstreamed in [token-2022#1357](https://github.com/solana-program/token-2022/pull/1357) and first shipped in `0.15.0`, so the SDK consumes them directly rather than generating the three mint/burn proofs itself. `0.15.0` is the hard floor for this API — `0.13.0` and `0.14.x` do not carry the helpers — but **this release ships on `0.18.0`**; see the Kit v8 entry in this changelog for the dependency set that actually lands.
 
 **New — confidential mint/burn API**
 
