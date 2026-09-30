@@ -534,3 +534,177 @@ describe('Helper functions', () => {
         });
     });
 });
+
+describe('rate-bearing extensions', () => {
+    const mockEncodedAccount = {
+        exists: true,
+        programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+        data: new Uint8Array(100),
+    };
+
+    const mockMintWith = (extension: Record<string, unknown>) => ({
+        data: {
+            supply: 0n,
+            decimals: 6,
+            isInitialized: true,
+            mintAuthority: { __option: 'Some', value: mockAuthority },
+            freezeAuthority: { __option: 'None' },
+            extensions: { __option: 'Some', value: [extension] },
+        },
+    });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
+    });
+
+    it('decodes TransferFeeConfig with the newer fee as the top-level fee', async () => {
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockMintWith({
+                __kind: 'TransferFeeConfig',
+                transferFeeConfigAuthority: mockAuthority,
+                withdrawWithheldAuthority: mockMintAddress,
+                withheldAmount: 42n,
+                olderTransferFee: { epoch: 3n, transferFeeBasisPoints: 100, maximumFee: 10n },
+                newerTransferFee: { epoch: 5n, transferFeeBasisPoints: 250, maximumFee: 1_000_000n },
+            }),
+        );
+
+        const result = await inspectToken(mockRpc, mockMintAddress);
+
+        const ext = result.extensions.find(e => e.name === 'TransferFeeConfig');
+        expect(ext?.details).toEqual({
+            authority: mockAuthority,
+            withdrawAuthority: mockMintAddress,
+            transferFeeBasisPoints: 250,
+            maximumFee: 1_000_000n,
+            newerTransferFeeEpoch: 5n,
+            olderTransferFee: { epoch: 3n, transferFeeBasisPoints: 100, maximumFee: 10n },
+            withheldAmount: 42n,
+        });
+        expect(result.transferFee).toEqual({
+            transferFeeBasisPoints: 250,
+            maximumFee: 1_000_000n,
+            newerTransferFeeEpoch: 5n,
+            olderTransferFee: { epoch: 3n, transferFeeBasisPoints: 100, maximumFee: 10n },
+            withheldAmount: 42n,
+            authority: mockAuthority,
+            withdrawAuthority: mockMintAddress,
+        });
+        expect(result.interestBearing).toBeUndefined();
+    });
+
+    it('decodes InterestBearingConfig into explicit fields', async () => {
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockMintWith({
+                __kind: 'InterestBearingConfig',
+                rateAuthority: mockAuthority,
+                initializationTimestamp: 1790000000n,
+                preUpdateAverageRate: 400,
+                lastUpdateTimestamp: 1790050000n,
+                currentRate: 500,
+            }),
+        );
+
+        const result = await inspectToken(mockRpc, mockMintAddress);
+
+        const ext = result.extensions.find(e => e.name === 'InterestBearingConfig');
+        expect(ext?.details).toEqual({
+            rateAuthority: mockAuthority,
+            currentRate: 500,
+            preUpdateAverageRate: 400,
+            initializationTimestamp: 1790000000n,
+            lastUpdateTimestamp: 1790050000n,
+        });
+        expect(ext?.details).not.toHaveProperty('__kind');
+        expect(result.interestBearing).toEqual({
+            currentRate: 500,
+            preUpdateAverageRate: 400,
+            initializationTimestamp: 1790000000n,
+            lastUpdateTimestamp: 1790050000n,
+            rateAuthority: mockAuthority,
+        });
+        expect(result.transferFee).toBeUndefined();
+    });
+
+    it('decodes the ScaledUiAmountConfig schedule', async () => {
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockMintWith({
+                __kind: 'ScaledUiAmountConfig',
+                authority: mockAuthority,
+                multiplier: 2,
+                newMultiplier: 5,
+                newMultiplierEffectiveTimestamp: 1790072001n,
+            }),
+        );
+
+        const result = await inspectToken(mockRpc, mockMintAddress);
+
+        const ext = result.extensions.find(e => e.name === 'ScaledUiAmountConfig');
+        expect(ext?.details).toEqual({
+            authority: mockAuthority,
+            multiplier: 2,
+            newMultiplier: 5,
+            newMultiplierEffectiveTimestamp: 1790072001n,
+        });
+        expect(result.scaledUiAmount).toEqual({
+            enabled: true,
+            authority: mockAuthority,
+            multiplier: 2,
+            newMultiplier: 5,
+            newMultiplierEffectiveTimestamp: 1790072001n,
+        });
+    });
+
+    it('projects the rates into string-safe dashboard fields', () => {
+        const inspection: TokenInspectionResult = {
+            address: mockMintAddress,
+            programId: TOKEN_2022_PROGRAM_ADDRESS,
+            isToken2022: true,
+            supplyInfo: { supply: 0n, decimals: 6, isInitialized: true },
+            authorities: {},
+            extensions: [
+                { name: 'TransferFeeConfig' },
+                { name: 'InterestBearingConfig' },
+                { name: 'ScaledUiAmountConfig' },
+            ],
+            detectedPatterns: ['unknown'],
+            isPausable: false,
+            aclMode: 'none',
+            enableSrfc37: false,
+            scaledUiAmount: {
+                enabled: true,
+                multiplier: 2,
+                authority: mockAuthority,
+                newMultiplier: 5,
+                newMultiplierEffectiveTimestamp: 1790072001n,
+            },
+            transferFee: {
+                transferFeeBasisPoints: 250,
+                maximumFee: 1_000_000n,
+                newerTransferFeeEpoch: 5n,
+                olderTransferFee: { epoch: 3n, transferFeeBasisPoints: 100, maximumFee: 10n },
+                withheldAmount: 42n,
+                authority: mockAuthority,
+                withdrawAuthority: mockAuthority,
+            },
+            interestBearing: {
+                currentRate: 500,
+                preUpdateAverageRate: 400,
+                initializationTimestamp: 1790000000n,
+                lastUpdateTimestamp: 1790050000n,
+                rateAuthority: mockAuthority,
+            },
+        };
+
+        const dashboardData = inspectionResultToDashboardData(inspection);
+
+        expect(dashboardData.multiplier).toBe(2);
+        expect(dashboardData.scaledUiNewMultiplier).toBe(5);
+        expect(dashboardData.scaledUiNewMultiplierEffectiveTimestamp).toBe('1790072001');
+        expect(dashboardData.transferFeeBasisPoints).toBe(250);
+        expect(dashboardData.transferFeeMaximum).toBe('1000000');
+        expect(dashboardData.interestRate).toBe(500);
+        expect(() => JSON.stringify(dashboardData)).not.toThrow();
+    });
+});

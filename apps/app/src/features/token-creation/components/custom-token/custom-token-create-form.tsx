@@ -153,7 +153,13 @@ export function CustomTokenCreateForm({
                             </div>
                         );
                     case 2:
-                        return <CustomTokenExtensionConfig options={options} onInputChange={setOption} />;
+                        return (
+                            <CustomTokenExtensionConfig
+                                options={options}
+                                onInputChange={setOption}
+                                walletAddress={transactionSendingSigner.address}
+                            />
+                        );
                     default:
                         return null;
                 }

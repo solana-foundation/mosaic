@@ -1,7 +1,13 @@
 // Test imports - Jest globals are available automatically
 import type { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
-import { AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+    AccountState,
+    TOKEN_2022_PROGRAM_ADDRESS,
+    Token2022Instruction,
+    identifyToken2022Instruction,
+    parseUpdateMultiplierScaledUiMintInstruction,
+} from '@solana-program/token-2022';
 import { Token, getCreateMintInstructions } from '../index.js';
 import {
     createMockRpc,
@@ -277,6 +283,137 @@ describe('Token', () => {
             });
 
             expect(instructions).toHaveLength(2); // create + init (no pre/post init for no extensions)
+        });
+
+        describe('scaled UI amount schedule', () => {
+            const effectiveTimestamp = 1790072001n;
+
+            const countUpdateMultiplier = (instructions: Awaited<ReturnType<Token['buildInstructions']>>) =>
+                instructions.filter(
+                    (inst: any) =>
+                        inst.programAddress === TOKEN_2022_PROGRAM_ADDRESS &&
+                        identifyToken2022Instruction(inst.data) === Token2022Instruction.UpdateMultiplierScaledUiMint,
+                ).length;
+
+            it('emits one UpdateMultiplierScaledUiMint as the last instruction when scheduled', async () => {
+                const mintAuthority = await generateKeyPairSigner();
+                token
+                    .withMetadata({
+                        mintAddress: mockMint.address,
+                        authority: mintAuthority.address,
+                        metadata: TEST_METADATA,
+                        additionalMetadata: new Map(),
+                    })
+                    .withScaledUiAmount(mintAuthority.address, 2, effectiveTimestamp, 5);
+
+                const instructions = await token.buildInstructions({
+                    rpc: mockRpc,
+                    decimals: 6,
+                    mintAuthority,
+                    mint: mockMint,
+                    feePayer: mockFeePayer,
+                });
+
+                expect(countUpdateMultiplier(instructions)).toBe(1);
+                const parsed = parseUpdateMultiplierScaledUiMintInstruction(
+                    instructions[instructions.length - 1] as any,
+                );
+                expect(parsed.programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
+                expect(parsed.accounts.mint.address).toBe(mockMint.address);
+                expect(parsed.accounts.authority.address).toBe(mintAuthority.address);
+                expect((parsed.accounts.authority as any).signer).toBe(mintAuthority);
+                expect(parsed.data.multiplier).toBe(5);
+                expect(parsed.data.effectiveTimestamp).toBe(effectiveTimestamp);
+            });
+
+            it('emits no update when nothing is scheduled', async () => {
+                token.withScaledUiAmount(TEST_AUTHORITY, 2, 0, 2);
+
+                const instructions = await token.buildInstructions({
+                    rpc: mockRpc,
+                    decimals: 6,
+                    mintAuthority: TEST_AUTHORITY,
+                    mint: mockMint,
+                    feePayer: mockFeePayer,
+                });
+
+                expect(countUpdateMultiplier(instructions)).toBe(0);
+            });
+
+            it('defaults newMultiplier to the multiplier', () => {
+                token.withScaledUiAmount(TEST_AUTHORITY, 3);
+
+                const extension: any = token.getExtensions()[0];
+                expect(extension.multiplier).toBe(3);
+                expect(extension.newMultiplier).toBe(3);
+                expect(extension.newMultiplierEffectiveTimestamp).toBe(0n);
+            });
+
+            it('signs with the fee payer when it is the scaled UI authority', async () => {
+                // A real signer: the mock signer is not recognised as a TransactionSigner by kit
+                const feePayer = await generateKeyPairSigner();
+                token.withScaledUiAmount(feePayer.address, 2, effectiveTimestamp, 5);
+
+                const instructions = await token.buildInstructions({
+                    rpc: mockRpc,
+                    decimals: 6,
+                    mint: mockMint,
+                    feePayer,
+                });
+
+                const parsed = parseUpdateMultiplierScaledUiMintInstruction(
+                    instructions[instructions.length - 1] as any,
+                );
+                expect((parsed.accounts.authority as any).signer).toBe(feePayer);
+            });
+
+            it('uses a noop signer when the mint authority is an address equal to the scaled UI authority', async () => {
+                token.withScaledUiAmount(TEST_AUTHORITY, 2, effectiveTimestamp, 5);
+
+                const instructions = await token.buildInstructions({
+                    rpc: mockRpc,
+                    decimals: 6,
+                    mintAuthority: TEST_AUTHORITY,
+                    mint: mockMint,
+                    feePayer: mockFeePayer,
+                });
+
+                const parsed = parseUpdateMultiplierScaledUiMintInstruction(
+                    instructions[instructions.length - 1] as any,
+                );
+                expect(parsed.accounts.authority.address).toBe(TEST_AUTHORITY);
+                expect((parsed.accounts.authority as any).signer?.address).toBe(TEST_AUTHORITY);
+            });
+
+            it('throws for a third-party scaled UI authority', async () => {
+                const thirdParty = await generateKeyPairSigner();
+                token.withScaledUiAmount(thirdParty.address, 2, effectiveTimestamp, 5);
+
+                await expect(
+                    token.buildInstructions({
+                        rpc: mockRpc,
+                        decimals: 6,
+                        mint: mockMint,
+                        feePayer: mockFeePayer,
+                    }),
+                ).rejects.toThrow(/scaled UI authority/);
+            });
+
+            it('throws for a millisecond timestamp', () => {
+                expect(() => token.withScaledUiAmount(TEST_AUTHORITY, 2, BigInt(Date.now()), 5)).toThrow(
+                    /milliseconds/,
+                );
+            });
+
+            it('throws for a new multiplier without a timestamp', () => {
+                expect(() => token.withScaledUiAmount(TEST_AUTHORITY, 2, 0, 5)).toThrow(
+                    /newMultiplier requires newMultiplierEffectiveTimestamp/,
+                );
+            });
+
+            it('throws for a negative timestamp', () => {
+                expect(() => token.withScaledUiAmount(TEST_AUTHORITY, 2, -1, 5)).toThrow(/non-negative/);
+            });
         });
     });
 

@@ -560,13 +560,12 @@ describeSkipIf(true)('Templates Integration Tests', () => {
             );
 
             it(
-                'should validate scaled UI amount configuration',
+                'should schedule the first scaled UI rebase',
                 async () => {
-                    // Given: Custom scaled UI amount parameters
-                    const scaledAuthority = await generateKeyPairSigner();
+                    // Given: A schedule with the scaled UI authority left at its default (the mint authority)
                     const multiplier = 1000;
-                    const timestamp = BigInt(Date.now());
                     const newMultiplier = 2000;
+                    const timestamp = BigInt(Math.floor(Date.now() / 1000) + 3600);
 
                     const createTx = await createTokenizedSecurityInitTransaction(
                         client.rpc,
@@ -582,7 +581,6 @@ describeSkipIf(true)('Templates Integration Tests', () => {
                             aclMode: 'blocklist',
                             enableSrfc37: true,
                             scaledUiAmount: {
-                                authority: scaledAuthority.address,
                                 multiplier,
                                 newMultiplierEffectiveTimestamp: timestamp,
                                 newMultiplier,
@@ -593,28 +591,66 @@ describeSkipIf(true)('Templates Integration Tests', () => {
                     const signature = await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
                     assertTxSuccess(signature);
 
-                    // Then: Token has correct scaled UI amount configuration
+                    // Then: The schedule landed on chain alongside the initial multiplier
                     await assertToken(
                         client.rpc,
                         mint.address,
                         {
                             scaledUiAmount: {
                                 enabled: true,
-                                authority: scaledAuthority.address,
+                                authority: payer.address,
                                 multiplier,
+                                newMultiplier,
+                                newMultiplierEffectiveTimestamp: timestamp,
                             },
                             extensions: [
                                 {
                                     name: 'ScaledUiAmountConfig',
                                     details: {
-                                        authority: scaledAuthority.address,
+                                        authority: payer.address,
                                         multiplier,
+                                        newMultiplier,
+                                        newMultiplierEffectiveTimestamp: timestamp,
                                     },
                                 },
                             ],
                         },
                         DEFAULT_COMMITMENT,
                     );
+                },
+                DEFAULT_TIMEOUT,
+            );
+
+            it(
+                'should refuse a creation-time schedule for a third-party scaled UI authority',
+                async () => {
+                    // Given: A schedule whose scaled UI authority cannot sign the creation transaction
+                    const scaledAuthority = await generateKeyPairSigner();
+
+                    // Then: Building the transaction fails before anything is sent
+                    await expect(
+                        createTokenizedSecurityInitTransaction(
+                            client.rpc,
+                            'Custom Scale Security',
+                            'CSEC',
+                            6,
+                            'https://example.com/csec.json',
+                            payer.address,
+                            mint,
+                            payer,
+                            freezeAuthority.address,
+                            {
+                                aclMode: 'blocklist',
+                                enableSrfc37: true,
+                                scaledUiAmount: {
+                                    authority: scaledAuthority.address,
+                                    multiplier: 1000,
+                                    newMultiplierEffectiveTimestamp: BigInt(Math.floor(Date.now() / 1000) + 3600),
+                                    newMultiplier: 2000,
+                                },
+                            },
+                        ),
+                    ).rejects.toThrow(/scaled UI authority/);
                 },
                 DEFAULT_TIMEOUT,
             );

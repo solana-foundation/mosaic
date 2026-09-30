@@ -18,10 +18,22 @@ import { CustomTokenOptions } from '@/types/token';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { ConfidentialBalancesConfig, isAuditorKeyInvalid } from '../confidential-balances-config';
+import {
+    isScaledUiAuthorityOtherThanWallet,
+    SCHEDULED_REBASE_AUTHORITY_ERROR,
+} from '@/features/token-creation/lib/custom-token';
 
 interface CustomTokenExtensionConfigProps {
     options: CustomTokenOptions;
     onInputChange: (field: string, value: string | boolean) => void;
+    // Connected wallet: the only signer for a creation-time scaled UI schedule
+    walletAddress: string;
+}
+
+/** Current local time in the `datetime-local` input format, used as the schedule's minimum. */
+function nowAsDateTimeLocal(): string {
+    const now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
 /**
@@ -48,8 +60,17 @@ export function isCustomTokenAuditorKeyInvalid(options: CustomTokenOptions): boo
     return isAuditorKeyInvalid(options.auditorElgamalPubkey);
 }
 
-export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTokenExtensionConfigProps) {
+export function CustomTokenExtensionConfig({ options, onInputChange, walletAddress }: CustomTokenExtensionConfigProps) {
     const [scheduleFirstRebase, setScheduleFirstRebase] = useState(false);
+    const scheduleAuthorityBlocked = isScaledUiAuthorityOtherThanWallet(options, walletAddress);
+    const scheduleAuthorityAlert = scheduleAuthorityBlocked && (
+        <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+                <p className="text-xs">{SCHEDULED_REBASE_AUTHORITY_ERROR}</p>
+            </AlertDescription>
+        </Alert>
+    );
 
     // Scaled UI Amount calculations
     const mode = options.scaledUiAmountMode || 'static';
@@ -351,12 +372,14 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                     <Input
                                         id="scaledUiAmountEffectiveTimestamp"
                                         type="datetime-local"
+                                        min={nowAsDateTimeLocal()}
                                         value={options.scaledUiAmountEffectiveTimestamp || ''}
                                         onChange={e =>
                                             onInputChange('scaledUiAmountEffectiveTimestamp', e.target.value)
                                         }
                                     />
                                 </div>
+                                {scheduleAuthorityAlert}
                                 <div className="space-y-1 text-sm text-muted-foreground">
                                     <div className="flex items-center gap-2">
                                         <Info className="h-4 w-4 shrink-0" />
@@ -452,6 +475,7 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                                 <Input
                                                     id="scaledUiAmountEffectiveTimestamp"
                                                     type="datetime-local"
+                                                    min={nowAsDateTimeLocal()}
                                                     value={options.scaledUiAmountEffectiveTimestamp || ''}
                                                     onChange={e =>
                                                         onInputChange(
@@ -461,6 +485,7 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                                     }
                                                 />
                                             </div>
+                                            {scheduleAuthorityAlert}
                                         </div>
                                     )}
                                 </div>
