@@ -17,6 +17,7 @@ import {
     useTransferHookState,
 } from '@/stores/token-extension-store';
 import { isAddress } from '@solana/kit';
+import { formatInterestRate, formatScaledUiMultiplier, formatTransferFee } from '@/lib/token/extension-rates';
 
 interface TokenExtensionsProps {
     token: TokenDisplay;
@@ -79,7 +80,12 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
             'Multiplier that changes how balances display in UIs. Does not affect actual token amounts. Useful for displaying fractional shares or adjusting decimal precision.',
         type: 'number',
         editable: true,
-        getDisplayValue: () => undefined, // Will be fetched separately or shown as placeholder
+        getDisplayValue: token =>
+            formatScaledUiMultiplier(
+                token.scaledUiMultiplier,
+                token.scaledUiNewMultiplier,
+                token.scaledUiNewMultiplierEffectiveTimestamp,
+            ),
     },
     PermanentDelegate: {
         displayName: 'Permanent Delegate',
@@ -95,6 +101,8 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         helpText:
             'Automatically deducts a fee from every transfer. Fees accumulate in recipient accounts and can be withdrawn by the withdraw authority. Requires transfer_checked instructions.',
         type: 'readonly',
+        getDisplayValue: token =>
+            formatTransferFee(token.transferFeeBasisPoints, token.transferFeeMaximum, token.decimals, token.symbol),
     },
     InterestBearingConfig: {
         displayName: 'Interest Bearing',
@@ -102,6 +110,7 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         helpText:
             'Tokens continuously accrue interest based on a configured rate. Interest is calculated on-chain but displayed cosmetically - no new tokens are minted.',
         type: 'readonly',
+        getDisplayValue: token => formatInterestRate(token.interestRate),
     },
     NonTransferable: {
         displayName: 'Non-Transferable',
@@ -162,7 +171,11 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
     const { fetchPauseState, togglePause } = useTokenExtensionStore();
 
     // Get scaled UI state from centralized store
-    const { isUpdating: isScaledUiUpdating, error: scaledUiError } = useScaledUiAmountState(token.address);
+    const {
+        multiplier: updatedMultiplier,
+        isUpdating: isScaledUiUpdating,
+        error: scaledUiError,
+    } = useScaledUiAmountState(token.address);
     const { updateScaledUiMultiplier, updateExtensionField } = useTokenExtensionStore();
 
     // Get transfer hook state from centralized store
@@ -297,7 +310,11 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                 <div className="bg-muted/50 border border-border rounded-2xl">
                     <div className="divide-y divide-border">
                         {presentExtensions.map(({ sdkName, config }) => {
-                            const value = config.getDisplayValue?.(token);
+                            // A multiplier just updated from this page supersedes the fetched one
+                            const value =
+                                sdkName === 'ScaledUiAmountConfig' && updatedMultiplier !== null
+                                    ? String(updatedMultiplier)
+                                    : config.getDisplayValue?.(token);
 
                             return (
                                 <div key={sdkName} className="p-5">
@@ -497,7 +514,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                 )}
                                                 {config.type === 'number' && (
                                                     <div className="px-3 py-2 bg-muted rounded-xl font-mono text-sm">
-                                                        {value || '0.005'}
+                                                        {value ?? '—'}
                                                     </div>
                                                 )}
                                                 {config.type === 'transferHook' &&
@@ -540,7 +557,9 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                     ))}
                                                 {config.type === 'readonly' && (
                                                     <div className="px-3 py-2 bg-muted rounded-xl text-sm text-muted-foreground">
-                                                        Enabled
+                                                        {typeof value === 'string' || typeof value === 'number'
+                                                            ? value
+                                                            : 'Enabled'}
                                                     </div>
                                                 )}
                                                 {config.editable && (
