@@ -9,12 +9,8 @@ import type {
     Signature,
 } from '@solana/kit';
 import type { FullTransaction } from '../../transaction-util.js';
-import {
-    getSignatureFromTransaction,
-    signTransactionMessageWithSigners,
-    sendAndConfirmTransactionFactory,
-} from '@solana/kit';
 import type { Client } from './setup.js';
+import { sendAndPollConfirm } from './polling.js';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
     inspectToken,
@@ -34,8 +30,12 @@ export const DEFAULT_COMMITMENT = 'confirmed';
 
 export const describeSkipIf = (condition?: boolean) => (condition ? describe.skip : describe);
 
+export const itSkipIf = (condition?: boolean) => (condition ? it.skip : it);
+
 /**
- * Submit a transaction and wait for confirmation
+ * Submit a transaction and wait for confirmation. Confirms over HTTP polling rather than
+ * the kit's WS subscriptions, which surfpool does not reliably deliver. Throws (with the
+ * program logs) if the transaction fails.
  */
 export async function sendAndConfirmTransaction(
     client: Client,
@@ -43,17 +43,7 @@ export async function sendAndConfirmTransaction(
     commitment: Commitment = DEFAULT_COMMITMENT,
     skipPreflight = true,
 ): Promise<Signature> {
-    // Sign transaction
-    const signedTransaction = await signTransactionMessageWithSigners(tx);
-
-    // Get signature and wire transaction
-    const signature = getSignatureFromTransaction(signedTransaction);
-    await sendAndConfirmTransactionFactory(client)(signedTransaction as any, {
-        commitment,
-        skipPreflight,
-    });
-
-    return signature;
+    return sendAndPollConfirm(client.rpc, tx, commitment, 30_000, { skipPreflight });
 }
 
 /**
@@ -107,6 +97,18 @@ export function assertTxSuccess(signature: string): void {
     expect(signature.length).toBeGreaterThan(0);
 }
 
+/**
+ * Assert a transaction landed on chain and succeeded. Unlike `assertTxSuccess`, which only
+ * checks the signature string, this reads the transaction back from the cluster.
+ */
+export async function assertTxLanded(rpc: Rpc<SolanaRpcApi>, signature: Signature): Promise<void> {
+    const tx = await rpc
+        .getTransaction(signature, { commitment: 'confirmed', encoding: 'base64', maxSupportedTransactionVersion: 0 })
+        .send();
+    expect(tx).not.toBeNull();
+    expect(tx?.meta?.err).toBeNull();
+}
+
 export async function assertMemo(
     rpc: Rpc<SolanaRpcApi>,
     transactionId: Signature,
@@ -123,10 +125,11 @@ export async function assertMemo(
 }
 
 /**
- * Assert transaction fails
+ * Assert transaction fails. Sends with preflight enabled so a program error rejects at
+ * simulation, without a round of confirmation polling, on every backend.
  */
 export async function assertTxFailure(client: Client, transactionToThrow: FullTransaction): Promise<void> {
-    await expect(sendAndConfirmTransaction(client, transactionToThrow)).rejects.toThrow();
+    await expect(sendAndConfirmTransaction(client, transactionToThrow, DEFAULT_COMMITMENT, false)).rejects.toThrow();
 }
 
 /**
