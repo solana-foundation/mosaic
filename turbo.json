@@ -20,6 +20,19 @@
             "cache": false,
             "env": ["SOLANA_RPC_URL", "SOLANA_WS_URL", "SOLANA_RPC_PORT", "TEST_BACKEND", "SOLANA_VALIDATOR_ARGS"]
         },
+        "test:integration:surfpool": {
+            "dependsOn": ["^build"],
+            "cache": false,
+            "env": [
+                "SOLANA_RPC_URL",
+                "SOLANA_WS_URL",
+                "TEST_BACKEND",
+                "SURFPOOL_RPC_PORT",
+                "SURFPOOL_WS_PORT",
+                "SURFPOOL_DATASOURCE_RPC_URL",
+                "SURFPOOL_ALLOW_VERSION_DRIFT"
+            ]
+        },
         "test": {
             "dependsOn": ["^build"],
             "outputs": ["coverage/**"],

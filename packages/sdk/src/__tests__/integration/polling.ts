@@ -1,11 +1,14 @@
 import {
     type Address,
+    type Base64EncodedWireTransaction,
     type Commitment,
     type Rpc,
     type Signature,
     type SolanaRpcApi,
+    SOLANA_ERROR__JSON_RPC__SERVER_ERROR_SEND_TRANSACTION_PREFLIGHT_FAILURE,
     getBase64EncodedWireTransaction,
     getSignatureFromTransaction,
+    isSolanaError,
     lamports,
     signTransactionMessageWithSigners,
 } from '@solana/kit';
@@ -26,6 +29,43 @@ export interface SendAndPollOptions {
     skipPreflight?: boolean;
 }
 
+const SEND_ATTEMPTS = 3;
+
+/**
+ * sendTransaction, resending when the cluster rejected it for a reason other than the
+ * transaction itself. surfpool loads unknown accounts from its remote datasource before
+ * executing, and a failed fetch (public devnet drops idle connections) comes back as a -32002
+ * with no `data`, which kit cannot even decode (it throws a TypeError). The transaction was
+ * not processed, so resending is safe. A real preflight failure (simulation error with logs)
+ * is never retried, and neither is a send whose signature the cluster already knows.
+ */
+async function sendWithRetry(
+    rpc: Rpc<SolanaRpcApi>,
+    signature: Signature,
+    wire: Base64EncodedWireTransaction,
+    commitment: Commitment,
+    skipPreflight: boolean,
+): Promise<void> {
+    for (let attempt = 1; ; attempt++) {
+        try {
+            await rpc
+                .sendTransaction(wire, { encoding: 'base64', skipPreflight, preflightCommitment: commitment })
+                .send();
+            return;
+        } catch (error) {
+            if (
+                attempt >= SEND_ATTEMPTS ||
+                isSolanaError(error, SOLANA_ERROR__JSON_RPC__SERVER_ERROR_SEND_TRANSACTION_PREFLIGHT_FAILURE)
+            ) {
+                throw error;
+            }
+            const { value } = await rpc.getSignatureStatuses([signature]).send();
+            if (value[0]) return;
+            await new Promise(r => setTimeout(r, 1_000));
+        }
+    }
+}
+
 /**
  * Send a transaction and poll for confirmation via getSignatureStatuses. We
  * intentionally don't use the kit's subscription-based confirmation flow: some
@@ -43,7 +83,7 @@ export async function sendAndPollConfirm(
     const signed = await signTransactionMessageWithSigners(tx);
     const signature = getSignatureFromTransaction(signed);
     const wire = getBase64EncodedWireTransaction(signed);
-    await rpc.sendTransaction(wire, { encoding: 'base64', skipPreflight, preflightCommitment: commitment }).send();
+    await sendWithRetry(rpc, signature, wire, commitment, skipPreflight);
 
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
