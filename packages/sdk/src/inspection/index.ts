@@ -20,6 +20,9 @@ export type {
     TokenDashboardData,
     AclMode,
     ScaledUiAmountInfo,
+    TransferFeeEntry,
+    TransferFeeInfo,
+    InterestBearingInfo,
 } from './types.js';
 // NOTE: `inspectConfidentialAccount` is intentionally NOT re-exported here. It
 // reaches `../confidential/account-state` → `keys` → the `@solana/zk-sdk` WASM

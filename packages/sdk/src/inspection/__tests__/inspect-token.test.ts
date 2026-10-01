@@ -534,3 +534,249 @@ describe('Helper functions', () => {
         });
     });
 });
+
+describe('rate-bearing extensions', () => {
+    const mockEncodedAccount = {
+        exists: true,
+        programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+        data: new Uint8Array(100),
+    };
+
+    const mockMintWith = (extension: Record<string, unknown>) => ({
+        data: {
+            supply: 0n,
+            decimals: 6,
+            isInitialized: true,
+            mintAuthority: { __option: 'Some', value: mockAuthority },
+            freezeAuthority: { __option: 'None' },
+            extensions: { __option: 'Some', value: [extension] },
+        },
+    });
+
+    // An unset OptionalNonZeroPubkey decodes as the all-zero key
+    const zeroAddress = '11111111111111111111111111111111' as Address;
+    const olderTransferFee = { epoch: 3n, transferFeeBasisPoints: 100, maximumFee: 10n };
+    const newerTransferFee = { epoch: 5n, transferFeeBasisPoints: 250, maximumFee: 1_000_000n };
+
+    const mockCurrentEpoch = (epoch: bigint) => {
+        (mockRpc as unknown as { getEpochInfo: jest.Mock }).getEpochInfo = jest.fn(() => ({
+            send: () => Promise.resolve({ epoch }),
+        }));
+    };
+
+    const mockTransferFeeMint = (authorities: { fee: Address; withdraw: Address }) =>
+        mockMintWith({
+            __kind: 'TransferFeeConfig',
+            transferFeeConfigAuthority: authorities.fee,
+            withdrawWithheldAuthority: authorities.withdraw,
+            withheldAmount: 42n,
+            olderTransferFee,
+            newerTransferFee,
+        });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
+        mockCurrentEpoch(6n);
+    });
+
+    it('decodes TransferFeeConfig with the newer fee active once its epoch is reached', async () => {
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockTransferFeeMint({ fee: mockAuthority, withdraw: mockMintAddress }),
+        );
+
+        const result = await inspectToken(mockRpc, mockMintAddress);
+
+        const ext = result.extensions.find(e => e.name === 'TransferFeeConfig');
+        expect(ext?.details).toEqual({
+            authority: mockAuthority,
+            withdrawAuthority: mockMintAddress,
+            transferFeeBasisPoints: 250,
+            maximumFee: 1_000_000n,
+            currentEpoch: 6n,
+            newerTransferFee,
+            olderTransferFee,
+            withheldAmount: 42n,
+        });
+        expect(result.transferFee).toEqual({
+            transferFeeBasisPoints: 250,
+            maximumFee: 1_000_000n,
+            currentEpoch: 6n,
+            newerTransferFee,
+            olderTransferFee,
+            withheldAmount: 42n,
+            authority: mockAuthority,
+            withdrawAuthority: mockMintAddress,
+        });
+        expect(result.interestBearing).toBeUndefined();
+    });
+
+    it('keeps the older fee active while the newer one is pending', async () => {
+        mockCurrentEpoch(4n);
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockTransferFeeMint({ fee: mockAuthority, withdraw: mockMintAddress }),
+        );
+
+        const result = await inspectToken(mockRpc, mockMintAddress);
+
+        expect(result.transferFee?.transferFeeBasisPoints).toBe(100);
+        expect(result.transferFee?.maximumFee).toBe(10n);
+        expect(result.transferFee?.newerTransferFee).toEqual(newerTransferFee);
+        const ext = result.extensions.find(e => e.name === 'TransferFeeConfig');
+        expect(ext?.details?.transferFeeBasisPoints).toBe(100);
+        expect(ext?.details?.maximumFee).toBe(10n);
+        expect(inspectionResultToDashboardData(result).transferFeeBasisPoints).toBe(100);
+    });
+
+    it('reports revoked transfer fee authorities as null', async () => {
+        (decodeMint as jest.Mock).mockReturnValue(mockTransferFeeMint({ fee: zeroAddress, withdraw: zeroAddress }));
+
+        const result = await inspectToken(mockRpc, mockMintAddress);
+
+        expect(result.transferFee?.authority).toBeNull();
+        expect(result.transferFee?.withdrawAuthority).toBeNull();
+        const ext = result.extensions.find(e => e.name === 'TransferFeeConfig');
+        expect(ext?.details).not.toHaveProperty('authority');
+        expect(ext?.details).not.toHaveProperty('withdrawAuthority');
+    });
+
+    it('reports revoked rate and scaled UI authorities as null', async () => {
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockMintWith({
+                __kind: 'InterestBearingConfig',
+                rateAuthority: zeroAddress,
+                initializationTimestamp: 1790000000n,
+                preUpdateAverageRate: 400,
+                lastUpdateTimestamp: 1790050000n,
+                currentRate: 500,
+            }),
+        );
+        expect((await inspectToken(mockRpc, mockMintAddress)).interestBearing?.rateAuthority).toBeNull();
+
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockMintWith({
+                __kind: 'ScaledUiAmountConfig',
+                authority: zeroAddress,
+                multiplier: 1,
+                newMultiplier: 1,
+                newMultiplierEffectiveTimestamp: 0n,
+            }),
+        );
+        expect((await inspectToken(mockRpc, mockMintAddress)).scaledUiAmount?.authority).toBeNull();
+    });
+
+    it('decodes InterestBearingConfig into explicit fields', async () => {
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockMintWith({
+                __kind: 'InterestBearingConfig',
+                rateAuthority: mockAuthority,
+                initializationTimestamp: 1790000000n,
+                preUpdateAverageRate: 400,
+                lastUpdateTimestamp: 1790050000n,
+                currentRate: 500,
+            }),
+        );
+
+        const result = await inspectToken(mockRpc, mockMintAddress);
+
+        const ext = result.extensions.find(e => e.name === 'InterestBearingConfig');
+        expect(ext?.details).toEqual({
+            rateAuthority: mockAuthority,
+            currentRate: 500,
+            preUpdateAverageRate: 400,
+            initializationTimestamp: 1790000000n,
+            lastUpdateTimestamp: 1790050000n,
+        });
+        expect(ext?.details).not.toHaveProperty('__kind');
+        expect(result.interestBearing).toEqual({
+            currentRate: 500,
+            preUpdateAverageRate: 400,
+            initializationTimestamp: 1790000000n,
+            lastUpdateTimestamp: 1790050000n,
+            rateAuthority: mockAuthority,
+        });
+        expect(result.transferFee).toBeUndefined();
+    });
+
+    it('decodes the ScaledUiAmountConfig schedule', async () => {
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockMintWith({
+                __kind: 'ScaledUiAmountConfig',
+                authority: mockAuthority,
+                multiplier: 2,
+                newMultiplier: 5,
+                newMultiplierEffectiveTimestamp: 1790072001n,
+            }),
+        );
+
+        const result = await inspectToken(mockRpc, mockMintAddress);
+
+        const ext = result.extensions.find(e => e.name === 'ScaledUiAmountConfig');
+        expect(ext?.details).toEqual({
+            authority: mockAuthority,
+            multiplier: 2,
+            newMultiplier: 5,
+            newMultiplierEffectiveTimestamp: 1790072001n,
+        });
+        expect(result.scaledUiAmount).toEqual({
+            enabled: true,
+            authority: mockAuthority,
+            multiplier: 2,
+            newMultiplier: 5,
+            newMultiplierEffectiveTimestamp: 1790072001n,
+        });
+    });
+
+    it('projects the rates into string-safe dashboard fields', () => {
+        const inspection: TokenInspectionResult = {
+            address: mockMintAddress,
+            programId: TOKEN_2022_PROGRAM_ADDRESS,
+            isToken2022: true,
+            supplyInfo: { supply: 0n, decimals: 6, isInitialized: true },
+            authorities: {},
+            extensions: [
+                { name: 'TransferFeeConfig' },
+                { name: 'InterestBearingConfig' },
+                { name: 'ScaledUiAmountConfig' },
+            ],
+            detectedPatterns: ['unknown'],
+            isPausable: false,
+            aclMode: 'none',
+            enableSrfc37: false,
+            scaledUiAmount: {
+                enabled: true,
+                multiplier: 2,
+                authority: mockAuthority,
+                newMultiplier: 5,
+                newMultiplierEffectiveTimestamp: 1790072001n,
+            },
+            transferFee: {
+                transferFeeBasisPoints: 250,
+                maximumFee: 1_000_000n,
+                currentEpoch: 6n,
+                newerTransferFee,
+                olderTransferFee,
+                withheldAmount: 42n,
+                authority: mockAuthority,
+                withdrawAuthority: mockAuthority,
+            },
+            interestBearing: {
+                currentRate: 500,
+                preUpdateAverageRate: 400,
+                initializationTimestamp: 1790000000n,
+                lastUpdateTimestamp: 1790050000n,
+                rateAuthority: mockAuthority,
+            },
+        };
+
+        const dashboardData = inspectionResultToDashboardData(inspection);
+
+        expect(dashboardData.multiplier).toBe(2);
+        expect(dashboardData.scaledUiNewMultiplier).toBe(5);
+        expect(dashboardData.scaledUiNewMultiplierEffectiveTimestamp).toBe('1790072001');
+        expect(dashboardData.transferFeeBasisPoints).toBe(250);
+        expect(dashboardData.transferFeeMaximum).toBe('1000000');
+        expect(dashboardData.interestRate).toBe(500);
+        expect(() => JSON.stringify(dashboardData)).not.toThrow();
+    });
+});
