@@ -61,7 +61,11 @@ export function isCustomTokenAuditorKeyInvalid(options: CustomTokenOptions): boo
 }
 
 export function CustomTokenExtensionConfig({ options, onInputChange, walletAddress }: CustomTokenExtensionConfigProps) {
-    const [scheduleFirstRebase, setScheduleFirstRebase] = useState(false);
+    // Seeded from the form so the checkbox stays truthful when this step remounts (wizard
+    // navigation) with a first rebase date still set.
+    const [scheduleFirstRebase, setScheduleFirstRebase] = useState(
+        options.scaledUiAmountMode === 'rebasing' && !!options.scaledUiAmountEffectiveTimestamp,
+    );
     const scheduleAuthorityBlocked = isScaledUiAuthorityOtherThanWallet(options, walletAddress);
     const scheduleAuthorityAlert = scheduleAuthorityBlocked && (
         <Alert variant="destructive">
@@ -76,6 +80,16 @@ export function CustomTokenExtensionConfig({ options, onInputChange, walletAddre
     const mode = options.scaledUiAmountMode || 'static';
     const multiplier = parseFloat(options.scaledUiAmountMultiplier || '1') || 1;
     const newMultiplier = parseFloat(options.scaledUiAmountNewMultiplier || '1') || 1;
+
+    // A schedule set in one mode must not carry into another: `isScaledUiScheduleRequested`
+    // treats any Rebasing date as a requested schedule, so a stale one would land on chain.
+    const selectScaledUiMode = (nextMode: 'static' | 'scheduled' | 'rebasing') => {
+        if (nextMode === mode) return;
+        onInputChange('scaledUiAmountMode', nextMode);
+        onInputChange('scaledUiAmountNewMultiplier', options.scaledUiAmountMultiplier || '1');
+        onInputChange('scaledUiAmountEffectiveTimestamp', '');
+        setScheduleFirstRebase(false);
+    };
 
     // Transfer Fee calculations
     const decimals = parseInt(options.decimals || '6', 10) || 6;
@@ -230,7 +244,7 @@ export function CustomTokenExtensionConfig({ options, onInputChange, walletAddre
                         <div className="grid grid-cols-3 gap-3">
                             <button
                                 type="button"
-                                onClick={() => onInputChange('scaledUiAmountMode', 'static')}
+                                onClick={() => selectScaledUiMode('static')}
                                 className={cn(
                                     'flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all cursor-pointer',
                                     mode === 'static'
@@ -251,7 +265,7 @@ export function CustomTokenExtensionConfig({ options, onInputChange, walletAddre
                             </button>
                             <button
                                 type="button"
-                                onClick={() => onInputChange('scaledUiAmountMode', 'scheduled')}
+                                onClick={() => selectScaledUiMode('scheduled')}
                                 className={cn(
                                     'flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all cursor-pointer',
                                     mode === 'scheduled'
@@ -272,7 +286,7 @@ export function CustomTokenExtensionConfig({ options, onInputChange, walletAddre
                             </button>
                             <button
                                 type="button"
-                                onClick={() => onInputChange('scaledUiAmountMode', 'rebasing')}
+                                onClick={() => selectScaledUiMode('rebasing')}
                                 className={cn(
                                     'flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all cursor-pointer',
                                     mode === 'rebasing'
