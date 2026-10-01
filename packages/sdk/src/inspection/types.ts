@@ -46,18 +46,24 @@ export interface ScaledUiAmountInfo {
     newMultiplierEffectiveTimestamp?: bigint;
 }
 
-export interface TransferFeeInfo {
-    // Newer fee: what the mint was configured with, in effect from `newerTransferFeeEpoch`
+export interface TransferFeeEntry {
+    epoch: bigint;
     transferFeeBasisPoints: number;
     // Raw base units
     maximumFee: bigint;
-    newerTransferFeeEpoch: bigint;
-    // Fee in effect before `newerTransferFeeEpoch`
-    olderTransferFee: {
-        epoch: bigint;
-        transferFeeBasisPoints: number;
-        maximumFee: bigint;
-    };
+}
+
+export interface TransferFeeInfo {
+    // Fee charged at `currentEpoch`: the newer entry once its epoch is reached, else the older one
+    transferFeeBasisPoints: number;
+    // Raw base units
+    maximumFee: bigint;
+    // Epoch the active fee was resolved against
+    currentEpoch: bigint;
+    // Latest configured fee, in effect from its `epoch` (may still be pending)
+    newerTransferFee: TransferFeeEntry;
+    // Fee in effect before `newerTransferFee.epoch`
+    olderTransferFee: TransferFeeEntry;
     withheldAmount: bigint;
     authority: Address | null;
     withdrawAuthority: Address | null;

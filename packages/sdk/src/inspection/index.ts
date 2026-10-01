@@ -20,6 +20,7 @@ export type {
     TokenDashboardData,
     AclMode,
     ScaledUiAmountInfo,
+    TransferFeeEntry,
     TransferFeeInfo,
     InterestBearingInfo,
 } from './types.js';

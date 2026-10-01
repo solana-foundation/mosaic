@@ -553,21 +553,36 @@ describe('rate-bearing extensions', () => {
         },
     });
 
+    // An unset OptionalNonZeroPubkey decodes as the all-zero key
+    const zeroAddress = '11111111111111111111111111111111' as Address;
+    const olderTransferFee = { epoch: 3n, transferFeeBasisPoints: 100, maximumFee: 10n };
+    const newerTransferFee = { epoch: 5n, transferFeeBasisPoints: 250, maximumFee: 1_000_000n };
+
+    const mockCurrentEpoch = (epoch: bigint) => {
+        (mockRpc as unknown as { getEpochInfo: jest.Mock }).getEpochInfo = jest.fn(() => ({
+            send: () => Promise.resolve({ epoch }),
+        }));
+    };
+
+    const mockTransferFeeMint = (authorities: { fee: Address; withdraw: Address }) =>
+        mockMintWith({
+            __kind: 'TransferFeeConfig',
+            transferFeeConfigAuthority: authorities.fee,
+            withdrawWithheldAuthority: authorities.withdraw,
+            withheldAmount: 42n,
+            olderTransferFee,
+            newerTransferFee,
+        });
+
     beforeEach(() => {
         jest.clearAllMocks();
         (fetchEncodedAccount as jest.Mock).mockResolvedValue(mockEncodedAccount);
+        mockCurrentEpoch(6n);
     });
 
-    it('decodes TransferFeeConfig with the newer fee as the top-level fee', async () => {
+    it('decodes TransferFeeConfig with the newer fee active once its epoch is reached', async () => {
         (decodeMint as jest.Mock).mockReturnValue(
-            mockMintWith({
-                __kind: 'TransferFeeConfig',
-                transferFeeConfigAuthority: mockAuthority,
-                withdrawWithheldAuthority: mockMintAddress,
-                withheldAmount: 42n,
-                olderTransferFee: { epoch: 3n, transferFeeBasisPoints: 100, maximumFee: 10n },
-                newerTransferFee: { epoch: 5n, transferFeeBasisPoints: 250, maximumFee: 1_000_000n },
-            }),
+            mockTransferFeeMint({ fee: mockAuthority, withdraw: mockMintAddress }),
         );
 
         const result = await inspectToken(mockRpc, mockMintAddress);
@@ -578,20 +593,76 @@ describe('rate-bearing extensions', () => {
             withdrawAuthority: mockMintAddress,
             transferFeeBasisPoints: 250,
             maximumFee: 1_000_000n,
-            newerTransferFeeEpoch: 5n,
-            olderTransferFee: { epoch: 3n, transferFeeBasisPoints: 100, maximumFee: 10n },
+            currentEpoch: 6n,
+            newerTransferFee,
+            olderTransferFee,
             withheldAmount: 42n,
         });
         expect(result.transferFee).toEqual({
             transferFeeBasisPoints: 250,
             maximumFee: 1_000_000n,
-            newerTransferFeeEpoch: 5n,
-            olderTransferFee: { epoch: 3n, transferFeeBasisPoints: 100, maximumFee: 10n },
+            currentEpoch: 6n,
+            newerTransferFee,
+            olderTransferFee,
             withheldAmount: 42n,
             authority: mockAuthority,
             withdrawAuthority: mockMintAddress,
         });
         expect(result.interestBearing).toBeUndefined();
+    });
+
+    it('keeps the older fee active while the newer one is pending', async () => {
+        mockCurrentEpoch(4n);
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockTransferFeeMint({ fee: mockAuthority, withdraw: mockMintAddress }),
+        );
+
+        const result = await inspectToken(mockRpc, mockMintAddress);
+
+        expect(result.transferFee?.transferFeeBasisPoints).toBe(100);
+        expect(result.transferFee?.maximumFee).toBe(10n);
+        expect(result.transferFee?.newerTransferFee).toEqual(newerTransferFee);
+        const ext = result.extensions.find(e => e.name === 'TransferFeeConfig');
+        expect(ext?.details?.transferFeeBasisPoints).toBe(100);
+        expect(ext?.details?.maximumFee).toBe(10n);
+        expect(inspectionResultToDashboardData(result).transferFeeBasisPoints).toBe(100);
+    });
+
+    it('reports revoked transfer fee authorities as null', async () => {
+        (decodeMint as jest.Mock).mockReturnValue(mockTransferFeeMint({ fee: zeroAddress, withdraw: zeroAddress }));
+
+        const result = await inspectToken(mockRpc, mockMintAddress);
+
+        expect(result.transferFee?.authority).toBeNull();
+        expect(result.transferFee?.withdrawAuthority).toBeNull();
+        const ext = result.extensions.find(e => e.name === 'TransferFeeConfig');
+        expect(ext?.details).not.toHaveProperty('authority');
+        expect(ext?.details).not.toHaveProperty('withdrawAuthority');
+    });
+
+    it('reports revoked rate and scaled UI authorities as null', async () => {
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockMintWith({
+                __kind: 'InterestBearingConfig',
+                rateAuthority: zeroAddress,
+                initializationTimestamp: 1790000000n,
+                preUpdateAverageRate: 400,
+                lastUpdateTimestamp: 1790050000n,
+                currentRate: 500,
+            }),
+        );
+        expect((await inspectToken(mockRpc, mockMintAddress)).interestBearing?.rateAuthority).toBeNull();
+
+        (decodeMint as jest.Mock).mockReturnValue(
+            mockMintWith({
+                __kind: 'ScaledUiAmountConfig',
+                authority: zeroAddress,
+                multiplier: 1,
+                newMultiplier: 1,
+                newMultiplierEffectiveTimestamp: 0n,
+            }),
+        );
+        expect((await inspectToken(mockRpc, mockMintAddress)).scaledUiAmount?.authority).toBeNull();
     });
 
     it('decodes InterestBearingConfig into explicit fields', async () => {
@@ -682,8 +753,9 @@ describe('rate-bearing extensions', () => {
             transferFee: {
                 transferFeeBasisPoints: 250,
                 maximumFee: 1_000_000n,
-                newerTransferFeeEpoch: 5n,
-                olderTransferFee: { epoch: 3n, transferFeeBasisPoints: 100, maximumFee: 10n },
+                currentEpoch: 6n,
+                newerTransferFee,
+                olderTransferFee,
                 withheldAmount: 42n,
                 authority: mockAuthority,
                 withdrawAuthority: mockAuthority,
