@@ -10,7 +10,7 @@
         "ui": "turbo dev --filter=@mosaic/app",
         "test:unit": "SKIP_INTEGRATION=true turbo test -- --passWithNoTests",
         "test:integration": "turbo test:integration",
-        "test:all": "turbo test -- --passWithNoTests",
+        "test:all": "pnpm test:unit && pnpm test:integration",
         "lint": "turbo lint",
         "lint:fix": "turbo lint:fix",
         "format": "prettier --write .",

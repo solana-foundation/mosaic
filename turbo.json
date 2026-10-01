@@ -16,7 +16,9 @@
             "dependsOn": ["^lint:fix"]
         },
         "test:integration": {
-            "dependsOn": ["^build"]
+            "dependsOn": ["^build"],
+            "cache": false,
+            "env": ["SOLANA_RPC_URL", "SOLANA_WS_URL", "SOLANA_RPC_PORT", "TEST_BACKEND", "SOLANA_VALIDATOR_ARGS"]
         },
         "test": {
             "dependsOn": ["^build"],

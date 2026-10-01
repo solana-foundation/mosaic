@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import { commandExitCode, installCleanup, spawnJest, waitForHealthy } from './local-cluster.js';
+import { commandExitCode, installCleanup, jestPassthroughArgs, spawnJest, waitForHealthy } from './local-cluster.js';
 
 // SOLANA_RPC_PORT moves the validator off its default 8899 (the WebSocket port is always RPC + 1).
 const rpcPort = process.env.SOLANA_RPC_PORT;
@@ -43,7 +43,7 @@ async function runTestsWithValidator() {
         await waitForHealthy(config.rpcUrl, config.maxHealthCheckRetries);
 
         console.log('Running tests...');
-        const testExitCode = await spawnJest(['__tests__/integration'], {
+        const testExitCode = await spawnJest(['-c', 'jest.integration.config.js', ...jestPassthroughArgs()], {
             SOLANA_RPC_URL: config.rpcUrl,
             SOLANA_WS_URL: config.wsUrl,
             TEST_BACKEND: 'validator',

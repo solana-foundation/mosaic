@@ -61,6 +61,15 @@ export async function waitForHealthy(rpcUrl, retries, intervalMs = 1000) {
     throw new Error(`${rpcUrl} did not become healthy within ${(retries * intervalMs) / 1000}s`);
 }
 
+/**
+ * This script's own CLI args, to forward to jest (e.g. `pnpm test:integration -- templates`).
+ * pnpm forwards the `--` separator itself, which jest would read as a test path pattern.
+ */
+export function jestPassthroughArgs() {
+    const args = process.argv.slice(2);
+    return args[0] === '--' ? args.slice(1) : args;
+}
+
 /** Run jest with `args` and the extra `env`, resolving to its exit code. */
 export async function spawnJest(args, env) {
     const testProcess = spawn('jest', args, {
