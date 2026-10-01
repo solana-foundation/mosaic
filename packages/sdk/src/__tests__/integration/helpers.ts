@@ -7,10 +7,14 @@ import type {
     TransactionMessageWithBlockhashLifetime,
     Commitment,
     Signature,
+    TransactionSigner,
 } from '@solana/kit';
 import type { FullTransaction } from '../../transaction-util.js';
 import type { Client } from './setup.js';
+import { createStablecoinInitTransaction } from '../../templates/index.js';
+import { createAddToAllowlistTransaction } from '../../management/index.js';
 import { sendAndPollConfirm } from './polling.js';
+import { TEST_BACKEND } from './env.js';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
     inspectToken,
@@ -23,7 +27,9 @@ import {
     type TokenType,
 } from '../../inspection/index.js';
 
-export const DEFAULT_TIMEOUT = 60000;
+// surfpool resolves every account it hasn't seen through its remote datasource, and a fetch
+// from public devnet can stall for ~30 s before it fails and the send is retried.
+export const DEFAULT_TIMEOUT = TEST_BACKEND === 'surfpool' ? 120_000 : 60_000;
 // Use 'confirmed' commitment to ensure transactions are visible to subsequent RPC reads
 // 'processed' is too weak and can cause race conditions where accounts aren't found yet
 export const DEFAULT_COMMITMENT = 'confirmed';
@@ -107,6 +113,51 @@ export async function assertTxLanded(rpc: Rpc<SolanaRpcApi>, signature: Signatur
         .send();
     expect(tx).not.toBeNull();
     expect(tx?.meta?.err).toBeNull();
+}
+
+/**
+ * Create an SRFC-37 mint the way the stablecoin template's single-signer flow does it: Token ACL
+ * config (the freeze authority moves to the config PDA), an ABL list in `aclMode`, and
+ * permissionless thaw. Allowlist mints are born with frozen accounts, blocklist mints with
+ * initialized ones. `authority` is the mint authority, the fee payer, and the Token ACL / ABL
+ * authority (so it is also who freezes and thaws through Token ACL). Needs the real Token ACL and
+ * ABL programs, so surfpool leg only.
+ */
+export async function createSrfc37Mint(
+    client: Client,
+    authority: TransactionSigner<string>,
+    mint: TransactionSigner<string>,
+    aclMode: 'allowlist' | 'blocklist',
+    permanentDelegate?: Address,
+): Promise<void> {
+    const createTx = await createStablecoinInitTransaction(
+        client.rpc,
+        `SRFC-37 ${aclMode} token`,
+        'SRFC',
+        6,
+        'https://example.com/srfc.json',
+        authority,
+        mint,
+        authority,
+        aclMode,
+        undefined,
+        undefined,
+        undefined,
+        permanentDelegate,
+        true,
+    );
+    await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, createTx));
+}
+
+/** Add `wallet` to the mint's ABL allowlist, so the gate approves permissionless thaws of its accounts. */
+export async function addToAllowlist(
+    client: Client,
+    mint: Address,
+    wallet: Address,
+    authority: TransactionSigner<string>,
+): Promise<void> {
+    const tx = await createAddToAllowlistTransaction(client.rpc, mint, wallet, authority);
+    await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, tx));
 }
 
 export async function assertMemo(
