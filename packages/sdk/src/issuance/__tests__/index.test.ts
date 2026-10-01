@@ -1,7 +1,14 @@
 // Test imports - Jest globals are available automatically
 import type { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
-import { AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+    AccountState,
+    TOKEN_2022_PROGRAM_ADDRESS,
+    getInitializeInterestBearingMintInstructionDataDecoder,
+    getInitializeTransferFeeConfigInstructionDataDecoder,
+    getMintSize,
+    getPreInitializeInstructionsForMintExtensions,
+} from '@solana-program/token-2022';
 import { Token, getCreateMintInstructions } from '../index.js';
 import {
     createMockRpc,
@@ -220,6 +227,108 @@ describe('Token', () => {
                 (inst: any) => inst.programAddress === TOKEN_2022_PROGRAM_ADDRESS && inst.data,
             );
             expect(hasConfidentialTransferFeeInstruction).toBe(true);
+        });
+    });
+
+    describe('rate extension sizing placeholders', () => {
+        const U64_MAX = 2n ** 64n - 1n;
+        const I64_MAX = 2n ** 63n - 1n;
+
+        it('withTransferFee zeroes the fields the program sets on chain', () => {
+            token.withTransferFee({
+                authority: TEST_AUTHORITY,
+                withdrawAuthority: TEST_AUTHORITY,
+                feeBasisPoints: 100,
+                maximumFee: 1000n,
+            });
+            const extension: any = token.getExtensions()[0];
+
+            expect(extension.withheldAmount).toBe(0n);
+            expect(extension.newerTransferFee).toEqual({ epoch: 0n, maximumFee: 1000n, transferFeeBasisPoints: 100 });
+            expect(extension.olderTransferFee).toEqual(extension.newerTransferFee);
+        });
+
+        it('withInterestBearing zeroes the fields the program sets on chain', () => {
+            token.withInterestBearing({ authority: TEST_AUTHORITY, rate: 500 });
+            const extension: any = token.getExtensions()[0];
+
+            expect(extension.initializationTimestamp).toBe(0n);
+            expect(extension.lastUpdateTimestamp).toBe(0n);
+            expect(extension.preUpdateAverageRate).toBe(0);
+            expect(extension.currentRate).toBe(500);
+        });
+
+        it('getMintSize is insensitive to the TransferFeeConfig placeholder values', () => {
+            token.withTransferFee({
+                authority: TEST_AUTHORITY,
+                withdrawAuthority: TEST_AUTHORITY,
+                feeBasisPoints: 100,
+                maximumFee: 1000n,
+            });
+            const extension: any = token.getExtensions()[0];
+            const maxedFee = { epoch: U64_MAX, maximumFee: U64_MAX, transferFeeBasisPoints: 10000 };
+            const maxed = {
+                ...extension,
+                withheldAmount: U64_MAX,
+                newerTransferFee: maxedFee,
+                olderTransferFee: maxedFee,
+            };
+
+            expect(getMintSize([extension])).toBe(getMintSize([maxed]));
+        });
+
+        it('getMintSize is insensitive to the InterestBearingConfig placeholder values', () => {
+            token.withInterestBearing({ authority: TEST_AUTHORITY, rate: 500 });
+            const extension: any = token.getExtensions()[0];
+            const maxed = {
+                ...extension,
+                initializationTimestamp: I64_MAX,
+                lastUpdateTimestamp: I64_MAX,
+                preUpdateAverageRate: 32767,
+                currentRate: 32767,
+            };
+
+            expect(getMintSize([extension])).toBe(getMintSize([maxed]));
+        });
+
+        it('TransferFeeConfig instruction data is insensitive to the placeholder values', () => {
+            token.withTransferFee({
+                authority: TEST_AUTHORITY,
+                withdrawAuthority: TEST_AUTHORITY,
+                feeBasisPoints: 100,
+                maximumFee: 1000n,
+            });
+            const extension: any = token.getExtensions()[0];
+            const maxed = {
+                ...extension,
+                withheldAmount: U64_MAX,
+                newerTransferFee: { ...extension.newerTransferFee, epoch: U64_MAX },
+                olderTransferFee: { epoch: U64_MAX, maximumFee: U64_MAX, transferFeeBasisPoints: 10000 },
+            };
+            const [instruction] = getPreInitializeInstructionsForMintExtensions(mockMint.address, [extension]);
+            const [maxedInstruction] = getPreInitializeInstructionsForMintExtensions(mockMint.address, [maxed]);
+
+            expect(instruction.data).toEqual(maxedInstruction.data);
+            const data = getInitializeTransferFeeConfigInstructionDataDecoder().decode(instruction.data!);
+            expect(data.transferFeeBasisPoints).toBe(100);
+            expect(data.maximumFee).toBe(1000n);
+        });
+
+        it('InterestBearingConfig instruction data is insensitive to the placeholder values', () => {
+            token.withInterestBearing({ authority: TEST_AUTHORITY, rate: 500 });
+            const extension: any = token.getExtensions()[0];
+            const maxed = {
+                ...extension,
+                initializationTimestamp: I64_MAX,
+                lastUpdateTimestamp: I64_MAX,
+                preUpdateAverageRate: 32767,
+            };
+            const [instruction] = getPreInitializeInstructionsForMintExtensions(mockMint.address, [extension]);
+            const [maxedInstruction] = getPreInitializeInstructionsForMintExtensions(mockMint.address, [maxed]);
+
+            expect(instruction.data).toEqual(maxedInstruction.data);
+            const data = getInitializeInterestBearingMintInstructionDataDecoder().decode(instruction.data!);
+            expect(data.rate).toBe(500);
         });
     });
 
