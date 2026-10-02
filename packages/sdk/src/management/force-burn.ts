@@ -43,7 +43,7 @@ export const createForceBurnTransaction = async (
     rpc: Rpc<SolanaRpcApi>,
     mint: Address,
     fromAccount: Address,
-    decimalAmount: number,
+    decimalAmount: number | string,
     permanentDelegate: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
     permissionedBurnAuthority?: Address | TransactionSigner<string>,
