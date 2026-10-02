@@ -1,7 +1,7 @@
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
-import { createMockRpc, createMockSigner } from '../../__tests__/test-utils';
+import { createMockRpc, createMockSigner } from '../../__tests__/test-utils.js';
 
 describe('createTransferInstructions amount precision', () => {
     let rpc: Rpc<SolanaRpcApi>;
@@ -17,7 +17,7 @@ describe('createTransferInstructions amount precision', () => {
 
     test('passes the exact decimal string, not a parsed float, to decimalAmountToRaw', async () => {
         const decimalAmountToRaw = jest.fn().mockReturnValue(1n);
-        jest.doMock('../../transaction-util', () => ({
+        jest.doMock('../../transaction-util.js', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata77777777777777777777777777777777777777',
                 isInitialized: true,
@@ -35,7 +35,7 @@ describe('createTransferInstructions amount precision', () => {
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
         }));
 
-        const { createTransferInstructions } = await import('../index');
+        const { createTransferInstructions } = await import('../index.js');
 
         // 16 significant digits: parseFloat('9999999999.999999') === 9999999999.999998,
         // so the buggy path handed decimalAmountToRaw a lossy number. The string must
