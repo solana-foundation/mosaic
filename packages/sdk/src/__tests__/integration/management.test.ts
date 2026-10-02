@@ -12,14 +12,20 @@ import {
     DEFAULT_TIMEOUT,
     DEFAULT_COMMITMENT,
     describeSkipIf,
+    itSkipIf,
+    assertTxLanded,
+    assertToken,
+    createSrfc37Mint,
+    addToAllowlist,
 } from './helpers.js';
+import { TEST_BACKEND } from './env.js';
 import { Token } from '../../issuance/index.js';
 import {
     createMintToTransaction,
     createForceTransferTransaction,
     createForceBurnTransaction,
 } from '../../management/index.js';
-import { getFreezeTransaction, getThawTransaction, TOKEN_ACL_PROGRAM_ID } from '../../token-acl/index.js';
+import { getFreezeTransaction, getThawTransaction } from '../../token-acl/index.js';
 import { decimalAmountToRaw } from '../../transaction-util.js';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
@@ -466,41 +472,17 @@ describeSkipIf()('Management Integration Tests', () => {
             DEFAULT_TIMEOUT,
         );
 
-        it.skip(
+        itSkipIf(TEST_BACKEND !== 'surfpool')(
             'should force transfer with permissionless thaw on destination',
             async () => {
                 const sender = await generateKeyPairSigner();
                 const receiver = await generateKeyPairSigner();
                 const permanentDelegate = await generateKeyPairSigner();
 
-                // Given: A token with SRFC-37 enabled (blocklist mode)
-                const tokenBuilder = new Token()
-                    .withMetadata({
-                        mintAddress: mint.address,
-                        authority: mintAuthority.address,
-                        metadata: {
-                            name: 'SRFC37 Force Token',
-                            symbol: 'SRFC',
-                            uri: 'https://example.com/srfc.json',
-                        },
-                        additionalMetadata: new Map(),
-                    })
-                    .withPermanentDelegate(permanentDelegate.address)
-                    .withDefaultAccountState(false); // false = frozen (blocklist)
-
-                const createTx = await tokenBuilder.buildTransaction({
-                    rpc: client.rpc,
-                    decimals: 6,
-                    mintAuthority,
-                    freezeAuthority: TOKEN_ACL_PROGRAM_ID,
-                    mint,
-                    feePayer: payer,
-                });
-
-                await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
-
-                // Verify mint exists before proceeding
-                await assertBalance(client.rpc, sender.address, mint.address, 0n, DEFAULT_COMMITMENT);
+                // Given: An SRFC-37 allowlist token (accounts are born frozen) with both wallets allowlisted
+                await createSrfc37Mint(client, mintAuthority, mint, 'allowlist', permanentDelegate.address);
+                await addToAllowlist(client, mint.address, sender.address, mintAuthority);
+                await addToAllowlist(client, mint.address, receiver.address, mintAuthority);
 
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
@@ -511,7 +493,11 @@ describeSkipIf()('Management Integration Tests', () => {
                     mintAuthority,
                     payer,
                 );
-                await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
+                // The sender's new ATA is born frozen; minting thaws it permissionlessly (allowlisted)
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT),
+                );
 
                 // When: Force transfer to receiver (will create frozen ATA and thaw it)
                 const forceTransferTx = await createForceTransferTransaction(
@@ -524,8 +510,10 @@ describeSkipIf()('Management Integration Tests', () => {
                     payer,
                 );
 
-                const signature = await sendAndConfirmTransaction(client, forceTransferTx, DEFAULT_COMMITMENT);
-                assertTxSuccess(signature);
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, forceTransferTx, DEFAULT_COMMITMENT),
+                );
 
                 // Then: Sender has 0, receiver has all tokens (ATA was created frozen and thawed)
                 await assertBalances(
@@ -813,6 +801,29 @@ describeSkipIf()('Management Integration Tests', () => {
         return { wallet, tokenAccount };
     }
 
+    /** A blocklist SRFC-37 token (mint authority holds the Token ACL config) with tokens minted to `wallet`. */
+    async function setupSrfc37TokenWithMint(wallet: KeyPairSigner<string>): Promise<{ tokenAccount: Address }> {
+        await createSrfc37Mint(client, mintAuthority, mint, 'blocklist');
+        await assertToken(client.rpc, mint.address, { aclMode: 'blocklist', enableSrfc37: true }, DEFAULT_COMMITMENT);
+
+        const mintTx = await createMintToTransaction(
+            client.rpc,
+            mint.address,
+            wallet.address,
+            1_000_000,
+            mintAuthority,
+            payer,
+        );
+        await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT));
+
+        const [tokenAccount] = await findAssociatedTokenPda({
+            owner: wallet.address,
+            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+            mint: mint.address,
+        });
+        return { tokenAccount };
+    }
+
     async function freezeAndAssert(
         rpc: Rpc<SolanaRpcApi>,
         client: Client,
@@ -860,63 +871,58 @@ describeSkipIf()('Management Integration Tests', () => {
     }
 
     describe('Pause Operations', () => {
-        it.skip(
+        itSkipIf(TEST_BACKEND !== 'surfpool')(
             'should freeze wallet',
             async () => {
                 const wallet = await generateKeyPairSigner();
 
-                // Given: A token with Token ACL as freeze authority
-                const { tokenAccount } = await setupTokenWithMint(TOKEN_ACL_PROGRAM_ID, 'Freeze Token', 'FRZ', wallet);
+                // Given: An SRFC-37 token, so freeze/thaw go through Token ACL
+                const { tokenAccount } = await setupSrfc37TokenWithMint(wallet);
 
                 // Verify not frozen initially
                 let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(false);
 
                 // When: Freeze the account
-                await freezeAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
+                await freezeAndAssert(client.rpc, client, payer, mintAuthority, wallet, mint, tokenAccount);
             },
             DEFAULT_TIMEOUT,
         );
 
-        it.skip(
+        itSkipIf(TEST_BACKEND !== 'surfpool')(
             'should thaw wallet',
             async () => {
                 const wallet = await generateKeyPairSigner();
 
-                // Given: A token with Token ACL as freeze authority
-                const { tokenAccount } = await setupTokenWithMint(TOKEN_ACL_PROGRAM_ID, 'Thaw Token', 'THW', wallet);
+                // Given: An SRFC-37 token, so freeze/thaw go through Token ACL
+                const { tokenAccount } = await setupSrfc37TokenWithMint(wallet);
 
                 // Freeze first
-                await freezeAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
+                await freezeAndAssert(client.rpc, client, payer, mintAuthority, wallet, mint, tokenAccount);
 
                 // When: Thaw the account
-                await thawAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
+                await thawAndAssert(client.rpc, client, payer, mintAuthority, wallet, mint, tokenAccount);
             },
             DEFAULT_TIMEOUT,
         );
 
-        it.skip(
+        itSkipIf(TEST_BACKEND !== 'surfpool')(
             'should handle freeze then thaw workflow',
             async () => {
                 const wallet = await generateKeyPairSigner();
 
-                // Given: A token with Token ACL as freeze authority
-                const { tokenAccount } = await setupTokenWithMint(
-                    TOKEN_ACL_PROGRAM_ID,
-                    'Workflow Token',
-                    'WRK',
-                    wallet,
-                );
+                // Given: An SRFC-37 token, so freeze/thaw go through Token ACL
+                const { tokenAccount } = await setupSrfc37TokenWithMint(wallet);
 
                 // Initial state: not frozen
                 let frozen = await isAccountFrozen(client.rpc, wallet.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(false);
 
                 // When: Freeze the account
-                await freezeAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
+                await freezeAndAssert(client.rpc, client, payer, mintAuthority, wallet, mint, tokenAccount);
 
                 // When: Thaw the account
-                await thawAndAssert(client.rpc, client, payer, freezeAuthority, wallet, mint, tokenAccount);
+                await thawAndAssert(client.rpc, client, payer, mintAuthority, wallet, mint, tokenAccount);
 
                 // Then: Balance unchanged throughout workflow
                 await assertBalance(
