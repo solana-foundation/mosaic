@@ -168,10 +168,11 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
     // Get transfer hook state from centralized store
     const {
         programId: currentTransferHookProgramId,
+        loaded: isTransferHookLoaded,
         isUpdating: isTransferHookUpdating,
         error: transferHookError,
     } = useTransferHookState(token.address);
-    const { updateTransferHookProgram, seedTransferHookProgramId } = useTokenExtensionStore();
+    const { updateTransferHookProgram } = useTokenExtensionStore();
 
     // Fetch pause state on mount if token has pausable extension
     useEffect(() => {
@@ -179,14 +180,6 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
             fetchPauseState(token.address, cluster?.url || '');
         }
     }, [token.address, token.extensions, cluster?.url, fetchPauseState]);
-
-    // Seed the transfer hook program id from the freshly-fetched token once per mint;
-    // the store guards against clobbering state already tracked for this mint.
-    useEffect(() => {
-        if (token.address) {
-            seedTransferHookProgramId(token.address, token.transferHookProgramId ?? null);
-        }
-    }, [token.address, token.transferHookProgramId, seedTransferHookProgramId]);
 
     // Handle pause toggle using store
     const handlePauseToggle = async () => {
@@ -508,7 +501,11 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                     </div>
                                                 )}
                                                 {config.type === 'transferHook' &&
-                                                    (currentTransferHookProgramId ? (
+                                                    (!isTransferHookLoaded ? (
+                                                        <div className="px-3 py-2 bg-muted rounded-xl text-sm text-muted-foreground">
+                                                            Loading...
+                                                        </div>
+                                                    ) : currentTransferHookProgramId ? (
                                                         <div className="px-3 py-2 bg-muted rounded-xl font-mono text-sm">
                                                             {truncateAddress(currentTransferHookProgramId)}
                                                         </div>
@@ -527,6 +524,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                         variant="secondary"
                                                         size="sm"
                                                         className="h-9 px-4 rounded-xl"
+                                                        disabled={sdkName === 'TransferHook' && !isTransferHookLoaded}
                                                         onClick={() => {
                                                             if (sdkName === 'ScaledUiAmountConfig') {
                                                                 setShowScaledUiEditor(true);

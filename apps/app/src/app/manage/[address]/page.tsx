@@ -129,7 +129,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     // Use centralized extension store for pause state
     const { isPaused, isUpdating: isPauseUpdating, error: pauseError } = usePauseState(address);
-    const { fetchPauseState, togglePause, updateExtensionField } = useTokenExtensionStore();
+    const { fetchPauseState, togglePause, updateExtensionField, syncTransferHookProgramId } = useTokenExtensionStore();
 
     // Function to trigger supply refresh after mint/burn actions
     const refreshSupply = () => {
@@ -180,6 +180,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                     foundToken.transferHookAuthority =
                         authorities.transferHookAuthority || foundToken.transferHookAuthority;
                     foundToken.transferHookProgramId = authorities.transferHookProgramId;
+                    // The locally stored token never carries the hook program id, so the
+                    // extensions panel reads it from the store, synced only from chain data.
+                    syncTransferHookProgramId(foundToken.address as string, authorities.transferHookProgramId ?? null);
                 } catch {
                     // If authority fetch fails, continue with existing token data
                     // Authorities may not be available if token doesn't exist on this network
@@ -209,7 +212,7 @@ function ManageTokenConnected({ address }: { address: string }) {
         };
 
         loadTokenData();
-    }, [address, rpc, cluster?.url, findTokenByAddress, fetchPauseState, reloadKey]);
+    }, [address, rpc, cluster?.url, findTokenByAddress, fetchPauseState, syncTransferHookProgramId, reloadKey]);
 
     useEffect(() => {
         const loadAccessList = async () => {

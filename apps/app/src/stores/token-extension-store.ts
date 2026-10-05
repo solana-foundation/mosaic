@@ -36,8 +36,8 @@ interface ScaledUiAmountState {
 interface TransferHookState {
     /** Currently active hook program id, or null if the extension is inactive/unset. */
     programId: string | null;
-    /** Whether programId has been seeded from chain data yet (see seedTransferHookProgramId). */
-    seeded: boolean;
+    /** Whether programId reflects chain data yet (see syncTransferHookProgramId). */
+    loaded: boolean;
     isUpdating: boolean;
     error: string | null;
 }
@@ -65,7 +65,7 @@ function createDefaultExtensionState(): ExtensionState {
         },
         transferHook: {
             programId: null,
-            seeded: false,
+            loaded: false,
             isUpdating: false,
             error: null,
         },
@@ -93,7 +93,7 @@ interface TokenExtensionStore {
     ) => Promise<boolean>;
 
     // Transfer Hook actions
-    seedTransferHookProgramId: (mint: string, programId: string | null) => void;
+    syncTransferHookProgramId: (mint: string, programId: string | null) => void;
     updateTransferHookProgram: (
         mint: string,
         options: Omit<UpdateTransferHookOptions, 'mint'>,
@@ -301,17 +301,15 @@ export const useTokenExtensionStore = create<TokenExtensionStore>()(
             });
         },
 
-        // Seed the transfer hook program id from on-chain data, once per mint. Guarded on
-        // transferHook.seeded rather than the mint entry's existence: another extension's
-        // fetch (e.g. fetchPauseState) may have already created the entry for this mint via
-        // ensureExtension, which would make a per-mint existence check skip the seed and
-        // leave programId stuck at its default (null/"Inactive").
-        seedTransferHookProgramId: (mint, programId) => {
+        // Sync the transfer hook program id from freshly fetched on-chain data. Called on every
+        // chain fetch (initial load and reloads) so changes made outside the app show up; skipped
+        // while an update is in flight so a fetch can't clobber the result of that update.
+        syncTransferHookProgramId: (mint, programId) => {
             set(state => {
                 const ext = ensureExtension(state, mint);
-                if (!ext.transferHook.seeded) {
+                if (!ext.transferHook.isUpdating) {
                     ext.transferHook.programId = programId;
-                    ext.transferHook.seeded = true;
+                    ext.transferHook.loaded = true;
                 }
             });
         },
@@ -334,7 +332,7 @@ export const useTokenExtensionStore = create<TokenExtensionStore>()(
                     ),
                 onSuccess: transferHook => {
                     (transferHook as TransferHookState).programId = options.programId;
-                    (transferHook as TransferHookState).seeded = true;
+                    (transferHook as TransferHookState).loaded = true;
                 },
                 onFailure: () => {
                     // No optimistic update to revert
@@ -398,7 +396,7 @@ const DEFAULT_SCALED_UI_STATE: ScaledUiAmountState = {
 // Default transfer hook state for selector
 const DEFAULT_TRANSFER_HOOK_STATE: TransferHookState = {
     programId: null,
-    seeded: false,
+    loaded: false,
     isUpdating: false,
     error: null,
 };
