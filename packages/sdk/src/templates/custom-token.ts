@@ -9,9 +9,8 @@ import {
     setTransactionMessageFeePayer,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
-    none,
 } from '@solana/kit';
-import { getUpdateTransferHookInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { Mode } from '@solana/token-acl-gate-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils.js';
 import { getCreateConfigInstructions } from '../token-acl/create-config.js';
@@ -110,12 +109,9 @@ export const createCustomTokenInitTransaction = async (
         interestBearingAuthority?: Address;
         interestRate?: number;
 
-        // Transfer Hook configuration
-        // transferHookAuthority defaults to mintAuthority (preserving its TransactionSigner) when
-        // omitted, since it must sign the UpdateTransferHook clear-to-none instruction below when
-        // transferHookProgramId is left unset. Passing a bare Address only works if some other
-        // instruction in the same tx already attaches a signer for that address.
-        transferHookAuthority?: Address | TransactionSigner<string>;
+        // Transfer Hook configuration. Omitting transferHookProgramId initializes the extension
+        // inactive (no hook program); the authority can set one later via UpdateTransferHook.
+        transferHookAuthority?: Address;
         transferHookProgramId?: Address;
     },
 ): Promise<FullTransaction> => {
@@ -280,20 +276,14 @@ export const createCustomTokenInitTransaction = async (
         tokenBuilder = tokenBuilder.withNonTransferable();
     }
 
-    // Add Transfer Hook extension. If transferHookProgramId is omitted, the extension is
-    // initialized with a placeholder programId (space must be reserved before initializeMint)
-    // and immediately cleared to None below, so the mint reserves TransferHook space and can
-    // adopt a real hook program later without recreating the mint.
-    const transferHookAuthorityInput: Address | TransactionSigner<string> =
-        options?.transferHookAuthority ?? mintAuthority;
-    const transferHookAuthorityAddress =
-        typeof transferHookAuthorityInput === 'string'
-            ? transferHookAuthorityInput
-            : transferHookAuthorityInput.address;
+    // Add Transfer Hook extension. If transferHookProgramId is omitted, initialize it with the
+    // all-zero address, which Token-2022 stores as None: the mint reserves TransferHook space
+    // and can adopt a hook program later without recreating the mint. InitializeTransferHook
+    // needs no authority signature, so any authority Address works here.
     if (options?.enableTransferHook) {
         tokenBuilder = tokenBuilder.withTransferHook({
-            authority: transferHookAuthorityAddress,
-            programId: options.transferHookProgramId ?? transferHookAuthorityAddress,
+            authority: options.transferHookAuthority || mintAuthorityAddress,
+            programId: options.transferHookProgramId ?? SYSTEM_PROGRAM_ADDRESS,
         });
     }
 
@@ -311,24 +301,6 @@ export const createCustomTokenInitTransaction = async (
         mint: mintSigner,
         feePayer: feePayerSigner,
     });
-
-    // Clear the transfer hook program id back to None so the extension is present but inert.
-    // Pass the resolved input (Signer-or-Address) so a custom Signer flows through and the
-    // kit attaches it to the ix; otherwise we rely on mintAuthority's signature covering it.
-    // A bare Address for transferHookAuthority only works if some other instruction in this
-    // same transaction already attaches a signer for that address.
-    if (options?.enableTransferHook && !options.transferHookProgramId) {
-        instructions.push(
-            getUpdateTransferHookInstruction(
-                {
-                    mint: mintSigner.address,
-                    authority: transferHookAuthorityInput,
-                    programId: none(),
-                },
-                { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
-            ),
-        );
-    }
 
     // If SRFC-37 is not enabled, return a simple transaction (skip Token-ACL/ABL setup)
     if (!useSrfc37) {
