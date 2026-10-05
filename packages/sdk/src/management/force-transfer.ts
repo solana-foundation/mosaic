@@ -1,5 +1,5 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner, Instruction } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     pipe,
@@ -18,8 +18,8 @@ import {
     decimalAmountToRaw,
     getMintDetails,
     isDefaultAccountStateSetFrozen,
-} from '../transaction-util';
-import { getThawPermissionlessInstructions } from '../token-acl';
+} from '../transaction-util.js';
+import { getThawPermissionlessInstructions } from '../token-acl/index.js';
 
 /**
  * Creates a transaction to force transfer tokens using the permanent delegate extension.

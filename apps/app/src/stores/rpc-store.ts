@@ -10,19 +10,18 @@ export interface CustomRpc {
     network: NetworkName;
 }
 
+// Note: the active cluster is owned by @solana/connector (persisted under its
+// own storage key), not by this store. This store only holds user-defined RPCs.
 interface RpcStore {
     customRpcs: CustomRpc[];
-    selectedClusterId: string | null;
     addCustomRpc: (rpc: Omit<CustomRpc, 'id'>) => string;
     removeCustomRpc: (id: string) => void;
-    setSelectedCluster: (id: string | null) => void;
 }
 
 export const useRpcStore = create<RpcStore>()(
     persist(
         set => ({
             customRpcs: [],
-            selectedClusterId: null,
             addCustomRpc: rpc => {
                 const id = `custom-${Date.now()}`;
                 set(state => ({
@@ -31,16 +30,9 @@ export const useRpcStore = create<RpcStore>()(
                 return id;
             },
             removeCustomRpc: id =>
-                set(state => {
-                    const newCustomRpcs = state.customRpcs.filter(r => r.id !== id);
-                    // If the removed RPC was selected, clear the selection
-                    const newSelectedId = state.selectedClusterId === id ? null : state.selectedClusterId;
-                    return {
-                        customRpcs: newCustomRpcs,
-                        selectedClusterId: newSelectedId,
-                    };
-                }),
-            setSelectedCluster: id => set({ selectedClusterId: id }),
+                set(state => ({
+                    customRpcs: state.customRpcs.filter(r => r.id !== id),
+                })),
         }),
         {
             name: 'mosaic_rpc_settings',

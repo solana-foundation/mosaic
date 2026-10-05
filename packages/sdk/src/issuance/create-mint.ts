@@ -1,5 +1,5 @@
 import type { Address, Instruction, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     pipe,
     createTransactionMessage,
@@ -21,7 +21,7 @@ import {
     getInitializeTokenMetadataInstruction,
     getInitializeConfidentialTransferFeeInstruction,
 } from '@solana-program/token-2022';
-import { createUpdateFieldInstruction } from './create-update-field-instruction';
+import { createUpdateFieldInstruction } from './create-update-field-instruction.js';
 
 /**
  * The issuer's "how is the confidential-transfer extension enabled" setting:
@@ -47,6 +47,14 @@ export interface ConfidentialBalancesOptions {
      */
     auditorElgamalPubkey?: Address | null;
 }
+
+/**
+ * Issuer-facing Confidential Balances configuration accepted by the token templates.
+ *
+ * The authority is supplied by the template (its own `confidentialBalancesAuthority`
+ * input, which defaults to the mint authority), so it is not part of this config.
+ */
+export type ConfidentialBalancesConfig = Omit<ConfidentialBalancesOptions, 'authority'>;
 
 export class Token {
     private extensions: Extension[] = [];

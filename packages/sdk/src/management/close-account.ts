@@ -1,5 +1,5 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     pipe,
@@ -9,7 +9,7 @@ import {
     appendTransactionMessageInstructions,
 } from '@solana/kit';
 import { getCloseAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
-import { resolveTokenAccount } from '../transaction-util';
+import { resolveTokenAccount } from '../transaction-util.js';
 
 /**
  * Creates a transaction to close an empty token account and reclaim the rent.

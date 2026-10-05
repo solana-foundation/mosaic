@@ -1,6 +1,7 @@
-import { Token } from '../issuance';
+import { Token } from '../issuance/index.js';
+import type { ConfidentialBalancesConfig } from '../issuance/create-mint.js';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     pipe,
@@ -10,13 +11,12 @@ import {
     appendTransactionMessageInstructions,
 } from '@solana/kit';
 import { Mode } from '@solana/token-acl-gate-sdk';
-import { ABL_PROGRAM_ID } from '../abl/utils';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
-import { getCreateConfigInstructions } from '../token-acl/create-config';
-import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
-import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
-import { getCreateListInstructions } from '../abl/list';
-import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
+import { ABL_PROGRAM_ID } from '../abl/utils.js';
+import { getCreateConfigInstructions } from '../token-acl/create-config.js';
+import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program.js';
+import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw.js';
+import { getCreateListInstructions } from '../abl/list.js';
+import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
 
 /**
  * Creates a transaction to initialize a new stablecoin mint on Solana with common stablecoin features.
@@ -36,6 +36,10 @@ import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
  * @param pausableAuthority - The address with authority over the pausable functionality.
  * @param confidentialBalancesAuthority - The address with authority over the confidential balances extension.
  * @param permanentDelegateAuthority - The address with authority over the permanent delegate.
+ * @param confidentialBalances - Confidential Balances configuration: `policy` defaults to `'whitelist'`,
+ * which leaves the extension gated so the authority must approve each account, while `'opt-in'` lets
+ * holders configure their own confidential account permissionlessly; `auditorElgamalPubkey` optionally
+ * records an auditor able to decode every confidential transfer amount.
  * @returns A promise that resolves to a FullTransaction object for initializing the stablecoin mint.
  */
 export const createStablecoinInitTransaction = async (
@@ -54,6 +58,7 @@ export const createStablecoinInitTransaction = async (
     permanentDelegateAuthority?: Address,
     enableSrfc37?: boolean,
     freezeAuthority?: Address,
+    confidentialBalances?: ConfidentialBalancesConfig,
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
@@ -77,16 +82,25 @@ export const createStablecoinInitTransaction = async (
             additionalMetadata: new Map(),
         })
         .withPausable(pausableAuthority || mintAuthorityAddress)
-        // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
-        // default frozen and the permissionless-thaw path against the blocklist fires.
+        // Blocklist mints are born Initialized: accounts are usable by default and only
+        // blocked wallets get frozen. Allowlist mints are born Frozen, so membership is what
+        // unlocks an account via permissionless thaw.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
-        .withConfidentialBalances(confidentialBalancesAuthority || mintAuthorityAddress)
+        .withConfidentialBalances({
+            authority: confidentialBalancesAuthority || mintAuthorityAddress,
+            ...confidentialBalances,
+        })
         .withPermanentDelegate(permanentDelegateAuthority || mintAuthorityAddress)
         .buildInstructions({
             rpc,
             decimals,
             mintAuthority,
-            freezeAuthority: freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
+            // On the sRFC-37 path the freeze authority MUST be the mint authority: the
+            // Token-ACL `create_config` instruction requires the mint's current freeze
+            // authority to equal its signer (the mint authority) and then reassigns it to
+            // the config PDA itself. Pre-setting it to anything else (e.g. the program id)
+            // fails create_config with InvalidAuthority.
+            freezeAuthority: useSrfc37 ? mintAuthorityAddress : freezeAuthority,
             mint: mintSigner,
             feePayer: feePayerSigner,
         });
@@ -140,7 +154,7 @@ export const createStablecoinInitTransaction = async (
         authority: mintAuthoritySigner,
         payer: feePayerSigner,
         mint: mintSigner.address,
-        lists: [listConfig],
+        addresses: [listConfig],
     });
 
     instructions.push(...createConfigInstructions);

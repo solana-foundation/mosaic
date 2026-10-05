@@ -18,10 +18,17 @@ import { cn } from '@/lib/utils';
 interface ImportTokenModalProps {
     isOpen: boolean;
     onOpenChange: (open: boolean) => void;
-    onTokenImported?: () => void;
+    onTokenImported?: (mintAddress: string) => void;
+    /** Mint address to prefill the field with, e.g. when importing from a manage page that couldn't find it. */
+    initialAddress?: string;
 }
 
-export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: ImportTokenModalProps) {
+export function ImportTokenModal({
+    isOpen,
+    onOpenChange,
+    onTokenImported,
+    initialAddress = '',
+}: ImportTokenModalProps) {
     const { cluster, selectedAccount } = useConnector();
     const fetchTokenMetadata = useTokenStore(state => state.fetchTokenMetadata);
     const findTokenByAddress = useTokenStore(state => state.findTokenByAddress);
@@ -33,7 +40,7 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
         return createSolanaRpc(cluster.url);
     }, [cluster?.url]);
 
-    const [tokenAddress, setTokenAddress] = useState('');
+    const [tokenAddress, setTokenAddress] = useState(initialAddress);
     const [tokenType, setTokenType] = useState('none');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -124,7 +131,7 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
             setSuccess(true);
 
             // Call the parent callback to refresh the dashboard
-            onTokenImported?.();
+            onTokenImported?.(tokenAddress);
 
             // Close the modal after a short delay
             if (closeTimerRef.current) {
@@ -162,7 +169,7 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
             clearTimeout(closeTimerRef.current);
             closeTimerRef.current = null;
         }
-        setTokenAddress('');
+        setTokenAddress(initialAddress);
         setTokenType('none');
         setError(null);
         setSuccess(false);
@@ -172,16 +179,25 @@ export function ImportTokenModal({ isOpen, onOpenChange, onTokenImported }: Impo
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className={cn('sm:rounded-3xl p-0 gap-0 max-w-[500px] overflow-hidden')}>
-                <div className="overflow-hidden bg-primary/5">
-                    <DialogHeader className="p-6 pb-4 border-b border-primary/5 bg-primary/5">
+            <DialogContent
+                className={cn(
+                    // Same viewport-capped flex column as the create-token modal: the header
+                    // stays put and the form scrolls. This dialog suppresses the overflow the
+                    // base DialogContent provides, so without its own scroll region the lower
+                    // fields and the Import Token button are unreachable on short screens.
+                    'flex flex-col max-h-[calc(100dvh-1.5rem)] overflow-hidden',
+                    'sm:max-h-[calc(100dvh-4rem)] sm:rounded-3xl p-0 gap-0 max-w-[500px]',
+                )}
+            >
+                <div className="overflow-hidden bg-primary/5 flex flex-1 flex-col min-h-0">
+                    <DialogHeader className="shrink-0 p-6 pb-4 border-b border-primary/5 bg-primary/5">
                         <DialogTitle className="text-xl font-semibold">Import Existing Token</DialogTitle>
                         <DialogDescription>
                             Enter the address of an existing token to import it into the Mosaic platform
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="p-6 space-y-5">
+                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-5">
                         <div className="space-y-2">
                             <Label htmlFor="token-address">Token Address</Label>
                             <Input

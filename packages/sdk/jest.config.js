@@ -5,12 +5,28 @@ export default {
     testEnvironment: 'node',
     roots: ['<rootDir>/src'],
     testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
-    testPathIgnorePatterns: ['/node_modules/', ...(process.env.SKIP_INTEGRATION === 'true' ? ['integration'] : [])],
+    testPathIgnorePatterns: [
+        '/node_modules/',
+        // Manual devnet harness: needs a funded keypair and real cluster access.
+        // Run it explicitly with `jest -c jest.devnet.config.js`.
+        '__devnet__',
+        ...(process.env.SKIP_INTEGRATION === 'true' ? ['integration'] : []),
+    ],
     transform: {
         '^.+\\.ts$': [
             'ts-jest',
             {
                 useESM: true,
+                // The package tsconfig targets `module: nodenext` for real Node
+                // builds, but ts-jest's transpiler lacks the package-type context
+                // to pick the ESM output format under nodenext and falls back to
+                // CJS, which breaks ESM-mode jest. Pin the transform to classic
+                // ESM emit; module resolution under jest is handled by jest
+                // itself (see moduleNameMapper).
+                tsconfig: {
+                    module: 'esnext',
+                    moduleResolution: 'bundler',
+                },
             },
         ],
     },
@@ -23,6 +39,9 @@ export default {
         '!src/**/__tests__/test-utils.ts',
     ],
     moduleNameMapper: {
+        // Sources use explicit `.js` extensions on relative imports (Node ESM);
+        // strip them so jest resolves back to the `.ts` sources.
+        '^(\\.{1,2}/.*)\\.js$': '$1',
         '^@/(.*)$': '<rootDir>/src/$1',
         // The confidential modules import the internal `@solana/mosaic-sdk/_zk`
         // indirection (resolved via package `exports` conditions in real builds);
@@ -30,7 +49,7 @@ export default {
         '^@solana/mosaic-sdk/_zk$': '<rootDir>/src/confidential/_zk.node.ts',
         // token-2022's CJS build imports the ESM+wasm bundler entry; use the CJS node build under jest
         '^@solana/zk-sdk/bundler$': '@solana/zk-sdk/node',
-        '^@token-acl/sdk$': '<rootDir>/src/__mocks__/@mosaic/token-acl.ts',
+        '^@solana/token-acl-sdk$': '<rootDir>/src/__mocks__/@mosaic/token-acl.ts',
         '^@solana/token-acl-gate-sdk$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',
         '^@mosaic/abl$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',
         '^@mosaic/token-acl$': '<rootDir>/src/__mocks__/@mosaic/token-acl.ts',

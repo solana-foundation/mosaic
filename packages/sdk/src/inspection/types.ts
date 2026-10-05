@@ -33,7 +33,7 @@ export interface TokenExtension {
     details?: Record<string, unknown>;
 }
 
-export type TokenType = 'stablecoin' | 'arcade-token' | 'tokenized-security' | 'unknown';
+export type TokenType = 'stablecoin' | 'arcade-token' | 'tokenized-security' | 'mmf' | 'unknown';
 
 export type AclMode = 'allowlist' | 'blocklist' | 'none';
 

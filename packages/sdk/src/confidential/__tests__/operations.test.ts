@@ -1,7 +1,7 @@
 import type { Address } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
-import { createMockRpc, createMockSigner, seedMintDetails } from '../../__tests__/test-utils';
-import type { ConfidentialKeys } from '../keys';
+import { createMockRpc, createMockSigner, seedMintDetails } from '../../__tests__/test-utils.js';
+import type { ConfidentialKeys } from '../keys.js';
 
 // --- Mocks --------------------------------------------------------------------
 // Keep the real instruction encoders (pure codecs) but stub the upstream
@@ -34,10 +34,10 @@ jest.mock('@solana-program/token-2022', () => ({
 }));
 
 // Mock the bespoke proof + account-state plumbing used by empty-account.
-jest.mock('../proof', () => ({
+jest.mock('../proof.js', () => ({
     buildZeroCiphertextProofIxs: jest.fn(async () => ({ setup: [{ tag: 'verifyZero' }], cleanup: [] })),
 }));
-jest.mock('../account-state', () => ({
+jest.mock('../account-state.js', () => ({
     fetchConfidentialAccountState: jest.fn(async () => ({
         ciphertexts: { availableBalance: new Uint8Array(64) },
     })),
@@ -63,7 +63,7 @@ import {
     createEnableConfidentialCreditsInstructionPlan,
     createDisableNonConfidentialCreditsInstructionPlan,
     planConfidentialInstructions,
-} from '../index';
+} from '../index.js';
 
 const MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Address;
 const SOURCE_TOKEN = 'sAPDrViGV3C6PaT4xD7uRDDvB4xCURfZzDkGEd8Yv4v' as Address;

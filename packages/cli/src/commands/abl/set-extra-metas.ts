@@ -43,7 +43,7 @@ export const setExtraMetas = new Command('set-extra-metas')
                 payer: feePayer,
                 authority,
                 mint: options.mint as Address,
-                lists: [options.list] as Address[],
+                addresses: [options.list] as Address[],
             });
 
             const { raw, signature } = await sendOrOutputTransaction(

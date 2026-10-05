@@ -1,10 +1,10 @@
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
 import { getBase64Decoder } from '@solana/kit';
-import { createMockRpc } from '../../__tests__/test-utils';
-import { fetchConfidentialAccountState, type ConfidentialAccountState } from '../../confidential/account-state';
-import { inspectConfidentialAccount } from '../inspect-confidential-account';
+import { createMockRpc } from '../../__tests__/test-utils.js';
+import { fetchConfidentialAccountState, type ConfidentialAccountState } from '../../confidential/account-state.js';
+import { inspectConfidentialAccount } from '../inspect-confidential-account.js';
 
-jest.mock('../../confidential/account-state', () => ({
+jest.mock('../../confidential/account-state.js', () => ({
     fetchConfidentialAccountState: jest.fn(),
 }));
 

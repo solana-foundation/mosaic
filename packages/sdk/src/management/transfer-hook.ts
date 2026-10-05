@@ -9,7 +9,7 @@ import {
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
 } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import { getUpdateTransferHookInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
 export interface UpdateTransferHookOptions {

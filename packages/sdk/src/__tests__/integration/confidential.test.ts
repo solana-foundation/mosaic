@@ -22,7 +22,7 @@ import { findAssociatedTokenPda, getMintToInstruction, TOKEN_2022_PROGRAM_ADDRES
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { Token } from '../../issuance';
+import { Token } from '../../issuance/index.js';
 import {
     createApplyConfidentialPendingBalanceInstructionPlan,
     createConfidentialDepositInstructionPlan,
@@ -30,15 +30,15 @@ import {
     createConfidentialWithdrawInstructionPlan,
     createConfigureConfidentialAccountInstructionPlan,
     createEmptyConfidentialAccountInstructionPlan,
-    deriveConfidentialKeysForOwnerMint,
+    deriveConfidentialKeys,
     freeConfidentialKeys,
     inspectConfidentialAccount,
     planConfidentialInstructions,
-} from '../../confidential';
-import type { FullTransaction } from '../../transaction-util';
-import type { Client } from './setup';
-import { airdropAndWait } from './chain-helpers';
-import { describeSkipIf } from './helpers';
+} from '../../confidential/index.js';
+import type { FullTransaction } from '../../transaction-util.js';
+import type { Client } from './setup.js';
+import { airdropAndWait } from './chain-helpers.js';
+import { describeSkipIf } from './helpers.js';
 
 /**
  * Real end-to-end confidential-transfer run against a live cluster (devnet by
@@ -306,17 +306,9 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
         record('create-mint', [await signSendConfirm(rpc, createMintTx)]);
         await waitForToken2022Account(rpc, mint.address);
 
-        // Derive sender + recipient confidential keys, bound to (owner, mint).
-        const senderKeys = await deriveConfidentialKeysForOwnerMint({
-            signer: payer,
-            owner: payer.address,
-            mint: mint.address,
-        });
-        const recipientKeys = await deriveConfidentialKeysForOwnerMint({
-            signer: recipient,
-            owner: recipient.address,
-            mint: mint.address,
-        });
+        // Derive sender + recipient confidential keys, bound to the wallet alone.
+        const senderKeys = await deriveConfidentialKeys({ signer: payer });
+        const recipientKeys = await deriveConfidentialKeys({ signer: recipient });
 
         try {
             // 2. Configure both accounts for confidential transfers.

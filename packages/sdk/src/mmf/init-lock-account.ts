@@ -22,9 +22,9 @@ import {
     getTokenSize,
     type ExtensionArgs,
 } from '@solana-program/token-2022';
-import { getMintDetails } from '../transaction-util';
-import type { FullTransaction } from '../transaction-util';
-import { deriveLockAccountAddress, type LockType } from './lock-address';
+import { getMintDetails } from '../transaction-util.js';
+import type { FullTransaction } from '../transaction-util.js';
+import { deriveLockAccountAddress, type LockType } from './lock-address.js';
 
 export interface InitLockAccountInput {
     lockType: LockType;

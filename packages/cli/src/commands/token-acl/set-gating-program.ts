@@ -13,7 +13,7 @@ import {
     getSignatureFromTransaction,
 } from '@solana/kit';
 import { maybeOutputRawTx } from '../../utils/raw-tx.js';
-import { findMintConfigPda } from '@token-acl/sdk';
+import { findMintConfigPda } from '@solana/token-acl-sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './util.js';
 import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
 

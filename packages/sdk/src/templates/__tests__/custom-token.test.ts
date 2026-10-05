@@ -1,13 +1,13 @@
 import type { Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
 import { none } from '@solana/kit';
-import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
+import { createMockSigner, createMockRpc } from '../../__tests__/test-utils.js';
 import {
     TOKEN_2022_PROGRAM_ADDRESS,
     getUpdateTransferHookInstruction,
     Token2022Instruction,
     identifyToken2022Instruction,
 } from '@solana-program/token-2022';
-import { createCustomTokenInitTransaction } from '../custom-token';
+import { createCustomTokenInitTransaction } from '../custom-token.js';
 
 const matchesIx = (a: Instruction, b: Instruction) =>
     a.programAddress === b.programAddress && Buffer.compare(Buffer.from(a.data ?? []), Buffer.from(b.data ?? [])) === 0;

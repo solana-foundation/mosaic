@@ -48,7 +48,7 @@ import {
     type ParsedCreateAccountWithSeedInstruction,
     type ParsedTransferSolInstruction,
 } from '@solana-program/system';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
+import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils.js';
 
 // Hoisted to module scope so CPI-heavy transactions don't re-create a codec per
 // instruction when normalizing inner-instruction data.

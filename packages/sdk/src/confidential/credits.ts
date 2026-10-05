@@ -5,7 +5,7 @@ import {
     getEnableConfidentialCreditsInstruction,
     getEnableNonConfidentialCreditsInstruction,
 } from '@solana-program/token-2022';
-import { toAuthoritySigner } from './util';
+import { toAuthoritySigner } from './util.js';
 
 /**
  * Enable/disable the credit flags on a confidential token account. These are

@@ -10,8 +10,8 @@ import {
     fetchConfidentialAccountState,
     type ConfidentialAccountState,
     type ConfidentialDecryptedBalances,
-} from '../confidential/account-state';
-import type { ConfidentialKeys } from '../confidential/keys';
+} from '../confidential/account-state.js';
+import type { ConfidentialKeys } from '../confidential/keys.js';
 
 /**
  * Account-level counterpart to {@link inspectToken}. The

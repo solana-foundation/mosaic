@@ -1,24 +1,22 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
-import { CreateTokenModal } from '@/features/token-creation/components/create-token-modal';
+import { Plus, Upload } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface DashboardEmptyStateProps {
-    onTokenCreated?: () => void;
+    onCreateClick: () => void;
+    onImportClick: () => void;
 }
 
-export function DashboardEmptyState({ onTokenCreated }: DashboardEmptyStateProps) {
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
+export function DashboardEmptyState({ onCreateClick, onImportClick }: DashboardEmptyStateProps) {
     return (
         <div className="flex-1 flex items-center justify-center p-8">
-            <div className="max-w-6xl w-full">
+            <div className="max-w-6xl w-full flex flex-col items-center gap-4">
                 <button
                     type="button"
                     aria-label="Create Token"
                     className="h-96 w-full flex flex-col justify-center items-center bg-transparent rounded-[24px] border-dashed border border-primary/10 shadow-sm hover:shadow-none shadow-none transition-all duration-200 cursor-pointer group"
-                    onClick={() => setIsCreateModalOpen(true)}
+                    onClick={onCreateClick}
                     style={{
                         backgroundImage: `repeating-linear-gradient(
                         45deg,
@@ -40,12 +38,11 @@ export function DashboardEmptyState({ onTokenCreated }: DashboardEmptyStateProps
                         </div>
                     </div>
                 </button>
-
-                <CreateTokenModal
-                    isOpen={isCreateModalOpen}
-                    onOpenChange={setIsCreateModalOpen}
-                    onTokenCreated={onTokenCreated}
-                />
+                {/* A wallet with no tokens in this browser still needs a way to reach mints it already has on-chain. */}
+                <Button variant="outline" onClick={onImportClick}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import existing token
+                </Button>
             </div>
         </div>
     );

@@ -1,6 +1,7 @@
-import { Token } from '../issuance';
+import { Token } from '../issuance/index.js';
+import type { ConfidentialBalancesConfig } from '../issuance/create-mint.js';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     pipe,
@@ -12,13 +13,12 @@ import {
 } from '@solana/kit';
 import { getUpdateTransferHookInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { Mode } from '@solana/token-acl-gate-sdk';
-import { ABL_PROGRAM_ID } from '../abl/utils';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
-import { getCreateConfigInstructions } from '../token-acl/create-config';
-import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
-import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
-import { getCreateListInstructions } from '../abl/list';
-import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
+import { ABL_PROGRAM_ID } from '../abl/utils.js';
+import { getCreateConfigInstructions } from '../token-acl/create-config.js';
+import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program.js';
+import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw.js';
+import { getCreateListInstructions } from '../abl/list.js';
+import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
 
 /**
  * Creates a transaction to initialize a new custom token mint on Solana with user-selected extensions.
@@ -52,6 +52,8 @@ export const createCustomTokenInitTransaction = async (
         enablePausable?: boolean;
         enablePermanentDelegate?: boolean;
         enablePermissionedBurn?: boolean;
+        // Adds the DefaultAccountState extension. Falsy means the extension is not
+        // added at all — except on the sRFC-37 path, which requires it.
         enableDefaultAccountState?: boolean;
         enableConfidentialBalances?: boolean;
         enableScaledUiAmount?: boolean;
@@ -78,10 +80,20 @@ export const createCustomTokenInitTransaction = async (
         scaledUiAmountNewMultiplier?: number;
         scaledUiAmountNewMultiplierEffectiveTimestamp?: bigint | number;
 
-        // Default Account State configuration
+        // Default Account State configuration.
+        // Only read when `enableDefaultAccountState` is truthy. `true` = Initialized,
+        // `false` = Frozen. Defaults to the sRFC-37-aware state described on
+        // `enableDefaultAccountState` above.
         defaultAccountStateInitialized?: boolean;
 
-        // Freeze authority
+        // Confidential Balances policy / auditor (only read when
+        // `enableConfidentialBalances` is truthy).
+        confidentialBalances?: ConfidentialBalancesConfig;
+
+        // Freeze authority.
+        // Note: ignored when `enableSrfc37: true` — the sRFC-37 path forces the freeze
+        // authority to the mint authority, since Token-ACL's create_config requires the
+        // mint authority to be the freeze authority (it is then reassigned to the config PDA).
         freezeAuthority?: Address;
 
         // Transfer Fee configuration
@@ -156,18 +168,28 @@ export const createCustomTokenInitTransaction = async (
         tokenBuilder = tokenBuilder.withPermissionedBurn(permissionedBurnAuthority);
     }
 
-    // Add Default Account State extension
+    // Add Default Account State extension.
+    //
+    // `true` = Initialized, `false` = Frozen. Frozen-by-default only makes sense for a
+    // deny-by-default list: an allowlist gates account usage through permissionless thaw,
+    // whereas a blocklist is allow-by-default. Mirrors stablecoin.ts / tokenized-security.ts
+    // / arcade-token.ts so every template agrees on the sRFC-37 default.
+    const srfc37DefaultStateInitialized = aclMode === 'blocklist' || !useSrfc37;
     if (options?.enableDefaultAccountState) {
-        const initialStateInitialized = options.defaultAccountStateInitialized ?? !useSrfc37;
-        tokenBuilder = tokenBuilder.withDefaultAccountState(initialStateInitialized);
+        tokenBuilder = tokenBuilder.withDefaultAccountState(
+            options.defaultAccountStateInitialized ?? srfc37DefaultStateInitialized,
+        );
     } else if (useSrfc37) {
-        // If SRFC-37 is enabled but default account state is not explicitly set, default to initialized
-        tokenBuilder = tokenBuilder.withDefaultAccountState(true);
+        // sRFC-37 requires the extension even when the caller did not ask for it.
+        tokenBuilder = tokenBuilder.withDefaultAccountState(srfc37DefaultStateInitialized);
     }
 
     // Add Confidential Balances extension
     if (options?.enableConfidentialBalances) {
-        tokenBuilder = tokenBuilder.withConfidentialBalances(confidentialBalancesAuthority);
+        tokenBuilder = tokenBuilder.withConfidentialBalances({
+            authority: confidentialBalancesAuthority,
+            ...options.confidentialBalances,
+        });
     }
 
     // Add Scaled UI Amount extension
@@ -280,7 +302,12 @@ export const createCustomTokenInitTransaction = async (
         rpc,
         decimals,
         mintAuthority,
-        freezeAuthority: options?.freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
+        // On the sRFC-37 path the freeze authority MUST be the mint authority: the
+        // Token-ACL `create_config` instruction requires the mint's current freeze
+        // authority to equal its signer (the mint authority) and then reassigns it to
+        // the config PDA itself. Pre-setting it to anything else (e.g. the program id)
+        // fails create_config with InvalidAuthority.
+        freezeAuthority: useSrfc37 ? mintAuthorityAddress : options?.freezeAuthority,
         mint: mintSigner,
         feePayer: feePayerSigner,
     });
@@ -351,7 +378,7 @@ export const createCustomTokenInitTransaction = async (
         authority: mintAuthoritySigner,
         payer: feePayerSigner,
         mint: mintSigner.address,
-        lists: [listConfig],
+        addresses: [listConfig],
     });
 
     instructions.push(...createConfigInstructions);

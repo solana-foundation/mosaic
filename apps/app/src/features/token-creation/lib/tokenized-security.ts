@@ -2,7 +2,6 @@ import {
     generateKeyPairSigner,
     createSolanaRpc,
     createSolanaRpcSubscriptions,
-    type Address,
     type Rpc,
     type SolanaRpcApi,
     signTransactionMessageWithSigners,
@@ -14,6 +13,7 @@ import {
 import { TokenizedSecurityOptions, TokenizedSecurityCreationResult } from '@/types/token';
 import { createTokenizedSecurityInitTransaction } from '@solana/mosaic-sdk';
 import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
+import { assertValidAddressFields, toAuthorityAddress } from './validate-authorities';
 
 function validateOptions(options: TokenizedSecurityOptions): number {
     if (!options.name || !options.symbol) {
@@ -27,6 +27,19 @@ function validateOptions(options: TokenizedSecurityOptions): number {
     if (!Number.isFinite(multiplier) || multiplier <= 0) {
         throw new Error('Multiplier must be a positive number');
     }
+
+    assertValidAddressFields(options, {
+        mintAuthority: 'Mint authority',
+        metadataAuthority: 'Metadata authority',
+        pausableAuthority: 'Pausable authority',
+        confidentialBalancesAuthority: 'Confidential balances authority',
+        permanentDelegateAuthority: 'Permanent delegate authority',
+        permissionedBurnAuthority: 'Permissioned burn authority',
+        scaledUiAmountAuthority: 'Scaled UI amount authority',
+        freezeAuthority: 'Freeze authority',
+        auditorElgamalPubkey: 'Auditor ElGamal public key',
+    });
+
     return decimals;
 }
 
@@ -51,23 +64,19 @@ export const createTokenizedSecurity = async (
 
         // Set authorities (default to signer if not provided)
         // When TokenMetadata extension is present, mintAuthority must be a TransactionSigner
-        const mintAuthority = options.mintAuthority
-            ? options.mintAuthority === signerAddress
-                ? signer
-                : (options.mintAuthority as Address)
-            : signer;
+        const requestedMintAuthority = toAuthorityAddress(options.mintAuthority);
+        const mintAuthority =
+            requestedMintAuthority && requestedMintAuthority !== signerAddress ? requestedMintAuthority : signer;
 
-        const metadataAuthority = options.metadataAuthority ? (options.metadataAuthority as Address) : undefined;
-        const pausableAuthority = options.pausableAuthority ? (options.pausableAuthority as Address) : undefined;
-        const confidentialBalancesAuthority = options.confidentialBalancesAuthority
-            ? (options.confidentialBalancesAuthority as Address)
-            : undefined;
-        const permanentDelegateAuthority = options.permanentDelegateAuthority
-            ? (options.permanentDelegateAuthority as Address)
-            : undefined;
-        const scaledUiAmountAuthority = options.scaledUiAmountAuthority
-            ? (options.scaledUiAmountAuthority as Address)
-            : undefined;
+        const metadataAuthority = toAuthorityAddress(options.metadataAuthority);
+        const pausableAuthority = toAuthorityAddress(options.pausableAuthority);
+        const confidentialBalancesAuthority = toAuthorityAddress(options.confidentialBalancesAuthority);
+        const permanentDelegateAuthority = toAuthorityAddress(options.permanentDelegateAuthority);
+        const scaledUiAmountAuthority = toAuthorityAddress(options.scaledUiAmountAuthority);
+        const permissionedBurnAuthority = toAuthorityAddress(options.permissionedBurnAuthority);
+        // Ignored by the SDK on the sRFC-37 path, which forces the mint authority.
+        const freezeAuthority = toAuthorityAddress(options.freezeAuthority);
+        const auditorElgamalPubkey = toAuthorityAddress(options.auditorElgamalPubkey);
 
         const multiplier = Number(options.multiplier ?? '1');
 
@@ -85,7 +94,7 @@ export const createTokenizedSecurity = async (
             mintAuthority,
             mintKeypair,
             signer,
-            undefined, // freezeAuthority - TODO add argument for this
+            freezeAuthority,
             {
                 aclMode: options.aclMode || 'blocklist',
                 enableSrfc37,
@@ -93,6 +102,11 @@ export const createTokenizedSecurity = async (
                 pausableAuthority,
                 confidentialBalancesAuthority,
                 permanentDelegateAuthority,
+                permissionedBurnAuthority,
+                confidentialBalances: {
+                    policy: options.confidentialBalancesPolicy,
+                    auditorElgamalPubkey,
+                },
                 scaledUiAmount: {
                     authority: scaledUiAmountAuthority,
                     multiplier,
@@ -118,18 +132,33 @@ export const createTokenizedSecurity = async (
                 symbol: options.symbol,
                 decimals,
                 aclMode: options.aclMode || 'blocklist',
+                // Reported so the result panel can hide the ACL row: with sRFC-37 off the mint has
+                // no access list, and `aclMode` has no on-chain effect at all.
+                enableSrfc37,
                 mintAuthority: typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address,
                 metadataAuthority: metadataAuthority?.toString(),
                 pausableAuthority: pausableAuthority?.toString(),
                 confidentialBalancesAuthority: confidentialBalancesAuthority?.toString(),
                 permanentDelegateAuthority: permanentDelegateAuthority?.toString(),
+                permissionedBurnAuthority: permissionedBurnAuthority?.toString(),
+                scaledUiAmountAuthority: scaledUiAmountAuthority?.toString(),
+                freezeAuthority: freezeAuthority?.toString(),
+                confidentialBalancesPolicy: options.confidentialBalancesPolicy || 'whitelist',
+                auditorElgamalPubkey: auditorElgamalPubkey?.toString(),
                 multiplier,
                 extensions: [
                     'Metadata',
                     'Pausable',
-                    `Default Account State (${(options.aclMode || 'blocklist') === 'allowlist' ? 'Allowlist' : 'Blocklist'})`,
-                    'Confidential Balances',
+                    // Report the state that actually lands, not the list mode: the template
+                    // uses `blocklist || !srfc37` to pick Initialized vs Frozen.
+                    `Default Account State (${
+                        options.aclMode === 'blocklist' || !enableSrfc37 ? 'Initialized' : 'Frozen'
+                    })`,
+                    `Confidential Balances (${
+                        options.confidentialBalancesPolicy === 'opt-in' ? 'Opt-in' : 'Approval required'
+                    })`,
                     'Permanent Delegate',
+                    'Permissioned Burn',
                     'Scaled UI Amount',
                 ],
             },

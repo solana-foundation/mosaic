@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { StablecoinOptions } from '@/types/token';
 import { ShieldCheck, ShieldX } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ConfidentialBalancesConfig } from '../confidential-balances-config';
 
 interface StablecoinFeaturesStepProps {
     options: StablecoinOptions;
@@ -12,63 +13,68 @@ interface StablecoinFeaturesStepProps {
 
 export function StablecoinFeaturesStep({ options, onInputChange }: StablecoinFeaturesStepProps) {
     return (
-        <Card className="py-4 rounded-3xl">
-            <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                    <div>
-                        <CardTitle className="text-base">Access Control Mode</CardTitle>
-                        <CardDescription className="text-xs">Configure transfer restrictions</CardDescription>
+        <div className="space-y-4">
+            <Card className="py-4 rounded-3xl">
+                <CardHeader className="pb-3">
+                    <div className="flex items-center gap-2">
+                        <div>
+                            <CardTitle className="text-base">Access Control Mode</CardTitle>
+                            <CardDescription className="text-xs">Configure transfer restrictions</CardDescription>
+                        </div>
                     </div>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-2 gap-3">
-                    <button
-                        type="button"
-                        onClick={() => onInputChange('aclMode', 'allowlist')}
-                        className={cn(
-                            'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer',
-                            options.aclMode === 'allowlist'
-                                ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                                : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
-                        )}
-                    >
-                        <ShieldCheck
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-2 gap-3">
+                        <button
+                            type="button"
+                            onClick={() => onInputChange('aclMode', 'allowlist')}
                             className={cn(
-                                'h-6 w-6',
-                                options.aclMode === 'allowlist' ? 'text-primary' : 'text-muted-foreground',
+                                'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer',
+                                options.aclMode === 'allowlist'
+                                    ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                                    : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
                             )}
-                        />
-                        <div className="text-center">
-                            <p className="text-sm font-medium">Allowlist</p>
-                            <p className="text-xs text-muted-foreground">Only approved addresses can transfer</p>
-                        </div>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => onInputChange('aclMode', 'blocklist')}
-                        className={cn(
-                            'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer',
-                            options.aclMode === 'blocklist' || !options.aclMode
-                                ? 'border-primary bg-primary/5 dark:bg-primary/10'
-                                : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
-                        )}
-                    >
-                        <ShieldX
+                        >
+                            <ShieldCheck
+                                className={cn(
+                                    'h-6 w-6',
+                                    options.aclMode === 'allowlist' ? 'text-primary' : 'text-muted-foreground',
+                                )}
+                            />
+                            <div className="text-center">
+                                <p className="text-sm font-medium">Allowlist</p>
+                                <p className="text-xs text-muted-foreground">Only approved addresses can transfer</p>
+                            </div>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => onInputChange('aclMode', 'blocklist')}
                             className={cn(
-                                'h-6 w-6',
+                                'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-all cursor-pointer',
                                 options.aclMode === 'blocklist' || !options.aclMode
-                                    ? 'text-primary'
-                                    : 'text-muted-foreground',
+                                    ? 'border-primary bg-primary/5 dark:bg-primary/10'
+                                    : 'border-border hover:border-muted-foreground/50 hover:bg-muted/50',
                             )}
-                        />
-                        <div className="text-center">
-                            <p className="text-sm font-medium">Blocklist</p>
-                            <p className="text-xs text-muted-foreground">Block specific addresses from transfers</p>
-                        </div>
-                    </button>
-                </div>
-            </CardContent>
-        </Card>
+                        >
+                            <ShieldX
+                                className={cn(
+                                    'h-6 w-6',
+                                    options.aclMode === 'blocklist' || !options.aclMode
+                                        ? 'text-primary'
+                                        : 'text-muted-foreground',
+                                )}
+                            />
+                            <div className="text-center">
+                                <p className="text-sm font-medium">Blocklist</p>
+                                <p className="text-xs text-muted-foreground">Block specific addresses from transfers</p>
+                            </div>
+                        </button>
+                    </div>
+                </CardContent>
+            </Card>
+            {/* Stablecoins always carry the Confidential Balances extension, so this is
+                unconditional — unlike the Custom Token form, where it is gated on the checkbox. */}
+            <ConfidentialBalancesConfig idPrefix="stablecoin" options={options} onInputChange={onInputChange} />
+        </div>
     );
 }

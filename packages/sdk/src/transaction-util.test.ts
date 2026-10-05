@@ -1,7 +1,13 @@
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
-import { createMockRpc, resetMockRpc, seedAccountOwner, seedMintDetails, TEST_AUTHORITY } from './__tests__/test-utils';
-import { TOKEN_ACL_PROGRAM_ID } from './token-acl/utils';
-import { getMintDetails } from './transaction-util';
+import {
+    createMockRpc,
+    resetMockRpc,
+    seedAccountOwner,
+    seedMintDetails,
+    TEST_AUTHORITY,
+} from './__tests__/test-utils.js';
+import { TOKEN_ACL_PROGRAM_ID } from './token-acl/utils.js';
+import { getMintDetails } from './transaction-util.js';
 
 describe('getMintDetails', () => {
     let rpc: Rpc<SolanaRpcApi>;

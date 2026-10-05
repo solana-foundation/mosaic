@@ -8,7 +8,8 @@ export {
     satisfiesStablecoinPattern,
     satisfiesArcadeTokenPattern,
     satisfiesSecurityTokenPattern,
-} from './inspect-token';
+    TOKEN_TYPE_LABELS,
+} from './inspect-token.js';
 export type {
     TokenMetadata,
     TokenAuthorities,
@@ -19,7 +20,7 @@ export type {
     TokenDashboardData,
     AclMode,
     ScaledUiAmountInfo,
-} from './types';
+} from './types.js';
 // NOTE: `inspectConfidentialAccount` is intentionally NOT re-exported here. It
 // reaches `../confidential/account-state` → `keys` → the `@solana/zk-sdk` WASM
 // dependency, which has no isomorphic build. Since the root barrel re-exports
@@ -29,7 +30,7 @@ export {
     parseTokenTransaction,
     parseTokenTransactionWithLookups,
     parseConfirmedTransaction,
-} from './parse-transaction';
+} from './parse-transaction.js';
 export type {
     ParsedTokenTransaction,
     ParsedConfirmedTransaction,
@@ -44,4 +45,4 @@ export type {
     RawTransactionInput,
     TokenInstructionCategory,
     ProgramLabel,
-} from './parse-transaction';
+} from './parse-transaction.js';

@@ -35,6 +35,7 @@ export const createTokenDisplayFromResult = async (
             confidentialBalancesAuthority?: string;
             permanentDelegateAuthority?: string;
             scaledUiAmountAuthority?: string;
+            freezeAuthority?: string;
             extensions?: string[];
         };
     },
@@ -76,6 +77,7 @@ export const createTokenDisplayFromResult = async (
         detectedPatterns: [sdkType],
         decimals: result.details?.decimals,
         mintAuthority: result.details?.mintAuthority,
+        freezeAuthority: result.details?.freezeAuthority,
         metadataAuthority: result.details?.metadataAuthority,
         pausableAuthority: result.details?.pausableAuthority,
         confidentialBalancesAuthority: result.details?.confidentialBalancesAuthority,

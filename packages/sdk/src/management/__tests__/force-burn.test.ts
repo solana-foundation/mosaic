@@ -1,6 +1,6 @@
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
-import { createMockSigner, createMockRpc, seedTokenAccount } from '../../__tests__/test-utils';
-import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
+import { createMockSigner, createMockRpc, seedTokenAccount } from '../../__tests__/test-utils.js';
+import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl/index.js';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
 describe('force-burn', () => {
@@ -21,7 +21,7 @@ describe('force-burn', () => {
 
     describe('createForceBurnTransaction', () => {
         test('basic burn without thaw', async () => {
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -44,7 +44,7 @@ describe('force-burn', () => {
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
             }));
 
-            const { createForceBurnTransaction } = await import('../force-burn');
+            const { createForceBurnTransaction } = await import('../force-burn.js');
             const tx = await createForceBurnTransaction(rpc, mint, wallet, 1, permDel, feePayer);
 
             // Should only include burn instruction
@@ -61,7 +61,7 @@ describe('force-burn', () => {
                 state: 'frozen',
             });
 
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -86,7 +86,7 @@ describe('force-burn', () => {
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
             }));
 
-            const { createForceBurnTransaction } = await import('../force-burn');
+            const { createForceBurnTransaction } = await import('../force-burn.js');
             const tx = await createForceBurnTransaction(rpc, mint, wallet, 1, permDel, feePayer);
 
             // Should include thaw and burn instructions
@@ -96,7 +96,7 @@ describe('force-burn', () => {
         });
 
         test('no thaw when SRFC-37 disabled even if frozen', async () => {
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -119,7 +119,7 @@ describe('force-burn', () => {
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
             }));
 
-            const { createForceBurnTransaction } = await import('../force-burn');
+            const { createForceBurnTransaction } = await import('../force-burn.js');
             const tx = await createForceBurnTransaction(rpc, mint, wallet, 1, permDel, feePayer);
 
             // Should only include burn instruction (no thaw since SRFC-37 is not enabled)
@@ -136,7 +136,7 @@ describe('force-burn', () => {
 
             for (const { decimalAmount, decimals, expectedRaw } of testCases) {
                 jest.resetModules();
-                jest.doMock('../../transaction-util', () => ({
+                jest.doMock('../../transaction-util.js', () => ({
                     resolveTokenAccount: jest.fn().mockResolvedValue({
                         tokenAccount: tokenAccount,
                         isInitialized: true,
@@ -158,11 +158,11 @@ describe('force-burn', () => {
                     isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
                 }));
 
-                const { createForceBurnTransaction } = await import('../force-burn');
+                const { createForceBurnTransaction } = await import('../force-burn.js');
                 const tx = await createForceBurnTransaction(rpc, mint, wallet, decimalAmount, permDel, feePayer);
 
                 expect(tx.instructions).toHaveLength(1);
-                const transactionUtil = await import('../../transaction-util');
+                const transactionUtil = await import('../../transaction-util.js');
                 expect(transactionUtil.decimalAmountToRaw).toHaveBeenCalledWith(decimalAmount, decimals);
             }
         });
@@ -171,7 +171,7 @@ describe('force-burn', () => {
             const permDelAddress = 'PermDel777777777777777777777777777777777' as Address;
             const feePayerAddress = 'Fee777777777777777777777777777777777777' as Address;
 
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -193,7 +193,7 @@ describe('force-burn', () => {
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
             }));
 
-            const { createForceBurnTransaction } = await import('../force-burn');
+            const { createForceBurnTransaction } = await import('../force-burn.js');
             const tx = await createForceBurnTransaction(rpc, mint, wallet, 1, permDelAddress, feePayerAddress);
 
             expect(tx.instructions).toHaveLength(1);
@@ -208,7 +208,7 @@ describe('force-burn', () => {
 
             for (const { wallet: w, tokenAccount: ta } of accounts) {
                 jest.resetModules();
-                jest.doMock('../../transaction-util', () => ({
+                jest.doMock('../../transaction-util.js', () => ({
                     resolveTokenAccount: jest.fn().mockResolvedValue({
                         tokenAccount: ta,
                         isInitialized: true,
@@ -230,17 +230,17 @@ describe('force-burn', () => {
                     isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
                 }));
 
-                const { createForceBurnTransaction } = await import('../force-burn');
+                const { createForceBurnTransaction } = await import('../force-burn.js');
                 const tx = await createForceBurnTransaction(rpc, mint, w, 1, permDel, feePayer);
 
                 expect(tx.instructions).toHaveLength(1);
-                const transactionUtil = await import('../../transaction-util');
+                const transactionUtil = await import('../../transaction-util.js');
                 expect(transactionUtil.resolveTokenAccount).toHaveBeenCalledWith(rpc, w, mint);
             }
         });
 
         test('handles uninitialized token accounts gracefully', async () => {
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: false,
@@ -262,7 +262,7 @@ describe('force-burn', () => {
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
             }));
 
-            const { createForceBurnTransaction } = await import('../force-burn');
+            const { createForceBurnTransaction } = await import('../force-burn.js');
             const tx = await createForceBurnTransaction(rpc, mint, wallet, 1, permDel, feePayer);
 
             // Should still create burn instruction even for uninitialized account
@@ -270,7 +270,7 @@ describe('force-burn', () => {
         });
 
         test('respects different program addresses', async () => {
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -292,7 +292,7 @@ describe('force-burn', () => {
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
             }));
 
-            const { createForceBurnTransaction } = await import('../force-burn');
+            const { createForceBurnTransaction } = await import('../force-burn.js');
             const tx = await createForceBurnTransaction(rpc, mint, wallet, 1, permDel, feePayer);
 
             // Verify instruction is sent to TOKEN_2022 program
@@ -302,7 +302,7 @@ describe('force-burn', () => {
 
     describe('validatePermanentDelegateForBurn', () => {
         test('passes with correct delegate', async () => {
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 getMintDetails: jest.fn().mockResolvedValue({
                     decimals: 6,
                     extensions: [
@@ -314,20 +314,20 @@ describe('force-burn', () => {
                 }),
             }));
 
-            const { validatePermanentDelegateForBurn } = await import('../force-burn');
+            const { validatePermanentDelegateForBurn } = await import('../force-burn.js');
 
             await expect(validatePermanentDelegateForBurn(rpc, mint, permDel.address)).resolves.toBeUndefined();
         });
 
         test('throws when no permanent delegate extension', async () => {
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 getMintDetails: jest.fn().mockResolvedValue({
                     decimals: 6,
                     extensions: [],
                 }),
             }));
 
-            const { validatePermanentDelegateForBurn } = await import('../force-burn');
+            const { validatePermanentDelegateForBurn } = await import('../force-burn.js');
 
             await expect(validatePermanentDelegateForBurn(rpc, mint, permDel.address)).rejects.toThrow(
                 'does not have permanent delegate extension enabled',
@@ -335,7 +335,7 @@ describe('force-burn', () => {
         });
 
         test('throws on delegate mismatch', async () => {
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 getMintDetails: jest.fn().mockResolvedValue({
                     decimals: 6,
                     extensions: [
@@ -347,7 +347,7 @@ describe('force-burn', () => {
                 }),
             }));
 
-            const { validatePermanentDelegateForBurn } = await import('../force-burn');
+            const { validatePermanentDelegateForBurn } = await import('../force-burn.js');
 
             await expect(validatePermanentDelegateForBurn(rpc, mint, permDel.address)).rejects.toThrow(
                 `Permanent delegate mismatch. Expected: ${permDel.address}, Found: ${wrongDel.address}`,
@@ -355,7 +355,7 @@ describe('force-burn', () => {
         });
 
         test('throws with other extensions but no permanent delegate', async () => {
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 getMintDetails: jest.fn().mockResolvedValue({
                     decimals: 6,
                     extensions: [
@@ -365,7 +365,7 @@ describe('force-burn', () => {
                 }),
             }));
 
-            const { validatePermanentDelegateForBurn } = await import('../force-burn');
+            const { validatePermanentDelegateForBurn } = await import('../force-burn.js');
 
             await expect(validatePermanentDelegateForBurn(rpc, mint, permDel.address)).rejects.toThrow(
                 'does not have permanent delegate extension enabled',
@@ -373,7 +373,7 @@ describe('force-burn', () => {
         });
 
         test('handles undefined delegate in extension', async () => {
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 getMintDetails: jest.fn().mockResolvedValue({
                     decimals: 6,
                     extensions: [
@@ -385,7 +385,7 @@ describe('force-burn', () => {
                 }),
             }));
 
-            const { validatePermanentDelegateForBurn } = await import('../force-burn');
+            const { validatePermanentDelegateForBurn } = await import('../force-burn.js');
 
             await expect(validatePermanentDelegateForBurn(rpc, mint, permDel.address)).rejects.toThrow(
                 'Permanent delegate mismatch',
@@ -402,7 +402,7 @@ describe('force-burn', () => {
                 state: 'frozen',
             });
 
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -426,14 +426,14 @@ describe('force-burn', () => {
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
             }));
 
-            jest.doMock('../../token-acl', () => ({
+            jest.doMock('../../token-acl/index.js', () => ({
                 TOKEN_ACL_PROGRAM_ID,
                 getThawPermissionlessInstructions: jest
                     .fn()
                     .mockResolvedValue([{ programAddress: TOKEN_ACL_PROGRAM_ID }]),
             }));
 
-            const { createForceBurnTransaction } = await import('../force-burn');
+            const { createForceBurnTransaction } = await import('../force-burn.js');
             const tx = await createForceBurnTransaction(rpc, mint, wallet, 5, permDel, feePayer);
 
             // Verify thaw is called first, then burn
@@ -441,7 +441,7 @@ describe('force-burn', () => {
             expect(tx.instructions[0].programAddress).toBe(TOKEN_ACL_PROGRAM_ID);
             expect(tx.instructions[1].programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
 
-            const tokenAcl = await import('../../token-acl');
+            const tokenAcl = await import('../../token-acl/index.js');
             expect(tokenAcl.getThawPermissionlessInstructions).toHaveBeenCalledWith({
                 authority: expect.objectContaining({ address: feePayer.address }),
                 mint,
@@ -455,7 +455,7 @@ describe('force-burn', () => {
             const largeAmount = 999999.999999999;
             const expectedRaw = 999999999999999n; // Max safe u64 value
 
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -477,11 +477,11 @@ describe('force-burn', () => {
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
             }));
 
-            const { createForceBurnTransaction } = await import('../force-burn');
+            const { createForceBurnTransaction } = await import('../force-burn.js');
             const tx = await createForceBurnTransaction(rpc, mint, wallet, largeAmount, permDel, feePayer);
 
             expect(tx.instructions).toHaveLength(1);
-            const transactionUtil = await import('../../transaction-util');
+            const transactionUtil = await import('../../transaction-util.js');
             expect(transactionUtil.decimalAmountToRaw).toHaveBeenCalledWith(largeAmount, 18);
         });
 
@@ -489,7 +489,7 @@ describe('force-burn', () => {
             const permDelSigner = createMockSigner(permDel.address);
             const feePayerSigner = createMockSigner(feePayer.address);
 
-            jest.doMock('../../transaction-util', () => ({
+            jest.doMock('../../transaction-util.js', () => ({
                 resolveTokenAccount: jest.fn().mockResolvedValue({
                     tokenAccount: tokenAccount,
                     isInitialized: true,
@@ -511,7 +511,7 @@ describe('force-burn', () => {
                 isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
             }));
 
-            const { createForceBurnTransaction } = await import('../force-burn');
+            const { createForceBurnTransaction } = await import('../force-burn.js');
             const tx = await createForceBurnTransaction(rpc, mint, wallet, 1, permDelSigner, feePayerSigner);
 
             expect(tx.instructions).toHaveLength(1);

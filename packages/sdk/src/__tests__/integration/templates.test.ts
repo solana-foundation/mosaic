@@ -1,5 +1,5 @@
-import setupTestSuite from './setup';
-import type { Client } from './setup';
+import setupTestSuite from './setup.js';
+import type { Client } from './setup.js';
 import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
 import {
@@ -9,12 +9,12 @@ import {
     DEFAULT_TIMEOUT,
     DEFAULT_COMMITMENT,
     describeSkipIf,
-} from './helpers';
+} from './helpers.js';
 import {
     createStablecoinInitTransaction,
     createArcadeTokenInitTransaction,
     createTokenizedSecurityInitTransaction,
-} from '../../templates';
+} from '../../templates/index.js';
 
 // Skipping these until ABL/Token ACL dependencies are resolved (#43)
 describeSkipIf(true)('Templates Integration Tests', () => {

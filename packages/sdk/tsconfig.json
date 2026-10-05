@@ -4,7 +4,8 @@
         "outDir": "./dist",
         "rootDir": "./src",
         "noEmit": false,
-        "moduleResolution": "bundler",
+        "module": "nodenext",
+        "moduleResolution": "nodenext",
         "composite": true,
         "paths": {
             "@solana/mosaic-sdk/_zk": ["./src/confidential/_zk.node.ts"]

@@ -11,8 +11,8 @@ import {
     setTransactionMessageLifetimeUsingBlockhash,
 } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS, getPauseInstruction, getResumeInstruction } from '@solana-program/token-2022';
-import type { FullTransaction } from '../transaction-util';
-import { getTokenPauseState, MINT_NOT_PAUSED_ERROR } from '../management/pause';
+import type { FullTransaction } from '../transaction-util.js';
+import { getTokenPauseState, MINT_NOT_PAUSED_ERROR } from '../management/pause.js';
 
 /**
  * Builds a transaction that executes admin instructions on a globally-paused mint:

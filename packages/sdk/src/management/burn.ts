@@ -1,5 +1,5 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     pipe,
@@ -13,8 +13,8 @@ import {
     getPermissionedBurnCheckedInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
-import { resolveTokenAccount, decimalAmountToRaw, getMintDetails } from '../transaction-util';
-import { getPermissionedBurnAuthority } from './permissioned-burn';
+import { resolveTokenAccount, decimalAmountToRaw, getMintDetails } from '../transaction-util.js';
+import { getPermissionedBurnAuthority } from './permissioned-burn.js';
 
 /**
  * Creates a transaction to burn tokens from the owner's token account.

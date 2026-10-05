@@ -1,4 +1,4 @@
-import { tokenAmountToRaw } from '../util';
+import { tokenAmountToRaw } from '../util.js';
 
 const U64_MAX = 18446744073709551615n; // 2^64 - 1
 

@@ -1,6 +1,7 @@
-import { Token } from '../issuance';
+import { Token } from '../issuance/index.js';
+import type { ConfidentialBalancesConfig } from '../issuance/create-mint.js';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     pipe,
@@ -10,13 +11,12 @@ import {
     appendTransactionMessageInstructions,
 } from '@solana/kit';
 import { Mode } from '@solana/token-acl-gate-sdk';
-import { ABL_PROGRAM_ID } from '../abl/utils';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
-import { getCreateConfigInstructions } from '../token-acl/create-config';
-import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
-import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
-import { getCreateListInstructions } from '../abl/list';
-import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
+import { ABL_PROGRAM_ID } from '../abl/utils.js';
+import { getCreateConfigInstructions } from '../token-acl/create-config.js';
+import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program.js';
+import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw.js';
+import { getCreateListInstructions } from '../abl/list.js';
+import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
 
 /**
  * Creates a transaction to initialize a new tokenized security mint on Solana.
@@ -40,6 +40,8 @@ export const createTokenizedSecurityInitTransaction = async (
         permanentDelegateAuthority?: Address;
         permissionedBurnAuthority?: Address;
         enableSrfc37?: boolean;
+        // Confidential Balances policy / auditor.
+        confidentialBalances?: ConfidentialBalancesConfig;
         scaledUiAmount?: {
             authority?: Address;
             multiplier?: number;
@@ -73,10 +75,14 @@ export const createTokenizedSecurityInitTransaction = async (
             additionalMetadata: new Map(),
         })
         .withPausable(pausableAuthority)
-        // Blocklist sRFC-37 still needs DefaultAccountState=Frozen so new ATAs
-        // default frozen and the permissionless-thaw path against the blocklist fires.
+        // Blocklist mints are born Initialized: accounts are usable by default and only
+        // blocked wallets get frozen. Allowlist mints are born Frozen, so membership is what
+        // unlocks an account via permissionless thaw.
         .withDefaultAccountState(aclMode === 'blocklist' || !useSrfc37)
-        .withConfidentialBalances(confidentialBalancesAuthority)
+        .withConfidentialBalances({
+            authority: confidentialBalancesAuthority,
+            ...options?.confidentialBalances,
+        })
         .withPermanentDelegate(permanentDelegateAuthority)
         .withPermissionedBurn(permissionedBurnAuthority);
 
@@ -92,7 +98,12 @@ export const createTokenizedSecurityInitTransaction = async (
         rpc,
         decimals,
         mintAuthority: mintAuthority,
-        freezeAuthority: freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
+        // On the sRFC-37 path the freeze authority MUST be the mint authority: the
+        // Token-ACL `create_config` instruction requires the mint's current freeze
+        // authority to equal its signer (the mint authority) and then reassigns it to
+        // the config PDA itself. Pre-setting it to anything else (e.g. the program id)
+        // fails create_config with InvalidAuthority.
+        freezeAuthority: useSrfc37 ? mintAuthorityAddress : freezeAuthority,
         mint: mintSigner,
         feePayer: feePayerSigner,
     });
@@ -140,7 +151,7 @@ export const createTokenizedSecurityInitTransaction = async (
         authority: mintAuthoritySigner,
         payer: feePayerSigner,
         mint: mintSigner.address,
-        lists: [listConfig],
+        addresses: [listConfig],
     });
 
     instructions.push(...createConfigInstructions);

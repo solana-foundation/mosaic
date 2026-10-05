@@ -1,11 +1,6 @@
-import type { TokenType } from '@solana/mosaic-sdk';
+import { TOKEN_TYPE_LABELS, type TokenType } from '@solana/mosaic-sdk';
 
-export const TOKEN_TYPE_LABELS: Record<TokenType, string> = {
-    stablecoin: 'Stablecoin',
-    'arcade-token': 'Arcade Token',
-    'tokenized-security': 'Tokenized Security',
-    unknown: 'Unknown',
-};
+export { TOKEN_TYPE_LABELS };
 
 export function getTokenTypeLabel(type?: TokenType): string {
     if (!type) return 'Unknown';
@@ -33,6 +28,8 @@ export function getTokenTypeBadgeColor(type?: TokenType): string {
             return 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400';
         case 'tokenized-security':
             return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400';
+        case 'mmf':
+            return 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-400';
         default:
             return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
     }

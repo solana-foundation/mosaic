@@ -1,5 +1,5 @@
 import type { Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
-import { createMockSigner, createMockRpc } from '../../__tests__/test-utils';
+import { createMockSigner, createMockRpc } from '../../__tests__/test-utils.js';
 import {
     TOKEN_2022_PROGRAM_ADDRESS,
     getInitializeMintInstruction,
@@ -7,12 +7,11 @@ import {
     AccountState,
     getPreInitializeInstructionsForMintExtensions,
 } from '@solana-program/token-2022';
-import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl/utils';
-import * as createConfigModule from '../../token-acl/create-config';
-import * as setGatingProgramModule from '../../token-acl/set-gating-program';
-import * as enableThawModule from '../../token-acl/enable-permissionless-thaw';
-import * as createListModule from '../../abl/list';
-import * as setExtraMetasModule from '../../abl/set-extra-metas';
+import * as createConfigModule from '../../token-acl/create-config.js';
+import * as setGatingProgramModule from '../../token-acl/set-gating-program.js';
+import * as enableThawModule from '../../token-acl/enable-permissionless-thaw.js';
+import * as createListModule from '../../abl/list.js';
+import * as setExtraMetasModule from '../../abl/set-extra-metas.js';
 
 describe('templates enableSrfc37 option', () => {
     let rpc: Rpc<SolanaRpcApi>;
@@ -27,7 +26,7 @@ describe('templates enableSrfc37 option', () => {
     test('arcade token: enableSrfc37 false uses default account state initialized', async () => {
         const mintAuthoritySigner = createMockSigner();
         const decimals = 6;
-        const { createArcadeTokenInitTransaction } = await import('../arcade-token');
+        const { createArcadeTokenInitTransaction } = await import('../arcade-token.js');
         const tx = await createArcadeTokenInitTransaction(
             rpc,
             'Name',
@@ -76,10 +75,10 @@ describe('templates enableSrfc37 option', () => {
         expect(hasDefaultInitialized).toBe(true);
     });
 
-    test('arcade token: enableSrfc37 true uses default account state frozen and TOKEN_ACL_PROGRAM_ID as freeze authority', async () => {
+    test('arcade token: enableSrfc37 true uses default account state frozen and the mint authority as freeze authority', async () => {
         const mintAuthoritySigner = createMockSigner();
         const decimals = 6;
-        const { createArcadeTokenInitTransaction } = await import('../arcade-token');
+        const { createArcadeTokenInitTransaction } = await import('../arcade-token.js');
         const tx = await createArcadeTokenInitTransaction(
             rpc,
             'Name',
@@ -98,12 +97,13 @@ describe('templates enableSrfc37 option', () => {
         const instructions = tx.instructions;
         expect(instructions.length).toBeGreaterThan(0);
 
-        // When SRFC-37 is enabled, freeze authority should be TOKEN_ACL_PROGRAM_ID
+        // When SRFC-37 is enabled, freeze authority should be the mint authority — Token-ACL
+        // create_config validates it and then reassigns freeze authority to its config PDA.
         const expectedInit = getInitializeMintInstruction(
             {
                 mint: mint.address,
                 decimals,
-                freezeAuthority: TOKEN_ACL_PROGRAM_ID,
+                freezeAuthority: mintAuthoritySigner.address,
                 mintAuthority: mintAuthoritySigner.address,
             },
             { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
@@ -198,7 +198,7 @@ describe('templates fee-payer / authority decoupling (sRFC-37)', () => {
     };
 
     test('stablecoin: sponsored deploy emits decoupled ABL setup', async () => {
-        const { createStablecoinInitTransaction } = await import('../stablecoin');
+        const { createStablecoinInitTransaction } = await import('../stablecoin.js');
         await createStablecoinInitTransaction(
             rpc,
             'Name',
@@ -219,7 +219,7 @@ describe('templates fee-payer / authority decoupling (sRFC-37)', () => {
     });
 
     test('tokenized-security: sponsored deploy emits decoupled ABL setup', async () => {
-        const { createTokenizedSecurityInitTransaction } = await import('../tokenized-security');
+        const { createTokenizedSecurityInitTransaction } = await import('../tokenized-security.js');
         await createTokenizedSecurityInitTransaction(
             rpc,
             'Name',
@@ -239,7 +239,7 @@ describe('templates fee-payer / authority decoupling (sRFC-37)', () => {
     });
 
     test('arcade token: sponsored deploy emits decoupled ABL setup', async () => {
-        const { createArcadeTokenInitTransaction } = await import('../arcade-token');
+        const { createArcadeTokenInitTransaction } = await import('../arcade-token.js');
         await createArcadeTokenInitTransaction(
             rpc,
             'Name',
@@ -258,11 +258,143 @@ describe('templates fee-payer / authority decoupling (sRFC-37)', () => {
     });
 
     test('custom token: sponsored deploy emits decoupled ABL setup', async () => {
-        const { createCustomTokenInitTransaction } = await import('../custom-token');
+        const { createCustomTokenInitTransaction } = await import('../custom-token.js');
         await createCustomTokenInitTransaction(rpc, 'Name', 'SYM', decimals, 'uri', mintAuthority, mint, feePayer, {
             enableSrfc37: true,
             aclMode: 'blocklist',
         });
         expectDecoupledAblSetup();
+    });
+});
+
+/**
+ * The custom-token DefaultAccountState matrix.
+ *
+ * Two bugs are locked down here:
+ *
+ * 1. The gate used to be `enableDefaultAccountState !== undefined`, so a caller passing an
+ *    explicit `false` still got the extension. `apps/app` always passes a defined boolean,
+ *    which is why every UI-created custom token carried DefaultAccountState regardless of
+ *    the user's choice.
+ * 2. The sRFC-37 fallback used to hardcode Initialized, ignoring `aclMode`, so an allowlist
+ *    token came out Initialized instead of Frozen — the opposite of what an allowlist needs
+ *    and out of step with stablecoin / tokenized-security / arcade-token.
+ *
+ * Convention (see __tests__/integration/inspection.test.ts): `true` = Initialized = blocklist,
+ * `false` = Frozen = allowlist.
+ */
+describe('custom token default account state', () => {
+    let rpc: Rpc<SolanaRpcApi>;
+    const feePayer = createMockSigner();
+    const mint = createMockSigner();
+    const mintAuthority = createMockSigner();
+    const decimals = 6;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        rpc = createMockRpc();
+    });
+
+    const hasDefaultAccountState = (instructions: readonly Instruction[], state: AccountState): boolean => {
+        const [expected] = getPreInitializeInstructionsForMintExtensions(mint.address, [
+            extension('DefaultAccountState', { state }),
+        ]);
+        return instructions.some(
+            (i: Instruction) =>
+                i.programAddress === expected.programAddress &&
+                Buffer.compare(Buffer.from(i.data ?? []), Buffer.from(expected.data ?? [])) === 0,
+        );
+    };
+
+    const build = async (options: Record<string, unknown>) => {
+        const { createCustomTokenInitTransaction } = await import('../custom-token.js');
+        return createCustomTokenInitTransaction(
+            rpc,
+            'Name',
+            'SYM',
+            decimals,
+            'uri',
+            mintAuthority,
+            mint,
+            feePayer,
+            options,
+        );
+    };
+
+    test('enableDefaultAccountState false omits the extension entirely', async () => {
+        const { instructions } = await build({ enableDefaultAccountState: false });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(false);
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(false);
+    });
+
+    test('omitting enableDefaultAccountState omits the extension entirely', async () => {
+        const { instructions } = await build({ enablePausable: true });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(false);
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(false);
+    });
+
+    test('enableDefaultAccountState true defaults to Initialized without sRFC-37', async () => {
+        const { instructions } = await build({ enableDefaultAccountState: true });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(true);
+    });
+
+    test('defaultAccountStateInitialized false makes Frozen reachable', async () => {
+        const { instructions } = await build({
+            enableDefaultAccountState: true,
+            defaultAccountStateInitialized: false,
+        });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(true);
+    });
+
+    test('sRFC-37 blocklist still gets the extension as Initialized when not asked for', async () => {
+        const { instructions } = await build({
+            enableDefaultAccountState: false,
+            enableSrfc37: true,
+            aclMode: 'blocklist',
+        });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(true);
+    });
+
+    test('sRFC-37 allowlist defaults to Frozen, matching the other templates', async () => {
+        const { instructions } = await build({
+            enableDefaultAccountState: false,
+            enableSrfc37: true,
+            aclMode: 'allowlist',
+        });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(true);
+    });
+
+    // The implicit branch — `enableDefaultAccountState` omitted entirely, so sRFC-37 alone
+    // pulls the extension in. This is where the allowlist bug lived: the old fallback
+    // hardcoded Initialized, which is the opposite of what an allowlist needs.
+    test('sRFC-37 allowlist without an explicit toggle defaults to Frozen', async () => {
+        const { instructions } = await build({ enableSrfc37: true, aclMode: 'allowlist' });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(true);
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(false);
+    });
+
+    test('sRFC-37 blocklist without an explicit toggle defaults to Initialized', async () => {
+        const { instructions } = await build({ enableSrfc37: true, aclMode: 'blocklist' });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(true);
+        expect(hasDefaultAccountState(instructions, AccountState.Frozen)).toBe(false);
+    });
+
+    test('an explicit defaultAccountStateInitialized overrides the sRFC-37 default', async () => {
+        const { instructions } = await build({
+            enableDefaultAccountState: true,
+            defaultAccountStateInitialized: true,
+            enableSrfc37: true,
+            aclMode: 'allowlist',
+        });
+
+        expect(hasDefaultAccountState(instructions, AccountState.Initialized)).toBe(true);
     });
 });

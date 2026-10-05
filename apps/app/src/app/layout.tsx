@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/header';
 import { cn } from '@/lib/utils';
 import { Providers } from './providers';
 import { Toaster } from '@/components/ui/sonner';
+import { NetworkNotice } from '@/features/wallet/components/network-notice';
 
 // Inter Variable font for body text with weights: 450, 550, 600
 const inter = localFont({
@@ -81,6 +82,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         {/* <Footer /> */}
                     </div>
                     <Toaster position="bottom-center" />
+                    <NetworkNotice />
                 </Providers>
             </body>
         </html>

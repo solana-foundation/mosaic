@@ -1,4 +1,4 @@
-import type { Client } from './setup';
+import type { Client } from './setup.js';
 import type { Address, Instruction, KeyPairSigner, Signature, TransactionSigner } from '@solana/kit';
 import {
     appendTransactionMessageInstructions,
@@ -22,7 +22,7 @@ import {
     getPauseInstruction,
     getThawAccountInstruction,
 } from '@solana-program/token-2022';
-import { DEFAULT_COMMITMENT, DEFAULT_TIMEOUT, describeSkipIf } from './helpers';
+import { DEFAULT_COMMITMENT, DEFAULT_TIMEOUT, describeSkipIf } from './helpers.js';
 import {
     createInitLockAccountTransaction,
     createMintLockTransaction,
@@ -30,9 +30,9 @@ import {
     createPausedActionTransaction,
     createSettleMintLockTransaction,
     deriveLockAccountAddress,
-} from '../..';
-import { inspectToken } from '../../inspection';
-import type { FullTransaction } from '../../transaction-util';
+} from '../../index.js';
+import { inspectToken } from '../../inspection/index.js';
+import type { FullTransaction } from '../../transaction-util.js';
 
 /**
  * Send + confirm a transaction using HTTP polling instead of the kit's WS signatureSubscribe

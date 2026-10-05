@@ -187,6 +187,31 @@ const authority = await getPermissionedBurnAuthority(rpc, 'MintPubkey...');
 
 The burn authority can be rotated or removed with `getUpdateAuthorityTransaction` / `getRemoveAuthorityTransaction` using `AuthorityType.PermissionedBurn`; removing it re-enables regular burns.
 
+## Confidential balances
+
+Confidential-balance holders derive an ElGamal keypair + AES key from a wallet
+signature — deterministic, never stored on-chain, and **wallet-only**: there is
+no seed, so the same signer always derives the same keys for every mint and
+account it holds. One signature yields both keys.
+
+```ts
+import { deriveConfidentialKeys, freeConfidentialKeys } from '@solana/mosaic-sdk/confidential';
+
+const keys = await deriveConfidentialKeys({
+    signer: owner, // a MessagePartialSigner (wallet / filesystem keypair)
+});
+// ... use keys ...
+freeConfidentialKeys(keys); // release WASM memory when done
+```
+
+> **Browser wallets.** Don't feed a UI wallet-connection framework's own `signMessage`
+> straight into `signer` above — several such libraries mishandle the Wallet
+> Standard `solana:signMessage` result or silently demote specific wallets to a
+> broken signing path. Import `@solana/mosaic-sdk/confidential/wallet-standard`
+> and wrap your framework's fallback signer with `createResilientSignMessage(owner,
+fallbackSignMessage)`, then `createMessageSigner(owner, signMessage)` to get the
+> `MessagePartialSigner` this function needs.
+
 ## Access lists (ABL, SRFC-37)
 
 Create and manage allowlists/blocklists that gate who can thaw/hold tokens.

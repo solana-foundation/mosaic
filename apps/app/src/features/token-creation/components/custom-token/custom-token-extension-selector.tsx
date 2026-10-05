@@ -149,7 +149,11 @@ export function hasExtensionsRequiringConfig(options: CustomTokenOptions): boole
         options.enableInterestBearing ||
         options.enableTransferHook ||
         options.enableSrfc37 ||
-        options.enableScaledUiAmount
+        options.enableScaledUiAmount ||
+        // Both have configurable sub-options (frozen-vs-initialized, approve policy +
+        // auditor key) that are only reachable from the Configuration step.
+        options.enableDefaultAccountState ||
+        options.enableConfidentialBalances
     );
 }
 
@@ -178,7 +182,16 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
             </CardHeader>
             <CardContent className="space-y-2 p-2">
                 {/* Multi-select dropdown */}
-                <Popover open={isOpen} onOpenChange={setIsOpen}>
+                {/* `modal` is load-bearing, not cosmetic. The dialog this selector lives in
+                    wraps its OVERLAY in react-remove-scroll and registers the dialog content
+                    as a `shard`. This popover is portaled to <body>, so it is inside neither:
+                    the lock sees a wheel event it cannot attribute to any shard and calls
+                    preventDefault() on it unconditionally, which kills trackpad scrolling in
+                    the list (dragging the scrollbar still worked, which is what made it look
+                    like a styling bug). `modal` gives the popover its own scroll lock, and
+                    react-remove-scroll only lets the topmost lock in its stack act — so the
+                    popover's lock, which does know about this list, decides instead. */}
+                <Popover open={isOpen} onOpenChange={setIsOpen} modal>
                     <PopoverTrigger asChild>
                         <Button variant="outline" className="w-full justify-between h-auto min-h-10 py-2">
                             <span className="text-muted-foreground">
@@ -189,11 +202,15 @@ export function CustomTokenExtensionSelector({ options, onInputChange }: CustomT
                             <ChevronDown className="h-4 w-4 opacity-50" />
                         </Button>
                     </PopoverTrigger>
+                    {/* `--radix-popover-content-available-height` is the room actually left between
+                        the trigger and the collision boundary, so the list is capped by the real
+                        viewport instead of a blind 50vh that can hang off-screen on short laptops. */}
                     <PopoverContent
-                        className="w-[var(--radix-popover-trigger-width)] p-0 bg-background dark:bg-zinc-900 border-border"
+                        className="w-[var(--radix-popover-trigger-width)] max-h-[min(28rem,var(--radix-popover-content-available-height,50vh))] flex flex-col p-0 bg-background dark:bg-zinc-900 border-border"
                         align="start"
+                        collisionPadding={16}
                     >
-                        <div className="overflow-y-auto p-2" style={{ maxHeight: 'min(450px, 50vh)' }}>
+                        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-2">
                             {extensions.map(extension => {
                                 const Icon = extension.icon;
                                 const isEnabled = isExtensionEnabled(extension);

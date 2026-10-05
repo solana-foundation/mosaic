@@ -7,17 +7,22 @@ import type { TransactionModifyingSigner } from '@solana/kit';
 import { useTokenCreationForm } from '@/features/token-creation/hooks/use-token-creation-form';
 import { TokenCreateFormBase } from '../token-create-form-base';
 import { Step } from '../form-stepper';
+import { AuthorityParams, hasInvalidAuthority } from '../authority-params';
+import { tokenizedSecurityAuthorityFields } from '../authority-fields';
+import { isAuditorKeyInvalid } from '../confidential-balances-config';
 
 interface TokenizedSecurityCreateFormProps {
     transactionSendingSigner: TransactionModifyingSigner<string>;
     rpcUrl?: string;
     onTokenCreated?: () => void;
     onCancel?: () => void;
+    onClose?: () => void;
 }
 
 const STEPS: Step[] = [
     { id: 'identity', label: 'Token Identity' },
     { id: 'features', label: 'Features' },
+    { id: 'authorities', label: 'Authorities' },
 ];
 
 const INITIAL_OPTIONS: TokenizedSecurityOptions = {
@@ -32,21 +37,42 @@ const INITIAL_OPTIONS: TokenizedSecurityOptions = {
     pausableAuthority: '',
     confidentialBalancesAuthority: '',
     permanentDelegateAuthority: '',
+    permissionedBurnAuthority: '',
     scaledUiAmountAuthority: '',
+    freezeAuthority: '',
+    // Matches the SDK default, so the mint is unchanged unless the user picks otherwise.
+    confidentialBalancesPolicy: 'whitelist',
+    auditorElgamalPubkey: '',
     multiplier: '1',
 };
+
+function canProceed(step: number, options: TokenizedSecurityOptions): boolean {
+    if (step === 0) {
+        return !!(options.name && options.symbol && options.decimals);
+    }
+    // Step 1 renders the confidential-balances card, so mirror its inline auditor-key error.
+    if (step === 1) {
+        return !isAuditorKeyInvalid(options.auditorElgamalPubkey);
+    }
+    if (step === 2) {
+        return !hasInvalidAuthority(options, tokenizedSecurityAuthorityFields(options));
+    }
+    return true;
+}
 
 export function TokenizedSecurityCreateForm({
     transactionSendingSigner,
     rpcUrl,
     onTokenCreated,
     onCancel,
+    onClose,
 }: TokenizedSecurityCreateFormProps) {
     const formState = useTokenCreationForm<TokenizedSecurityOptions, TokenizedSecurityCreationResult>({
         initialOptions: INITIAL_OPTIONS,
         createToken: createTokenizedSecurity,
         templateId: 'tokenized-security',
-        totalSteps: 2,
+        totalSteps: 3,
+        canProceed,
         transactionSendingSigner,
         rpcUrl,
         onTokenCreated,
@@ -84,11 +110,21 @@ export function TokenizedSecurityCreateForm({
                                 }
                             />
                         );
+                    case 2:
+                        return (
+                            <AuthorityParams
+                                idPrefix="tokenized-security"
+                                options={options}
+                                fields={tokenizedSecurityAuthorityFields(options)}
+                                onInputChange={setOption}
+                                alwaysExpanded
+                            />
+                        );
                     default:
                         return null;
                 }
             }}
-            renderResult={result => <TokenizedSecurityCreationResultDisplay result={result} />}
+            renderResult={result => <TokenizedSecurityCreationResultDisplay result={result} onClose={onClose} />}
         />
     );
 }

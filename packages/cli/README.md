@@ -11,9 +11,16 @@ CLI for building and operating Token-2022 mints with modern extensions on Solana
 
 ## Installation
 
+Requires Node.js 20.6+.
+
 ```bash
-# inside this monorepo
+# from npm
+npm install -g @solana/mosaic-cli
+mosaic --help
+
+# or inside this monorepo
 pnpm i && pnpm -w build
+node packages/cli/bin/mosaic.mjs --help
 ```
 
 ## Global options
@@ -214,8 +221,9 @@ mosaic token-acl enable-permissionless-thaw --mint <MINT>
 ```bash
 pnpm i
 pnpm build
-pnpm dev        # tsx src/index.ts
-pnpm start      # node dist/index.js
+pnpm dev:run <command> …    # run from source (tsx, e.g. pnpm dev:run inspect-mint --help)
+pnpm dev                    # watch build (tsc --watch)
+pnpm start                  # run the built CLI (bin/mosaic.mjs)
 pnpm type-check
 pnpm lint && pnpm lint:fix
 ```

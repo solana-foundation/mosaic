@@ -1,5 +1,5 @@
-import setupTestSuite from './setup';
-import type { Client } from './setup';
+import setupTestSuite from './setup.js';
+import type { Client } from './setup.js';
 import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
 import {
@@ -8,18 +8,18 @@ import {
     DEFAULT_TIMEOUT,
     DEFAULT_COMMITMENT,
     describeSkipIf,
-} from './helpers';
-import { Token } from '../../issuance';
-import { createMintToTransaction } from '../../management';
-import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl';
+} from './helpers.js';
+import { Token } from '../../issuance/index.js';
+import { createMintToTransaction } from '../../management/index.js';
+import { TOKEN_ACL_PROGRAM_ID } from '../../token-acl/index.js';
 import {
     inspectToken,
     getTokenMetadata,
     getTokenExtensionsDetailed,
     inspectionResultToDashboardData,
     getTokenDashboardData,
-} from '../../inspection';
-import { decimalAmountToRaw } from '../../transaction-util';
+} from '../../inspection/index.js';
+import { decimalAmountToRaw } from '../../transaction-util.js';
 
 describeSkipIf()('Inspection Integration Tests', () => {
     let client: Client;
@@ -1015,7 +1015,7 @@ describeSkipIf()('Inspection Integration Tests', () => {
                 // literal program ID alone is a false positive: a mint built with the
                 // program ID as freezeAuthority — without running createConfig — is not a
                 // working sRFC-37 setup. The Token-ACL program isn't deployed on the test
-                // validator and `@token-acl/sdk` is mocked, so we can't exercise the full
+                // validator and `@solana/token-acl-sdk` is mocked, so we can't exercise the full
                 // sRFC-37 flow here; this test pins the bug-fix invariant instead.
                 const tokenBuilder = new Token()
                     .withMetadata({

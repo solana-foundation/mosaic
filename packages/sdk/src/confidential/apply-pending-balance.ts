@@ -7,8 +7,8 @@ import {
     singleInstructionPlan,
 } from '@solana/kit';
 import { fetchToken, getApplyConfidentialPendingBalanceInstructionFromToken } from '@solana-program/token-2022';
-import type { ConfidentialKeys } from './keys';
-import { toAuthoritySigner } from './util';
+import type { ConfidentialKeys } from './keys.js';
+import { toAuthoritySigner } from './util.js';
 
 /**
  * Applies the account's **pending** confidential balance into its **available**

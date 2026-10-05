@@ -1,4 +1,4 @@
-import type { SetGatingProgramInstruction, TogglePermissionlessInstructionsInstruction } from '@token-acl/sdk';
+import type { SetGatingProgramInstruction, TogglePermissionlessInstructionsInstruction } from '@solana/token-acl-sdk';
 import { AccountRole, type Address, type TransactionSigner } from '@solana/kit';
 
 export async function findMintConfigPda(): Promise<[string, string]> {

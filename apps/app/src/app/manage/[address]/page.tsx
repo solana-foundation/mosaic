@@ -15,6 +15,7 @@ import {
     Send,
     FileText,
     XCircle,
+    Upload,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -39,6 +40,7 @@ import { BurnModalContent } from '@/features/token-management/components/modals/
 import { UpdateMetadataModalContent } from '@/features/token-management/components/modals/update-metadata-modal';
 import { CloseAccountModalContent } from '@/features/token-management/components/modals/close-account-modal';
 import { DeleteTokenModalContent } from '@/features/dashboard/components/delete-token-modal';
+import { ImportTokenModal } from '@/features/dashboard/components/import-token-modal';
 import { useConnectorSigner } from '@/features/wallet/hooks/use-connector-signer';
 import {
     addAddressToBlocklist,
@@ -121,6 +123,9 @@ function ManageTokenConnected({ address }: { address: string }) {
     const [transactionSignature, setTransactionSignature] = useState('');
     const [refreshTrigger, setRefreshTrigger] = useState(0);
     const [supplyRefreshTrigger, setSupplyRefreshTrigger] = useState(0);
+    const [reloadKey, setReloadKey] = useState(0);
+    const [isImportOpen, setIsImportOpen] = useState(false);
+    const importedMintRef = useRef<string | null>(null);
 
     // Use centralized extension store for pause state
     const { isPaused, isUpdating: isPauseUpdating, error: pauseError } = usePauseState(address);
@@ -204,7 +209,7 @@ function ManageTokenConnected({ address }: { address: string }) {
         };
 
         loadTokenData();
-    }, [address, rpc, cluster?.url, findTokenByAddress, fetchPauseState]);
+    }, [address, rpc, cluster?.url, findTokenByAddress, fetchPauseState, reloadKey]);
 
     useEffect(() => {
         const loadAccessList = async () => {
@@ -397,16 +402,46 @@ function ManageTokenConnected({ address }: { address: string }) {
                     <div className="text-center">
                         <h2 className="text-3xl font-bold mb-4">Token Not Found</h2>
                         <p className="text-muted-foreground mb-6">
-                            The token with address {address} could not be found in your local storage.
+                            The token with address {address} isn&apos;t in this browser&apos;s dashboard yet. Import it
+                            to load it from chain.
                         </p>
-                        <Link href="/">
-                            <Button>
-                                <ChevronLeft className="h-4 w-4 mr-2" />
-                                Back to Dashboard
+                        <div className="flex items-center justify-center gap-3">
+                            <Button onClick={() => setIsImportOpen(true)}>
+                                <Upload className="h-4 w-4 mr-2" />
+                                Import this token
                             </Button>
-                        </Link>
+                            <Link href="/">
+                                <Button variant="outline">
+                                    <ChevronLeft className="h-4 w-4 mr-2" />
+                                    Back to Dashboard
+                                </Button>
+                            </Link>
+                        </div>
                     </div>
                 </div>
+
+                {/* Act only once the modal has closed after a success: reloading on import would
+                    swap this not-found screen for the token view and unmount the open dialog. If the
+                    user edited the prefilled address, go to the mint they actually imported. */}
+                <ImportTokenModal
+                    isOpen={isImportOpen}
+                    initialAddress={address}
+                    onTokenImported={mintAddress => {
+                        importedMintRef.current = mintAddress;
+                    }}
+                    onOpenChange={open => {
+                        setIsImportOpen(open);
+                        const importedMint = importedMintRef.current;
+                        if (!open && importedMint) {
+                            importedMintRef.current = null;
+                            if (importedMint === address) {
+                                setReloadKey(k => k + 1);
+                            } else {
+                                router.push(`/manage/${importedMint}`);
+                            }
+                        }
+                    }}
+                />
             </div>
         );
     }

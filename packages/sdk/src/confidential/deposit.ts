@@ -7,7 +7,7 @@ import {
     singleInstructionPlan,
 } from '@solana/kit';
 import { getConfidentialDepositInstruction } from '@solana-program/token-2022';
-import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util';
+import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util.js';
 
 /**
  * Deposits tokens from the account's **non-confidential** (plaintext) balance

@@ -13,8 +13,8 @@ import {
     lamports,
     signTransactionMessageWithSigners,
 } from '@solana/kit';
-import type { FullTransaction } from '../../transaction-util';
-import type { Client } from './setup';
+import type { FullTransaction } from '../../transaction-util.js';
+import type { Client } from './setup.js';
 
 /**
  * A captured on-chain transaction. `wireBytes` is the exact byte sequence

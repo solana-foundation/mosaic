@@ -1,6 +1,6 @@
-import { Token } from '../issuance';
+import { Token } from '../issuance/index.js';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     createNoopSigner,
     pipe,
@@ -9,13 +9,12 @@ import {
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
 } from '@solana/kit';
-import { getCreateConfigInstructions } from '../token-acl/create-config';
-import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program';
-import { ABL_PROGRAM_ID } from '../abl/utils';
-import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/utils';
-import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw';
-import { getCreateListInstructions } from '../abl/list';
-import { getSetExtraMetasInstructions } from '../abl/set-extra-metas';
+import { getCreateConfigInstructions } from '../token-acl/create-config.js';
+import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program.js';
+import { ABL_PROGRAM_ID } from '../abl/utils.js';
+import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw.js';
+import { getCreateListInstructions } from '../abl/list.js';
+import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
 import { Mode } from '@solana/token-acl-gate-sdk';
 
 /**
@@ -78,7 +77,12 @@ export const createArcadeTokenInitTransaction = async (
             rpc,
             decimals,
             mintAuthority,
-            freezeAuthority: freezeAuthority ?? (useSrfc37 ? TOKEN_ACL_PROGRAM_ID : undefined),
+            // On the sRFC-37 path the freeze authority MUST be the mint authority: the
+            // Token-ACL `create_config` instruction requires the mint's current freeze
+            // authority to equal its signer (the mint authority) and then reassigns it to
+            // the config PDA itself. Pre-setting it to anything else (e.g. the program id)
+            // fails create_config with InvalidAuthority.
+            freezeAuthority: useSrfc37 ? mintAuthorityAddress : freezeAuthority,
             mint: mintSigner,
             feePayer: feePayerSigner,
         });
@@ -132,7 +136,7 @@ export const createArcadeTokenInitTransaction = async (
         authority: mintAuthoritySigner,
         payer: feePayerSigner,
         mint: mintSigner.address,
-        lists: [listConfig],
+        addresses: [listConfig],
     });
 
     instructions.push(...createConfigInstructions);

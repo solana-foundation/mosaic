@@ -5,7 +5,7 @@ import {
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
 import type { Address, Instruction, TransactionSigner, Rpc, SolanaRpcApi } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util';
+import type { FullTransaction } from '../transaction-util.js';
 import {
     pipe,
     createTransactionMessage,
