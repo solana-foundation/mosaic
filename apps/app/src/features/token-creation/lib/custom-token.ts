@@ -322,14 +322,16 @@ export const createCustomToken = async (
                 scaledUiAmountMultiplier: options.scaledUiAmountMultiplier
                     ? parseFloat(options.scaledUiAmountMultiplier)
                     : undefined,
-                // Only an explicit schedule sends a new multiplier. Static mode, and Rebasing
-                // without a first rebase date, leave it undefined: the SDK then falls back to
-                // the multiplier itself, so nothing is scheduled.
+                // Only an explicit schedule sends a new multiplier and its date. Static mode, and
+                // Rebasing without a first rebase date, leave both undefined: the SDK then falls
+                // back to the multiplier itself and timestamp 0, so nothing is scheduled.
                 scaledUiAmountNewMultiplier:
                     isScaledUiScheduleRequested(options) && options.scaledUiAmountNewMultiplier
                         ? parseFloat(options.scaledUiAmountNewMultiplier)
                         : undefined,
-                scaledUiAmountNewMultiplierEffectiveTimestamp: scaledUiEffectiveTimestampSeconds(options),
+                scaledUiAmountNewMultiplierEffectiveTimestamp: isScaledUiScheduleRequested(options)
+                    ? scaledUiEffectiveTimestampSeconds(options)
+                    : undefined,
                 // Left undefined when the extension is off so the SDK's aclMode-aware default
                 // can fire on the sRFC-37 path.
                 defaultAccountStateInitialized: enableDefaultAccountState ? defaultAccountStateInitialized : undefined,
