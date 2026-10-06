@@ -24,6 +24,7 @@ import { Spinner } from '@/components/ui/spinner';
 import { useConnector } from '@solana/connector/react';
 import { useTokenStore } from '@/stores/token-store';
 import { useTokenExtensionStore, usePauseState } from '@/stores/token-extension-store';
+import { humanizeError } from '@/lib/errors';
 import { TokenOverview } from '@/features/token-management/components/token-overview';
 import { TokenAuthorities } from '@/features/token-management/components/token-authorities';
 import { TokenExtensions } from '@/features/token-management/components/token-extensions';
@@ -129,7 +130,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     // Use centralized extension store for pause state
     const { isPaused, isUpdating: isPauseUpdating, error: pauseError } = usePauseState(address);
-    const { fetchPauseState, togglePause, updateExtensionField } = useTokenExtensionStore();
+    const { fetchPauseState, togglePause, updateExtensionField, syncTransferHookProgramId } = useTokenExtensionStore();
 
     // Function to trigger supply refresh after mint/burn actions
     const refreshSupply = () => {
@@ -177,9 +178,20 @@ function ManageTokenConnected({ address }: { address: string }) {
                         authorities.permanentDelegateAuthority || foundToken.permanentDelegateAuthority;
                     foundToken.scaledUiAmountAuthority =
                         authorities.scaledUiAmountAuthority || foundToken.scaledUiAmountAuthority;
-                } catch {
+                    // Chain data is authoritative here: no local fallback, or a revoked
+                    // authority would keep showing the stale address.
+                    foundToken.transferHookAuthority = authorities.transferHookAuthority;
+                    foundToken.transferHookProgramId = authorities.transferHookProgramId;
+                    // The locally stored token never carries the hook program id, so the
+                    // extensions panel reads it from the store, synced only from chain data.
+                    syncTransferHookProgramId(foundToken.address as string, authorities.transferHookProgramId ?? null);
+                } catch (error) {
                     // If authority fetch fails, continue with existing token data
-                    // Authorities may not be available if token doesn't exist on this network
+                    // Authorities may not be available if token doesn't exist on this network.
+                    // Flag the transfer hook state so its card offers a retry instead of loading forever.
+                    updateExtensionField(foundToken.address as string, 'transferHook', {
+                        error: humanizeError(error, 'Failed to load transfer hook state'),
+                    });
                 }
 
                 setToken(foundToken);
@@ -206,7 +218,16 @@ function ManageTokenConnected({ address }: { address: string }) {
         };
 
         loadTokenData();
-    }, [address, rpc, cluster?.url, findTokenByAddress, fetchPauseState, reloadKey]);
+    }, [
+        address,
+        rpc,
+        cluster?.url,
+        findTokenByAddress,
+        fetchPauseState,
+        syncTransferHookProgramId,
+        updateExtensionField,
+        reloadKey,
+    ]);
 
     useEffect(() => {
         const loadAccessList = async () => {

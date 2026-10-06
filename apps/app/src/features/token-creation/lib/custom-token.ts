@@ -110,7 +110,7 @@ function validateCustomTokenOptions(options: CustomTokenOptions): number {
     // Validate Transfer Hook configuration if enabled. Compare the trimmed value, since that is
     // what gets sent — `canProceed` also trims, so an unpadded check here would pass Continue and
     // then reject at submit.
-    if (options.enableTransferHook) {
+    if (options.enableTransferHook && !options.transferHookInactive) {
         const programId = options.transferHookProgramId?.trim();
         if (!programId) {
             throw new Error('Transfer hook program ID is required');
@@ -229,7 +229,9 @@ export const createCustomToken = async (
         const withdrawWithheldAuthority = toAuthorityAddress(options.withdrawWithheldAuthority);
         const interestBearingAuthority = toAuthorityAddress(options.interestBearingAuthority);
         const transferHookAuthority = toAuthorityAddress(options.transferHookAuthority);
-        const transferHookProgramId = toAuthorityAddress(options.transferHookProgramId);
+        const transferHookProgramId = options.transferHookInactive
+            ? undefined
+            : toAuthorityAddress(options.transferHookProgramId);
 
         const rpcUrl = getRpcUrl(options.rpcUrl);
         const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
@@ -362,7 +364,9 @@ export const createCustomToken = async (
         if (options.enableTransferFee) extensions.push('Transfer Fee');
         if (options.enableInterestBearing) extensions.push('Interest Bearing');
         if (options.enableNonTransferable) extensions.push('Non-Transferable');
-        if (options.enableTransferHook) extensions.push('Transfer Hook');
+        if (options.enableTransferHook) {
+            extensions.push(transferHookProgramId ? 'Transfer Hook' : 'Transfer Hook (Inactive)');
+        }
         if (enableSrfc37) {
             extensions.push(`SRFC-37 (${options.aclMode === 'allowlist' ? 'Allowlist' : 'Blocklist'})`);
         }

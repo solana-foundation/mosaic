@@ -50,8 +50,8 @@ function canProceed(step: number, options: CustomTokenOptions): boolean {
     // These mirror the inline field errors so Continue can't skip past them; the remaining
     // numeric rules still live in validateCustomTokenOptions and run at submit.
     if (step === 2) {
-        // Transfer Hook requires a program ID
-        if (options.enableTransferHook && !options.transferHookProgramId?.trim()) {
+        // Transfer Hook requires a program ID unless it's being initialized inactive
+        if (options.enableTransferHook && !options.transferHookInactive && !options.transferHookProgramId?.trim()) {
             return false;
         }
         if (isTransferFeeCapMissing(options) || isCustomTokenAuditorKeyInvalid(options)) {

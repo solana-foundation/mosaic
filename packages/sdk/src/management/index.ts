@@ -7,3 +7,4 @@ export * from './force-transfer.js';
 export * from './mint.js';
 export * from './pause.js';
 export * from './permissioned-burn.js';
+export * from './transfer-hook.js';
