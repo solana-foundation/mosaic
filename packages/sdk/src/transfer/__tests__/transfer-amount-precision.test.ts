@@ -55,4 +55,49 @@ describe('createTransferInstructions amount precision', () => {
 
         expect(decimalAmountToRaw).toHaveBeenCalledWith('9999999999.999999', 6);
     });
+
+    test('normalizes parseFloat-compatible spellings before scaling', async () => {
+        const decimalAmountToRaw = jest.fn().mockReturnValue(1n);
+        jest.doMock('../../transaction-util.js', () => ({
+            resolveTokenAccount: jest.fn().mockResolvedValue({
+                tokenAccount: 'Ata77777777777777777777777777777777777777',
+                isInitialized: true,
+                isFrozen: false,
+                balance: 10_000_000_000_000_000n,
+                uiBalance: 0,
+            }),
+            decimalAmountToRaw,
+            getMintDetails: jest.fn().mockResolvedValue({
+                decimals: 6,
+                freezeAuthority: 'NotTokenACL111111111111111111111111111111',
+                extensions: [],
+                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+            }),
+            isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
+        }));
+
+        const { createTransferInstructions } = await import('../index.js');
+
+        // The app's amount input allows these spellings (its stepper even
+        // produces exponent notation), so the SDK must keep accepting them.
+        for (const [amount, normalized] of [
+            ['.5', '0.5'],
+            ['5.', '5'],
+            ['+1', '1'],
+            ['1e-3', '0.001'],
+        ] as const) {
+            await createTransferInstructions({
+                rpc,
+                mint,
+                from: authority.address,
+                to,
+                feePayer,
+                authority,
+                amount,
+            }).catch(() => {
+                // Downstream instruction building is out of scope.
+            });
+            expect(decimalAmountToRaw).toHaveBeenLastCalledWith(normalized, 6);
+        }
+    });
 });
