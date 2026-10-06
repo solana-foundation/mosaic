@@ -223,6 +223,8 @@ export class Token {
      * @param config.withdrawAuthority - Authority that can withdraw withheld fees
      * @param config.feeBasisPoints - Fee in basis points (0-10000, where 10000 = 100%)
      * @param config.maximumFee - Maximum fee amount (in smallest token units)
+     *
+     * The on-chain fee epochs and withheld amount are set by the program from the cluster, not from this object.
      */
     withTransferFee(config: {
         authority: Address;
@@ -230,6 +232,12 @@ export class Token {
         feeBasisPoints: number;
         maximumFee: bigint;
     }): Token {
+        // Only the two authorities and `newerTransferFee.{transferFeeBasisPoints,maximumFee}` are sent by
+        // `getPreInitializeInstructionsForMintExtensions`; the program writes the current `Clock::epoch` into
+        // both fee entries. `epoch`, `olderTransferFee` and `withheldAmount` exist only so `getMintSize` can
+        // encode the extension; their values are never read.
+        // Note for a future fee-update feature: upstream `SetTransferFee` schedules the newer fee at
+        // `epoch + 2`, so a UI must say the change takes effect in two epochs.
         const transferFees = {
             epoch: 0n,
             maximumFee: config.maximumFee,
@@ -256,15 +264,20 @@ export class Token {
      * @param config - Interest bearing configuration
      * @param config.authority - Authority that can update the interest rate
      * @param config.rate - Interest rate in basis points (e.g., 500 = 5% annual rate)
+     *
+     * The on-chain timestamps are set by the program from the cluster clock, not from this object.
      */
     withInterestBearing(config: { authority: Address; rate: number }): Token {
+        // Only `rateAuthority` and `currentRate` are sent by `getPreInitializeInstructionsForMintExtensions`;
+        // the program sets both timestamps from the cluster clock and `preUpdateAverageRate` from the rate.
+        // The zeroed fields exist only so `getMintSize` can encode the extension.
         // Manually create extension object as `@solana-program/token-2022`'s extension() doesn't support InterestBearingConfig
         const interestBearingExtension = {
             __kind: 'InterestBearingConfig' as const,
             rateAuthority: config.authority,
-            initializationTimestamp: BigInt(Math.floor(Date.now() / 1000)),
-            preUpdateAverageRate: config.rate,
-            lastUpdateTimestamp: BigInt(Math.floor(Date.now() / 1000)),
+            initializationTimestamp: 0n,
+            preUpdateAverageRate: 0,
+            lastUpdateTimestamp: 0n,
             currentRate: config.rate,
         };
         this.extensions.push(interestBearingExtension as Extension);
