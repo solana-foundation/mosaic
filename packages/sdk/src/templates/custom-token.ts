@@ -74,7 +74,8 @@ export const createCustomTokenInitTransaction = async (
         confidentialBalancesAuthority?: Address;
         scaledUiAmountAuthority?: Address;
 
-        // Scaled UI Amount configuration
+        // Scaled UI Amount configuration. A scheduled change (timestamp in Unix seconds) is
+        // applied at creation, so the scaled UI authority must then be the mint authority.
         scaledUiAmountMultiplier?: number;
         scaledUiAmountNewMultiplier?: number;
         scaledUiAmountNewMultiplierEffectiveTimestamp?: bigint | number;
@@ -194,7 +195,7 @@ export const createCustomTokenInitTransaction = async (
             scaledUiAmountAuthority,
             options.scaledUiAmountMultiplier ?? 1,
             options.scaledUiAmountNewMultiplierEffectiveTimestamp ?? 0n,
-            options.scaledUiAmountNewMultiplier ?? 1,
+            options.scaledUiAmountNewMultiplier ?? options.scaledUiAmountMultiplier ?? 1,
         );
     }
 

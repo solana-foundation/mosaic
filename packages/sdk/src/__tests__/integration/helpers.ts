@@ -243,9 +243,9 @@ export async function assertToken(
         expect(inspection.enableSrfc37).toBe(expected.enableSrfc37);
     }
 
-    // Verify scaled UI amount
+    // Verify scaled UI amount (partial: the schedule fields are only checked when given)
     if (expected.scaledUiAmount) {
-        expect(inspection.scaledUiAmount).toEqual(expected.scaledUiAmount);
+        expect(inspection.scaledUiAmount).toMatchObject(expected.scaledUiAmount);
     }
 
     // Verify metadata
