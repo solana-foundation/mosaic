@@ -172,7 +172,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
         isUpdating: isTransferHookUpdating,
         error: transferHookError,
     } = useTransferHookState(token.address);
-    const { updateTransferHookProgram } = useTokenExtensionStore();
+    const { updateTransferHookProgram, fetchTransferHookState } = useTokenExtensionStore();
 
     // Fetch pause state on mount if token has pausable extension
     useEffect(() => {
@@ -501,7 +501,31 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                     </div>
                                                 )}
                                                 {config.type === 'transferHook' &&
-                                                    (!isTransferHookLoaded ? (
+                                                    (!isTransferHookLoaded && transferHookError ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <div
+                                                                className="px-3 py-2 bg-muted rounded-xl text-sm text-destructive"
+                                                                title={transferHookError}
+                                                            >
+                                                                Couldn&apos;t load
+                                                            </div>
+                                                            <Button
+                                                                variant="secondary"
+                                                                size="sm"
+                                                                className="h-9 px-4 rounded-xl"
+                                                                onClick={() => {
+                                                                    if (token.address) {
+                                                                        fetchTransferHookState(
+                                                                            token.address,
+                                                                            cluster?.url || '',
+                                                                        );
+                                                                    }
+                                                                }}
+                                                            >
+                                                                Retry
+                                                            </Button>
+                                                        </div>
+                                                    ) : !isTransferHookLoaded ? (
                                                         <div className="px-3 py-2 bg-muted rounded-xl text-sm text-muted-foreground">
                                                             Loading...
                                                         </div>

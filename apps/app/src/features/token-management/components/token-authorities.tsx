@@ -180,11 +180,18 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                 const blockchainAuthorities = await getTokenAuthorities(token.address, rpcUrl);
 
                 setAuthorities(prev =>
-                    prev.map(auth => ({
-                        ...auth,
-                        currentAuthority:
-                            blockchainAuthorities[AUTHORITY_ROLE_TO_KEY[auth.role]] ?? auth.currentAuthority,
-                    })),
+                    prev.map(auth => {
+                        const chainAuthority = blockchainAuthorities[AUTHORITY_ROLE_TO_KEY[auth.role]];
+                        return {
+                            ...auth,
+                            // Chain data is authoritative for the transfer hook authority: falling back
+                            // would keep showing a revoked address as active.
+                            currentAuthority:
+                                auth.role === AuthorityType.TransferHookProgramId
+                                    ? chainAuthority
+                                    : (chainAuthority ?? auth.currentAuthority),
+                        };
+                    }),
                 );
             } catch (error) {
                 // Silently handles expected errors like "Mint account not found" or "Not a Token-2022 mint"

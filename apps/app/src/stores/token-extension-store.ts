@@ -18,6 +18,7 @@ import {
     type UpdateTransferHookOptions,
 } from '@/features/token-management/lib/transfer-hook';
 import { humanizeError } from '@/lib/errors';
+import { getTokenAuthorities } from '@/lib/solana/rpc';
 
 // Individual extension states
 interface PauseState {
@@ -94,6 +95,7 @@ interface TokenExtensionStore {
 
     // Transfer Hook actions
     syncTransferHookProgramId: (mint: string, programId: string | null) => void;
+    fetchTransferHookState: (mint: string, rpcUrl: string) => Promise<void>;
     updateTransferHookProgram: (
         mint: string,
         options: Omit<UpdateTransferHookOptions, 'mint'>,
@@ -308,10 +310,33 @@ export const useTokenExtensionStore = create<TokenExtensionStore>()(
             set(state => {
                 const ext = ensureExtension(state, mint);
                 if (!ext.transferHook.isUpdating) {
+                    // Clear a load failure left by an earlier fetch, but keep update errors visible.
+                    if (!ext.transferHook.loaded) ext.transferHook.error = null;
                     ext.transferHook.programId = programId;
                     ext.transferHook.loaded = true;
                 }
             });
+        },
+
+        // Fetch the transfer hook program id from chain on its own, so the extensions panel can
+        // retry after the page-level chain fetch failed. On failure loaded stays false and error
+        // is set, which the panel renders as a retryable state instead of an endless "Loading...".
+        fetchTransferHookState: async (mint, rpcUrl) => {
+            set(state => {
+                ensureExtension(state, mint).transferHook.error = null;
+            });
+
+            try {
+                const authorities = await getTokenAuthorities(mint, rpcUrl);
+                get().syncTransferHookProgramId(mint, authorities.transferHookProgramId ?? null);
+            } catch (error) {
+                set(state => {
+                    const ext = ensureExtension(state, mint);
+                    if (!ext.transferHook.loaded) {
+                        ext.transferHook.error = humanizeError(error);
+                    }
+                });
+            }
         },
 
         // Update (or clear) the transfer hook program id
