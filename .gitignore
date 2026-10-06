@@ -66,6 +66,7 @@ logs
 .anchor/
 target/
 test-ledger/
+.surfpool/
 
 # Package manager lockfiles (keeping pnpm-lock.yaml)
 package-lock.json

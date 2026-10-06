@@ -7,12 +7,8 @@ on:
     branches: [main, develop]
 
 jobs:
-  test:
+  build-and-unit:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [20.x]
 
     steps:
       - name: Checkout code
@@ -23,10 +19,10 @@ jobs:
         with:
           version: 10
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 20.x
           cache: 'pnpm'
 
       - name: Install dependencies
@@ -50,10 +46,67 @@ jobs:
       - name: Test
         run: pnpm run test:unit
 
+  # Required: the network-free regression guard against a real Agave validator.
+  integration-validator:
+    needs: build-and-unit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - name: Setup Solana CLI
-        if: matrix.node-version == '20.x'
         uses: ./.github/actions/setup-solana
 
       - name: Test Integration
-        if: matrix.node-version == '20.x'
         run: pnpm run test:integration
+
+  # Surfpool forks devnet, so it also runs the SRFC-37 (Token ACL / ABL) and Token-2022 v11 suites
+  # the validator can't. Not required yet: it depends on a remote datasource, so it stays
+  # continue-on-error until it has a run of consistently green builds on main.
+  integration-surfpool:
+    needs: build-and-unit
+    runs-on: ubuntu-latest
+    continue-on-error: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup surfpool
+        uses: ./.github/actions/setup-surfpool
+
+      - name: Test Integration (surfpool)
+        run: pnpm run test:integration:surfpool
+        env:
+          # A private devnet RPC avoids public-devnet rate limits. Empty on forks, where the
+          # runner falls back to public devnet.
+          SURFPOOL_DATASOURCE_RPC_URL: ${{ secrets.SOLANA_DEVNET_RPC_URL }}

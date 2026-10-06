@@ -7,14 +7,14 @@ import type {
     TransactionMessageWithBlockhashLifetime,
     Commitment,
     Signature,
+    TransactionSigner,
 } from '@solana/kit';
 import type { FullTransaction } from '../../transaction-util.js';
-import {
-    getSignatureFromTransaction,
-    signTransactionMessageWithSigners,
-    sendAndConfirmTransactionFactory,
-} from '@solana/kit';
 import type { Client } from './setup.js';
+import { createStablecoinInitTransaction } from '../../templates/index.js';
+import { createAddToAllowlistTransaction } from '../../management/index.js';
+import { sendAndPollConfirm } from './polling.js';
+import { TEST_BACKEND } from './env.js';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
     inspectToken,
@@ -27,15 +27,21 @@ import {
     type TokenType,
 } from '../../inspection/index.js';
 
-export const DEFAULT_TIMEOUT = 60000;
+// surfpool resolves every account it hasn't seen through its remote datasource, and a fetch
+// from public devnet can stall for ~30 s before it fails and the send is retried.
+export const DEFAULT_TIMEOUT = TEST_BACKEND === 'surfpool' ? 120_000 : 60_000;
 // Use 'confirmed' commitment to ensure transactions are visible to subsequent RPC reads
 // 'processed' is too weak and can cause race conditions where accounts aren't found yet
 export const DEFAULT_COMMITMENT = 'confirmed';
 
 export const describeSkipIf = (condition?: boolean) => (condition ? describe.skip : describe);
 
+export const itSkipIf = (condition?: boolean) => (condition ? it.skip : it);
+
 /**
- * Submit a transaction and wait for confirmation
+ * Submit a transaction and wait for confirmation. Confirms over HTTP polling rather than
+ * the kit's WS subscriptions, which surfpool does not reliably deliver. Throws (with the
+ * program logs) if the transaction fails.
  */
 export async function sendAndConfirmTransaction(
     client: Client,
@@ -43,17 +49,7 @@ export async function sendAndConfirmTransaction(
     commitment: Commitment = DEFAULT_COMMITMENT,
     skipPreflight = true,
 ): Promise<Signature> {
-    // Sign transaction
-    const signedTransaction = await signTransactionMessageWithSigners(tx);
-
-    // Get signature and wire transaction
-    const signature = getSignatureFromTransaction(signedTransaction);
-    await sendAndConfirmTransactionFactory(client)(signedTransaction as any, {
-        commitment,
-        skipPreflight,
-    });
-
-    return signature;
+    return sendAndPollConfirm(client.rpc, tx, commitment, 30_000, { skipPreflight });
 }
 
 /**
@@ -107,6 +103,63 @@ export function assertTxSuccess(signature: string): void {
     expect(signature.length).toBeGreaterThan(0);
 }
 
+/**
+ * Assert a transaction landed on chain and succeeded. Unlike `assertTxSuccess`, which only
+ * checks the signature string, this reads the transaction back from the cluster.
+ */
+export async function assertTxLanded(rpc: Rpc<SolanaRpcApi>, signature: Signature): Promise<void> {
+    const tx = await rpc
+        .getTransaction(signature, { commitment: 'confirmed', encoding: 'base64', maxSupportedTransactionVersion: 0 })
+        .send();
+    expect(tx).not.toBeNull();
+    expect(tx?.meta?.err).toBeNull();
+}
+
+/**
+ * Create an SRFC-37 mint the way the stablecoin template's single-signer flow does it: Token ACL
+ * config (the freeze authority moves to the config PDA), an ABL list in `aclMode`, and
+ * permissionless thaw. Allowlist mints are born with frozen accounts, blocklist mints with
+ * initialized ones. `authority` is the mint authority, the fee payer, and the Token ACL / ABL
+ * authority (so it is also who freezes and thaws through Token ACL). Needs the real Token ACL and
+ * ABL programs, so surfpool leg only.
+ */
+export async function createSrfc37Mint(
+    client: Client,
+    authority: TransactionSigner<string>,
+    mint: TransactionSigner<string>,
+    aclMode: 'allowlist' | 'blocklist',
+    permanentDelegate?: Address,
+): Promise<void> {
+    const createTx = await createStablecoinInitTransaction(
+        client.rpc,
+        `SRFC-37 ${aclMode} token`,
+        'SRFC',
+        6,
+        'https://example.com/srfc.json',
+        authority,
+        mint,
+        authority,
+        aclMode,
+        undefined,
+        undefined,
+        undefined,
+        permanentDelegate,
+        true,
+    );
+    await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, createTx));
+}
+
+/** Add `wallet` to the mint's ABL allowlist, so the gate approves permissionless thaws of its accounts. */
+export async function addToAllowlist(
+    client: Client,
+    mint: Address,
+    wallet: Address,
+    authority: TransactionSigner<string>,
+): Promise<void> {
+    const tx = await createAddToAllowlistTransaction(client.rpc, mint, wallet, authority);
+    await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, tx));
+}
+
 export async function assertMemo(
     rpc: Rpc<SolanaRpcApi>,
     transactionId: Signature,
@@ -123,10 +176,11 @@ export async function assertMemo(
 }
 
 /**
- * Assert transaction fails
+ * Assert transaction fails. Sends with preflight enabled so a program error rejects at
+ * simulation, without a round of confirmation polling, on every backend.
  */
 export async function assertTxFailure(client: Client, transactionToThrow: FullTransaction): Promise<void> {
-    await expect(sendAndConfirmTransaction(client, transactionToThrow)).rejects.toThrow();
+    await expect(sendAndConfirmTransaction(client, transactionToThrow, DEFAULT_COMMITMENT, false)).rejects.toThrow();
 }
 
 /**
