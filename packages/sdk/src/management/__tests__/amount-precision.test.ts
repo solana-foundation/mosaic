@@ -1,8 +1,8 @@
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
-import { createMockRpc, createMockSigner } from '../../__tests__/test-utils';
-import { decimalAmountToRaw } from '../../transaction-util';
+import { createMockRpc, createMockSigner } from '../../__tests__/test-utils.js';
+import { decimalAmountToRaw } from '../../transaction-util.js';
 
 // parseFloat('9007199254740993') === 9007199254740992 (2^53 + 1 is not
 // representable as a JS number). The exact decimal string must reach
@@ -24,7 +24,7 @@ describe('management amount precision', () => {
     });
 
     function mockTransactionUtil(decimalAmountToRaw: jest.Mock) {
-        jest.doMock('../../transaction-util', () => ({
+        jest.doMock('../../transaction-util.js', () => ({
             resolveTokenAccount: jest.fn().mockResolvedValue({
                 tokenAccount: 'Ata77777777777777777777777777777777777777',
                 isInitialized: true,
@@ -51,7 +51,7 @@ describe('management amount precision', () => {
     test('createMintToTransaction forwards the exact decimal string', async () => {
         const decimalAmountToRaw = jest.fn().mockReturnValue(1n);
         mockTransactionUtil(decimalAmountToRaw);
-        const { createMintToTransaction } = await import('../mint');
+        const { createMintToTransaction } = await import('../mint.js');
         await createMintToTransaction(rpc, mint, account, PRECISE_AMOUNT, authority, feePayer).catch(() => {});
         expect(decimalAmountToRaw).toHaveBeenCalledWith(PRECISE_AMOUNT, 0);
     });
@@ -59,7 +59,7 @@ describe('management amount precision', () => {
     test('createBurnTransaction forwards the exact decimal string', async () => {
         const decimalAmountToRaw = jest.fn().mockReturnValue(1n);
         mockTransactionUtil(decimalAmountToRaw);
-        const { createBurnTransaction } = await import('../burn');
+        const { createBurnTransaction } = await import('../burn.js');
         await createBurnTransaction(rpc, mint, authority, PRECISE_AMOUNT, feePayer).catch(() => {});
         expect(decimalAmountToRaw).toHaveBeenCalledWith(PRECISE_AMOUNT, 0);
     });
@@ -67,7 +67,7 @@ describe('management amount precision', () => {
     test('createForceBurnTransaction forwards the exact decimal string', async () => {
         const decimalAmountToRaw = jest.fn().mockReturnValue(1n);
         mockTransactionUtil(decimalAmountToRaw);
-        const { createForceBurnTransaction } = await import('../force-burn');
+        const { createForceBurnTransaction } = await import('../force-burn.js');
         await createForceBurnTransaction(rpc, mint, account, PRECISE_AMOUNT, authority, feePayer).catch(() => {});
         expect(decimalAmountToRaw).toHaveBeenCalledWith(PRECISE_AMOUNT, 0);
     });
@@ -75,7 +75,7 @@ describe('management amount precision', () => {
     test('createForceTransferTransaction forwards the exact decimal string', async () => {
         const decimalAmountToRaw = jest.fn().mockReturnValue(1n);
         mockTransactionUtil(decimalAmountToRaw);
-        const { createForceTransferTransaction } = await import('../force-transfer');
+        const { createForceTransferTransaction } = await import('../force-transfer.js');
         await createForceTransferTransaction(rpc, mint, account, account, PRECISE_AMOUNT, authority, feePayer).catch(
             () => {},
         );
