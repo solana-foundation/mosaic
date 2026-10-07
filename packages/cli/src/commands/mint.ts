@@ -5,6 +5,7 @@ import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../utils/cli.js';
+import { validateDecimalAmount } from '../utils/amount.js';
 
 interface MintOptions {
     mintAddress: string;
@@ -53,12 +54,7 @@ export const mintCommand = new Command('mint')
             spinner.text = 'Getting mint information...';
 
             // Parse and validate amount
-            const decimalAmount = parseFloat(options.amount);
-            if (isNaN(decimalAmount) || decimalAmount <= 0) {
-                throw new Error('Amount must be a positive number');
-            }
-
-            // Convert decimal amount to raw amount
+            validateDecimalAmount(options.amount);
 
             spinner.text = 'Building mint transaction...';
 
@@ -67,7 +63,7 @@ export const mintCommand = new Command('mint')
                 rpc,
                 options.mintAddress as Address,
                 options.recipient as Address,
-                decimalAmount,
+                options.amount,
                 mintAuthority,
                 feePayer,
             );
@@ -90,13 +86,13 @@ export const mintCommand = new Command('mint')
             console.log(chalk.cyan('📋 Details:'));
             console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
             console.log(`   ${chalk.bold('Recipient:')} ${options.recipient}`);
-            console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
+            console.log(`   ${chalk.bold('Amount:')} ${options.amount}`);
             console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
             console.log(`   ${chalk.bold('Mint Authority:')} ${mintAuthority}`);
 
             console.log(chalk.cyan('\\n🎯 Result:'));
             console.log(`   ${chalk.green('✓')} Associated Token Account created/updated`);
-            console.log(`   ${chalk.green('✓')} ${decimalAmount} tokens minted to recipient`);
+            console.log(`   ${chalk.green('✓')} ${options.amount} tokens minted to recipient`);
         } catch (error) {
             spinner.fail('Failed to mint tokens');
             console.error(chalk.red('❌ Error:'), error instanceof Error ? error : 'Unknown error');

@@ -26,8 +26,7 @@ const U64_MAX = 18446744073709551615n;
  * `"1,5"`, `"1.2.3"`) and loses precision on large/u64-scale amounts, either of
  * which would silently execute a different on-chain amount than the caller
  * supplied. Strings with more fractional digits than the mint supports are
- * rejected (rather than silently truncated by {@link decimalAmountToRaw}), and
- * the result is bounds-checked to `(0, U64_MAX]`.
+ * rejected, and the result is bounds-checked to `(0, U64_MAX]`.
  */
 export function tokenAmountToRaw(amount: TokenAmount, decimals: number): bigint {
     let rawAmount: bigint;
@@ -40,8 +39,8 @@ export function tokenAmountToRaw(amount: TokenAmount, decimals: number): bigint 
         if (!match) {
             throw new Error('Amount must be a positive number');
         }
-        // Reject over-precision: `decimalAmountToRaw` would otherwise truncate
-        // the extra digits and build an instruction for a different amount.
+        // Reject over-precision up front, with the same error `decimalAmountToRaw`
+        // raises, so the extra digits never build a different amount.
         if ((match[1]?.length ?? 0) > decimals) {
             throw new Error(`Amount cannot have more than ${decimals} decimal places`);
         }
