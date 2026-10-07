@@ -73,10 +73,16 @@ export function assertValidDecimals(decimals: number): void {
  * precision for large (u64-scale) amounts and renders values >= 1e21 in
  * exponential form. A `string` is scaled digit-by-digit with no float round-trip.
  *
+ * The amount must be plain decimal digits with at most one decimal point
+ * (`"1"`, `"1.5"`, `".5"`, `"1."`). Exponents, signs, separators, whitespace
+ * and empty strings throw, as does an amount with more fractional digits than
+ * `decimals`: truncating them would build an instruction for a different
+ * amount than the caller supplied.
+ *
  * @param decimalAmount - The decimal amount (e.g., `1.5` or `"1.5"`)
  * @param decimals - The number of decimals the token has
  * @returns The raw token amount as bigint
- * @throws If `decimals` is invalid, the amount is negative or malformed, or the raw amount exceeds u64
+ * @throws If `decimals` is invalid, the amount is negative or malformed, has more than `decimals` fractional digits, or the raw amount exceeds u64
  */
 export function decimalAmountToRaw(decimalAmount: number | string, decimals: number): bigint {
     assertValidDecimals(decimals);

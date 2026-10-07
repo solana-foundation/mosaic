@@ -14,6 +14,7 @@
     },
     "files": [
         "dist",
+        "!dist/**/*.test.*",
         "bin"
     ],
     "engines": {
@@ -24,7 +25,7 @@
         "dev": "tsc --watch",
         "dev:run": "tsx --import ./bin/register-zk-node.mjs src/index.ts",
         "start": "node bin/mosaic.mjs",
-        "test": "echo 'Tests will be implemented'",
+        "test": "sh -c 'tsx --test src/utils/*.test.ts'",
         "lint": "eslint src --ext .ts",
         "lint:fix": "eslint src --ext .ts --fix",
         "type-check": "tsc --noEmit",
