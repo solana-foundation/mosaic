@@ -56,9 +56,9 @@ const NEW_MINT = addrFromTag(8);
 // 32 zero bytes encoded as base58 — valid Blockhash shape, fine for unit tests.
 const FAKE_BLOCKHASH = '11111111111111111111111111111111' as Blockhash;
 
-const buildBytes = (instructions: Instruction[]): Uint8Array => {
+const buildBytes = (instructions: Instruction[], version: 0 | 1 = 0): Uint8Array => {
     const message = pipe(
-        createTransactionMessage({ version: 0 }),
+        createTransactionMessage({ version }),
         m => setTransactionMessageFeePayer(FEE_PAYER, m),
         m => setTransactionMessageLifetimeUsingBlockhash({ blockhash: FAKE_BLOCKHASH, lastValidBlockHeight: 0n }, m),
         m => appendTransactionMessageInstructions(instructions, m),
@@ -330,6 +330,43 @@ describe('parseTokenTransaction', () => {
 
         expect(result.summary.event).toBe(1);
         expect(result.summary.other).toBe(1);
+    });
+});
+
+describe('parseTokenTransaction (v1 messages)', () => {
+    const instructions = (): Instruction[] => [
+        getMintToInstruction({ mint: MINT, token: SOURCE_ATA, mintAuthority: AUTHORITY, amount: 1_000n }),
+        getTransferCheckedInstruction({
+            source: SOURCE_ATA,
+            mint: MINT,
+            destination: DEST_ATA,
+            authority: AUTHORITY,
+            amount: 42n,
+            decimals: 6,
+        }),
+    ];
+
+    it('parses a version-1 message', () => {
+        const result = parseTokenTransaction(buildBytes(instructions(), 1));
+
+        expect(result.version).toBe(1);
+        expect(result.feePayer).toBe(FEE_PAYER);
+        expect(result.instructions.map(i => i.category)).toEqual(['supply', 'transfer']);
+        const [mintTo, transfer] = result.instructions;
+        if (mintTo.programLabel !== 'token-2022' || transfer.programLabel !== 'token-2022') {
+            throw new Error('expected token-2022');
+        }
+        expect(mintTo.token2022.instructionType).toBe(Token2022Instruction.MintTo);
+        expect(transfer.token2022.instructionType).toBe(Token2022Instruction.TransferChecked);
+    });
+
+    it('produces the same instructions and summary as the version-0 build', () => {
+        const v0 = parseTokenTransaction(buildBytes(instructions(), 0));
+        const v1 = parseTokenTransaction(buildBytes(instructions(), 1));
+
+        expect(v1.feePayer).toBe(v0.feePayer);
+        expect(v1.summary).toEqual(v0.summary);
+        expect(v1.instructions).toEqual(v0.instructions);
     });
 });
 
