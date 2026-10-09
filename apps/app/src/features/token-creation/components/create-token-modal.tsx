@@ -98,26 +98,125 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
         <Dialog open={isOpen} onOpenChange={handleClose}>
             <DialogContent
                 className={cn(
-                    'overflow-hidden sm:rounded-3xl p-0 gap-0 transition-all duration-300 [&>button]:hidden',
-                    selectedTemplate ? 'h-auto max-w-lg' : 'h-auto max-w-lg',
+                    // The modal is a viewport-capped flex column: header stays put, the body
+                    // scrolls. Without the cap a tall template list or form overflows the
+                    // screen on short laptops and the bottom is unreachable, because the page
+                    // behind the dialog is scroll-locked.
+                    'flex flex-col max-h-[calc(100dvh-1.5rem)] w-[calc(100%-1.5rem)] overflow-hidden',
+                    'sm:max-h-[calc(100dvh-4rem)] sm:w-full sm:rounded-3xl p-0 gap-0 [&>button]:hidden',
                 )}
             >
-                <div
-                    className={cn(
-                        'overflow-hidden transition-all duration-300 ease-in-out flex flex-col',
-                        selectedTemplate ? 'h-auto' : 'h-auto',
-                    )}
-                >
-                    <div
-                        className={cn(
-                            'bg-primary/5 flex flex-col',
-                            selectedTemplate ? 'flex-1 min-h-auto h-auto' : 'overflow-y-auto h-auto',
-                        )}
-                    >
-                        {!selectedTemplate ? (
-                            <>
-                                <div className="flex items-center justify-between p-6 pb-4 border-b border-primary/5 bg-primary/5">
-                                    <DialogTitle className="text-xl font-semibold">Create New Token</DialogTitle>
+                <div className="bg-primary/5 flex flex-1 flex-col min-h-0">
+                    {!selectedTemplate ? (
+                        <>
+                            <div className="shrink-0 flex items-center justify-between p-5 pb-4 sm:p-6 sm:pb-4 border-b border-primary/5 bg-primary/5">
+                                <DialogTitle className="text-xl font-semibold">Create New Token</DialogTitle>
+                                <button
+                                    onClick={handleClose}
+                                    className="rounded-full p-1.5 bg-primary/10 hover:bg-muted transition-colors cursor-pointer"
+                                    aria-label="Close"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+
+                            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4.5 space-y-4">
+                                {/* Custom Token - First */}
+                                {(() => {
+                                    const customToken = templates.find(t => t.id === 'custom-token');
+                                    if (!customToken) return null;
+                                    const Icon = customToken.icon;
+                                    return (
+                                        <button
+                                            key={customToken.id}
+                                            onClick={() => handleTemplateSelect(customToken)}
+                                            className="w-full cursor-pointer active:scale-[0.98] flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-200 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
+                                        >
+                                            <div
+                                                className={cn(
+                                                    'p-2.5 sm:p-3 rounded-xl shrink-0',
+                                                    customToken.colorClass,
+                                                )}
+                                            >
+                                                <Icon
+                                                    className={cn('h-5 w-5 sm:h-6 sm:w-6', customToken.iconColorClass)}
+                                                />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-semibold text-base mb-1">{customToken.title}</h4>
+                                                <p className="text-sm text-gray-500 leading-relaxed">
+                                                    {customToken.description}
+                                                </p>
+                                            </div>
+                                            <div className="shrink-0 text-gray-400 group-hover:text-gray-300 transition-colors">
+                                                <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+                                            </div>
+                                        </button>
+                                    );
+                                })()}
+
+                                {/* Templates Label */}
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 flex-col">
+                                        <div className="w-full h-px bg-border mb-1" />
+                                        <div className="w-full h-px bg-border mb-1" />
+                                        <div className="w-full h-px bg-border" />
+                                    </div>
+                                    <span className="text-sm font-medium text-primary flex items-center gap-2">
+                                        {/* <IconAppGiftFill className="h-4 w-4 fill-primary/30" /> */}
+                                        Templates
+                                    </span>
+                                    <div className="flex-1 flex-col">
+                                        <div className="w-full h-px bg-border mb-1" />
+                                        <div className="w-full h-px bg-border mb-1" />
+                                        <div className="w-full h-px bg-border" />
+                                    </div>
+                                </div>
+
+                                {/* Other Templates */}
+                                {templates
+                                    .filter(template => template.id !== 'custom-token')
+                                    .map(template => {
+                                        const Icon = template.icon;
+                                        return (
+                                            <button
+                                                key={template.id}
+                                                onClick={() => handleTemplateSelect(template)}
+                                                className="w-full cursor-pointer active:scale-[0.98] flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-200 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
+                                            >
+                                                <div
+                                                    className={cn(
+                                                        'p-2.5 sm:p-3 rounded-xl shrink-0',
+                                                        template.colorClass,
+                                                    )}
+                                                >
+                                                    <Icon
+                                                        className={cn('h-5 w-5 sm:h-6 sm:w-6', template.iconColorClass)}
+                                                    />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="font-semibold text-base mb-1">{template.title}</h4>
+                                                    <p className="text-sm text-gray-500 leading-relaxed">
+                                                        {template.description}
+                                                    </p>
+                                                </div>
+                                                <div className="shrink-0 text-gray-400 group-hover:text-gray-300 transition-colors">
+                                                    <ChevronRight className="h-5 w-5 sm:h-6 sm:w-6" />
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex flex-col flex-1 min-h-0">
+                            {/* Sticky Header */}
+                            <DialogHeader className="shrink-0 p-5 pb-4 sm:p-6 sm:pb-4 border-b border-primary/5 bg-primary/5">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <DialogTitle className="text-xl">Create a {selectedTemplate.title}</DialogTitle>
+                                        <DialogDescription>Configure your token parameters</DialogDescription>
+                                    </div>
                                     <button
                                         onClick={handleClose}
                                         className="rounded-full p-1.5 bg-primary/10 hover:bg-muted transition-colors cursor-pointer"
@@ -126,111 +225,14 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
                                         <X className="h-4 w-4" />
                                     </button>
                                 </div>
+                            </DialogHeader>
 
-                                <div className="p-4.5 space-y-4">
-                                    {/* Custom Token - First */}
-                                    {(() => {
-                                        const customToken = templates.find(t => t.id === 'custom-token');
-                                        if (!customToken) return null;
-                                        const Icon = customToken.icon;
-                                        return (
-                                            <button
-                                                key={customToken.id}
-                                                onClick={() => handleTemplateSelect(customToken)}
-                                                className="w-full cursor-pointer active:scale-[0.98] flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-200 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
-                                            >
-                                                <div className={cn('p-3 rounded-xl shrink-0', customToken.colorClass)}>
-                                                    <Icon className={cn('h-6 w-6', customToken.iconColorClass)} />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <h4 className="font-semibold text-base mb-1">
-                                                        {customToken.title}
-                                                    </h4>
-                                                    <p className="text-sm text-gray-500 leading-relaxed">
-                                                        {customToken.description}
-                                                    </p>
-                                                </div>
-                                                <div className="shrink-0 text-gray-400 group-hover:text-gray-300 transition-colors">
-                                                    <ChevronRight className="h-6 w-6" />
-                                                </div>
-                                            </button>
-                                        );
-                                    })()}
-
-                                    {/* Templates Label */}
-                                    <div className="flex items-center gap-3">
-                                        <div className="flex-1 flex-col">
-                                            <div className="w-full h-px bg-border mb-1" />
-                                            <div className="w-full h-px bg-border mb-1" />
-                                            <div className="w-full h-px bg-border" />
-                                        </div>
-                                        <span className="text-sm font-medium text-primary flex items-center gap-2">
-                                            {/* <IconAppGiftFill className="h-4 w-4 fill-primary/30" /> */}
-                                            Templates
-                                        </span>
-                                        <div className="flex-1 flex-col">
-                                            <div className="w-full h-px bg-border mb-1" />
-                                            <div className="w-full h-px bg-border mb-1" />
-                                            <div className="w-full h-px bg-border" />
-                                        </div>
-                                    </div>
-
-                                    {/* Other Templates */}
-                                    {templates
-                                        .filter(template => template.id !== 'custom-token')
-                                        .map(template => {
-                                            const Icon = template.icon;
-                                            return (
-                                                <button
-                                                    key={template.id}
-                                                    onClick={() => handleTemplateSelect(template)}
-                                                    className="w-full cursor-pointer active:scale-[0.98] flex items-center gap-4 p-4 rounded-2xl border border-gray-200 dark:border-gray-800 hover:border-gray-200 hover:shadow-sm transition-all bg-white dark:bg-card group text-left"
-                                                >
-                                                    <div className={cn('p-3 rounded-xl shrink-0', template.colorClass)}>
-                                                        <Icon className={cn('h-6 w-6', template.iconColorClass)} />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <h4 className="font-semibold text-base mb-1">
-                                                            {template.title}
-                                                        </h4>
-                                                        <p className="text-sm text-gray-500 leading-relaxed">
-                                                            {template.description}
-                                                        </p>
-                                                    </div>
-                                                    <div className="shrink-0 text-gray-400 group-hover:text-gray-300 transition-colors">
-                                                        <ChevronRight className="h-6 w-6" />
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                </div>
-                            </>
-                        ) : (
-                            <div className="flex flex-col h-full max-h-[90vh]">
-                                {/* Sticky Header */}
-                                <DialogHeader className="shrink-0 p-6 pb-4 border-b border-primary/5 bg-primary/5">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <DialogTitle className="text-xl">
-                                                Create a {selectedTemplate.title}
-                                            </DialogTitle>
-                                            <DialogDescription>Configure your token parameters</DialogDescription>
-                                        </div>
-                                        <button
-                                            onClick={handleClose}
-                                            className="rounded-full p-1.5 bg-primary/10 hover:bg-muted transition-colors cursor-pointer"
-                                            aria-label="Close"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                </DialogHeader>
-
-                                {/* Scrollable Content */}
-                                <div className="flex-1 overflow-y-auto p-6">{renderForm()}</div>
+                            {/* Scrollable Content */}
+                            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
+                                {renderForm()}
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </DialogContent>
         </Dialog>

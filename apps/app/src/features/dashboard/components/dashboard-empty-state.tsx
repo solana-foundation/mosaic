@@ -1,15 +1,17 @@
 'use client';
 
-import { Plus } from 'lucide-react';
+import { Plus, Upload } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface DashboardEmptyStateProps {
     onCreateClick: () => void;
+    onImportClick: () => void;
 }
 
-export function DashboardEmptyState({ onCreateClick }: DashboardEmptyStateProps) {
+export function DashboardEmptyState({ onCreateClick, onImportClick }: DashboardEmptyStateProps) {
     return (
         <div className="flex-1 flex items-center justify-center p-8">
-            <div className="max-w-6xl w-full">
+            <div className="max-w-6xl w-full flex flex-col items-center gap-4">
                 <button
                     type="button"
                     aria-label="Create Token"
@@ -36,6 +38,11 @@ export function DashboardEmptyState({ onCreateClick }: DashboardEmptyStateProps)
                         </div>
                     </div>
                 </button>
+                {/* A wallet with no tokens in this browser still needs a way to reach mints it already has on-chain. */}
+                <Button variant="outline" onClick={onImportClick}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import existing token
+                </Button>
             </div>
         </div>
     );

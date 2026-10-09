@@ -762,6 +762,10 @@ export function CustomTokenExtensionConfig({ options, onInputChange }: CustomTok
                                             <p className="text-xs text-muted-foreground">unchanged</p>
                                         </div>
                                     </div>
+                                    <p className="ml-6 text-xs text-muted-foreground">
+                                        Approximate — continuous compounding over 365.24-day years, rounded to cents;
+                                        the on-chain amount is computed from the cluster clock.
+                                    </p>
                                 </div>
                             )}
                         </div>
