@@ -506,8 +506,7 @@ const plan = createDisableConfidentialCreditsInstructionPlan({
 });
 ```
 
-The `NonConfidential` pair governs plaintext `Deposit`s into the pending balance
-instead. All four return a single-instruction `InstructionPlan`.
+The `NonConfidential` pair governs incoming regular (plaintext) transfers instead. All four return a single-instruction `InstructionPlan`.
 
 ### Reading state before you ask for keys
 
