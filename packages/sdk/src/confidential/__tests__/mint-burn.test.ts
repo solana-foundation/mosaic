@@ -752,6 +752,22 @@ describe('apply confidential pending burn', () => {
         expect(args.supply).toBe(250n);
     });
 
+    it('shares one signer between the apply and the re-sync when authority is a bare address', async () => {
+        // Both instructions land in one transaction; Kit refuses to sign one
+        // with two distinct signers for the same address.
+        const plan: any = await createApplyConfidentialPendingBurnInstructionPlan({
+            rpc: rpc as never,
+            mint: MINT,
+            authority: AUTHORITY,
+            resyncSupply: { supplyKeys: fakeSupplyKeys, rawSupply: 250n },
+        });
+
+        const applySigner = plan.plans[0].instruction.accounts.find((a: any) => a.address === AUTHORITY).signer;
+        const resyncArgs: any = mockGetUpdateDecryptableSupplyInstruction.mock.calls[0][0];
+        expect(applySigner).toBeDefined();
+        expect(resyncArgs.authority).toBe(applySigner);
+    });
+
     it('rejects an out-of-range resync supply before building anything', async () => {
         await expect(
             createApplyConfidentialPendingBurnInstructionPlan({

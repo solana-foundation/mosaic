@@ -272,10 +272,14 @@ export async function createApplyConfidentialPendingBurnInstructionPlan(input: {
     // mint. Same guard the standalone supply builder applies.
     await assertConfidentialSupplyKeysForMint(input.rpc, input.mint, input.resyncSupply?.supplyKeys);
 
+    // Normalized once: both instructions land in one transaction, and Kit rejects
+    // two distinct signers for the same address, so a bare address must not
+    // become two separate no-op signers.
+    const authority = toAuthoritySigner(input.authority);
     const applyPlan = singleInstructionPlan(
         getApplyConfidentialPendingBurnInstruction({
             mint: input.mint,
-            authority: toAuthoritySigner(input.authority),
+            authority,
         }),
     );
     if (input.resyncSupply === undefined) {
@@ -292,7 +296,7 @@ export async function createApplyConfidentialPendingBurnInstructionPlan(input: {
         applyPlan,
         buildUpdateDecryptableSupplyPlan({
             mint: input.mint,
-            authority: input.authority,
+            authority,
             supplyKeys: input.resyncSupply.supplyKeys,
             rawSupply: input.resyncSupply.rawSupply,
         }),
