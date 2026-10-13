@@ -42,6 +42,8 @@ export const createTokenizedSecurityInitTransaction = async (
         enableSrfc37?: boolean;
         // Confidential Balances policy / auditor.
         confidentialBalances?: ConfidentialBalancesConfig;
+        // A scheduled change (timestamp in Unix seconds) is applied at creation, so
+        // `authority` must then be left unset or equal the mint authority.
         scaledUiAmount?: {
             authority?: Address;
             multiplier?: number;
@@ -91,7 +93,7 @@ export const createTokenizedSecurityInitTransaction = async (
         options?.scaledUiAmount?.authority || mintAuthorityAddress,
         options?.scaledUiAmount?.multiplier ?? 1,
         options?.scaledUiAmount?.newMultiplierEffectiveTimestamp ?? 0n,
-        options?.scaledUiAmount?.newMultiplier ?? 1,
+        options?.scaledUiAmount?.newMultiplier ?? options?.scaledUiAmount?.multiplier ?? 1,
     );
 
     const instructions = await tokenBuilder.buildInstructions({

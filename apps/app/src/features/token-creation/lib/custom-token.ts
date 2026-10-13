@@ -27,13 +27,57 @@ function asBoolean(value: unknown): boolean {
     return value === true || value === 'true';
 }
 
+export const SCHEDULED_REBASE_AUTHORITY_ERROR =
+    'A scheduled rebase is signed at creation by the scaled UI authority. Leave the scaled UI authority empty (defaults to your wallet) or schedule the change after creation.';
+
+/**
+ * True when the form asks for a scaled UI multiplier change to be scheduled at creation:
+ * Scheduled mode, or Rebasing with a first rebase date set.
+ */
+export function isScaledUiScheduleRequested(options: CustomTokenOptions): boolean {
+    if (!options.enableScaledUiAmount) return false;
+    const mode = options.scaledUiAmountMode || 'static';
+    return mode === 'scheduled' || (mode === 'rebasing' && !!options.scaledUiAmountEffectiveTimestamp);
+}
+
+/**
+ * True when the scaled UI authority this mint would get is not the connected wallet.
+ *
+ * The SDK signs a creation-time schedule with the scaled UI authority, and the wallet is the
+ * only signer here. The authority defaults to the mint authority, which is itself only
+ * overridable with metadata off (see `createCustomToken`).
+ */
+export function isScaledUiAuthorityOtherThanWallet(options: CustomTokenOptions, walletAddress: string): boolean {
+    const mintAuthority = options.enableMetadata === false ? toAuthorityAddress(options.mintAuthority) : undefined;
+    const scaledUiAuthority = toAuthorityAddress(options.scaledUiAmountAuthority) ?? mintAuthority ?? walletAddress;
+    return scaledUiAuthority !== walletAddress;
+}
+
+/**
+ * The scheduled multiplier change's effective time in Unix seconds, or `0n` when nothing is
+ * scheduled.
+ */
+function scaledUiEffectiveTimestampSeconds(options: CustomTokenOptions): bigint {
+    if (!isScaledUiScheduleRequested(options) || !options.scaledUiAmountEffectiveTimestamp) {
+        return 0n;
+    }
+    const parsedTime = new Date(options.scaledUiAmountEffectiveTimestamp).getTime();
+    if (!Number.isFinite(parsedTime)) {
+        throw new Error(
+            `Invalid scaledUiAmountEffectiveTimestamp: "${options.scaledUiAmountEffectiveTimestamp}" is not a valid date`,
+        );
+    }
+    return BigInt(Math.floor(parsedTime / 1000));
+}
+
 /**
  * Validates custom token options and returns parsed decimals
  * @param options - Custom token configuration options
+ * @param walletAddress - Connected wallet, the only signer available for a creation-time schedule
  * @returns Parsed decimals value
  * @throws Error if validation fails
  */
-function validateCustomTokenOptions(options: CustomTokenOptions): number {
+function validateCustomTokenOptions(options: CustomTokenOptions, walletAddress: string): number {
     if (!options.name) {
         throw new Error('Name is required');
     }
@@ -58,11 +102,20 @@ function validateCustomTokenOptions(options: CustomTokenOptions): number {
         if (multiplier <= 0) {
             throw new Error('Scaled UI Amount multiplier must be greater than zero');
         }
-        // Validate new multiplier for scheduled/rebasing modes
-        if (
-            options.scaledUiAmountMode === 'scheduled' ||
-            (options.scaledUiAmountMode === 'rebasing' && options.scaledUiAmountEffectiveTimestamp)
-        ) {
+        // Scheduled mode without a date used to degrade silently to a static multiplier
+        if (options.scaledUiAmountMode === 'scheduled' && !options.scaledUiAmountEffectiveTimestamp) {
+            throw new Error('Scheduled mode requires an effective date and time');
+        }
+        // Validate new multiplier, date and signer for scheduled/rebasing modes
+        if (isScaledUiScheduleRequested(options)) {
+            // A date at or before now would apply the new multiplier immediately on chain
+            const effectiveTimestamp = scaledUiEffectiveTimestampSeconds(options);
+            if (effectiveTimestamp <= BigInt(Math.floor(Date.now() / 1000))) {
+                throw new Error('Scaled UI Amount effective date must be in the future');
+            }
+            if (isScaledUiAuthorityOtherThanWallet(options, walletAddress)) {
+                throw new Error(SCHEDULED_REBASE_AUTHORITY_ERROR);
+            }
             const newMultiplier = options.scaledUiAmountNewMultiplier
                 ? parseFloat(options.scaledUiAmountNewMultiplier)
                 : 1;
@@ -189,7 +242,7 @@ export const createCustomToken = async (
     signer: TransactionModifyingSigner,
 ): Promise<CustomTokenCreationResult> => {
     try {
-        const decimals = validateCustomTokenOptions(options);
+        const decimals = validateCustomTokenOptions(options, signer.address);
         const enableSrfc37 = asBoolean(options.enableSrfc37);
         const enableDefaultAccountState = asBoolean(options.enableDefaultAccountState);
         // `true` = Initialized, `false` = Frozen. Defaults to Initialized when unset.
@@ -271,39 +324,16 @@ export const createCustomToken = async (
                 scaledUiAmountMultiplier: options.scaledUiAmountMultiplier
                     ? parseFloat(options.scaledUiAmountMultiplier)
                     : undefined,
-                // For static mode: newMultiplier = multiplier, timestamp = 0
-                // For scheduled/rebasing with timestamp: use provided values
-                scaledUiAmountNewMultiplier: (() => {
-                    const mode = options.scaledUiAmountMode || 'static';
-                    if (mode === 'static') {
-                        // Static mode: new multiplier equals current multiplier
-                        return options.scaledUiAmountMultiplier
-                            ? parseFloat(options.scaledUiAmountMultiplier)
-                            : undefined;
-                    }
-                    // Scheduled or rebasing with scheduled first rebase
-                    return options.scaledUiAmountNewMultiplier
+                // Only an explicit schedule sends a new multiplier and its date. Static mode, and
+                // Rebasing without a first rebase date, leave both undefined: the SDK then falls
+                // back to the multiplier itself and timestamp 0, so nothing is scheduled.
+                scaledUiAmountNewMultiplier:
+                    isScaledUiScheduleRequested(options) && options.scaledUiAmountNewMultiplier
                         ? parseFloat(options.scaledUiAmountNewMultiplier)
-                        : undefined;
-                })(),
-                scaledUiAmountNewMultiplierEffectiveTimestamp: (() => {
-                    const mode = options.scaledUiAmountMode || 'static';
-                    if (mode === 'static') {
-                        // Static mode: no scheduled change
-                        return 0n;
-                    }
-                    // Scheduled or rebasing: convert ISO date to Unix timestamp
-                    if (options.scaledUiAmountEffectiveTimestamp) {
-                        const parsedTime = new Date(options.scaledUiAmountEffectiveTimestamp).getTime();
-                        if (!Number.isFinite(parsedTime)) {
-                            throw new Error(
-                                `Invalid scaledUiAmountEffectiveTimestamp: "${options.scaledUiAmountEffectiveTimestamp}" is not a valid date`,
-                            );
-                        }
-                        return BigInt(Math.floor(parsedTime / 1000));
-                    }
-                    return 0n;
-                })(),
+                        : undefined,
+                scaledUiAmountNewMultiplierEffectiveTimestamp: isScaledUiScheduleRequested(options)
+                    ? scaledUiEffectiveTimestampSeconds(options)
+                    : undefined,
                 // Left undefined when the extension is off so the SDK's aclMode-aware default
                 // can fire on the sRFC-37 path.
                 defaultAccountStateInitialized: enableDefaultAccountState ? defaultAccountStateInitialized : undefined,

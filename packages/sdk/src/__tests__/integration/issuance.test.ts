@@ -488,6 +488,73 @@ describeSkipIf()('Issuance Integration Tests', () => {
             },
             DEFAULT_TIMEOUT,
         );
+
+        it(
+            'should apply a scheduled scaled UI multiplier change at creation',
+            async () => {
+                // Given: A scaled UI token whose authority (the mint authority) schedules a change
+                // a day out, so it is still pending when inspected
+                const effectiveTimestamp = BigInt(Math.floor(Date.now() / 1000) + 86_400);
+                const tokenBuilder = new Token()
+                    .withMetadata({
+                        mintAddress: mint.address,
+                        authority: mintAuthority.address,
+                        metadata: {
+                            name: 'Scheduled Scaled Token',
+                            symbol: 'SSCALE',
+                            uri: 'https://example.com/scheduled-scaled.json',
+                        },
+                        additionalMetadata: new Map(),
+                    })
+                    .withScaledUiAmount(
+                        mintAuthority.address,
+                        2, // multiplier
+                        effectiveTimestamp,
+                        3, // new multiplier
+                    );
+
+                // When: Creating the token
+                const createTx = await tokenBuilder.buildTransaction({
+                    rpc: client.rpc,
+                    decimals: 6,
+                    mintAuthority,
+                    freezeAuthority: freezeAuthority.address,
+                    mint,
+                    feePayer: payer,
+                });
+
+                const signature = await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+                assertTxSuccess(signature);
+
+                // Then: The schedule landed on chain alongside the initial multiplier
+                await assertToken(
+                    client.rpc,
+                    mint.address,
+                    {
+                        scaledUiAmount: {
+                            enabled: true,
+                            authority: mintAuthority.address,
+                            multiplier: 2,
+                            newMultiplier: 3,
+                            newMultiplierEffectiveTimestamp: effectiveTimestamp,
+                        },
+                        extensions: [
+                            {
+                                name: 'ScaledUiAmountConfig',
+                                details: {
+                                    authority: mintAuthority.address,
+                                    multiplier: 2,
+                                    newMultiplier: 3,
+                                    newMultiplierEffectiveTimestamp: effectiveTimestamp,
+                                },
+                            },
+                        ],
+                    },
+                    DEFAULT_COMMITMENT,
+                );
+            },
+            DEFAULT_TIMEOUT,
+        );
     });
 
     describe('Complex Token Configurations', () => {
