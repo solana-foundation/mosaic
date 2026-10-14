@@ -1,20 +1,15 @@
 import {
-    type Address,
-    type Commitment,
-    type Rpc,
     type Signature,
-    type SolanaRpcApi,
     type TransactionSigner,
     createSolanaRpc,
     generateKeyPairSigner,
     getBase64Encoder,
-    getBase64EncodedWireTransaction,
-    getSignatureFromTransaction,
-    lamports,
-    signTransactionMessageWithSigners,
 } from '@solana/kit';
-import type { FullTransaction } from '../../transaction-util.js';
+import { RPC_URL } from './env.js';
+import { airdropAndWait } from './polling.js';
 import type { Client } from './setup.js';
+
+export { airdropAndWait, sendAndPollConfirm, type SendAndPollOptions } from './polling.js';
 
 /**
  * A captured on-chain transaction. `wireBytes` is the exact byte sequence
@@ -26,68 +21,6 @@ export interface OnChainTransaction {
     base64: string;
 }
 
-const stringifySafe = (v: unknown): string =>
-    JSON.stringify(v, (_k, val) => (typeof val === 'bigint' ? val.toString() : val));
-
-/**
- * Send a transaction and poll for confirmation via getSignatureStatuses. We
- * intentionally don't use the kit's subscription-based confirmation flow: some
- * local validators (the ones we run for these tests) don't reliably emit
- * signatureSubscribe notifications, so polling is the more portable path.
- */
-export async function sendAndPollConfirm(
-    rpc: Rpc<SolanaRpcApi>,
-    tx: FullTransaction,
-    commitment: Commitment = 'confirmed',
-    timeoutMs = 30_000,
-): Promise<Signature> {
-    const signed = await signTransactionMessageWithSigners(tx);
-    const signature = getSignatureFromTransaction(signed);
-    const wire = getBase64EncodedWireTransaction(signed);
-    await rpc
-        .sendTransaction(wire, { encoding: 'base64', skipPreflight: true, preflightCommitment: commitment })
-        .send();
-
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-        const status = await rpc.getSignatureStatuses([signature]).send();
-        const entry = status.value[0];
-        if (entry?.err) {
-            throw new Error(`Transaction ${signature} failed: ${stringifySafe(entry.err)}`);
-        }
-        if (
-            entry?.confirmationStatus === commitment ||
-            entry?.confirmationStatus === 'finalized' ||
-            (commitment === 'processed' && entry?.confirmationStatus)
-        ) {
-            return signature;
-        }
-        await new Promise(r => setTimeout(r, 200));
-    }
-    throw new Error(`Transaction ${signature} not confirmed within ${timeoutMs}ms`);
-}
-
-/**
- * Poll-based airdrop. Requests an airdrop and waits for the recipient's balance
- * to reach the requested amount. Avoids the kit's subscription-based airdrop.
- */
-export async function airdropAndWait(
-    rpc: Rpc<SolanaRpcApi>,
-    recipient: Address,
-    sol = 1,
-    timeoutMs = 30_000,
-): Promise<void> {
-    const want = BigInt(sol) * 1_000_000_000n;
-    await rpc.requestAirdrop(recipient, lamports(want)).send();
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-        const { value } = await rpc.getBalance(recipient).send();
-        if (BigInt(value) >= want) return;
-        await new Promise(r => setTimeout(r, 250));
-    }
-    throw new Error(`Airdrop to ${recipient} did not arrive within ${timeoutMs}ms`);
-}
-
 export interface ChainSuite {
     client: Client;
     payer: TransactionSigner<string>;
@@ -96,10 +29,10 @@ export interface ChainSuite {
 }
 
 /**
- * Set up a polling-based test suite against a local Solana RPC at 127.0.0.1:8899.
+ * Set up a polling-based test suite against the integration cluster (`RPC_URL`, see env.ts).
  * Generates and airdrops a payer, mint authority, and freeze authority.
  */
-export async function setupChainSuite(rpcUrl = 'http://127.0.0.1:8899'): Promise<ChainSuite> {
+export async function setupChainSuite(rpcUrl = RPC_URL): Promise<ChainSuite> {
     const rpc = createSolanaRpc(rpcUrl);
     const client = { rpc, rpcSubscriptions: undefined as never } as unknown as Client;
     const [payer, mintAuthority, freezeAuthority] = await Promise.all([
