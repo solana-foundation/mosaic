@@ -12,7 +12,27 @@ export default {
         '__devnet__',
         ...(process.env.SKIP_INTEGRATION === 'true' ? ['integration'] : []),
     ],
+    // token-2022 >=0.17 depends on @noble/curves v2, which is ESM-only ("type":
+    // "module", no CJS build). Its CJS bundle `require()`s it, which real Node
+    // 20.19+/22.12+ handles via require(esm) but jest's CJS runtime does not.
+    // Jest here runs in CJS mode (the suite relies on the `jest` global and
+    // jest.mock), so the fix is to let jest transform @noble down to CJS rather
+    // than to switch the whole suite to --experimental-vm-modules.
+    transformIgnorePatterns: ['/node_modules/(?!.*@noble)'],
     transform: {
+        // Down-level the ESM-only @noble packages (see transformIgnorePatterns).
+        '^.+\\.js$': [
+            'ts-jest',
+            {
+                useESM: false,
+                tsconfig: {
+                    allowJs: true,
+                    module: 'commonjs',
+                    moduleResolution: 'bundler',
+                    target: 'es2022',
+                },
+            },
+        ],
         '^.+\\.ts$': [
             'ts-jest',
             {
@@ -47,8 +67,10 @@ export default {
         // indirection (resolved via package `exports` conditions in real builds);
         // under jest, resolve it to the node shim directly.
         '^@solana/mosaic-sdk/_zk$': '<rootDir>/src/confidential/_zk.node.ts',
-        // token-2022's CJS build imports the ESM+wasm bundler entry; use the CJS node build under jest
-        '^@solana/zk-sdk/bundler$': '@solana/zk-sdk/node',
+        // NOTE: no '^@solana/zk-sdk/bundler$' remap is needed. token-2022 imports the
+        // ESM+wasm bundler entry, but as of @solana/zk-sdk 0.5.2 that subpath carries a
+        // `node` condition pointing at the CJS node build, which jest honours under
+        // testEnvironment: 'node'. (Before 0.5.2 this was a local pnpm patch + a remap here.)
         '^@solana/token-acl-sdk$': '<rootDir>/src/__mocks__/@mosaic/token-acl.ts',
         '^@solana/token-acl-gate-sdk$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',
         '^@mosaic/abl$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',
