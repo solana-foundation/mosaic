@@ -92,6 +92,7 @@ interface TokenExtensionStore {
         options: Omit<UpdateScaledUiMultiplierOptions, 'mint'>,
         signer: TransactionModifyingSigner,
     ) => Promise<boolean>;
+    syncScaledUiMultiplier: (mint: string) => void;
 
     // Transfer Hook actions
     syncTransferHookProgramId: (mint: string, programId: string | null) => void;
@@ -300,6 +301,18 @@ export const useTokenExtensionStore = create<TokenExtensionStore>()(
                 },
                 successToast: 'Multiplier updated',
                 errorToast: 'Failed to update multiplier',
+            });
+        },
+
+        // Drop the multiplier saved from this page once fresh on-chain data has been read, so the
+        // chain value (including changes made outside the app) shows again; skipped while an
+        // update is in flight so a fetch can't clobber the result of that update.
+        syncScaledUiMultiplier: mint => {
+            set(state => {
+                const ext = ensureExtension(state, mint);
+                if (!ext.scaledUiAmount.isUpdating) {
+                    ext.scaledUiAmount.multiplier = null;
+                }
             });
         },
 

@@ -101,8 +101,10 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         helpText:
             'Automatically deducts a fee from every transfer. Fees accumulate in recipient accounts and can be withdrawn by the withdraw authority. Requires transfer_checked instructions.',
         type: 'readonly',
+        // '—' rather than 'Enabled' when the fee couldn't be read
         getDisplayValue: token =>
-            formatTransferFee(token.transferFeeBasisPoints, token.transferFeeMaximum, token.decimals, token.symbol),
+            formatTransferFee(token.transferFeeBasisPoints, token.transferFeeMaximum, token.decimals, token.symbol) ??
+            '—',
     },
     InterestBearingConfig: {
         displayName: 'Interest Bearing',
@@ -110,7 +112,7 @@ const EXTENSION_CONFIG: Record<string, ExtensionConfig> = {
         helpText:
             'Tokens continuously accrue interest based on a configured rate. Interest is calculated on-chain but displayed cosmetically - no new tokens are minted.',
         type: 'readonly',
-        getDisplayValue: token => formatInterestRate(token.interestRate),
+        getDisplayValue: token => formatInterestRate(token.interestRate) ?? '—',
     },
     NonTransferable: {
         displayName: 'Non-Transferable',
@@ -177,6 +179,19 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
         error: scaledUiError,
     } = useScaledUiAmountState(token.address);
     const { updateScaledUiMultiplier, updateExtensionField } = useTokenExtensionStore();
+
+    // Re-render when a scheduled multiplier change takes effect, so an idle page stops showing it as pending
+    const [, setScaledUiTick] = useState(0);
+    const scheduledMultiplierAt = token.scaledUiNewMultiplierEffectiveTimestamp;
+    useEffect(() => {
+        if (!scheduledMultiplierAt || !/^\d+$/.test(scheduledMultiplierAt)) return;
+        const delayMs = Number(scheduledMultiplierAt) * 1000 - Date.now();
+        // Past changes already render as applied; skip delays beyond setTimeout's 32-bit limit (~24.8 days)
+        if (delayMs <= 0 || delayMs > 2 ** 31 - 1 - 1000) return;
+        // 1s of slack so the render lands strictly after the effective second
+        const timer = setTimeout(() => setScaledUiTick(tick => tick + 1), delayMs + 1000);
+        return () => clearTimeout(timer);
+    }, [scheduledMultiplierAt]);
 
     // Get transfer hook state from centralized store
     const {
