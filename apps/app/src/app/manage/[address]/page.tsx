@@ -160,6 +160,7 @@ function ManageTokenConnected({ address }: { address: string }) {
             if (!rpc) return;
 
             // Live on-chain extension rates, fetched in parallel; a failure keeps the persisted values
+            const dashboardReadStartedAt = Date.now();
             const dashboardDataPromise = getTokenDashboardData(rpc, foundToken.address as Address).catch(() => null);
             // Applied on both paths below, so a successful rate read isn't lost to a failed extension read
             const applyDashboardData = async (): Promise<void> => {
@@ -173,7 +174,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                 foundToken.scaledUiNewMultiplierEffectiveTimestamp =
                     dashboardData.scaledUiNewMultiplierEffectiveTimestamp;
                 // The fresh chain read supersedes a multiplier saved earlier from the extensions panel
-                syncScaledUiMultiplier(foundToken.address as string);
+                syncScaledUiMultiplier(foundToken.address as string, dashboardReadStartedAt);
             };
 
             try {

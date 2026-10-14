@@ -30,6 +30,8 @@ interface PauseState {
 
 interface ScaledUiAmountState {
     multiplier: number | null;
+    /** When the last multiplier update from this app confirmed (ms epoch), see syncScaledUiMultiplier. */
+    updatedAt: number | null;
     isUpdating: boolean;
     error: string | null;
 }
@@ -61,6 +63,7 @@ function createDefaultExtensionState(): ExtensionState {
         },
         scaledUiAmount: {
             multiplier: null,
+            updatedAt: null,
             isUpdating: false,
             error: null,
         },
@@ -92,7 +95,7 @@ interface TokenExtensionStore {
         options: Omit<UpdateScaledUiMultiplierOptions, 'mint'>,
         signer: TransactionModifyingSigner,
     ) => Promise<boolean>;
-    syncScaledUiMultiplier: (mint: string) => void;
+    syncScaledUiMultiplier: (mint: string, readStartedAt: number) => void;
 
     // Transfer Hook actions
     syncTransferHookProgramId: (mint: string, programId: string | null) => void;
@@ -295,6 +298,7 @@ export const useTokenExtensionStore = create<TokenExtensionStore>()(
                     ),
                 onSuccess: (scaledUi, result) => {
                     (scaledUi as ScaledUiAmountState).multiplier = (result.multiplier as number) ?? options.multiplier;
+                    (scaledUi as ScaledUiAmountState).updatedAt = Date.now();
                 },
                 onFailure: () => {
                     // No optimistic update to revert
@@ -305,13 +309,14 @@ export const useTokenExtensionStore = create<TokenExtensionStore>()(
         },
 
         // Drop the multiplier saved from this page once fresh on-chain data has been read, so the
-        // chain value (including changes made outside the app) shows again; skipped while an
-        // update is in flight so a fetch can't clobber the result of that update.
-        syncScaledUiMultiplier: mint => {
+        // chain value (including changes made outside the app) shows again. Skipped while an update
+        // is in flight, and for a read that started before the last update confirmed, since its
+        // snapshot can predate that update.
+        syncScaledUiMultiplier: (mint, readStartedAt) => {
             set(state => {
-                const ext = ensureExtension(state, mint);
-                if (!ext.scaledUiAmount.isUpdating) {
-                    ext.scaledUiAmount.multiplier = null;
+                const scaledUi = ensureExtension(state, mint).scaledUiAmount;
+                if (!scaledUi.isUpdating && (scaledUi.updatedAt ?? 0) < readStartedAt) {
+                    scaledUi.multiplier = null;
                 }
             });
         },
@@ -427,6 +432,7 @@ const DEFAULT_PAUSE_STATE: PauseState = {
 // Default scaled UI state for selector
 const DEFAULT_SCALED_UI_STATE: ScaledUiAmountState = {
     multiplier: null,
+    updatedAt: null,
     isUpdating: false,
     error: null,
 };
