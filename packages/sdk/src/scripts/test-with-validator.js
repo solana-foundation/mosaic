@@ -4,7 +4,10 @@ import { platform } from 'os';
 
 const config = {
     validatorStartupTime: parseInt(process.env.SOLANA_VALIDATOR_STARTUP_TIME) || 3000,
-    validatorArgs: (process.env.SOLANA_VALIDATOR_ARGS || '-r').split(' '),
+    // Short epochs so the rate-extension tests can check that the on-chain transfer fee epoch
+    // comes from the cluster clock; with the default 432000 slots the cluster stays at epoch 0,
+    // which is indistinguishable from the client-side `0n` placeholder (HOO-1684, HOO-1714).
+    validatorArgs: (process.env.SOLANA_VALIDATOR_ARGS || '-r --slots-per-epoch 32').split(' '),
     maxHealthCheckRetries: 10,
 };
 
@@ -31,7 +34,9 @@ async function waitForValidator() {
 
     for (let i = 0; i < config.maxHealthCheckRetries; i++) {
         try {
-            const checkProcess = spawn('solana', ['cluster-version'], {
+            // Target the local validator explicitly: without `--url` the CLI uses its config
+            // file, which may point at a live cluster and pass before the validator is up.
+            const checkProcess = spawn('solana', ['cluster-version', '--url', 'http://127.0.0.1:8899'], {
                 stdio: 'pipe',
             });
             const exitCode = await new Promise(resolve => {
