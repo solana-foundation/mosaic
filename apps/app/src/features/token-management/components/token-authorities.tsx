@@ -35,6 +35,7 @@ type SupportedAuthorityRole =
     | typeof AuthorityType.ConfidentialTransferMint
     | typeof AuthorityType.PermanentDelegate
     | typeof AuthorityType.ScaledUiAmount
+    | typeof AuthorityType.TransferHookProgramId
     | 'Metadata';
 
 /**
@@ -49,6 +50,7 @@ const AUTHORITY_ROLE_TO_KEY: Record<SupportedAuthorityRole, keyof BlockchainAuth
     [AuthorityType.ConfidentialTransferMint]: 'confidentialBalancesAuthority',
     [AuthorityType.PermanentDelegate]: 'permanentDelegateAuthority',
     [AuthorityType.ScaledUiAmount]: 'scaledUiAmountAuthority',
+    [AuthorityType.TransferHookProgramId]: 'transferHookAuthority',
 };
 
 /**
@@ -63,6 +65,7 @@ const LOCKED_DESCRIPTIONS: Record<SupportedAuthorityRole, string> = {
     [AuthorityType.ConfidentialTransferMint]: 'Confidential transfer settings cannot be changed.',
     [AuthorityType.PermanentDelegate]: 'No delegate can transfer or burn tokens from any account.',
     [AuthorityType.ScaledUiAmount]: 'Token display multiplier cannot be updated.',
+    [AuthorityType.TransferHookProgramId]: 'The transfer hook program id cannot be changed.',
 };
 
 interface TokenAuthoritiesProps {
@@ -146,6 +149,15 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
             newAuthority: '',
             isLoading: false,
         },
+        {
+            label: 'Transfer Hook Authority',
+            description: 'This wallet can attach or detach the transfer hook program.',
+            role: AuthorityType.TransferHookProgramId,
+            currentAuthority: token.transferHookAuthority,
+            isEditing: false,
+            newAuthority: '',
+            isLoading: false,
+        },
     ];
 
     const [authorities, setAuthorities] = useState<AuthorityInfo[]>(baseAuthorities);
@@ -168,11 +180,18 @@ export function TokenAuthorities({ setError, token }: TokenAuthoritiesProps) {
                 const blockchainAuthorities = await getTokenAuthorities(token.address, rpcUrl);
 
                 setAuthorities(prev =>
-                    prev.map(auth => ({
-                        ...auth,
-                        currentAuthority:
-                            blockchainAuthorities[AUTHORITY_ROLE_TO_KEY[auth.role]] ?? auth.currentAuthority,
-                    })),
+                    prev.map(auth => {
+                        const chainAuthority = blockchainAuthorities[AUTHORITY_ROLE_TO_KEY[auth.role]];
+                        return {
+                            ...auth,
+                            // Chain data is authoritative for the transfer hook authority: falling back
+                            // would keep showing a revoked address as active.
+                            currentAuthority:
+                                auth.role === AuthorityType.TransferHookProgramId
+                                    ? chainAuthority
+                                    : (chainAuthority ?? auth.currentAuthority),
+                        };
+                    }),
                 );
             } catch (error) {
                 // Silently handles expected errors like "Mint account not found" or "Not a Token-2022 mint"

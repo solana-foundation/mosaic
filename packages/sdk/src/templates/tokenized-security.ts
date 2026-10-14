@@ -48,6 +48,8 @@ export const createTokenizedSecurityInitTransaction = async (
         // Both values come from the supply authority's own wallet keys — see
         // `getConfidentialMintBurnInit` in `@solana/mosaic-sdk/confidential`.
         confidentialMintBurn?: ConfidentialMintBurnOptions;
+        // A scheduled change (timestamp in Unix seconds) is applied at creation, so
+        // `authority` must then be left unset or equal the mint authority.
         scaledUiAmount?: {
             authority?: Address;
             multiplier?: number;
@@ -103,7 +105,7 @@ export const createTokenizedSecurityInitTransaction = async (
         options?.scaledUiAmount?.authority || mintAuthorityAddress,
         options?.scaledUiAmount?.multiplier ?? 1,
         options?.scaledUiAmount?.newMultiplierEffectiveTimestamp ?? 0n,
-        options?.scaledUiAmount?.newMultiplier ?? 1,
+        options?.scaledUiAmount?.newMultiplier ?? options?.scaledUiAmount?.multiplier ?? 1,
     );
 
     const instructions = await tokenBuilder.buildInstructions({
