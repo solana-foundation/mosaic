@@ -58,9 +58,16 @@ export const transactionToB64 = (transaction: FullTransaction): string => {
  * precision for large (u64-scale) amounts and renders values >= 1e21 in
  * exponential form. A `string` is scaled digit-by-digit with no float round-trip.
  *
+ * The amount must be plain decimal digits with at most one decimal point
+ * (`"1"`, `"1.5"`, `".5"`, `"1."`). Exponents, signs, separators, whitespace
+ * and empty strings throw, as does an amount with more fractional digits than
+ * `decimals`: truncating them would build an instruction for a different
+ * amount than the caller supplied.
+ *
  * @param decimalAmount - The decimal amount (e.g., `1.5` or `"1.5"`)
  * @param decimals - The number of decimals the token has
  * @returns The raw token amount as bigint
+ * @throws If the amount is negative, malformed, or has more than `decimals` fractional digits
  */
 export function decimalAmountToRaw(decimalAmount: number | string, decimals: number): bigint {
     if (decimals < 0 || decimals > 9) {
@@ -76,26 +83,21 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
         throw new Error('Amount must be positive');
     }
 
-    // Split into integer and fractional parts
-    const [integerPart, fractionalPart = ''] = amountStr.split('.');
-
-    // Pad or truncate fractional part to match decimals
-    let adjustedFractional: string;
-    if (fractionalPart.length > decimals) {
-        // Truncate if fractional part is longer than decimals
-        adjustedFractional = fractionalPart.slice(0, decimals);
-    } else {
-        // Pad with zeros if fractional part is shorter than decimals
-        adjustedFractional = fractionalPart.padEnd(decimals, '0');
+    const match = /^(?:(\d+)(?:\.(\d*))?|\.(\d+))$/.exec(amountStr);
+    if (!match) {
+        throw new Error('Invalid amount format');
     }
+
+    const integerPart = match[1] ?? '0';
+    const fractionalPart = match[2] ?? match[3] ?? '';
+    if (fractionalPart.length > decimals) {
+        throw new Error(`Amount cannot have more than ${decimals} decimal places`);
+    }
+
+    const adjustedFractional = fractionalPart.padEnd(decimals, '0');
 
     // Concatenate integer and fractional parts
     const rawAmountStr = integerPart + adjustedFractional;
-
-    // Validate that the resulting string is a valid numeric representation
-    if (!/^\d+$/.test(rawAmountStr)) {
-        throw new Error('Invalid amount format');
-    }
 
     // Convert to BigInt
     return BigInt(rawAmountStr);
