@@ -20,8 +20,40 @@ describe('tokenAmountToRaw', () => {
         });
     });
 
+    describe('normalizes parseFloat-compatible spellings exactly', () => {
+        it('accepts a leading dot, a trailing dot and a leading plus', () => {
+            expect(tokenAmountToRaw('.5', 6)).toBe(500_000n);
+            expect(tokenAmountToRaw('5.', 6)).toBe(5_000_000n);
+            expect(tokenAmountToRaw('+1', 6)).toBe(1_000_000n);
+        });
+
+        it('expands exponent notation without float math', () => {
+            expect(tokenAmountToRaw('1e-3', 6)).toBe(1_000n);
+            expect(tokenAmountToRaw('1.5e2', 6)).toBe(150_000_000n);
+            expect(tokenAmountToRaw('1.5e-2', 6)).toBe(15_000n);
+            expect(tokenAmountToRaw('.5e1', 6)).toBe(5_000_000n);
+            expect(tokenAmountToRaw('5.e-1', 6)).toBe(500_000n);
+            expect(tokenAmountToRaw('1e19', 0)).toBe(10_000_000_000_000_000_000n);
+        });
+
+        it('rejects over-precision that exponent expansion reveals', () => {
+            expect(() => tokenAmountToRaw('1e-7', 6)).toThrow(
+                'Amount cannot have more than 6 decimal places',
+            );
+        });
+
+        it('rejects astronomically large or small exponents without expanding them', () => {
+            expect(() => tokenAmountToRaw('1e999999999', 6)).toThrow(
+                'Amount exceeds the maximum u64 token amount',
+            );
+            expect(() => tokenAmountToRaw('1e-999999999', 6)).toThrow(
+                'Amount must be a positive number',
+            );
+        });
+    });
+
     describe('rejects malformed decimal strings', () => {
-        it.each(['1abc', '1,5', '1.2.3', '1.', '.5', '-1', '', '   ', 'abc', '1e5'])(
+        it.each(['1abc', '1,5', '1.2.3', '-1', '', '   ', 'abc', '1e', '1e5.5', '1.2.3e5'])(
             'throws on %p instead of silently truncating',
             bad => {
                 expect(() => tokenAmountToRaw(bad, 6)).toThrow('Amount must be a positive number');
