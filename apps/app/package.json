@@ -9,7 +9,8 @@
         "start": "next start",
         "lint": "eslint src",
         "type-check": "tsc --noEmit",
-        "smoke-test": "node scripts/smoke-test.mjs"
+        "smoke-test": "node scripts/smoke-test.mjs",
+        "e2e:agent": "bash e2e/agent-browser/run.sh"
     },
     "_dependencyNotes": "@solana/sysvars and @solana/zk-sdk have NO import sites in src/ but are both load-bearing — do not delete them as unused. @solana/sysvars is declared so token-2022's `@solana/sysvars ^8` peer is satisfied from this app's own resolution context; dropping it hands that to pnpm's autoInstallPeers, which is exactly how a second copy gets materialised. @solana/zk-sdk is referenced by next.config.js, which externalises the server build to `commonjs @solana/zk-sdk/node` and rewrites `@solana/zk-sdk/bundler` requests — that resolves from this package's node_modules. It is pinned EXACTLY (0.5.2, matching the root override) because a second resolved copy instantiates a second WASM module and breaks class identity with `expected instance of ElGamalKeypair`. @solana/react was removed rather than bumped to v8: it had zero import sites and its kit peer (^8.3.0) is tighter than the ^8.0.0 the rest of the tree uses. @solana/connector is deliberately held at 0.1.4; its latest (0.2.6) still hard-depends on kit ^7, so upgrading would not retire the root override that forces it onto v8 anyway.",
     "dependencies": {
@@ -67,6 +68,7 @@
         "@typescript-eslint/eslint-plugin": "^8.61.1",
         "@typescript-eslint/parser": "^8.61.1",
         "autoprefixer": "^10.5.0",
+        "esbuild": "^0.28.1",
         "eslint": "^9.39.1",
         "eslint-config-next": "16.2.9",
         "eslint-plugin-import": "^2.32.0",
