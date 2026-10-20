@@ -69,6 +69,14 @@ describe('decimalAmountToRaw', () => {
         expect(() => decimalAmountToRaw('1.5', 0)).toThrow('Amount cannot have more than 0 decimal places');
     });
 
+    it('ignores trailing zeros, which do not change the value', () => {
+        expect(decimalAmountToRaw('5.0', 0)).toBe(5n);
+        expect(decimalAmountToRaw('1.5000000', 6)).toBe(1_500_000n);
+        expect(decimalAmountToRaw('1.2345670', 6)).toBe(1_234_567n);
+        // A significant digit past the limit still throws, even with a trailing zero.
+        expect(() => decimalAmountToRaw('1.23456780', 6)).toThrow('Amount cannot have more than 6 decimal places');
+    });
+
     it('rejects malformed amounts instead of silently reinterpreting them', () => {
         // '1.5.5' used to parse as '1.5': split('.') discarded the extra part.
         expect(() => decimalAmountToRaw('1.5.5', 6)).toThrow('Invalid amount format');
@@ -83,6 +91,6 @@ describe('decimalAmountToRaw', () => {
 
     it('still rejects negatives and out-of-range decimals', () => {
         expect(() => decimalAmountToRaw('-1', 6)).toThrow('Amount must be positive');
-        expect(() => decimalAmountToRaw('1', 10)).toThrow('Decimals must be between 0 and 9');
+        expect(() => decimalAmountToRaw('1', 256)).toThrow('Decimals must be an integer between 0 and 255');
     });
 });
