@@ -102,7 +102,9 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
     }
 
     const integerPart = match[1] ?? '0';
-    const fractionalPart = match[2] ?? match[3] ?? '';
+    // Trailing zeros don't change the value, so they shouldn't count toward the
+    // mint's decimal places: '5.0' at 0 decimals and '1.5000000' at 6 are exact.
+    const fractionalPart = (match[2] ?? match[3] ?? '').replace(/0+$/, '');
     if (fractionalPart.length > decimals) {
         throw new Error(`Amount cannot have more than ${decimals} decimal places`);
     }
