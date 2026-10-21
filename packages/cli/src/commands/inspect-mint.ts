@@ -4,31 +4,11 @@ import ora from 'ora';
 import { createRpcClient } from '../utils/rpc.js';
 import { type Address } from '@solana/kit';
 import { inspectToken, TOKEN_TYPE_LABELS, type TokenInspectionResult, type TokenType } from '@solana/mosaic-sdk';
+import { formatLabel, formatRateSummaryLines, formatValue } from '../utils/inspect-format.js';
 
 interface InspectMintOptions {
     mintAddress: string;
     rpcUrl?: string;
-}
-
-function formatLabel(key: string): string {
-    return key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
-}
-
-function formatValue(value: unknown): string {
-    if (value === null || value === undefined) return 'None';
-    if (value instanceof Uint8Array) {
-        return Buffer.from(value).toString('base64');
-    }
-    if (value instanceof Map) {
-        return [...value.entries()].map(([key, entry]) => `${key}=${entry}`).join(', ') || 'None';
-    }
-    if (typeof value === 'object') {
-        const option = value as { __option?: unknown; value?: unknown };
-        if (option.__option === 'Some') return formatValue(option.value);
-        if (option.__option === 'None') return 'None';
-        return JSON.stringify(value, (_key, entry) => (typeof entry === 'bigint' ? entry.toString() : entry));
-    }
-    return String(value);
 }
 
 function render(inspection: TokenInspectionResult): void {
@@ -91,8 +71,8 @@ function render(inspection: TokenInspectionResult): void {
     console.log(`   ${chalk.bold('Pausable:')} ${inspection.isPausable ? 'yes' : 'no'}`);
     console.log(`   ${chalk.bold('ACL Mode:')} ${inspection.aclMode}`);
     console.log(`   ${chalk.bold('SRFC-37 (Token ACL):')} ${inspection.enableSrfc37 ? 'enabled' : 'disabled'}`);
-    if (inspection.scaledUiAmount?.multiplier !== undefined) {
-        console.log(`   ${chalk.bold('Scaled UI Multiplier:')} ${inspection.scaledUiAmount.multiplier}`);
+    for (const [label, value] of formatRateSummaryLines(inspection)) {
+        console.log(`   ${chalk.bold(`${label}:`)} ${value}`);
     }
 
     if (extensions.length > 0) {
@@ -101,7 +81,7 @@ function render(inspection: TokenInspectionResult): void {
             console.log(`   ${chalk.bold(ext.name)}:`);
             for (const [key, value] of Object.entries(ext.details ?? {})) {
                 if (key === '__kind') continue;
-                console.log(`     ${formatLabel(key)}: ${formatValue(value)}`);
+                console.log(`     ${formatLabel(key)}: ${formatValue(value, key, supplyInfo.decimals)}`);
             }
         }
     }
