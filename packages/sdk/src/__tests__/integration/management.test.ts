@@ -1,7 +1,7 @@
 import setupTestSuite from './setup.js';
 import type { Client } from './setup.js';
 import type { KeyPairSigner, TransactionSigner, Rpc, SolanaRpcApi, Address } from '@solana/kit';
-import { generateKeyPairSigner } from '@solana/kit';
+import { generateKeyPairSigner, setTransactionMessageFeePayerSigner } from '@solana/kit';
 import {
     sendAndConfirmTransaction,
     assertTxSuccess,
@@ -16,11 +16,12 @@ import {
 import { Token } from '../../issuance/index.js';
 import {
     createMintToTransaction,
+    createBurnTransaction,
     createForceTransferTransaction,
     createForceBurnTransaction,
 } from '../../management/index.js';
 import { getFreezeTransaction, getThawTransaction, TOKEN_ACL_PROGRAM_ID } from '../../token-acl/index.js';
-import { decimalAmountToRaw } from '../../transaction-util.js';
+import { decimalAmountToRaw, type FullTransaction } from '../../transaction-util.js';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
 describeSkipIf()('Management Integration Tests', () => {
@@ -286,6 +287,72 @@ describeSkipIf()('Management Integration Tests', () => {
                             DEFAULT_COMMITMENT,
                         );
                     }),
+                );
+            },
+            DEFAULT_TIMEOUT,
+        );
+
+        it(
+            'should mint and burn a token with 18 decimals',
+            async () => {
+                // Given: A token with more decimals than the 9 the Mosaic UIs allow at creation
+                const tokenBuilder = new Token().withMetadata({
+                    mintAddress: mint.address,
+                    authority: mintAuthority.address,
+                    metadata: {
+                        name: '18 Decimal Token',
+                        symbol: 'TEST18DT',
+                        uri: 'https://example.com/test18.json',
+                    },
+                    additionalMetadata: new Map(),
+                });
+
+                const createTx = await tokenBuilder.buildTransaction({
+                    rpc: client.rpc,
+                    decimals: 18,
+                    mintAuthority,
+                    freezeAuthority: freezeAuthority.address,
+                    mint,
+                    feePayer: payer,
+                });
+
+                await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+
+                // When: Minting 1.5 tokens
+                const mintTx = await createMintToTransaction(
+                    client.rpc,
+                    mint.address,
+                    recipient.address,
+                    1.5,
+                    mintAuthority,
+                    payer,
+                );
+                await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
+
+                // Then: The balance is scaled by 18 decimals
+                await assertBalance(
+                    client.rpc,
+                    recipient.address,
+                    mint.address,
+                    decimalAmountToRaw(1.5, 18),
+                    DEFAULT_COMMITMENT,
+                );
+
+                // When: The holder burns 0.5 tokens
+                // createBurnTransaction sets the fee payer by address only, so attach the payer's signer.
+                const burnTx = setTransactionMessageFeePayerSigner(
+                    payer,
+                    await createBurnTransaction(client.rpc, mint.address, recipient, 0.5, payer),
+                ) as FullTransaction;
+                await sendAndConfirmTransaction(client, burnTx, DEFAULT_COMMITMENT);
+
+                // Then: 1 whole token remains
+                await assertBalance(
+                    client.rpc,
+                    recipient.address,
+                    mint.address,
+                    1_000_000_000_000_000_000n,
+                    DEFAULT_COMMITMENT,
                 );
             },
             DEFAULT_TIMEOUT,
