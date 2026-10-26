@@ -1,5 +1,5 @@
 import { type Address, type Rpc, type SolanaRpcApi, type TransactionSigner, createNoopSigner } from '@solana/kit';
-import { decimalAmountToRaw, getMintDetails } from '../transaction-util.js';
+import { U64_MAX, decimalAmountToRaw, getMintDetails } from '../transaction-util.js';
 
 /**
  * Normalizes an authority that may be given as a bare `Address` into a
@@ -12,9 +12,6 @@ export function toAuthoritySigner(authority: Address | TransactionSigner): Trans
 
 /** An amount expressed either as a decimal string (e.g. `"1.5"`) or raw `bigint`. */
 export type TokenAmount = string | bigint;
-
-/** Largest token amount representable on-chain (`2^64 - 1`). */
-const U64_MAX = 18446744073709551615n;
 
 /**
  * Validates and scales a {@link TokenAmount} to a raw `bigint` for a known

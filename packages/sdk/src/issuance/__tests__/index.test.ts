@@ -335,6 +335,32 @@ describe('Token', () => {
         });
     });
 
+    describe('decimals validation', () => {
+        it.each([18, 255])('should build instructions for %i decimals', async decimals => {
+            const instructions = await token.buildInstructions({
+                rpc: mockRpc,
+                decimals,
+                mintAuthority: TEST_AUTHORITY,
+                mint: mockMint,
+                feePayer: mockFeePayer,
+            });
+
+            expect(instructions).toHaveLength(2);
+        });
+
+        it.each([256, -1, 6.5])('should reject %p decimals', async decimals => {
+            await expect(
+                token.buildInstructions({
+                    rpc: mockRpc,
+                    decimals,
+                    mintAuthority: TEST_AUTHORITY,
+                    mint: mockMint,
+                    feePayer: mockFeePayer,
+                }),
+            ).rejects.toThrow('Decimals must be an integer between 0 and 255');
+        });
+    });
+
     describe('method chaining', () => {
         it('should allow chaining multiple extensions', () => {
             const additionalMetadata = createTestAdditionalMetadata();
@@ -615,5 +641,22 @@ describe('getCreateMintInstructions', () => {
         expect(instructions).toHaveLength(2);
         expect(instructions[0].programAddress).toBe('11111111111111111111111111111111'); // System program for account creation
         expect(instructions[1].programAddress).toBe(customProgramAddress); // Custom token program for mint init
+    });
+
+    it('should reject invalid decimals before fetching rent', async () => {
+        const rentSpy = jest.spyOn(
+            mockRpc as unknown as { getMinimumBalanceForRentExemption: (space: bigint) => unknown },
+            'getMinimumBalanceForRentExemption',
+        );
+
+        await expect(
+            getCreateMintInstructions({
+                rpc: mockRpc,
+                decimals: 256,
+                mint: mockMint,
+                payer: mockPayer,
+            }),
+        ).rejects.toThrow('Decimals must be an integer between 0 and 255');
+        expect(rentSpy).not.toHaveBeenCalled();
     });
 });

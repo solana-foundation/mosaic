@@ -1,5 +1,5 @@
 import type { Address, Instruction, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util.js';
+import { assertValidDecimals, type FullTransaction } from '../transaction-util.js';
 import {
     pipe,
     createTransactionMessage,
@@ -538,6 +538,8 @@ export const getCreateMintInstructions = async (input: {
     payer: TransactionSigner<string>;
     programAddress?: Address;
 }): Promise<Instruction<string>[]> => {
+    assertValidDecimals(input.decimals ?? 0);
+
     // Calculate required space for mint account including extensions
     const space = getMintSize(input.extensions);
 
