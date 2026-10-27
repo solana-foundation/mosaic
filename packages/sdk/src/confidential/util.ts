@@ -14,23 +14,6 @@ export function toAuthoritySigner(authority: Address | TransactionSigner): Trans
 export type TokenAmount = string | bigint;
 
 /**
- * Validates and scales a {@link TokenAmount} to a raw `bigint` for a known
- * number of mint `decimals` — without any RPC. `bigint` inputs are treated as
- * already-raw; decimal strings are scaled by `decimals`.
- *
- * Decimal strings are scaled via {@link decimalAmountToRaw} on the raw string
- * (no `parseFloat`): `parseFloat` accepts leading-numeric junk (`"1abc"`,
- * `"1,5"`, `"1.2.3"`) and loses precision on large/u64-scale amounts, either of
- * which would silently execute a different on-chain amount than the caller
- * supplied. The spellings `parseFloat` accepted without precision loss
- * (leading `+`, leading/trailing `.`, exponent notation) are normalized
- * exactly, on the string, before validation. Strings with more fractional
- * digits than the mint supports are rejected (rather than silently truncated
- * by {@link decimalAmountToRaw}), and the result is bounds-checked to
- * `(0, U64_MAX]`.
- */
-
-/**
  * Decimal shifts beyond this magnitude can never yield a valid amount:
  * `u64` raw amounts top out at ~1.8e19 and mint decimals at 255 (`u8`), so an
  * exponent moving the decimal point farther than this is definitively out of
@@ -82,6 +65,24 @@ function normalizeAmountString(amount: string): string {
     return normalized;
 }
 
+/**
+ * Validates and scales a {@link TokenAmount} to a raw `bigint` for a known
+ * number of mint `decimals` — without any RPC. `bigint` inputs are treated as
+ * already-raw; decimal strings are scaled by `decimals`.
+ *
+ * Decimal strings are scaled via {@link decimalAmountToRaw} on the raw string
+ * (no `parseFloat`): `parseFloat` accepts leading-numeric junk (`"1abc"`,
+ * `"1,5"`, `"1.2.3"`) and loses precision on large/u64-scale amounts, either of
+ * which would silently execute a different on-chain amount than the caller
+ * supplied. The spellings `parseFloat` accepted without precision loss
+ * (leading `+`, leading/trailing `.`, exponent notation) are normalized
+ * exactly, on the string, before validation. Trailing fractional zeros carry
+ * no value, so `1.5000000` on a 6-decimal mint (directly or via expansion,
+ * e.g. `50e-1`) is accepted as the exact value `1.5`. Strings with more
+ * significant fractional digits than the mint supports are rejected (rather
+ * than silently truncated by {@link decimalAmountToRaw}), and the result is
+ * bounds-checked to `(0, U64_MAX]`.
+ */
 export function tokenAmountToRaw(amount: TokenAmount, decimals: number): bigint {
     let rawAmount: bigint;
     if (typeof amount === 'bigint') {
@@ -93,12 +94,17 @@ export function tokenAmountToRaw(amount: TokenAmount, decimals: number): bigint 
         if (!match) {
             throw new Error('Amount must be a positive number');
         }
+        // Trailing fractional zeros carry no value, so strip them before the
+        // over-precision check: `5.0` on a 0-decimal mint and `1.5000000` on a
+        // 6-decimal mint are exact spellings, not over-precision.
+        const [integerPart, fractionalPart = ''] = trimmed.split('.');
+        const fraction = fractionalPart.replace(/0+$/, '');
         // Reject over-precision: `decimalAmountToRaw` would otherwise truncate
         // the extra digits and build an instruction for a different amount.
-        if ((match[1]?.length ?? 0) > decimals) {
+        if (fraction.length > decimals) {
             throw new Error(`Amount cannot have more than ${decimals} decimal places`);
         }
-        rawAmount = decimalAmountToRaw(trimmed, decimals);
+        rawAmount = decimalAmountToRaw(fraction === '' ? integerPart : `${integerPart}.${fraction}`, decimals);
     }
     if (rawAmount <= 0n) {
         throw new Error('Amount must be a positive number');

@@ -11,11 +11,7 @@ import {
     createNoopSigner,
 } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
-import {
-    resolveTokenAccount,
-    getMintDetails,
-    isDefaultAccountStateSetFrozen,
-} from '../transaction-util.js';
+import { resolveTokenAccount, getMintDetails, isDefaultAccountStateSetFrozen } from '../transaction-util.js';
 import { tokenAmountToRaw } from '../confidential/util.js';
 import {
     getCreateAssociatedTokenIdempotentInstruction,

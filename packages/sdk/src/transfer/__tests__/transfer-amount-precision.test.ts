@@ -80,11 +80,15 @@ describe('createTransferInstructions amount precision', () => {
 
         // The app's amount input allows these spellings (its stepper even
         // produces exponent notation), so the SDK must keep accepting them.
+        // `1.5000000` shows trailing zeros past the mint decimals are
+        // value-preserving and reach the converter stripped.
         for (const [amount, normalized] of [
             ['.5', '0.5'],
             ['5.', '5'],
             ['+1', '1'],
             ['1e-3', '0.001'],
+            ['1.5000000', '1.5'],
+            ['5.0', '5'],
         ] as const) {
             await createTransferInstructions({
                 rpc,
