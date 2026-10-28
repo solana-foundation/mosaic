@@ -30,6 +30,7 @@ describe('createMintToTransaction: mint with more than 9 decimals', () => {
                 programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
+            mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
         }));
     });
 
