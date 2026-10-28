@@ -665,7 +665,7 @@ describeSkipIf(TEST_BACKEND !== 'surfpool')('Templates Integration Tests', () =>
                             'CSEC',
                             6,
                             'https://example.com/csec.json',
-                            payer.address,
+                            payer,
                             mint,
                             payer,
                             freezeAuthority.address,
