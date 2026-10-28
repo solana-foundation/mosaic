@@ -11,9 +11,12 @@ import {
     createKeyPairSignerFromBytes,
     createSolanaRpc,
     generateKeyPairSigner,
+    flattenTransactionPlan,
     getBase58Encoder,
     getBase64EncodedWireTransaction,
     getSignatureFromTransaction,
+    getTransactionMessageSize,
+    getTransactionMessageSizeLimit,
     setTransactionMessageLifetimeUsingBlockhash,
     signTransactionMessageWithSigners,
     singleInstructionPlan,
@@ -21,7 +24,7 @@ import {
 import { findAssociatedTokenPda, getMintToInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, dirname, extname, join } from 'node:path';
 import { Token } from '../../issuance/index.js';
 import {
     createApplyConfidentialPendingBalanceInstructionPlan,
@@ -31,9 +34,11 @@ import {
     createConfigureConfidentialAccountInstructionPlan,
     createEmptyConfidentialAccountInstructionPlan,
     deriveConfidentialKeys,
+    estimateAndSetConfidentialResourceLimits,
     freeConfidentialKeys,
     inspectConfidentialAccount,
     planConfidentialInstructions,
+    type ConfidentialTransactionVersion,
 } from '../../confidential/index.js';
 import type { FullTransaction } from '../../transaction-util.js';
 import type { Client } from './setup.js';
@@ -56,9 +61,18 @@ import { describeSkipIf } from './helpers.js';
  *                             requesting a devnet airdrop (which is rate-limited).
  *                             ⚠️ A Phantom key is shared across mainnet/devnet — prefer
  *                             a throwaway `solana-keygen` keypair for testing.
+ *   CONFIDENTIAL_TX_VERSION   Transaction format to plan into: `0` (default) or `1`
+ *                             (SIMD-0385, 4096-byte messages). At `1` the send path
+ *                             also simulates each transaction to replace the planner's
+ *                             provisory resource limits, which version 1 requires.
+ *                             Needs an Agave ≥ 4.2.2 RPC; devnet qualifies.
+ *
+ * Every plan logs its transaction count and each message's size against the
+ * version's limit, so the two versions can be compared run to run.
  */
 const RUN = process.env.RUN_CONFIDENTIAL_E2E === '1';
 const RPC_URL = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
+const TX_VERSION: ConfidentialTransactionVersion = process.env.CONFIDENTIAL_TX_VERSION === '1' ? 1 : 0;
 const ZK_PROOF_PROGRAM = 'ZkE1Gama1Proof11111111111111111111111111111' as Address;
 
 const DECIMALS = 2;
@@ -76,6 +90,8 @@ function clusterParam(rpcUrl: string): string {
 }
 
 interface Artefacts {
+    /** Short name of the flow this run covers; keeps the two runs' files apart. */
+    run: string;
     cluster: string;
     mint: Address;
     payer: Address;
@@ -83,6 +99,18 @@ interface Artefacts {
     senderAta: Address;
     recipientAta: Address;
     transactions: Array<{ step: string; signature: string }>;
+}
+
+/**
+ * Where a run's artefacts JSON goes. The base path (overridable via
+ * CONFIDENTIAL_ARTEFACTS_PATH) gets the run name spliced in before its
+ * extension, so the two flows land in separate files instead of the second
+ * clobbering the first.
+ */
+function artefactsPath(run: string): string {
+    const base = process.env.CONFIDENTIAL_ARTEFACTS_PATH ?? join(tmpdir(), 'confidential-e2e-artefacts.json');
+    const ext = extname(base);
+    return join(dirname(base), `${basename(base, ext)}.${run}${ext}`);
 }
 
 /**
@@ -95,7 +123,7 @@ function emitArtefacts(a: Artefacts): void {
     const acct = (addr: string) => `https://explorer.solana.com/address/${addr}?cluster=${a.cluster}`;
     const lines = [
         '',
-        '═══════════ confidential-transfer e2e artefacts ═══════════',
+        `═══════════ confidential e2e artefacts — ${a.run} ═══════════`,
         `mint          ${acct(a.mint)}`,
         `payer         ${acct(a.payer)}`,
         `recipient     ${acct(a.recipient)}`,
@@ -109,7 +137,7 @@ function emitArtefacts(a: Artefacts): void {
     // eslint-disable-next-line no-console
     console.log(lines.join('\n'));
 
-    const path = process.env.CONFIDENTIAL_ARTEFACTS_PATH ?? join(tmpdir(), 'confidential-e2e-artefacts.json');
+    const path = artefactsPath(a.run);
     writeFileSync(path, JSON.stringify(a, null, 2));
     // eslint-disable-next-line no-console
     console.log(`artefacts written to ${path}\n`);
@@ -148,10 +176,24 @@ async function signSendConfirm(rpc: Rpc<SolanaRpcApi>, baseMessage: unknown): Pr
     for (let attempt = 0; attempt < 6; attempt++) {
         try {
             const { value: bh } = await withBackoff('getLatestBlockhash', () => rpc.getLatestBlockhash().send());
-            const message = setTransactionMessageLifetimeUsingBlockhash(
+            const withLifetime = setTransactionMessageLifetimeUsingBlockhash(
                 bh,
                 baseMessage as Parameters<typeof setTransactionMessageLifetimeUsingBlockhash>[1],
             );
+            // Version 1 carries its resource limits in header fields that default
+            // to zero, so the planner's provisory values must be replaced with
+            // simulated ones before signing — per transaction, here rather than
+            // up front, because later transactions read context-state accounts
+            // that earlier ones in the same plan create.
+            const message =
+                TX_VERSION === 1
+                    ? await withBackoff('estimateResourceLimits', () =>
+                          estimateAndSetConfidentialResourceLimits({
+                              rpc: rpc as Parameters<typeof estimateAndSetConfidentialResourceLimits>[0]['rpc'],
+                              transactionMessage: withLifetime as FullTransaction,
+                          }),
+                      )
+                    : withLifetime;
             const signed = await signTransactionMessageWithSigners(message as FullTransaction);
             const signature = getSignatureFromTransaction(signed);
             const wire = getBase64EncodedWireTransaction(signed);
@@ -197,13 +239,27 @@ async function waitForToken2022Account(rpc: Rpc<SolanaRpcApi>, account: Address)
     throw new Error(`Account ${account} not visible as a Token-2022 account in time`);
 }
 
+/**
+ * Logs how many transactions a plan needs and how big each message is against
+ * the version's size limit. This is the measurement that decides whether a
+ * version-1 plan is actually cheaper (fewer signatures, fewer round trips,
+ * less context-state rent churn) than the version-0 one it replaces.
+ */
+function logPlanShape(step: string, plan: TransactionPlan): void {
+    const messages = flattenTransactionPlan(plan).map(p => p.message);
+    const sizes = messages.map(m => `${getTransactionMessageSize(m)}/${getTransactionMessageSizeLimit(m)}`);
+    console.log(`  plan[v${TX_VERSION}] ${step}: ${messages.length} tx — ${sizes.join(', ')} bytes`);
+}
+
 /** Walks a TransactionPlan, sending each transaction (in order); returns all signatures. */
 async function runPlan(
     client: Client,
     feePayer: TransactionSigner,
     instructionPlan: InstructionPlan,
+    step = 'plan',
 ): Promise<Signature[]> {
-    const plan = await planConfidentialInstructions({ instructionPlan, feePayer });
+    const plan = await planConfidentialInstructions({ instructionPlan, feePayer, version: TX_VERSION });
+    logPlanShape(step, plan);
     return runTransactionPlan(client, plan);
 }
 
@@ -290,7 +346,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
                 }),
             );
         const step = async (label: string, feePayer: TransactionSigner, plan: InstructionPlan) =>
-            record(label, await runPlan(client, feePayer, plan));
+            record(label, await runPlan(client, feePayer, plan, label));
 
         // 1. Create the mint with confidential balances (opt-in so both accounts
         //    are usable immediately, no manual approval step).
@@ -451,6 +507,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
             freeConfidentialKeys(senderKeys);
             freeConfidentialKeys(recipientKeys);
             emitArtefacts({
+                run: 'transfer',
                 cluster: clusterParam(RPC_URL),
                 mint: mint.address,
                 payer: payer.address,
