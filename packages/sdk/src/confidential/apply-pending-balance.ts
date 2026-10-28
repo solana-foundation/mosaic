@@ -6,8 +6,10 @@ import {
     type TransactionSigner,
     singleInstructionPlan,
 } from '@solana/kit';
-import { fetchToken, getApplyConfidentialPendingBalanceInstructionFromToken } from '@solana-program/token-2022';
-import type { ConfidentialKeys } from './keys.js';
+import { fetchToken } from '@solana-program/token-2022';
+import { getApplyConfidentialPendingBalanceInstructionFromToken } from '@solana-program/token-2022/confidential';
+import { getConfidentialTransferAccountElgamalPubkey } from './extensions.js';
+import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
 import { toAuthoritySigner } from './util.js';
 
 /**
@@ -30,6 +32,11 @@ export async function createApplyConfidentialPendingBalanceInstructionPlan(input
     keys: ConfidentialKeys;
 }): Promise<InstructionPlan> {
     const decoded = await fetchToken(input.rpc, input.tokenAccount);
+
+    const registeredElgamalPubkey = getConfidentialTransferAccountElgamalPubkey(decoded);
+    if (registeredElgamalPubkey !== null) {
+        assertConfidentialKeysMatchAccount(input.keys, registeredElgamalPubkey, `token account ${input.tokenAccount}`);
+    }
 
     const elgamalSecretKey = input.keys.elgamal.secret();
     try {

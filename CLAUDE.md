@@ -11,7 +11,9 @@ Mosaic is a TypeScript monorepo for managing Token-2022 extensions on Solana, sp
     - Provides `Token` class for building token transactions with extensions
     - Contains predefined templates for stablecoin and arcade tokens
     - Token extensions include: Metadata, Pausable, Default Account State, Confidential Balances, Permanent Delegate
-    - Key modules: issuance, management, administration, templates
+    - Beyond enabling the Confidential Balances extension at mint creation, the SDK implements confidential runtime operations: configure account, deposit/apply/withdraw, confidential transfer, empty, and confidential mint/burn
+    - Key modules: issuance, management, administration, templates, inspection, and `confidential`
+    - The `confidential` module is exported from the `@solana/mosaic-sdk/confidential` subpath (not the root barrel) so the `@solana/zk-sdk` WASM proof/crypto dependency stays out of plain imports
 - **@solana/mosaic-cli** (`packages/cli/`) - Command-line interface built with Commander.js
     - Commands: `create stablecoin`, `create arcade-token`, `mint`
     - Global options: `--rpc-url`, `--keypair`

@@ -16,6 +16,22 @@ import {
 } from '@solana-program/zk-elgamal-proof';
 
 /**
+ * @deprecated Bespoke ZK-proof plumbing over `@solana-program/zk-elgamal-proof`:
+ * builds the `verify*` instructions for a proof and, in context-state mode, the
+ * matching close instruction that reclaims the account's rent.
+ *
+ * No builder in this SDK uses this any more. Every confidential operation —
+ * configure, deposit, withdraw, transfer, mint, burn and, as of the
+ * token-2022 0.18.0 bump, empty-account — delegates its proofs to an upstream
+ * `@solana-program/token-2022/confidential` InstructionPlan helper, which wires
+ * the same proofs through context-state accounts (or, with `recordBackedProof`,
+ * an SPL Record account) and keeps them in step with the on-chain program.
+ *
+ * Retained only so external callers who built their own flows on it keep
+ * working. Prefer the upstream helpers; this module is slated for removal in a
+ * future breaking release.
+ */
+/**
  * Confidential Transfer proof plumbing.
  *
  * Token-2022 confidential instructions (`configure`, `withdraw`, `transfer`,
