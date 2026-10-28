@@ -51,6 +51,21 @@ export const transactionToB64 = (transaction: FullTransaction): string => {
     return getBase64EncodedWireTransaction(compiledTransaction);
 };
 
+/** Largest raw token amount representable on-chain (`2^64 - 1`). */
+export const U64_MAX = 18446744073709551615n;
+
+/**
+ * Throws unless `decimals` is a valid mint decimals value. Token-2022 stores
+ * decimals as a `u8`, so any whole number from 0 to 255 is valid.
+ *
+ * @param decimals - The number of decimals to validate
+ */
+export function assertValidDecimals(decimals: number): void {
+    if (!Number.isInteger(decimals) || decimals < 0 || decimals > 255) {
+        throw new Error('Decimals must be an integer between 0 and 255');
+    }
+}
+
 /**
  * Converts a decimal amount to raw token amount based on mint decimals
  *
@@ -61,11 +76,10 @@ export const transactionToB64 = (transaction: FullTransaction): string => {
  * @param decimalAmount - The decimal amount (e.g., `1.5` or `"1.5"`)
  * @param decimals - The number of decimals the token has
  * @returns The raw token amount as bigint
+ * @throws If `decimals` is invalid, the amount is negative or malformed, or the raw amount exceeds u64
  */
 export function decimalAmountToRaw(decimalAmount: number | string, decimals: number): bigint {
-    if (decimals < 0 || decimals > 9) {
-        throw new Error('Decimals must be between 0 and 9');
-    }
+    assertValidDecimals(decimals);
 
     // Use the string form directly when given one (no float precision loss);
     // otherwise stringify the number.
@@ -98,7 +112,11 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
     }
 
     // Convert to BigInt
-    return BigInt(rawAmountStr);
+    const raw = BigInt(rawAmountStr);
+    if (raw > U64_MAX) {
+        throw new Error('Amount exceeds the maximum u64 token amount');
+    }
+    return raw;
 }
 
 /**
