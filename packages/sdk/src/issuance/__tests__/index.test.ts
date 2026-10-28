@@ -1,7 +1,17 @@
 // Test imports - Jest globals are available automatically
 import type { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
-import { AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+    AccountState,
+    TOKEN_2022_PROGRAM_ADDRESS,
+    Token2022Instruction,
+    getInitializeInterestBearingMintInstructionDataDecoder,
+    getInitializeTransferFeeConfigInstructionDataDecoder,
+    getMintSize,
+    getPreInitializeInstructionsForMintExtensions,
+    identifyToken2022Instruction,
+    parseUpdateMultiplierScaledUiMintInstruction,
+} from '@solana-program/token-2022';
 import { Token, getCreateMintInstructions } from '../index.js';
 import {
     createMockRpc,
@@ -223,6 +233,134 @@ describe('Token', () => {
         });
     });
 
+    describe('rate extension sizing placeholders', () => {
+        const U64_MAX = 2n ** 64n - 1n;
+        const I64_MAX = 2n ** 63n - 1n;
+
+        it('withTransferFee zeroes the fields the program sets on chain', () => {
+            token.withTransferFee({
+                authority: TEST_AUTHORITY,
+                withdrawAuthority: TEST_AUTHORITY,
+                feeBasisPoints: 100,
+                maximumFee: 1000n,
+            });
+            const extension: any = token.getExtensions()[0];
+
+            expect(extension.withheldAmount).toBe(0n);
+            expect(extension.newerTransferFee).toEqual({ epoch: 0n, maximumFee: 1000n, transferFeeBasisPoints: 100 });
+            expect(extension.olderTransferFee).toEqual(extension.newerTransferFee);
+        });
+
+        it('withInterestBearing zeroes the fields the program sets on chain', () => {
+            token.withInterestBearing({ authority: TEST_AUTHORITY, rate: 500 });
+            const extension: any = token.getExtensions()[0];
+
+            expect(extension.initializationTimestamp).toBe(0n);
+            expect(extension.lastUpdateTimestamp).toBe(0n);
+            expect(extension.preUpdateAverageRate).toBe(0);
+            expect(extension.currentRate).toBe(500);
+        });
+
+        it('getMintSize is insensitive to the TransferFeeConfig placeholder values', () => {
+            token.withTransferFee({
+                authority: TEST_AUTHORITY,
+                withdrawAuthority: TEST_AUTHORITY,
+                feeBasisPoints: 100,
+                maximumFee: 1000n,
+            });
+            const extension: any = token.getExtensions()[0];
+            const maxedFee = { epoch: U64_MAX, maximumFee: U64_MAX, transferFeeBasisPoints: 10000 };
+            const maxed = {
+                ...extension,
+                withheldAmount: U64_MAX,
+                newerTransferFee: maxedFee,
+                olderTransferFee: maxedFee,
+            };
+
+            expect(getMintSize([extension])).toBe(getMintSize([maxed]));
+        });
+
+        it('getMintSize is insensitive to the InterestBearingConfig placeholder values', () => {
+            token.withInterestBearing({ authority: TEST_AUTHORITY, rate: 500 });
+            const extension: any = token.getExtensions()[0];
+            const maxed = {
+                ...extension,
+                initializationTimestamp: I64_MAX,
+                lastUpdateTimestamp: I64_MAX,
+                preUpdateAverageRate: 32767,
+                currentRate: 32767,
+            };
+
+            expect(getMintSize([extension])).toBe(getMintSize([maxed]));
+        });
+
+        it('TransferFeeConfig instruction data is insensitive to the placeholder values', () => {
+            token.withTransferFee({
+                authority: TEST_AUTHORITY,
+                withdrawAuthority: TEST_AUTHORITY,
+                feeBasisPoints: 100,
+                maximumFee: 1000n,
+            });
+            const extension: any = token.getExtensions()[0];
+            const maxed = {
+                ...extension,
+                withheldAmount: U64_MAX,
+                newerTransferFee: { ...extension.newerTransferFee, epoch: U64_MAX },
+                olderTransferFee: { epoch: U64_MAX, maximumFee: U64_MAX, transferFeeBasisPoints: 10000 },
+            };
+            const [instruction] = getPreInitializeInstructionsForMintExtensions(mockMint.address, [extension]);
+            const [maxedInstruction] = getPreInitializeInstructionsForMintExtensions(mockMint.address, [maxed]);
+
+            expect(instruction.data).toEqual(maxedInstruction.data);
+            const data = getInitializeTransferFeeConfigInstructionDataDecoder().decode(instruction.data!);
+            expect(data.transferFeeBasisPoints).toBe(100);
+            expect(data.maximumFee).toBe(1000n);
+        });
+
+        it('InterestBearingConfig instruction data is insensitive to the placeholder values', () => {
+            token.withInterestBearing({ authority: TEST_AUTHORITY, rate: 500 });
+            const extension: any = token.getExtensions()[0];
+            const maxed = {
+                ...extension,
+                initializationTimestamp: I64_MAX,
+                lastUpdateTimestamp: I64_MAX,
+                preUpdateAverageRate: 32767,
+            };
+            const [instruction] = getPreInitializeInstructionsForMintExtensions(mockMint.address, [extension]);
+            const [maxedInstruction] = getPreInitializeInstructionsForMintExtensions(mockMint.address, [maxed]);
+
+            expect(instruction.data).toEqual(maxedInstruction.data);
+            const data = getInitializeInterestBearingMintInstructionDataDecoder().decode(instruction.data!);
+            expect(data.rate).toBe(500);
+        });
+    });
+
+    describe('decimals validation', () => {
+        it.each([18, 255])('should build instructions for %i decimals', async decimals => {
+            const instructions = await token.buildInstructions({
+                rpc: mockRpc,
+                decimals,
+                mintAuthority: TEST_AUTHORITY,
+                mint: mockMint,
+                feePayer: mockFeePayer,
+            });
+
+            expect(instructions).toHaveLength(2);
+        });
+
+        it.each([256, -1, 6.5])('should reject %p decimals', async decimals => {
+            await expect(
+                token.buildInstructions({
+                    rpc: mockRpc,
+                    decimals,
+                    mintAuthority: TEST_AUTHORITY,
+                    mint: mockMint,
+                    feePayer: mockFeePayer,
+                }),
+            ).rejects.toThrow('Decimals must be an integer between 0 and 255');
+        });
+    });
+
     describe('method chaining', () => {
         it('should allow chaining multiple extensions', () => {
             const additionalMetadata = createTestAdditionalMetadata();
@@ -277,6 +415,137 @@ describe('Token', () => {
             });
 
             expect(instructions).toHaveLength(2); // create + init (no pre/post init for no extensions)
+        });
+
+        describe('scaled UI amount schedule', () => {
+            const effectiveTimestamp = 1790072001n;
+
+            const countUpdateMultiplier = (instructions: Awaited<ReturnType<Token['buildInstructions']>>) =>
+                instructions.filter(
+                    (inst: any) =>
+                        inst.programAddress === TOKEN_2022_PROGRAM_ADDRESS &&
+                        identifyToken2022Instruction(inst.data) === Token2022Instruction.UpdateMultiplierScaledUiMint,
+                ).length;
+
+            it('emits one UpdateMultiplierScaledUiMint as the last instruction when scheduled', async () => {
+                const mintAuthority = await generateKeyPairSigner();
+                token
+                    .withMetadata({
+                        mintAddress: mockMint.address,
+                        authority: mintAuthority.address,
+                        metadata: TEST_METADATA,
+                        additionalMetadata: new Map(),
+                    })
+                    .withScaledUiAmount(mintAuthority.address, 2, effectiveTimestamp, 5);
+
+                const instructions = await token.buildInstructions({
+                    rpc: mockRpc,
+                    decimals: 6,
+                    mintAuthority,
+                    mint: mockMint,
+                    feePayer: mockFeePayer,
+                });
+
+                expect(countUpdateMultiplier(instructions)).toBe(1);
+                const parsed = parseUpdateMultiplierScaledUiMintInstruction(
+                    instructions[instructions.length - 1] as any,
+                );
+                expect(parsed.programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS);
+                expect(parsed.accounts.mint.address).toBe(mockMint.address);
+                expect(parsed.accounts.authority.address).toBe(mintAuthority.address);
+                expect((parsed.accounts.authority as any).signer).toBe(mintAuthority);
+                expect(parsed.data.multiplier).toBe(5);
+                expect(parsed.data.effectiveTimestamp).toBe(effectiveTimestamp);
+            });
+
+            it('emits no update when nothing is scheduled', async () => {
+                token.withScaledUiAmount(TEST_AUTHORITY, 2, 0, 2);
+
+                const instructions = await token.buildInstructions({
+                    rpc: mockRpc,
+                    decimals: 6,
+                    mintAuthority: TEST_AUTHORITY,
+                    mint: mockMint,
+                    feePayer: mockFeePayer,
+                });
+
+                expect(countUpdateMultiplier(instructions)).toBe(0);
+            });
+
+            it('defaults newMultiplier to the multiplier', () => {
+                token.withScaledUiAmount(TEST_AUTHORITY, 3);
+
+                const extension: any = token.getExtensions()[0];
+                expect(extension.multiplier).toBe(3);
+                expect(extension.newMultiplier).toBe(3);
+                expect(extension.newMultiplierEffectiveTimestamp).toBe(0n);
+            });
+
+            it('signs with the fee payer when it is the scaled UI authority', async () => {
+                // A real signer: the mock signer is not recognised as a TransactionSigner by kit
+                const feePayer = await generateKeyPairSigner();
+                token.withScaledUiAmount(feePayer.address, 2, effectiveTimestamp, 5);
+
+                const instructions = await token.buildInstructions({
+                    rpc: mockRpc,
+                    decimals: 6,
+                    mint: mockMint,
+                    feePayer,
+                });
+
+                const parsed = parseUpdateMultiplierScaledUiMintInstruction(
+                    instructions[instructions.length - 1] as any,
+                );
+                expect((parsed.accounts.authority as any).signer).toBe(feePayer);
+            });
+
+            it('uses a noop signer when the mint authority is an address equal to the scaled UI authority', async () => {
+                token.withScaledUiAmount(TEST_AUTHORITY, 2, effectiveTimestamp, 5);
+
+                const instructions = await token.buildInstructions({
+                    rpc: mockRpc,
+                    decimals: 6,
+                    mintAuthority: TEST_AUTHORITY,
+                    mint: mockMint,
+                    feePayer: mockFeePayer,
+                });
+
+                const parsed = parseUpdateMultiplierScaledUiMintInstruction(
+                    instructions[instructions.length - 1] as any,
+                );
+                expect(parsed.accounts.authority.address).toBe(TEST_AUTHORITY);
+                expect((parsed.accounts.authority as any).signer?.address).toBe(TEST_AUTHORITY);
+            });
+
+            it('throws for a third-party scaled UI authority', async () => {
+                const thirdParty = await generateKeyPairSigner();
+                token.withScaledUiAmount(thirdParty.address, 2, effectiveTimestamp, 5);
+
+                await expect(
+                    token.buildInstructions({
+                        rpc: mockRpc,
+                        decimals: 6,
+                        mint: mockMint,
+                        feePayer: mockFeePayer,
+                    }),
+                ).rejects.toThrow(/scaled UI authority/);
+            });
+
+            it('throws for a millisecond timestamp', () => {
+                expect(() => token.withScaledUiAmount(TEST_AUTHORITY, 2, BigInt(Date.now()), 5)).toThrow(
+                    /milliseconds/,
+                );
+            });
+
+            it('throws for a new multiplier without a timestamp', () => {
+                expect(() => token.withScaledUiAmount(TEST_AUTHORITY, 2, 0, 5)).toThrow(
+                    /newMultiplier requires newMultiplierEffectiveTimestamp/,
+                );
+            });
+
+            it('throws for a negative timestamp', () => {
+                expect(() => token.withScaledUiAmount(TEST_AUTHORITY, 2, -1, 5)).toThrow(/non-negative/);
+            });
         });
     });
 
@@ -372,5 +641,22 @@ describe('getCreateMintInstructions', () => {
         expect(instructions).toHaveLength(2);
         expect(instructions[0].programAddress).toBe('11111111111111111111111111111111'); // System program for account creation
         expect(instructions[1].programAddress).toBe(customProgramAddress); // Custom token program for mint init
+    });
+
+    it('should reject invalid decimals before fetching rent', async () => {
+        const rentSpy = jest.spyOn(
+            mockRpc as unknown as { getMinimumBalanceForRentExemption: (space: bigint) => unknown },
+            'getMinimumBalanceForRentExemption',
+        );
+
+        await expect(
+            getCreateMintInstructions({
+                rpc: mockRpc,
+                decimals: 256,
+                mint: mockMint,
+                payer: mockPayer,
+            }),
+        ).rejects.toThrow('Decimals must be an integer between 0 and 255');
+        expect(rentSpy).not.toHaveBeenCalled();
     });
 });

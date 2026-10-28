@@ -6,8 +6,11 @@ const rpcPort = process.env.SOLANA_RPC_PORT;
 const port = parseInt(rpcPort || '8899', 10);
 
 const config = {
+    // Short epochs so the rate-extension tests can check that the on-chain transfer fee epoch
+    // comes from the cluster clock; with the default 432000 slots the cluster stays at epoch 0,
+    // which is indistinguishable from the client-side `0n` placeholder (HOO-1684, HOO-1714).
     validatorArgs: [
-        ...(process.env.SOLANA_VALIDATOR_ARGS || '-r').split(' '),
+        ...(process.env.SOLANA_VALIDATOR_ARGS || '-r --slots-per-epoch 32').split(' '),
         ...(rpcPort ? ['--rpc-port', String(port)] : []),
     ],
     rpcUrl: `http://127.0.0.1:${port}`,

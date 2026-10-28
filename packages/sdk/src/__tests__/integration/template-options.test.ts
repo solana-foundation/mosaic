@@ -234,4 +234,39 @@ describe('Template options integration tests', () => {
             DEFAULT_TIMEOUT,
         );
     });
+
+    describe('custom token transfer hook', () => {
+        const transferHook = async (): Promise<Record<string, unknown> | undefined> => {
+            const inspection = await inspectToken(client.rpc, mint.address, DEFAULT_COMMITMENT);
+            return inspection.extensions.find(ext => ext.name === 'TransferHook')?.details;
+        };
+
+        it(
+            'initializes inactive with a non-signer authority when no program id is given',
+            async () => {
+                // The hook authority is a bare address nobody in the tx signs for: initializing
+                // inactive must not need its signature.
+                const hookAuthority: Address = (await generateKeyPairSigner()).address;
+                const tx = await createCustomTokenInitTransaction(
+                    client.rpc,
+                    'Hook Inactive',
+                    'HOOKI',
+                    6,
+                    'https://example.com/hooki.json',
+                    mintAuthority,
+                    mint,
+                    payer,
+                    { enableTransferHook: true, transferHookAuthority: hookAuthority },
+                );
+                await sendAndConfirmTransaction(client, tx, DEFAULT_COMMITMENT);
+
+                const details = await transferHook();
+                expect(details).toBeDefined();
+                expect(details?.authority).toBe(hookAuthority);
+                // Token-2022 stores "no program" as the all-zero address.
+                expect(details?.programId).toBe('11111111111111111111111111111111');
+            },
+            DEFAULT_TIMEOUT,
+        );
+    });
 });

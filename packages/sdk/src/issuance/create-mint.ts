@@ -1,11 +1,12 @@
 import type { Address, Instruction, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
-import type { FullTransaction } from '../transaction-util.js';
+import { assertValidDecimals, type FullTransaction } from '../transaction-util.js';
 import {
     pipe,
     createTransactionMessage,
     setTransactionMessageFeePayer,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
+    createNoopSigner,
     some,
 } from '@solana/kit';
 import { getCreateAccountInstruction } from '@solana-program/system';
@@ -20,8 +21,12 @@ import {
     TOKEN_2022_PROGRAM_ADDRESS,
     getInitializeTokenMetadataInstruction,
     getInitializeConfidentialTransferFeeInstruction,
+    getUpdateMultiplierScaledUiMintInstruction,
 } from '@solana-program/token-2022';
 import { createUpdateFieldInstruction } from './create-update-field-instruction.js';
+
+// Anything larger is almost certainly a millisecond timestamp (10^10 s is the year 2286).
+const MAX_UNIX_SECONDS_TIMESTAMP = 10_000_000_000n;
 
 /**
  * The issuer's "how is the confidential-transfer extension enabled" setting:
@@ -160,19 +165,48 @@ export class Token {
         return this;
     }
 
+    /**
+     * Adds the ScaledUiAmount extension to the token.
+     *
+     * A scheduled change (`newMultiplierEffectiveTimestamp > 0`) is applied at creation with a
+     * follow-up `UpdateMultiplierScaledUiMint` instruction, signed by the scaled UI authority.
+     * That authority must therefore be the mint authority signer or the fee payer passed to
+     * {@link Token.buildInstructions}; otherwise build throws and the change has to be
+     * scheduled with `updateMultiplier` after creation. A timestamp at or before the
+     * current cluster time takes effect immediately.
+     *
+     * @param authority - Authority that can update the multiplier
+     * @param multiplier - Initial multiplier (default 1)
+     * @param newMultiplierEffectiveTimestamp - When `newMultiplier` takes effect, in Unix seconds (0 = no schedule)
+     * @param newMultiplier - Scheduled multiplier (defaults to `multiplier`); requires a timestamp when it differs
+     * @returns The token builder for chaining
+     */
     withScaledUiAmount(
         authority: Address,
         multiplier: number = 1,
         newMultiplierEffectiveTimestamp: bigint | number = 0,
-        newMultiplier: number = 1,
+        newMultiplier: number = multiplier,
     ): Token {
+        const effectiveTimestamp =
+            typeof newMultiplierEffectiveTimestamp === 'number'
+                ? BigInt(newMultiplierEffectiveTimestamp)
+                : newMultiplierEffectiveTimestamp;
+        if (effectiveTimestamp < 0n) {
+            throw new Error('newMultiplierEffectiveTimestamp must be a non-negative Unix timestamp in seconds');
+        }
+        if (effectiveTimestamp > MAX_UNIX_SECONDS_TIMESTAMP) {
+            throw new Error(
+                `newMultiplierEffectiveTimestamp ${effectiveTimestamp} looks like milliseconds; pass Unix seconds`,
+            );
+        }
+        if (effectiveTimestamp === 0n && newMultiplier !== multiplier) {
+            throw new Error('newMultiplier requires newMultiplierEffectiveTimestamp (Unix seconds)');
+        }
+
         const scaledUiAmountExtension = extension('ScaledUiAmountConfig', {
             authority,
             multiplier,
-            newMultiplierEffectiveTimestamp:
-                typeof newMultiplierEffectiveTimestamp === 'number'
-                    ? BigInt(newMultiplierEffectiveTimestamp)
-                    : newMultiplierEffectiveTimestamp,
+            newMultiplierEffectiveTimestamp: effectiveTimestamp,
             newMultiplier,
         });
         this.extensions.push(scaledUiAmountExtension as Extension);
@@ -189,6 +223,8 @@ export class Token {
      * @param config.withdrawAuthority - Authority that can withdraw withheld fees
      * @param config.feeBasisPoints - Fee in basis points (0-10000, where 10000 = 100%)
      * @param config.maximumFee - Maximum fee amount (in smallest token units)
+     *
+     * The on-chain fee epochs and withheld amount are set by the program from the cluster, not from this object.
      */
     withTransferFee(config: {
         authority: Address;
@@ -196,6 +232,12 @@ export class Token {
         feeBasisPoints: number;
         maximumFee: bigint;
     }): Token {
+        // Only the two authorities and `newerTransferFee.{transferFeeBasisPoints,maximumFee}` are sent by
+        // `getPreInitializeInstructionsForMintExtensions`; the program writes the current `Clock::epoch` into
+        // both fee entries. `epoch`, `olderTransferFee` and `withheldAmount` exist only so `getMintSize` can
+        // encode the extension; their values are never read.
+        // Note for a future fee-update feature: upstream `SetTransferFee` schedules the newer fee at
+        // `epoch + 2`, so a UI must say the change takes effect in two epochs.
         const transferFees = {
             epoch: 0n,
             maximumFee: config.maximumFee,
@@ -222,15 +264,20 @@ export class Token {
      * @param config - Interest bearing configuration
      * @param config.authority - Authority that can update the interest rate
      * @param config.rate - Interest rate in basis points (e.g., 500 = 5% annual rate)
+     *
+     * The on-chain timestamps are set by the program from the cluster clock, not from this object.
      */
     withInterestBearing(config: { authority: Address; rate: number }): Token {
+        // Only `rateAuthority` and `currentRate` are sent by `getPreInitializeInstructionsForMintExtensions`;
+        // the program sets both timestamps from the cluster clock and `preUpdateAverageRate` from the rate.
+        // The zeroed fields exist only so `getMintSize` can encode the extension.
         // Manually create extension object as `@solana-program/token-2022`'s extension() doesn't support InterestBearingConfig
         const interestBearingExtension = {
             __kind: 'InterestBearingConfig' as const,
             rateAuthority: config.authority,
-            initializationTimestamp: BigInt(Math.floor(Date.now() / 1000)),
-            preUpdateAverageRate: config.rate,
-            lastUpdateTimestamp: BigInt(Math.floor(Date.now() / 1000)),
+            initializationTimestamp: 0n,
+            preUpdateAverageRate: 0,
+            lastUpdateTimestamp: 0n,
             currentRate: config.rate,
         };
         this.extensions.push(interestBearingExtension as Extension);
@@ -397,6 +444,41 @@ export class Token {
                 : [],
         );
 
+        // The ScaledUiAmount initializer only takes the initial multiplier, so a scheduled
+        // change has to be applied with a separate UpdateMultiplier after the mint exists.
+        const scaledUiAmountExt = this.extensions.find(ext => ext.__kind === 'ScaledUiAmountConfig');
+        if (
+            scaledUiAmountExt &&
+            scaledUiAmountExt.__kind === 'ScaledUiAmountConfig' &&
+            scaledUiAmountExt.newMultiplierEffectiveTimestamp > 0n
+        ) {
+            const scaledUiAuthority = scaledUiAmountExt.authority;
+            let scaledUiSigner: TransactionSigner<string>;
+            if (mintAuthority && typeof mintAuthority !== 'string' && mintAuthority.address === scaledUiAuthority) {
+                scaledUiSigner = mintAuthority;
+            } else if (feePayer.address === scaledUiAuthority) {
+                scaledUiSigner = feePayer;
+            } else if (mintAuthority === scaledUiAuthority) {
+                // Multi-signer flow: the mint authority co-signs externally
+                scaledUiSigner = createNoopSigner(scaledUiAuthority);
+            } else {
+                throw new Error(
+                    `Scheduling a scaled UI multiplier change at creation requires the scaled UI authority (${scaledUiAuthority}) to be the mint authority or fee payer; call updateMultiplier separately after creation instead.`,
+                );
+            }
+            postInitializeInstructions.push(
+                getUpdateMultiplierScaledUiMintInstruction(
+                    {
+                        mint: mint.address,
+                        authority: scaledUiSigner,
+                        multiplier: scaledUiAmountExt.newMultiplier,
+                        effectiveTimestamp: scaledUiAmountExt.newMultiplierEffectiveTimestamp,
+                    },
+                    { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
+                ),
+            );
+        }
+
         return [
             createMintAccountInstruction,
             ...preInitializeInstructions,
@@ -456,6 +538,8 @@ export const getCreateMintInstructions = async (input: {
     payer: TransactionSigner<string>;
     programAddress?: Address;
 }): Promise<Instruction<string>[]> => {
+    assertValidDecimals(input.decimals ?? 0);
+
     // Calculate required space for mint account including extensions
     const space = getMintSize(input.extensions);
 

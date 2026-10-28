@@ -10,6 +10,7 @@ import {
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
 } from '@solana/kit';
+import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
 import { Mode } from '@solana/token-acl-gate-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils.js';
 import { getCreateConfigInstructions } from '../token-acl/create-config.js';
@@ -73,7 +74,8 @@ export const createCustomTokenInitTransaction = async (
         confidentialBalancesAuthority?: Address;
         scaledUiAmountAuthority?: Address;
 
-        // Scaled UI Amount configuration
+        // Scaled UI Amount configuration. A scheduled change (timestamp in Unix seconds) is
+        // applied at creation, so the scaled UI authority must then be the mint authority.
         scaledUiAmountMultiplier?: number;
         scaledUiAmountNewMultiplier?: number;
         scaledUiAmountNewMultiplierEffectiveTimestamp?: bigint | number;
@@ -108,7 +110,8 @@ export const createCustomTokenInitTransaction = async (
         interestBearingAuthority?: Address;
         interestRate?: number;
 
-        // Transfer Hook configuration
+        // Transfer Hook configuration. Omitting transferHookProgramId initializes the extension
+        // inactive (no hook program); the authority can set one later via UpdateTransferHook.
         transferHookAuthority?: Address;
         transferHookProgramId?: Address;
     },
@@ -192,7 +195,7 @@ export const createCustomTokenInitTransaction = async (
             scaledUiAmountAuthority,
             options.scaledUiAmountMultiplier ?? 1,
             options.scaledUiAmountNewMultiplierEffectiveTimestamp ?? 0n,
-            options.scaledUiAmountNewMultiplier ?? 1,
+            options.scaledUiAmountNewMultiplier ?? options.scaledUiAmountMultiplier ?? 1,
         );
     }
 
@@ -274,15 +277,14 @@ export const createCustomTokenInitTransaction = async (
         tokenBuilder = tokenBuilder.withNonTransferable();
     }
 
-    // Add Transfer Hook extension
+    // Add Transfer Hook extension. If transferHookProgramId is omitted, initialize it with the
+    // all-zero address, which Token-2022 stores as None: the mint reserves TransferHook space
+    // and can adopt a hook program later without recreating the mint. InitializeTransferHook
+    // needs no authority signature, so any authority Address works here.
     if (options?.enableTransferHook) {
-        if (!options.transferHookProgramId) {
-            throw new Error('transferHookProgramId is required when enableTransferHook is enabled');
-        }
-        const transferHookAuthority = options.transferHookAuthority || mintAuthorityAddress;
         tokenBuilder = tokenBuilder.withTransferHook({
-            authority: transferHookAuthority,
-            programId: options.transferHookProgramId,
+            authority: options.transferHookAuthority || mintAuthorityAddress,
+            programId: options.transferHookProgramId ?? SYSTEM_PROGRAM_ADDRESS,
         });
     }
 

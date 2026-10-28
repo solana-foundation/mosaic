@@ -10,6 +10,7 @@ import type {
     TransactionSigner,
 } from '@solana/kit';
 import type { FullTransaction } from '../../transaction-util.js';
+import { setTimeout as sleep } from 'timers/promises';
 import type { Client } from './setup.js';
 import { createStablecoinInitTransaction } from '../../templates/index.js';
 import { createAddToAllowlistTransaction } from '../../management/index.js';
@@ -50,6 +51,55 @@ export async function sendAndConfirmTransaction(
     skipPreflight = true,
 ): Promise<Signature> {
     return sendAndPollConfirm(client.rpc, tx, commitment, 30_000, { skipPreflight });
+}
+
+/**
+ * Poll until the cluster reaches `epoch`, then return its epoch info.
+ *
+ * Throws straight away on long epochs (the default 432000 slots would take days): the caller
+ * needs a validator started with a short `--slots-per-epoch`, which `test-with-validator.js`
+ * sets by default. Throws on timeout, so an epoch check can never pass vacuously at epoch 0.
+ */
+export async function waitForEpochAtLeast(
+    rpc: Rpc<SolanaRpcApi>,
+    epoch: bigint | number,
+    timeoutMs = 30_000,
+    commitment: Commitment = DEFAULT_COMMITMENT,
+) {
+    const target = BigInt(epoch);
+    const deadline = Date.now() + timeoutMs;
+    for (;;) {
+        const epochInfo = await rpc.getEpochInfo({ commitment }).send();
+        if (epochInfo.epoch >= target) {
+            return epochInfo;
+        }
+        if (epochInfo.slotsInEpoch > 10_000n) {
+            throw new Error(
+                `Cluster epochs are ${epochInfo.slotsInEpoch} slots long, so epoch ${target} is out of reach; ` +
+                    'start the validator with a short epoch (e.g. `--slots-per-epoch 32`)',
+            );
+        }
+        if (Date.now() > deadline) {
+            throw new Error(`Cluster still at epoch ${epochInfo.epoch} after ${timeoutMs} ms, expected ${target}`);
+        }
+        await sleep(500);
+    }
+}
+
+/**
+ * Cluster time (Unix seconds) of the block that confirmed `signature`
+ */
+export async function getConfirmationBlockTime(rpc: Rpc<SolanaRpcApi>, signature: Signature): Promise<bigint> {
+    const { value: statuses } = await rpc.getSignatureStatuses([signature]).send();
+    const status = statuses[0];
+    if (!status) {
+        throw new Error(`No status for signature ${signature}`);
+    }
+    const blockTime = await rpc.getBlockTime(status.slot).send();
+    if (blockTime === null) {
+        throw new Error(`No block time for slot ${status.slot}`);
+    }
+    return BigInt(blockTime);
 }
 
 /**
@@ -297,9 +347,9 @@ export async function assertToken(
         expect(inspection.enableSrfc37).toBe(expected.enableSrfc37);
     }
 
-    // Verify scaled UI amount
+    // Verify scaled UI amount (partial: the schedule fields are only checked when given)
     if (expected.scaledUiAmount) {
-        expect(inspection.scaledUiAmount).toEqual(expected.scaledUiAmount);
+        expect(inspection.scaledUiAmount).toMatchObject(expected.scaledUiAmount);
     }
 
     // Verify metadata

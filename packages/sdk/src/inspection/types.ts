@@ -41,6 +41,42 @@ export interface ScaledUiAmountInfo {
     enabled: boolean;
     multiplier?: number;
     authority?: Address | null;
+    // Scheduled multiplier change; a zero timestamp means nothing is scheduled
+    newMultiplier?: number;
+    newMultiplierEffectiveTimestamp?: bigint;
+}
+
+export interface TransferFeeEntry {
+    epoch: bigint;
+    transferFeeBasisPoints: number;
+    // Raw base units
+    maximumFee: bigint;
+}
+
+export interface TransferFeeInfo {
+    // Fee charged at `currentEpoch`: the newer entry once its epoch is reached, else the older one
+    transferFeeBasisPoints: number;
+    // Raw base units
+    maximumFee: bigint;
+    // Epoch the active fee was resolved against
+    currentEpoch: bigint;
+    // Latest configured fee, in effect from its `epoch` (may still be pending)
+    newerTransferFee: TransferFeeEntry;
+    // Fee in effect before `newerTransferFee.epoch`
+    olderTransferFee: TransferFeeEntry;
+    withheldAmount: bigint;
+    authority: Address | null;
+    withdrawAuthority: Address | null;
+}
+
+export interface InterestBearingInfo {
+    // Rates are in basis points (APR)
+    currentRate: number;
+    preUpdateAverageRate: number;
+    // Unix seconds
+    initializationTimestamp: bigint;
+    lastUpdateTimestamp: bigint;
+    rateAuthority: Address | null;
 }
 
 export interface TokenInspectionResult {
@@ -67,6 +103,10 @@ export interface TokenInspectionResult {
 
     // Scaled UI amount info (for tokenized securities)
     scaledUiAmount?: ScaledUiAmountInfo;
+
+    // Rate-bearing extensions
+    transferFee?: TransferFeeInfo;
+    interestBearing?: InterestBearingInfo;
 }
 
 export interface TokenDashboardData {
@@ -99,4 +139,14 @@ export interface TokenDashboardData {
 
     // Scaled UI amount multiplier (for tokenized securities)
     multiplier?: number;
+    scaledUiNewMultiplier?: number;
+    // Unix seconds as a decimal string ('0' = nothing scheduled)
+    scaledUiNewMultiplierEffectiveTimestamp?: string;
+
+    // Rate-bearing extensions (bigints as decimal strings so the data stays JSON-serializable)
+    transferFeeBasisPoints?: number;
+    // Raw base units
+    transferFeeMaximum?: string;
+    // Current interest rate in basis points
+    interestRate?: number;
 }

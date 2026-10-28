@@ -2,6 +2,7 @@ import { type Address, type Commitment, fetchEncodedAccount, type Rpc, type Sola
 import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from '@solana-program/token-2022';
 import type {
     AclMode,
+    InterestBearingInfo,
     ScaledUiAmountInfo,
     TokenAuthorities,
     TokenDashboardData,
@@ -10,8 +11,17 @@ import type {
     TokenMetadata,
     TokenSupplyInfo,
     TokenType,
+    TransferFeeInfo,
 } from './types.js';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/index.js';
+
+// Token-2022 encodes an unset OptionalNonZeroPubkey as the all-zero key, which the generated
+// decoder returns as this address rather than `None`
+const ZERO_ADDRESS = '11111111111111111111111111111111';
+
+function optionalNonZeroAddress(address: Address): Address | null {
+    return address === ZERO_ADDRESS ? null : address;
+}
 
 const STABLECOIN_EXTENSIONS = [
     'TokenMetadata',
@@ -162,6 +172,8 @@ export async function inspectToken(
     let aclMode: AclMode = 'none';
     let enableSrfc37 = false;
     let scaledUiAmount: ScaledUiAmountInfo | undefined;
+    let transferFee: TransferFeeInfo | undefined;
+    let interestBearing: InterestBearingInfo | undefined;
 
     if (decodedMint.data.extensions?.__option === 'Some') {
         for (const ext of decodedMint.data.extensions.value) {
@@ -270,8 +282,10 @@ export async function inspectToken(
                 }
 
                 case 'ScaledUiAmountConfig':
-                    extensionDetails.authority = ext.authority ? ext.authority : null;
+                    extensionDetails.authority = optionalNonZeroAddress(ext.authority);
                     extensionDetails.multiplier = ext.multiplier;
+                    extensionDetails.newMultiplier = ext.newMultiplier;
+                    extensionDetails.newMultiplierEffectiveTimestamp = ext.newMultiplierEffectiveTimestamp;
                     extensions.push({
                         name: 'ScaledUiAmountConfig',
                         details: extensionDetails,
@@ -279,22 +293,81 @@ export async function inspectToken(
                     scaledUiAmount = {
                         enabled: true,
                         multiplier: ext.multiplier,
-                        authority: ext.authority ? ext.authority : null,
+                        authority: optionalNonZeroAddress(ext.authority),
+                        newMultiplier: ext.newMultiplier,
+                        newMultiplierEffectiveTimestamp: ext.newMultiplierEffectiveTimestamp,
                     };
                     break;
 
-                case 'TransferFeeConfig':
-                    if (ext.transferFeeConfigAuthority) {
-                        extensionDetails.authority = ext.transferFeeConfigAuthority;
+                case 'TransferFeeConfig': {
+                    // Authorities decode as plain `Address` here (OptionalNonZeroPubkey), not `Option`
+                    const feeAuthority = optionalNonZeroAddress(ext.transferFeeConfigAuthority);
+                    const withdrawAuthority = optionalNonZeroAddress(ext.withdrawWithheldAuthority);
+                    if (feeAuthority) {
+                        extensionDetails.authority = feeAuthority;
                     }
-                    if (ext.withdrawWithheldAuthority) {
-                        extensionDetails.withdrawAuthority = ext.withdrawWithheldAuthority;
+                    if (withdrawAuthority) {
+                        extensionDetails.withdrawAuthority = withdrawAuthority;
                     }
+                    const olderTransferFee = {
+                        epoch: ext.olderTransferFee.epoch,
+                        transferFeeBasisPoints: ext.olderTransferFee.transferFeeBasisPoints,
+                        maximumFee: ext.olderTransferFee.maximumFee,
+                    };
+                    const newerTransferFee = {
+                        epoch: ext.newerTransferFee.epoch,
+                        transferFeeBasisPoints: ext.newerTransferFee.transferFeeBasisPoints,
+                        maximumFee: ext.newerTransferFee.maximumFee,
+                    };
+                    // A `SetTransferFee` only takes effect two epochs later, so the newer entry
+                    // may still be pending: the program charges it from its epoch, the older one before
+                    const { epoch: currentEpoch } = await rpc.getEpochInfo({ commitment }).send();
+                    const activeTransferFee =
+                        currentEpoch >= newerTransferFee.epoch ? newerTransferFee : olderTransferFee;
+                    extensionDetails.transferFeeBasisPoints = activeTransferFee.transferFeeBasisPoints;
+                    extensionDetails.maximumFee = activeTransferFee.maximumFee;
+                    extensionDetails.currentEpoch = currentEpoch;
+                    extensionDetails.newerTransferFee = newerTransferFee;
+                    extensionDetails.olderTransferFee = olderTransferFee;
+                    extensionDetails.withheldAmount = ext.withheldAmount;
                     extensions.push({
                         name: 'TransferFeeConfig',
                         details: extensionDetails,
                     });
+                    transferFee = {
+                        transferFeeBasisPoints: activeTransferFee.transferFeeBasisPoints,
+                        maximumFee: activeTransferFee.maximumFee,
+                        currentEpoch,
+                        newerTransferFee: { ...newerTransferFee },
+                        olderTransferFee: { ...olderTransferFee },
+                        withheldAmount: ext.withheldAmount,
+                        authority: feeAuthority,
+                        withdrawAuthority,
+                    };
                     break;
+                }
+
+                case 'InterestBearingConfig': {
+                    // Rates are in basis points; timestamps are Unix seconds
+                    const rateAuthority = optionalNonZeroAddress(ext.rateAuthority);
+                    extensionDetails.rateAuthority = rateAuthority;
+                    extensionDetails.currentRate = ext.currentRate;
+                    extensionDetails.preUpdateAverageRate = ext.preUpdateAverageRate;
+                    extensionDetails.initializationTimestamp = ext.initializationTimestamp;
+                    extensionDetails.lastUpdateTimestamp = ext.lastUpdateTimestamp;
+                    extensions.push({
+                        name: 'InterestBearingConfig',
+                        details: extensionDetails,
+                    });
+                    interestBearing = {
+                        currentRate: ext.currentRate,
+                        preUpdateAverageRate: ext.preUpdateAverageRate,
+                        initializationTimestamp: ext.initializationTimestamp,
+                        lastUpdateTimestamp: ext.lastUpdateTimestamp,
+                        rateAuthority,
+                    };
+                    break;
+                }
 
                 case 'MetadataPointer':
                     extensionDetails.authority = ext.authority?.__option === 'Some' ? ext.authority.value : null;
@@ -336,6 +409,8 @@ export async function inspectToken(
         aclMode,
         enableSrfc37,
         scaledUiAmount,
+        transferFee,
+        interestBearing,
         isToken2022: encodedAccount.programAddress === TOKEN_2022_PROGRAM_ADDRESS,
     };
 }
@@ -369,6 +444,8 @@ export function inspectionResultToDashboardData(inspection: TokenInspectionResul
         aclMode,
         enableSrfc37,
         scaledUiAmount,
+        transferFee,
+        interestBearing,
     } = inspection;
 
     return {
@@ -401,6 +478,13 @@ export function inspectionResultToDashboardData(inspection: TokenInspectionResul
 
         // Scaled UI amount multiplier (for tokenized securities)
         multiplier: scaledUiAmount?.multiplier,
+        scaledUiNewMultiplier: scaledUiAmount?.newMultiplier,
+        scaledUiNewMultiplierEffectiveTimestamp: scaledUiAmount?.newMultiplierEffectiveTimestamp?.toString(),
+
+        // Rate-bearing extensions (bigints as strings so the result stays JSON-serializable)
+        transferFeeBasisPoints: transferFee?.transferFeeBasisPoints,
+        transferFeeMaximum: transferFee?.maximumFee.toString(),
+        interestRate: interestBearing?.currentRate,
     };
 }
 
