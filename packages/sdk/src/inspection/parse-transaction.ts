@@ -624,7 +624,7 @@ export interface ConfirmedInnerInstruction {
 
 /**
  * The shape we need from a kit `getTransaction` response (encoding: 'base64',
- * maxSupportedTransactionVersion: 0). Pass the response object directly.
+ * maxSupportedTransactionVersion: 1). Pass the response object directly.
  */
 export interface ConfirmedTransactionInput {
     /** [base64WireTransaction, 'base64'] tuple, or just the raw bytes. */
@@ -691,12 +691,31 @@ export interface ParsedConfirmedTransaction extends ParsedTokenTransaction {
  * the static accounts; readonlys come last.
  */
 /**
- * The legacy/v0 compiled message variants supported by `decompileTransactionMessage`.
- * The `instructions` narrowing keeps this forward compatible with kit message unions
- * that also carry non-`instructions` variants.
+ * Every compiled message variant the decoder can return: legacy, v0 and v1.
+ * v1 carries no `instructions` field, so read instructions through
+ * {@link getCompiledInstructions} rather than off the message directly.
  */
-type DecodedCompiledMessage = Extract<CompiledTransactionMessage, { instructions: unknown }> &
-    CompiledTransactionMessageWithLifetime;
+type DecodedCompiledMessage = CompiledTransactionMessage & CompiledTransactionMessageWithLifetime;
+
+type CompiledInstruction = { programAddressIndex: number; accountIndices?: number[]; data?: ReadonlyUint8Array };
+
+/**
+ * Normalizes a compiled message's instructions into the legacy/v0 shape. v1
+ * splits each instruction across two parallel arrays: the program index lives
+ * in `instructionHeaders`, the account indices and data in `instructionPayloads`.
+ */
+function getCompiledInstructions(compiled: DecodedCompiledMessage): readonly CompiledInstruction[] {
+    if (compiled.version !== 1) return compiled.instructions;
+    return compiled.instructionHeaders.map((header, i) => {
+        const payload = compiled.instructionPayloads[i];
+        if (!payload) throw new Error(`v1 message is missing the payload for instruction ${i}`);
+        return {
+            programAddressIndex: header.programAccountIndex,
+            accountIndices: payload.instructionAccountIndices,
+            data: payload.instructionData,
+        };
+    });
+}
 
 function decodeCompiledMessage(messageBytes: ReadonlyUint8Array): DecodedCompiledMessage {
     const compiled = getCompiledTransactionMessageDecoder().decode(messageBytes);
@@ -735,10 +754,7 @@ function buildResolvedAccountMetas(
     return metas;
 }
 
-function compiledIxToInstruction(
-    ix: { programAddressIndex: number; accountIndices?: number[]; data?: ReadonlyUint8Array },
-    accountMetas: AccountMeta[],
-): Instruction {
+function compiledIxToInstruction(ix: CompiledInstruction, accountMetas: AccountMeta[]): Instruction {
     const programMeta = accountMetas[ix.programAddressIndex];
     if (!programMeta) {
         throw new Error(`Instruction references unknown program index ${ix.programAddressIndex}`);
@@ -779,7 +795,7 @@ function innerToInstruction(inner: ConfirmedInnerInstruction, accountMetas: Acco
  * `outerInstruction.innerInstructions`.
  *
  * The response should be fetched with `encoding: 'base64'` and
- * `maxSupportedTransactionVersion: 0` so the wire bytes, inner instructions,
+ * `maxSupportedTransactionVersion: 1` so the wire bytes, inner instructions,
  * and `loadedAddresses` (for v0) all come back together.
  */
 export function parseConfirmedTransaction(input: ConfirmedTransactionInput): ParsedConfirmedTransaction {
@@ -793,7 +809,7 @@ export function parseConfirmedTransaction(input: ConfirmedTransactionInput): Par
 
     const summary = emptySummary();
 
-    const outer: ParsedTransactionInstruction[] = compiled.instructions.map((ix, i) => {
+    const outer: ParsedTransactionInstruction[] = getCompiledInstructions(compiled).map((ix, i) => {
         const instruction = compiledIxToInstruction(ix, accountMetas);
         const entry = classifyInstruction(instruction, i);
         entry.stackHeight = 1;

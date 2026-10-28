@@ -1,5 +1,26 @@
-import { TOKEN_2022_PROGRAM_ADDRESS, Token2022Instruction } from '@solana-program/token-2022';
-import { SYSTEM_PROGRAM_ADDRESS, SystemInstruction } from '@solana-program/system';
+import {
+    appendTransactionMessageInstructions,
+    compileTransaction,
+    createNoopSigner,
+    createTransactionMessage,
+    getAddressDecoder,
+    getBase58Decoder,
+    getBase64Decoder,
+    getCompiledTransactionMessageDecoder,
+    getTransactionEncoder,
+    pipe,
+    setTransactionMessageFeePayer,
+    setTransactionMessageLifetimeUsingBlockhash,
+    type Address,
+    type Blockhash,
+} from '@solana/kit';
+import {
+    getCreateAssociatedTokenInstruction,
+    getMintToInstruction,
+    TOKEN_2022_PROGRAM_ADDRESS,
+    Token2022Instruction,
+} from '@solana-program/token-2022';
+import { getCreateAccountInstruction, SYSTEM_PROGRAM_ADDRESS, SystemInstruction } from '@solana-program/system';
 import { parseConfirmedTransaction } from '../parse-transaction.js';
 import { ONCHAIN_CONFIRMED_FIXTURES } from './__fixtures__/onchain-confirmed-transactions.js';
 
@@ -125,5 +146,104 @@ describe('parseConfirmedTransaction (on-chain confirmed snapshots)', () => {
 
         const ok = parse('mintToConfirmed');
         expect(ok.error).toBeUndefined();
+    });
+});
+
+// Version-1 messages can't come from the pinned local validator yet, so this
+// suite compiles the wire bytes locally and supplies a synthetic
+// meta.innerInstructions group in the shape the cluster reports.
+describe('parseConfirmedTransaction (v1 messages)', () => {
+    const addrFromTag = (tag: number): Address => {
+        const bytes = new Uint8Array(32);
+        bytes[0] = tag;
+        return getAddressDecoder().decode(bytes);
+    };
+    const FEE_PAYER = addrFromTag(1);
+    const MINT = addrFromTag(2);
+    const AUTHORITY = addrFromTag(3);
+    const OWNER = addrFromTag(4);
+    const ATA = addrFromTag(5);
+    const FAKE_BLOCKHASH = '11111111111111111111111111111111' as Blockhash;
+
+    const payer = createNoopSigner(FEE_PAYER);
+    const message = pipe(
+        createTransactionMessage({ version: 1 }),
+        m => setTransactionMessageFeePayer(FEE_PAYER, m),
+        m => setTransactionMessageLifetimeUsingBlockhash({ blockhash: FAKE_BLOCKHASH, lastValidBlockHeight: 0n }, m),
+        m =>
+            appendTransactionMessageInstructions(
+                [
+                    getCreateAssociatedTokenInstruction({
+                        payer,
+                        ata: ATA,
+                        owner: OWNER,
+                        mint: MINT,
+                        tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+                    }),
+                    getMintToInstruction({ mint: MINT, token: ATA, mintAuthority: AUTHORITY, amount: 1_000n }),
+                ],
+                m,
+            ),
+    );
+    const transaction = compileTransaction(message);
+    const base64 = getBase64Decoder().decode(getTransactionEncoder().encode(transaction));
+    const { staticAccounts } = getCompiledTransactionMessageDecoder().decode(transaction.messageBytes);
+    const indexOf = (address: Address) => staticAccounts.indexOf(address);
+
+    // The CreateAccount CPI the ATA program makes for the new token account.
+    const createAccount = getCreateAccountInstruction({
+        payer,
+        newAccount: createNoopSigner(ATA),
+        lamports: 2_039_280,
+        space: 170,
+        programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+    });
+    const innerInstructions = [
+        {
+            index: 0,
+            instructions: [
+                {
+                    programIdIndex: indexOf(SYSTEM_PROGRAM_ADDRESS),
+                    accounts: [indexOf(FEE_PAYER), indexOf(ATA)],
+                    data: getBase58Decoder().decode(createAccount.data),
+                    stackHeight: 2,
+                },
+            ],
+        },
+    ];
+
+    it('categorizes outer instructions and attaches inner CPIs', () => {
+        const result = parseConfirmedTransaction({
+            transaction: [base64, 'base64'] as const,
+            meta: { innerInstructions },
+        });
+
+        expect(result.version).toBe(1);
+        expect(result.feePayer).toBe(FEE_PAYER);
+        expect(result.instructions).toHaveLength(2);
+        const [ataCreate, mintTo] = result.instructions;
+
+        expect(ataCreate.programLabel).toBe('associated-token');
+        expect(ataCreate.category).toBe('account-init');
+        expect(ataCreate.stackHeight).toBe(1);
+        expect(mintTo.programLabel).toBe('token-2022');
+        expect(mintTo.category).toBe('supply');
+        expect(mintTo.stackHeight).toBe(1);
+        if (mintTo.programLabel === 'token-2022') {
+            expect(mintTo.token2022.instructionType).toBe(Token2022Instruction.MintTo);
+        }
+
+        expect(ataCreate.innerInstructions).toHaveLength(1);
+        const [inner] = ataCreate.innerInstructions!;
+        expect(inner.stackHeight).toBe(2);
+        expect(inner.programLabel).toBe('system');
+        if (inner.programLabel === 'system') {
+            expect(inner.system.instructionType).toBe(SystemInstruction.CreateAccount);
+        }
+        expect(mintTo.innerInstructions ?? []).toEqual([]);
+
+        expect(result.flatInnerInstructions).toHaveLength(1);
+        const totalCategorized = Object.values(result.summary).reduce((a, b) => a + b, 0);
+        expect(totalCategorized).toBe(3);
     });
 });

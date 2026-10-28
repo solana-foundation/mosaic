@@ -68,7 +68,7 @@ function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
  * byte-match the requested `message` — a wallet that hashes or prefixes the
  * message before signing would otherwise have its signature silently
  * accepted, deriving confidential keys incompatible with a raw-message signer
- * for the same owner and mint.
+ * for the same wallet.
  */
 function toSignatureBytes(result: unknown, message: Uint8Array): Uint8Array | undefined {
     if (result instanceof Uint8Array) {

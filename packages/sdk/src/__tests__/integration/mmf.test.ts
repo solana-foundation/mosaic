@@ -61,7 +61,7 @@ async function sendAndConfirmViaPolling(client: Client, tx: FullTransaction, lab
                     .getTransaction(sig, {
                         commitment: 'confirmed',
                         encoding: 'base64',
-                        maxSupportedTransactionVersion: 0,
+                        maxSupportedTransactionVersion: 1,
                     })
                     .send()
                     .catch(() => null);

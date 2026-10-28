@@ -1,11 +1,18 @@
-import { type MessagePartialSigner, createSignableMessage, signBytes } from '@solana/kit';
 import {
-    ConfidentialKeys as ZkConfidentialKeys,
+    type Address,
+    type MessagePartialSigner,
+    createSignableMessage,
+    getAddressDecoder,
+    signBytes,
+} from '@solana/kit';
+import {
     ElGamalKeypair,
     AeKey,
+    ConfidentialKeys as ZkConfidentialKeys,
     ElGamalCiphertext,
     AeCiphertext,
 } from '@solana/mosaic-sdk/_zk';
+import { type DecodedToken, getConfidentialTransferAccountElgamalPubkey } from './extensions.js';
 import { isSignerRejection, describeError } from './signer-errors.js';
 
 /**
@@ -18,12 +25,28 @@ import { isSignerRejection, describeError } from './signer-errors.js';
  *
  * Both are derived deterministically from a single Ed25519 signature over the
  * canonical `solana-conf-bal/v1` message, so they never need to be stored — the
- * wallet can always re-derive them by signing again. This is **wallet-only**:
- * there is no seed, so the same signer always derives the same keys regardless
- * of mint or token account. That matches the standard every other client
- * implementing `ConfidentialKeys.signerMessage`/`fromSignature` uses, so keys
- * derived here are byte-identical to keys derived anywhere else for the same
- * wallet.
+ * wallet can always re-derive them by signing again. Derivation is
+ * **wallet-only**: there is no seed, so the same signer always derives the same
+ * keys regardless of mint or token account. That matches the standard
+ * every other client implementing `ConfidentialKeys.signerMessage`/`fromSignature`
+ * uses, so keys derived here are byte-identical to keys derived anywhere else for
+ * the same wallet.
+ *
+ * A consequence worth stating plainly, because it drives the API: a wallet has
+ * exactly **one** confidential key pair. There is no domain separation to be had
+ * within a wallet — any key derived from a wallet *is* that wallet's
+ * balance-decryption key. So a role that must not share keys with a holder needs
+ * its own wallet, not its own seed. That is why an auditor key, for instance,
+ * should be {@link deriveConfidentialKeys} run against a dedicated wallet.
+ *
+ * NOTE: as of `@solana/zk-sdk` 0.5.x this is ONE signature over one canonical
+ * message. It replaces the previous 0.4.x scheme of two independent signatures
+ * over `b"ElGamalSecretKey" || seed` and `b"AeKey" || seed`, and the pre-HOO-1595
+ * scheme of binding account keys to `(owner, mint)` or a token account address.
+ * All of those produce DIFFERENT key bytes than the current wallet-only scheme,
+ * so an account configured under an older scheme cannot be re-derived under this
+ * one — its balances are still decryptable, but only with the retained key bytes
+ * (see {@link assertConfidentialKeysMatchAccount}).
  *
  * `@solana/zk-sdk` (the WASM crypto dependency) is imported only here and in
  * `proof.ts`, so the rest of the SDK stays free of the WASM dependency and these
@@ -34,8 +57,13 @@ import { isSignerRejection, describeError } from './signer-errors.js';
  * Signs an arbitrary message with the account authority's Ed25519 key and
  * returns the 64-byte detached signature.
  *
- * - CLI / Node: build one from a kit `KeyPairSigner` via {@link createKeyPairMessageSigner}.
- * - Browser: wrap the wallet adapter's `signMessage` (it must sign the raw bytes).
+ * This is **not** what {@link deriveConfidentialKeys} takes — that wants a kit
+ * `MessagePartialSigner` (see {@link DeriveConfidentialKeysInput}). `SignMessage`
+ * is the lower-level shape the `@solana/mosaic-sdk/confidential/wallet-standard`
+ * subpath is built on: `createResilientSignMessage` produces one from a browser
+ * wallet, {@link createKeyPairMessageSigner} produces one from a keypair, and
+ * `createMessageSigner` adapts either into the `MessagePartialSigner` that
+ * derivation actually consumes.
  */
 export type SignMessage = (message: Uint8Array) => Promise<Uint8Array>;
 
@@ -72,6 +100,11 @@ export interface DeriveConfidentialKeysInput {
  * standard, so keys derived here are byte-identical to keys derived by any other
  * standard client for the same wallet.
  *
+ * A signer that refuses the message gets a diagnosis rather than the wallet's
+ * raw text: the failure is intrinsic to the derivation scheme (the message bytes
+ * are the key material and cannot be reshaped to suit a wallet), so the useful
+ * information is *why* it cannot be fixed and what to do instead.
+ *
  * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
  */
 export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput): Promise<ConfidentialKeys> {
@@ -85,11 +118,11 @@ export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput)
         if (isSignerRejection(error)) throw error;
         throw new Error(
             `The signer refused to sign the confidential-balance key-derivation message ` +
-                `(${describeError(error)}). That message is \`solana-conf-bal/v1\` — a domain-separated ` +
-                `derivation seed, not a transaction — but some browser wallets classify binary sign-message ` +
-                `payloads as transactions and block them. Its bytes determine the account keys, so they ` +
-                `cannot be changed to satisfy a wallet without making balances undecryptable by every other ` +
-                `tool. Use a wallet that signs arbitrary messages, or key the account through ` +
+                `(${describeError(error)}). That message is \`solana-conf-bal/v1\` ` +
+                `— a domain-separated derivation constant, not a transaction — but some browser wallets classify ` +
+                `binary sign-message payloads as transactions and block them. Its bytes determine the account ` +
+                `keys, so they cannot be changed to satisfy a wallet without making balances undecryptable by ` +
+                `every other tool. Use a wallet that signs arbitrary messages, or key the account through ` +
                 `ConfidentialKeys.fromIkm/fromPrf instead (different keys — no cross-tool interop).`,
             { cause: error },
         );
@@ -117,9 +150,81 @@ export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput)
 }
 
 /**
- * Builds a {@link SignMessage} from a kit `KeyPairSigner` (CLI / Node). The
- * signer must expose its underlying `CryptoKeyPair` (kit's generated keypair
- * signers do).
+ * The ElGamal public key of a {@link ConfidentialKeys} pair, as a kit `Address`.
+ * Frees the intermediate WASM pubkey object.
+ */
+function derivedElgamalAddress(keys: ConfidentialKeys): Address {
+    const pubkey = keys.elgamal.pubkey();
+    try {
+        return getAddressDecoder().decode(pubkey.toBytes());
+    } finally {
+        pubkey.free?.();
+    }
+}
+
+/**
+ * Asserts that `keys`'s ElGamal public key matches `registeredElgamalPubkey` —
+ * the key an account's confidential-transfer extension was actually configured
+ * with (e.g. {@link getConfidentialTransferAccountElgamalPubkey}).
+ *
+ * The usual cause of a mismatch is keys derived from the wrong wallet — not the
+ * account's owner, or a delegate signing for it. The other is a stale key scheme:
+ * key derivation has changed schemes twice (0.4.x's two-signature scheme, then
+ * the pre-HOO-1595 `(owner, mint)`/token-account-seeded scheme, now wallet-only);
+ * an account configured under an older scheme re-derives to *different* key bytes
+ * under the current one. Without this check, a caller who re-derives keys for
+ * such an account gets no error — decryption just returns garbage or a WASM
+ * "tampered ciphertext" error, indistinguishable from a corrupt account. Call
+ * this right after fetching the account and before using `keys` to decrypt
+ * or build a proof.
+ *
+ * @param context - What's being checked, for the error message (e.g. the token account address).
+ */
+export function assertConfidentialKeysMatchAccount(
+    keys: ConfidentialKeys,
+    registeredElgamalPubkey: Address,
+    context: string,
+): void {
+    const derived = derivedElgamalAddress(keys);
+    if (derived !== registeredElgamalPubkey) {
+        throw new Error(
+            `The provided confidential keys' ElGamal public key (${derived}) does not match ${context}'s ` +
+                `registered key (${registeredElgamalPubkey}). Most often the keys were derived from a different ` +
+                `wallet than the one that configured the account — derive them by signing with the account ` +
+                `owner's wallet. If that wallet is the owner, the account was configured under a previous ` +
+                `key-derivation scheme, which yields different keys than the current wallet-only one: use the ` +
+                `key bytes retained from when the account was configured instead of re-deriving.`,
+        );
+    }
+}
+
+/**
+ * {@link assertConfidentialKeysMatchAccount} against a decoded token account's
+ * registered ElGamal key — the guard every builder that decrypts or proves with
+ * `keys` runs right after fetching the account. An account without the
+ * `ConfidentialTransferAccount` extension has no registered key, so it passes;
+ * builders that require the extension check for it separately.
+ */
+export function assertConfidentialKeysMatchTokenAccount(
+    keys: ConfidentialKeys,
+    token: DecodedToken,
+    context: string,
+): void {
+    const registeredElgamalPubkey = getConfidentialTransferAccountElgamalPubkey(token);
+    if (registeredElgamalPubkey !== null) {
+        assertConfidentialKeysMatchAccount(keys, registeredElgamalPubkey, context);
+    }
+}
+
+/**
+ * Builds a {@link SignMessage} from a kit `KeyPairSigner`. The signer must expose
+ * its underlying `CryptoKeyPair` (kit's generated keypair signers do).
+ *
+ * Note for CLI / Node callers: you do **not** need this to derive keys. A kit
+ * `KeyPairSigner` is already a `MessagePartialSigner`, so pass it straight to
+ * {@link deriveConfidentialKeys}. This helper exists for the `SignMessage`-shaped
+ * seam in the wallet-standard subpath — for example to stand a keypair in for a
+ * browser wallet as `createResilientSignMessage`'s fallback.
  */
 export function createKeyPairMessageSigner(signer: { keyPair: CryptoKeyPair }): SignMessage {
     return message => signBytes(signer.keyPair.privateKey, message);

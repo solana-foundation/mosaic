@@ -19,6 +19,7 @@ import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw.js';
 import { getCreateListInstructions } from '../abl/list.js';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
+import { resolveTemplateSigner } from './resolve-signer.js';
 
 /**
  * Creates a transaction to initialize a Money Market Fund (MMF) mint.
@@ -69,8 +70,8 @@ export const createMmfInitTransaction = async (
     },
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
-    const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-    const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
+    const feePayerSigner = resolveTemplateSigner(feePayer, mintAuthority);
+    const mintAuthoritySigner = resolveTemplateSigner(mintAuthority, feePayerSigner);
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
 
     const aclMode = options?.aclMode ?? 'allowlist';
@@ -126,7 +127,7 @@ export const createMmfInitTransaction = async (
     const instructions = await tokenBuilder.buildInstructions({
         rpc,
         decimals,
-        mintAuthority,
+        mintAuthority: mintAuthoritySigner,
         freezeAuthority: resolvedFreezeAuthority,
         mint: mintSigner,
         feePayer: feePayerSigner,
