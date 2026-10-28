@@ -11,8 +11,7 @@ import {
     getConfidentialWithdrawInstructionPlan,
     getConfidentialWithdrawWithRecordInstructionPlan,
 } from '@solana-program/token-2022/confidential';
-import { getConfidentialTransferAccountElgamalPubkey } from './extensions.js';
-import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
+import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
 import {
     type RecordBackedProof,
     type TokenAmount,
@@ -56,10 +55,7 @@ export async function createConfidentialWithdrawInstructionPlan(input: {
         fetchToken(input.rpc, input.tokenAccount),
     ]);
 
-    const registeredElgamalPubkey = getConfidentialTransferAccountElgamalPubkey(decoded);
-    if (registeredElgamalPubkey !== null) {
-        assertConfidentialKeysMatchAccount(input.keys, registeredElgamalPubkey, `token account ${input.tokenAccount}`);
-    }
+    assertConfidentialKeysMatchTokenAccount(input.keys, decoded, `token account ${input.tokenAccount}`);
 
     const args = {
         rpc: input.rpc,

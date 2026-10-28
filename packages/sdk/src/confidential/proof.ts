@@ -16,7 +16,7 @@ import {
 } from '@solana-program/zk-elgamal-proof';
 
 /**
- * @deprecated Bespoke ZK-proof plumbing over `@solana-program/zk-elgamal-proof`:
+ * **Deprecated.** Bespoke ZK-proof plumbing over `@solana-program/zk-elgamal-proof`:
  * builds the `verify*` instructions for a proof and, in context-state mode, the
  * matching close instruction that reclaims the account's rent.
  *
@@ -29,7 +29,9 @@ import {
  *
  * Retained only so external callers who built their own flows on it keep
  * working. Prefer the upstream helpers; this module is slated for removal in a
- * future breaking release.
+ * future breaking release. Each export carries its own `@deprecated` tag so
+ * editors flag call sites; a module-level tag would attach only to the first
+ * declaration.
  */
 /**
  * Confidential Transfer proof plumbing.
@@ -57,7 +59,11 @@ import {
  * it can be mocked wholesale in unit tests.
  */
 
-/** A `@solana/zk-sdk` proof-data object (or any structural stand-in for tests). */
+/**
+ * A `@solana/zk-sdk` proof-data object (or any structural stand-in for tests).
+ *
+ * @deprecated Use the `@solana-program/token-2022/confidential` InstructionPlan helpers; slated for removal.
+ */
 export interface ProofData {
     toBytes(): Uint8Array;
     free?(): void;
@@ -70,6 +76,8 @@ export interface ProofData {
  * - `context-state`: create + verify into `contextAccount`; the operation reads
  *   it with `proofInstructionOffset = 0` and should run the returned `cleanup`
  *   afterwards to reclaim rent.
+ *
+ * @deprecated Use the `@solana-program/token-2022/confidential` InstructionPlan helpers; slated for removal.
  */
 export type ProofMode =
     | { kind: 'sibling' }
@@ -81,7 +89,11 @@ export type ProofMode =
           authority: TransactionSigner;
       };
 
-/** Instructions produced for one (or several) proofs. */
+/**
+ * Instructions produced for one (or several) proofs.
+ *
+ * @deprecated Use the `@solana-program/token-2022/confidential` InstructionPlan helpers; slated for removal.
+ */
 export interface ProofInstructions {
     /**
      * Proof-program instructions. In sibling mode, the single `VerifyX` ix; in
@@ -112,6 +124,8 @@ const SIBLING: ProofMode = { kind: 'sibling' };
  * Core wiring: given a `verifyX` action and a proof-data object, return the
  * proof-program instructions for the requested {@link ProofMode}. Bytes are
  * extracted from `proofData` synchronously; the caller owns freeing it.
+ *
+ * @deprecated Use the `@solana-program/token-2022/confidential` InstructionPlan helpers; slated for removal.
  */
 export async function buildProofVerificationIxs(input: {
     rpc: Rpc<SolanaRpcApi>;
@@ -148,6 +162,8 @@ export async function buildProofVerificationIxs(input: {
  * `PubkeyValidity` proof — proves the prover knows the ElGamal secret key.
  * Used by `configure-account` (and account approval). Constructs and frees the
  * proof data internally.
+ *
+ * @deprecated Use the `@solana-program/token-2022/confidential` InstructionPlan helpers; slated for removal.
  */
 export async function buildPubkeyValidityProofIxs(input: {
     rpc: Rpc<SolanaRpcApi>;
@@ -175,6 +191,8 @@ export async function buildPubkeyValidityProofIxs(input: {
  * balance is zero before close).
  *
  * @param ciphertext - 64-byte ElGamal ciphertext to prove is zero.
+ *
+ * @deprecated Use the `@solana-program/token-2022/confidential` InstructionPlan helpers; slated for removal.
  */
 export async function buildZeroCiphertextProofIxs(input: {
     rpc: Rpc<SolanaRpcApi>;
@@ -205,6 +223,8 @@ export async function buildZeroCiphertextProofIxs(input: {
 /**
  * A proof plus where to verify it. Used by the multi-proof builders so each
  * proof can be sibling or context-state with its own context account.
+ *
+ * @deprecated Use the `@solana-program/token-2022/confidential` InstructionPlan helpers; slated for removal.
  */
 export interface ProofWithMode {
     proofData: ProofData;
@@ -216,6 +236,8 @@ export interface ProofWithMode {
  * `BatchedRangeProofU64` proof, emitted in that order. The proof data is built
  * by the withdraw operation (it depends on the withdrawal amount and the
  * account's available balance); this only wires the instructions.
+ *
+ * @deprecated Use the `@solana-program/token-2022/confidential` InstructionPlan helpers; slated for removal.
  */
 export async function buildWithdrawProofIxs(input: {
     rpc: Rpc<SolanaRpcApi>;
@@ -247,6 +269,8 @@ export async function buildWithdrawProofIxs(input: {
  * emitted in that order. Three proofs do not fit in one transaction, so callers
  * should use context-state mode for each. The proof data is built by the
  * transfer operation.
+ *
+ * @deprecated Use the `@solana-program/token-2022/confidential` InstructionPlan helpers; slated for removal.
  */
 export async function buildTransferProofIxs(input: {
     rpc: Rpc<SolanaRpcApi>;
@@ -283,6 +307,8 @@ export async function buildTransferProofIxs(input: {
 /**
  * Closes a context-state account and returns its rent to `destination`. Run
  * after the token instruction in context-state mode.
+ *
+ * @deprecated Use the `@solana-program/token-2022/confidential` InstructionPlan helpers; slated for removal.
  */
 export function buildCloseContextStateInstruction(input: {
     contextAccount: Address;

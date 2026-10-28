@@ -12,6 +12,7 @@ import {
     createSolanaRpc,
     generateKeyPairSigner,
     flattenTransactionPlan,
+    getAddressDecoder,
     getBase58Encoder,
     getBase64EncodedWireTransaction,
     getSignatureFromTransaction,
@@ -21,7 +22,14 @@ import {
     signTransactionMessageWithSigners,
     singleInstructionPlan,
 } from '@solana/kit';
-import { findAssociatedTokenPda, getMintToInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+    fetchMint,
+    fetchToken,
+    findAssociatedTokenPda,
+    getMintToInstruction,
+    getSetTransferFeeInstruction,
+    TOKEN_2022_PROGRAM_ADDRESS,
+} from '@solana-program/token-2022';
 import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join } from 'node:path';
@@ -33,11 +41,13 @@ import {
     createConfidentialWithdrawInstructionPlan,
     createConfigureConfidentialAccountInstructionPlan,
     createEmptyConfidentialAccountInstructionPlan,
+    decryptElGamalBalance,
     deriveConfidentialKeys,
     estimateAndSetConfidentialResourceLimits,
     freeConfidentialKeys,
     inspectConfidentialAccount,
     planConfidentialInstructions,
+    type ConfidentialKeys,
     type ConfidentialTransactionVersion,
 } from '../../confidential/index.js';
 import type { FullTransaction } from '../../transaction-util.js';
@@ -78,6 +88,14 @@ const ZK_PROOF_PROGRAM = 'ZkE1Gama1Proof11111111111111111111111111111' as Addres
 const DECIMALS = 2;
 const MINT_AMOUNT = 1_000n; // 10.00 tokens, minted to the sender's plaintext balance
 const TRANSFER_AMOUNT = 400n; // 4.00 tokens, sent confidentially
+
+// Fee-mint run: 1% of 400 is exactly 4, under the cap. The raised schedule
+// (5%, capped at 7) would charge 7 instead, so a proof built against it fails.
+const FEE_BASIS_POINTS = 100;
+const MAXIMUM_FEE = 1_000n;
+const EXPECTED_FEE = 4n;
+const RAISED_FEE_BASIS_POINTS = 500;
+const RAISED_MAXIMUM_FEE = 7n;
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
@@ -275,6 +293,34 @@ async function runTransactionPlan(client: Client, plan: TransactionPlan): Promis
     return signatures;
 }
 
+/**
+ * Collects a run's on-chain artefacts (labeled signatures) so it is inspectable
+ * afterwards; `step` plans and sends an instruction plan and records it.
+ */
+function trackSteps(client: Client) {
+    const txLog: Array<{ step: string; signature: string }> = [];
+    const record = (step: string, signatures: Signature[]) =>
+        signatures.forEach((signature, i) =>
+            txLog.push({
+                step: signatures.length > 1 ? `${step} [${i + 1}/${signatures.length}]` : step,
+                signature,
+            }),
+        );
+    const step = async (label: string, feePayer: TransactionSigner, plan: InstructionPlan) =>
+        record(label, await runPlan(client, feePayer, plan, label));
+    return { txLog, record, step };
+}
+
+/** The ElGamal public key of a key pair, as the `Address` a mint extension stores. */
+function elgamalPubkeyAddress(keys: ConfidentialKeys): Address {
+    const pubkey = keys.elgamal.pubkey();
+    try {
+        return getAddressDecoder().decode(pubkey.toBytes());
+    } finally {
+        pubkey.free();
+    }
+}
+
 describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
     let client: Client;
     let payer: KeyPairSigner<string>;
@@ -336,17 +382,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
             tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
         });
 
-        // Collect on-chain artefacts (labeled signatures) so the run is inspectable.
-        const txLog: Array<{ step: string; signature: string }> = [];
-        const record = (step: string, signatures: Signature[]) =>
-            signatures.forEach((signature, i) =>
-                txLog.push({
-                    step: signatures.length > 1 ? `${step} [${i + 1}/${signatures.length}]` : step,
-                    signature,
-                }),
-            );
-        const step = async (label: string, feePayer: TransactionSigner, plan: InstructionPlan) =>
-            record(label, await runPlan(client, feePayer, plan, label));
+        const { txLog, record, step } = trackSteps(client);
 
         // 1. Create the mint with confidential balances (opt-in so both accounts
         //    are usable immediately, no manual approval step).
@@ -508,6 +544,216 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
             freeConfidentialKeys(recipientKeys);
             emitArtefacts({
                 run: 'transfer',
+                cluster: clusterParam(RPC_URL),
+                mint: mint.address,
+                payer: payer.address,
+                recipient: recipient.address,
+                senderAta,
+                recipientAta,
+                transactions: txLog,
+            });
+        }
+    }, 300_000);
+
+    /**
+     * Runs the real fee-aware helper end to end, with no mocks: the five proofs
+     * it builds are only accepted if they match the fee the program computes for
+     * the epoch the transfer lands in, so a wrong schedule fails on-chain.
+     *
+     * Both schedule branches are covered without waiting for an epoch to pass.
+     * A fresh mint has `newerTransferFee.epoch` equal to its creation epoch, so the
+     * first transfer reads the newer schedule. `SetTransferFee` then schedules a
+     * different fee two epochs out, so the second transfer must read the older
+     * one. The raised fee differs in both rate and cap, so proving against it would
+     * be rejected.
+     */
+    it('transfers on a ConfidentialTransferFee mint under both fee schedules, withholding the fee', async () => {
+        const rpc = client.rpc as Rpc<SolanaRpcApi>;
+        const mint = await generateKeyPairSigner();
+        const recipient = await generateKeyPairSigner();
+        // Each withheld fee is encrypted under this authority's ElGamal key. It
+        // gets its own wallet so its key differs from both holders'.
+        const withheldAuthority = await generateKeyPairSigner();
+
+        const [senderAta] = await findAssociatedTokenPda({
+            owner: payer.address,
+            mint: mint.address,
+            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+        });
+        const [recipientAta] = await findAssociatedTokenPda({
+            owner: recipient.address,
+            mint: mint.address,
+            tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
+        });
+
+        const { txLog, record, step } = trackSteps(client);
+        const senderKeys = await deriveConfidentialKeys({ signer: payer });
+        const recipientKeys = await deriveConfidentialKeys({ signer: recipient });
+        const withheldKeys = await deriveConfidentialKeys({ signer: withheldAuthority });
+
+        const transfer = async (label: string) =>
+            step(
+                label,
+                payer,
+                await createConfidentialTransferInstructionPlan({
+                    rpc,
+                    payer,
+                    mint: mint.address,
+                    sourceToken: senderAta,
+                    destinationToken: recipientAta,
+                    authority: payer,
+                    amount: TRANSFER_AMOUNT,
+                    keys: senderKeys,
+                }),
+            );
+
+        try {
+            // 1. Create the mint with a 1% transfer fee, confidential balances
+            //    (opt-in) and the confidential transfer fee.
+            const createMintTx = await new Token()
+                .withConfidentialBalances({ authority: payer.address, policy: 'opt-in' })
+                .withTransferFee({
+                    authority: payer.address,
+                    withdrawAuthority: payer.address,
+                    feeBasisPoints: FEE_BASIS_POINTS,
+                    maximumFee: MAXIMUM_FEE,
+                })
+                .withConfidentialTransferFee({
+                    authority: payer.address,
+                    withdrawWithheldAuthorityElGamalPubkey: elgamalPubkeyAddress(withheldKeys),
+                })
+                .buildTransaction({
+                    rpc: rpc as Rpc<SolanaRpcApiMainnet>,
+                    decimals: DECIMALS,
+                    mintAuthority: payer,
+                    mint,
+                    feePayer: payer,
+                });
+            record('create-mint', [await signSendConfirm(rpc, createMintTx)]);
+            await waitForToken2022Account(rpc, mint.address);
+
+            // 2. Configure both accounts. On a TransferFeeConfig mint the builder
+            //    must also make room for ConfidentialTransferFeeAmount, or
+            //    ConfigureAccount fails.
+            for (const [label, owner, keys] of [
+                ['configure-sender', payer, senderKeys],
+                ['configure-recipient', recipient, recipientKeys],
+            ] as const) {
+                await step(
+                    label,
+                    payer,
+                    await createConfigureConfidentialAccountInstructionPlan({
+                        rpc,
+                        payer,
+                        owner,
+                        mint: mint.address,
+                        keys,
+                    }),
+                );
+            }
+            await waitForToken2022Account(rpc, senderAta);
+            await waitForToken2022Account(rpc, recipientAta);
+
+            // 3. Mint, deposit and apply on the sender.
+            await step(
+                'mint-to-sender',
+                payer,
+                singleInstructionPlan(
+                    getMintToInstruction({
+                        mint: mint.address,
+                        token: senderAta,
+                        mintAuthority: payer,
+                        amount: MINT_AMOUNT,
+                    }),
+                ),
+            );
+            await step(
+                'deposit',
+                payer,
+                await createConfidentialDepositInstructionPlan({
+                    rpc,
+                    mint: mint.address,
+                    tokenAccount: senderAta,
+                    authority: payer,
+                    amount: MINT_AMOUNT,
+                }),
+            );
+            await step(
+                'apply-sender',
+                payer,
+                await createApplyConfidentialPendingBalanceInstructionPlan({
+                    rpc,
+                    tokenAccount: senderAta,
+                    authority: payer,
+                    keys: senderKeys,
+                }),
+            );
+
+            // 4. First transfer: the creation-epoch schedule is the newer one.
+            await transfer('transfer-newer-schedule');
+
+            // 5. Schedule a different fee two epochs out, then transfer again
+            //    under the older schedule (the original 1%).
+            await step(
+                'set-transfer-fee',
+                payer,
+                singleInstructionPlan(
+                    getSetTransferFeeInstruction({
+                        mint: mint.address,
+                        transferFeeConfigAuthority: payer,
+                        transferFeeBasisPoints: RAISED_FEE_BASIS_POINTS,
+                        maximumFee: RAISED_MAXIMUM_FEE,
+                    }),
+                ),
+            );
+            const feeConfig = (await fetchMint(rpc, mint.address)).data.extensions;
+            const schedule =
+                feeConfig.__option === 'Some' ? feeConfig.value.find(e => e.__kind === 'TransferFeeConfig') : undefined;
+            if (schedule?.__kind !== 'TransferFeeConfig') throw new Error('mint lost its TransferFeeConfig');
+            const { epoch } = await rpc.getEpochInfo().send();
+            expect(schedule.olderTransferFee.transferFeeBasisPoints).toBe(FEE_BASIS_POINTS);
+            expect(schedule.newerTransferFee.transferFeeBasisPoints).toBe(RAISED_FEE_BASIS_POINTS);
+            expect(schedule.newerTransferFee.epoch).toBeGreaterThan(epoch);
+
+            await transfer('transfer-older-schedule');
+
+            // 6. The recipient receives each transfer net of the fee, the sender
+            //    is debited the gross amounts, and the fees sit withheld in the
+            //    recipient's account, encrypted for the withdraw-withheld authority.
+            await step(
+                'apply-recipient',
+                payer,
+                await createApplyConfidentialPendingBalanceInstructionPlan({
+                    rpc,
+                    tokenAccount: recipientAta,
+                    authority: recipient,
+                    keys: recipientKeys,
+                }),
+            );
+
+            const recipientAfter = await inspectConfidentialAccount(rpc, recipientAta, recipientKeys);
+            expect(recipientAfter?.decrypted?.availableBalance).toBe(2n * (TRANSFER_AMOUNT - EXPECTED_FEE));
+
+            const senderAfter = await inspectConfidentialAccount(rpc, senderAta, senderKeys);
+            expect(senderAfter?.decrypted?.availableBalance).toBe(MINT_AMOUNT - 2n * TRANSFER_AMOUNT);
+
+            const recipientExtensions = (await fetchToken(rpc, recipientAta)).data.extensions;
+            const withheld =
+                recipientExtensions.__option === 'Some'
+                    ? recipientExtensions.value.find(e => e.__kind === 'ConfidentialTransferFeeAmount')
+                    : undefined;
+            if (withheld?.__kind !== 'ConfidentialTransferFeeAmount') {
+                throw new Error('recipient account has no ConfidentialTransferFeeAmount extension');
+            }
+            expect(decryptElGamalBalance(withheldKeys.elgamal, new Uint8Array(withheld.withheldAmount))).toBe(
+                2n * EXPECTED_FEE,
+            );
+        } finally {
+            freeConfidentialKeys(senderKeys);
+            freeConfidentialKeys(recipientKeys);
+            freeConfidentialKeys(withheldKeys);
+            emitArtefacts({
+                run: 'transfer-with-fee',
                 cluster: clusterParam(RPC_URL),
                 mint: mint.address,
                 payer: payer.address,

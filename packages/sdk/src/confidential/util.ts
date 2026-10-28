@@ -33,7 +33,14 @@ export function toAuthoritySigner(authority: Address | TransactionSigner): Trans
  * transactions yourself; pass it (`{}` is enough) when an executor sets
  * compute-unit limits.
  *
- * Supported by the confidential transfer and withdraw builders.
+ * Supported by the confidential transfer and withdraw builders. On a
+ * `ConfidentialTransferFee` mint the transfer's range proof is always
+ * record-backed (upstream gives the fee-aware variant no inline form), so there
+ * this option only overrides the record's payer, authority and rent receiver.
+ * It is also no fix for compute-unit limits there: the fee-aware plan has a
+ * version-0 transaction at exactly 1232 bytes even with the record, so an
+ * executor that adds a compute-unit-limit instruction overflows it. Fee-mint
+ * transfers sent through such an executor need `version: 1`.
  */
 export type RecordBackedProof = {
     /** Funds the record account that stages the range proof. Defaults to the operation's `payer`. */

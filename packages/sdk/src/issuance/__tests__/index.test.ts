@@ -1,5 +1,5 @@
 // Test imports - Jest globals are available automatically
-import type { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
+import type { AccountSignerMeta, Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
 import {
     AccountState,
@@ -12,6 +12,7 @@ import {
     identifyToken2022Instruction,
     parseUpdateMultiplierScaledUiMintInstruction,
 } from '@solana-program/token-2022';
+import { getCreateAccountInstructionDataDecoder } from '@solana-program/system';
 import { Token, getCreateMintInstructions } from '../index.js';
 import {
     createMockRpc,
@@ -197,7 +198,12 @@ describe('Token', () => {
                 });
 
             expect(result).toBe(token);
-            expect(token.getExtensions()).toHaveLength(2); // ConfidentialTransferMint + TransferFeeConfig
+            // Registered as an extension, so the mint account is sized for it.
+            expect(token.getExtensions().map(e => e.__kind)).toEqual([
+                'ConfidentialTransferMint',
+                'TransferFeeConfig',
+                'ConfidentialTransferFee',
+            ]);
         });
 
         it('should include confidential transfer fee instruction in buildInstructions', async () => {
@@ -223,13 +229,22 @@ describe('Token', () => {
                 feePayer: mockFeePayer,
             });
 
-            // Should have: create + pre-init (confidential transfer mint + confidential transfer fee) + init
-            expect(instructions.length).toBeGreaterThan(2);
-            // Check that one of the pre-init instructions is for confidential transfer fee
-            const hasConfidentialTransferFeeInstruction = instructions.some(
-                (inst: any) => inst.programAddress === TOKEN_2022_PROGRAM_ADDRESS && inst.data,
+            // The account must have room for every extension, ConfidentialTransferFee
+            // included; otherwise its initializer fails on-chain with InvalidAccountData.
+            const { space } = getCreateAccountInstructionDataDecoder().decode(instructions[0].data!);
+            expect(space).toBe(BigInt(getMintSize(token.getExtensions())));
+            expect(space).toBeGreaterThan(
+                BigInt(getMintSize(token.getExtensions().filter(e => e.__kind !== 'ConfidentialTransferFee'))),
             );
-            expect(hasConfidentialTransferFeeInstruction).toBe(true);
+
+            // Exactly one InitializeConfidentialTransferFee, before InitializeMint.
+            const kinds = instructions
+                .filter(ix => ix.programAddress === TOKEN_2022_PROGRAM_ADDRESS)
+                .map(ix => identifyToken2022Instruction(ix.data!));
+            expect(kinds.filter(k => k === Token2022Instruction.InitializeConfidentialTransferFee)).toHaveLength(1);
+            expect(kinds.indexOf(Token2022Instruction.InitializeConfidentialTransferFee)).toBeLessThan(
+                kinds.indexOf(Token2022Instruction.InitializeMint),
+            );
         });
     });
 
@@ -403,6 +418,36 @@ describe('Token', () => {
             expect(instructions).toHaveLength(6); // create + pre-init + init + post-init + 2x additional metadata
             expect(instructions[0].programAddress).toBe('11111111111111111111111111111111'); // System program for account creation
             expect(instructions[instructions.length - 1].programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS); // Token program for mint init
+        });
+
+        it("treats a mintAuthority address equal to the fee payer's as the fee payer signer", async () => {
+            const feePayer = await generateKeyPairSigner();
+            token.withMetadata({
+                mintAddress: mockMint.address,
+                authority: feePayer.address,
+                metadata: TEST_METADATA,
+                additionalMetadata: new Map(),
+            });
+
+            // A bare address would otherwise be rejected for TokenMetadata.
+            const instructions = await token.buildInstructions({
+                rpc: mockRpc,
+                decimals: 6,
+                mintAuthority: feePayer.address,
+                mint: mockMint,
+                feePayer,
+            });
+
+            const signersForFeePayer = new Set(
+                instructions.flatMap(ix =>
+                    (ix.accounts ?? [])
+                        .filter(
+                            (meta): meta is AccountSignerMeta => meta.address === feePayer.address && 'signer' in meta,
+                        )
+                        .map(meta => meta.signer),
+                ),
+            );
+            expect(signersForFeePayer).toEqual(new Set([feePayer]));
         });
 
         it('should build instructions for token without extensions', async () => {

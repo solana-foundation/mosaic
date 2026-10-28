@@ -18,6 +18,7 @@ import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw.js';
 import { getCreateListInstructions } from '../abl/list.js';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
+import { resolveTemplateSigner } from './resolve-signer.js';
 
 /**
  * Creates a transaction to initialize a new custom token mint on Solana with user-selected extensions.
@@ -117,8 +118,8 @@ export const createCustomTokenInitTransaction = async (
     },
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
-    const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-    const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
+    const feePayerSigner = resolveTemplateSigner(feePayer, mintAuthority);
+    const mintAuthoritySigner = resolveTemplateSigner(mintAuthority, feePayerSigner);
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
 
     const useSrfc37 = options?.enableSrfc37 ?? false;

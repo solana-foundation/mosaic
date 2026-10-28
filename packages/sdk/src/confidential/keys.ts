@@ -12,6 +12,7 @@ import {
     ElGamalCiphertext,
     AeCiphertext,
 } from '@solana/mosaic-sdk/_zk';
+import { type DecodedToken, getConfidentialTransferAccountElgamalPubkey } from './extensions.js';
 import { isSignerRejection, describeError } from './signer-errors.js';
 
 /**
@@ -89,17 +90,25 @@ export interface DeriveConfidentialKeysInput {
 }
 
 /**
- * Derives an ElGamal keypair + AES key with a **single** signature over the
- * canonical `ConfidentialKeys.signerMessage` message. Derivation is wallet-only
- * — there is no seed — so every derivation in this module costs one signature
- * (one wallet prompt), fails the same way, and frees the intermediate pair.
+ * Derives the ElGamal keypair and AES key for a confidential-balance holder,
+ * bound to the **wallet alone** — no token-account, owner, or mint seed. One
+ * signature yields both keys (`ConfidentialKeys.signerMessage(new Uint8Array(0))`,
+ * then `fromSignature`).
+ *
+ * Because there is no seed, the same signer always derives the same keys for
+ * every mint and every token account it holds — this is the `solana-conf-bal/v1`
+ * standard, so keys derived here are byte-identical to keys derived by any other
+ * standard client for the same wallet.
  *
  * A signer that refuses the message gets a diagnosis rather than the wallet's
  * raw text: the failure is intrinsic to the derivation scheme (the message bytes
  * are the key material and cannot be reshaped to suit a wallet), so the useful
  * information is *why* it cannot be fixed and what to do instead.
+ *
+ * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
  */
-async function deriveKeysFromWalletSignature(signer: MessagePartialSigner): Promise<ConfidentialKeys> {
+export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput): Promise<ConfidentialKeys> {
+    const { signer } = input;
     const message = ZkConfidentialKeys.signerMessage(new Uint8Array(0));
 
     let signatures: Awaited<ReturnType<MessagePartialSigner['signMessages']>>[number];
@@ -141,23 +150,6 @@ async function deriveKeysFromWalletSignature(signer: MessagePartialSigner): Prom
 }
 
 /**
- * Derives the ElGamal keypair and AES key for a confidential-balance holder,
- * bound to the **wallet alone** — no token-account, owner, or mint seed. One
- * signature yields both keys (`ConfidentialKeys.signerMessage(new Uint8Array(0))`,
- * then `fromSignature`).
- *
- * Because there is no seed, the same signer always derives the same keys for
- * every mint and every token account it holds — this is the `solana-conf-bal/v1`
- * standard, so keys derived here are byte-identical to keys derived by any other
- * standard client for the same wallet.
- *
- * ⚠️ The returned keys own WASM memory — free them with {@link freeConfidentialKeys}.
- */
-export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput): Promise<ConfidentialKeys> {
-    return deriveKeysFromWalletSignature(input.signer);
-}
-
-/**
  * The ElGamal public key of a {@link ConfidentialKeys} pair, as a kit `Address`.
  * Frees the intermediate WASM pubkey object.
  */
@@ -175,7 +167,9 @@ function derivedElgamalAddress(keys: ConfidentialKeys): Address {
  * the key an account's confidential-transfer extension was actually configured
  * with (e.g. {@link getConfidentialTransferAccountElgamalPubkey}).
  *
- * Key derivation has changed schemes twice (0.4.x's two-signature scheme, then
+ * The usual cause of a mismatch is keys derived from the wrong wallet — not the
+ * account's owner, or a delegate signing for it. The other is a stale key scheme:
+ * key derivation has changed schemes twice (0.4.x's two-signature scheme, then
  * the pre-HOO-1595 `(owner, mint)`/token-account-seeded scheme, now wallet-only);
  * an account configured under an older scheme re-derives to *different* key bytes
  * under the current one. Without this check, a caller who re-derives keys for
@@ -195,12 +189,30 @@ export function assertConfidentialKeysMatchAccount(
     if (derived !== registeredElgamalPubkey) {
         throw new Error(
             `The provided confidential keys' ElGamal public key (${derived}) does not match ${context}'s ` +
-                `registered key (${registeredElgamalPubkey}). This happens when an account was configured ` +
-                `under a previous key-derivation scheme and its keys are re-derived under the current ` +
-                `wallet-only one — they are not the same keys. Use the retained key bytes from when the ` +
-                `account was configured, rather than re-deriving; or, if this account is unfamiliar, its data ` +
-                `may be corrupt.`,
+                `registered key (${registeredElgamalPubkey}). Most often the keys were derived from a different ` +
+                `wallet than the one that configured the account — derive them by signing with the account ` +
+                `owner's wallet. If that wallet is the owner, the account was configured under a previous ` +
+                `key-derivation scheme, which yields different keys than the current wallet-only one: use the ` +
+                `key bytes retained from when the account was configured instead of re-deriving.`,
         );
+    }
+}
+
+/**
+ * {@link assertConfidentialKeysMatchAccount} against a decoded token account's
+ * registered ElGamal key — the guard every builder that decrypts or proves with
+ * `keys` runs right after fetching the account. An account without the
+ * `ConfidentialTransferAccount` extension has no registered key, so it passes;
+ * builders that require the extension check for it separately.
+ */
+export function assertConfidentialKeysMatchTokenAccount(
+    keys: ConfidentialKeys,
+    token: DecodedToken,
+    context: string,
+): void {
+    const registeredElgamalPubkey = getConfidentialTransferAccountElgamalPubkey(token);
+    if (registeredElgamalPubkey !== null) {
+        assertConfidentialKeysMatchAccount(keys, registeredElgamalPubkey, context);
     }
 }
 

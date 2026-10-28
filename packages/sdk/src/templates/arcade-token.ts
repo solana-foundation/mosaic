@@ -16,6 +16,7 @@ import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-per
 import { getCreateListInstructions } from '../abl/list.js';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
 import { Mode } from '@solana/token-acl-gate-sdk';
+import { resolveTemplateSigner } from './resolve-signer.js';
 
 /**
  * Creates a transaction to initialize a new arcade token mint on Solana with common arcade token features.
@@ -54,8 +55,8 @@ export const createArcadeTokenInitTransaction = async (
     freezeAuthority?: Address,
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
-    const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-    const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
+    const feePayerSigner = resolveTemplateSigner(feePayer, mintAuthority);
+    const mintAuthoritySigner = resolveTemplateSigner(mintAuthority, feePayerSigner);
     const useSrfc37 = enableSrfc37 ?? false;
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
     const instructions = await new Token()

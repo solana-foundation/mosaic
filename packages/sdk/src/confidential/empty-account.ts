@@ -8,8 +8,8 @@ import {
 } from '@solana/kit';
 import { fetchToken } from '@solana-program/token-2022';
 import { getEmptyConfidentialTransferAccountInstructionPlan } from '@solana-program/token-2022/confidential';
-import { getConfidentialTransferAccountElgamalPubkey, isConfidentialTransferAccount } from './extensions.js';
-import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
+import { isConfidentialTransferAccount } from './extensions.js';
+import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
 import { toAuthoritySigner } from './util.js';
 
 /**
@@ -52,10 +52,7 @@ export async function createEmptyConfidentialAccountInstructionPlan(input: {
     // The plan funds a rent-paying context-state account in a setup transaction
     // before the empty itself reaches the chain, so catching a key mismatch here
     // avoids failing the empty *and* skipping the cleanup that reclaims that rent.
-    const registeredElgamalPubkey = getConfidentialTransferAccountElgamalPubkey(decoded);
-    if (registeredElgamalPubkey !== null) {
-        assertConfidentialKeysMatchAccount(input.keys, registeredElgamalPubkey, `token account ${input.tokenAccount}`);
-    }
+    assertConfidentialKeysMatchTokenAccount(input.keys, decoded, `token account ${input.tokenAccount}`);
 
     return getEmptyConfidentialTransferAccountInstructionPlan({
         rpc: input.rpc,

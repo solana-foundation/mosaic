@@ -337,14 +337,9 @@ const empty = await createEmptyConfidentialAccountInstructionPlan({
 });
 ```
 
-> **Transfer fees.** On a mint carrying `TransferFeeConfig` + `ConfidentialTransferFee`,
-> `createConfidentialTransferInstructionPlan` routes itself to the fee-aware variant,
-> which verifies five proofs instead of three and withholds the fee into the
-> destination account. That path needs the current epoch to pick between the mint's
-> older and newer fee schedule; it is read via `getEpochInfo` only on that path, and
-> you can pass `currentEpoch` to skip the round trip. A mint with
-> `ConfidentialTransferFee` but no `TransferFeeConfig` is malformed and is rejected
-> before any proof is built.
+> **Transfer fees.** On a mint carrying `TransferFeeConfig` + `ConfidentialTransferFee`, `createConfidentialTransferInstructionPlan` routes itself to the fee-aware variant, which verifies five proofs instead of three and withholds the fee into the destination account. That path needs the current epoch to pick between the mint's older and newer fee schedule; it is read via `getEpochInfo` only on that path, and you can pass `currentEpoch` to skip the round trip. A mint with `ConfidentialTransferFee` but no `TransferFeeConfig` is malformed and is rejected before any proof is built.
+>
+> The fee-aware range proof is always staged in an SPL Record account, with or without `recordBackedProof`. Even so, one of the plan's version-0 transactions fills the 1232-byte limit exactly, so there is no room for a compute-unit-limit instruction: send fee-mint transfers at version 0 without adding one, or plan them with `version: 1`. The fee schedule is fixed when the plan is built, so a transfer that lands after a scheduled fee change takes effect is rejected on-chain. Avoid planning transfers in the last moments of the epoch before a scheduled change. Holder accounts on a `TransferFeeConfig` mint need room for `ConfidentialTransferFeeAmount`; `createConfigureConfidentialAccountInstructionPlan` reads the mint and adds it automatically (or pass `includeConfidentialTransferFeeAmount`).
 
 ### Credits (who may send you what)
 
@@ -453,7 +448,7 @@ Do this per transaction as the plan progresses, not once over the whole plan up 
 
 Two consequences for version 1 worth knowing:
 
-- **`recordBackedProof` is a version-0 workaround.** It exists only because a version-0 range-proof transaction sits too close to 1232 bytes to also fit a compute-unit-limit _instruction_. Version 1 carries that limit in a header field and has 4096 bytes, so leave the option off — there it only adds transactions and rent churn.
+- **`recordBackedProof` is a version-0 workaround.** It exists only because a version-0 range-proof transaction sits too close to 1232 bytes to also fit a compute-unit-limit _instruction_. Version 1 carries that limit in a header field and has 4096 bytes, so leave the option off — there it only adds transactions and rent churn. The reverse also holds: on a `ConfidentialTransferFee` mint the transfer is already record-backed and still has a version-0 transaction at exactly 1232 bytes, so if your executor sets compute-unit limits, version 1 is the only way to send it.
 - **No address lookup tables.** Version 1 inlines all accounts (max 64 accounts, 64 instructions, no duplicates). With 4096 raw bytes that is not a constraint for these flows, but "version 1" and "compressed via a lookup table" are mutually exclusive.
 
 ### Inspecting confidential accounts

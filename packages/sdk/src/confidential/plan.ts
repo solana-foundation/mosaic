@@ -135,8 +135,11 @@ export async function planConfidentialInstructions(input: {
  *
  * Version 0 and legacy messages get a compute-unit-limit *instruction*, which
  * adds bytes to an already-sized message — that is exactly the collision
- * `recordBackedProof` exists to work around. Version 1 messages get header
- * fields whose bytes the planner has already reserved, so nothing changes size.
+ * `recordBackedProof` exists to work around. A fee-mint confidential transfer
+ * has a version-0 transaction at exactly 1232 bytes that `recordBackedProof`
+ * cannot shrink, so this overflows it; plan those at version 1. Version 1
+ * messages get header fields whose bytes the planner has already reserved, so
+ * nothing changes size.
  *
  * @throws If the message has no lifetime, or if simulation fails. For version 1
  * it also throws when the RPC omits `loadedAccountsDataSize` from the

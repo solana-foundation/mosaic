@@ -13,13 +13,12 @@ import {
     getConfidentialTransferWithRecordInstructionPlan,
 } from '@solana-program/token-2022/confidential';
 import {
-    getConfidentialTransferAccountElgamalPubkey,
     isConfidentialTransferAccount,
     isConfidentialTransferMint,
     mintHasConfidentialTransferFee,
     mintHasTransferFeeConfig,
 } from './extensions.js';
-import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
+import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
 import {
     type RecordBackedProof,
     type TokenAmount,
@@ -45,8 +44,23 @@ import {
  * routed to the fee-aware variant instead, which verifies five proofs rather
  * than three and withholds the fee into the destination account. That variant
  * needs the current epoch to pick between the mint's older and newer fee
- * schedule; it is fetched only on that path, so a no-fee transfer still costs
- * the same three account reads it always did.
+ * schedule; it is fetched only on that path, in parallel with the account
+ * reads, so a no-fee transfer still costs the same three account reads it
+ * always did. Its batched range proof is too large to pass inline, so upstream
+ * always stages it in an SPL Record account — whether or not `recordBackedProof`
+ * is passed.
+ *
+ * Even so, at version 0 one of the fee-aware plan's transactions fills the
+ * 1232-byte limit exactly, so a compute-unit-limit instruction does not fit and
+ * `recordBackedProof` cannot make room. Send it at version 0 without adding
+ * compute-unit limits, or plan it with `version: 1`.
+ *
+ * The fee schedule is fixed at planning time, but the plan runs as several
+ * transactions. If the mint has a fee change scheduled for the next epoch and
+ * the transfer instruction lands after the boundary, the program checks the
+ * proof against the newer schedule and rejects it, leaving the proof and record
+ * accounts' rent to reclaim by hand. Avoid planning such transfers in the last
+ * moments of the epoch before a scheduled change.
  */
 export async function createConfidentialTransferInstructionPlan(input: {
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
@@ -76,13 +90,32 @@ export async function createConfidentialTransferInstructionPlan(input: {
      * Stage the batched range proof in an SPL Record account instead of inline in
      * the verify instruction data. Pass this (`{}` is enough) when sending with an
      * executor that sets compute-unit limits — see {@link RecordBackedProof}.
+     *
+     * On a `ConfidentialTransferFee` mint the proof is always record-backed; this
+     * option then only overrides the record's payer, authority and rent receiver,
+     * and does not make room for a compute-unit-limit instruction (see above).
      */
     recordBackedProof?: RecordBackedProof;
 }): Promise<InstructionPlan> {
-    const [mintDecoded, sourceDecoded, destinationDecoded] = await Promise.all([
-        fetchMint(input.rpc, input.mint),
+    const mintPromise = fetchMint(input.rpc, input.mint);
+    // Chained off the mint fetch so the epoch read overlaps the token reads
+    // rather than following them, and is never issued for a no-fee mint.
+    const epochPromise =
+        input.currentEpoch !== undefined
+            ? Promise.resolve(input.currentEpoch)
+            : mintPromise.then(mint =>
+                  mintHasConfidentialTransferFee(mint)
+                      ? input.rpc
+                            .getEpochInfo()
+                            .send()
+                            .then(info => info.epoch)
+                      : undefined,
+              );
+    const [mintDecoded, sourceDecoded, destinationDecoded, currentEpoch] = await Promise.all([
+        mintPromise,
         fetchToken(input.rpc, input.sourceToken),
         fetchToken(input.rpc, input.destinationToken),
+        epochPromise,
     ]);
 
     // Fail fast with actionable messages rather than letting the upstream
@@ -116,14 +149,7 @@ export async function createConfidentialTransferInstructionPlan(input: {
                 `Configure it first with createConfigureConfidentialAccountInstructionPlan.`,
         );
     }
-    const sourceElgamalPubkey = getConfidentialTransferAccountElgamalPubkey(sourceDecoded);
-    if (sourceElgamalPubkey !== null) {
-        assertConfidentialKeysMatchAccount(
-            input.keys,
-            sourceElgamalPubkey,
-            `source token account ${input.sourceToken}`,
-        );
-    }
+    assertConfidentialKeysMatchTokenAccount(input.keys, sourceDecoded, `source token account ${input.sourceToken}`);
 
     // Single mint fetch above feeds both the amount scaling and the auditor: the
     // decoded mint is forwarded as `mintAccount` so the upstream helper resolves
@@ -146,14 +172,16 @@ export async function createConfidentialTransferInstructionPlan(input: {
         auditorElgamalPubkey: input.auditorElgamalPubkey,
     };
 
-    // The fee-aware helper has no separate `…WithRecord` twin — it takes the
-    // record fields inline — so the record option folds into the same call.
+    // The fee-aware helper has no separate `…WithRecord` twin: it always stages
+    // the range proof in a record account and takes the record fields inline, so
+    // the record option only overrides its defaults here.
     if (withFee) {
         return getConfidentialTransferWithFeeInstructionPlan({
             ...args,
             ...(input.recordBackedProof !== undefined ? toRecordProofArgs(input.recordBackedProof) : {}),
             mintAccount: mintDecoded.data,
-            currentEpoch: input.currentEpoch ?? (await input.rpc.getEpochInfo().send()).epoch,
+            // Always set on this path: supplied, or fetched because the mint has the fee extension.
+            currentEpoch: currentEpoch!,
         });
     }
 

@@ -74,7 +74,11 @@ jest.mock('@solana-program/token-2022/confidential', () => ({
     getConfidentialTransferWithFeeInstructionPlan: jest.fn(async () => mockTransferWithFeePlan),
 }));
 
-import { getConfidentialDepositInstructionDataDecoder, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import {
+    fetchMint,
+    getConfidentialDepositInstructionDataDecoder,
+    TOKEN_2022_PROGRAM_ADDRESS,
+} from '@solana-program/token-2022';
 import {
     getApplyConfidentialPendingBalanceInstructionFromToken,
     getConfidentialTransferInstructionPlan,
@@ -243,6 +247,57 @@ describe('confidential operation builders', () => {
                     elgamalKeypair: fakeKeys.elgamal,
                     aesKey: fakeKeys.aes,
                 }),
+            );
+        });
+
+        it('does not reallocate for ConfidentialTransferFeeAmount on a mint without TransferFeeConfig', async () => {
+            await createConfigureConfidentialAccountInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                owner: AUTHORITY,
+                mint: MINT,
+                keys: fakeKeys,
+            });
+            expect(getCreateConfidentialTransferAccountInstructionPlan).toHaveBeenCalledWith(
+                expect.objectContaining({ includeConfidentialTransferFeeAmount: false }),
+            );
+        });
+
+        it('reallocates for ConfidentialTransferFeeAmount on a TransferFeeConfig mint', async () => {
+            // ConfigureAccount initializes that extension for any TransferFeeConfig
+            // mint, so the account needs room for it or configure fails on-chain.
+            mockMintExtensions = {
+                __option: 'Some',
+                value: [
+                    { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
+                    { __kind: 'TransferFeeConfig' },
+                    { __kind: 'ConfidentialTransferFee' },
+                ],
+            };
+            await createConfigureConfidentialAccountInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                owner: AUTHORITY,
+                mint: MINT,
+                keys: fakeKeys,
+            });
+            expect(getCreateConfidentialTransferAccountInstructionPlan).toHaveBeenCalledWith(
+                expect.objectContaining({ includeConfidentialTransferFeeAmount: true }),
+            );
+        });
+
+        it('skips the mint read when includeConfidentialTransferFeeAmount is supplied', async () => {
+            await createConfigureConfidentialAccountInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                owner: AUTHORITY,
+                mint: MINT,
+                keys: fakeKeys,
+                includeConfidentialTransferFeeAmount: true,
+            });
+            expect(fetchMint).not.toHaveBeenCalled();
+            expect(getCreateConfidentialTransferAccountInstructionPlan).toHaveBeenCalledWith(
+                expect.objectContaining({ includeConfidentialTransferFeeAmount: true }),
             );
         });
 
@@ -435,6 +490,17 @@ describe('confidential operation builders', () => {
             expect(getConfidentialTransferWithFeeInstructionPlan).toHaveBeenCalledWith(
                 expect.objectContaining({ currentEpoch: MOCK_EPOCH }),
             );
+        });
+
+        it('never reads the epoch for a mint without ConfidentialTransferFee', async () => {
+            const getEpochInfo = jest.spyOn(rpc as unknown as { getEpochInfo: () => unknown }, 'getEpochInfo');
+            await createConfidentialTransferInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                ...transferArgs,
+                keys: fakeKeys,
+            });
+            expect(getEpochInfo).not.toHaveBeenCalled();
         });
 
         it('prefers an explicitly supplied epoch over the RPC', async () => {
