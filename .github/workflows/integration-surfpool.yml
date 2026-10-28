@@ -1,0 +1,107 @@
+name: Integration (surfpool)
+
+# Runs the SDK integration suite against surfpool, which forks devnet, so it also covers the
+# SRFC-37 (Token ACL / ABL) and Token-2022 v11 suites the validator job in ci.yml can't. Not
+# required yet: it depends on a remote datasource, so it stays continue-on-error until it has a
+# run of consistently green builds on main.
+#
+# surfpool forks from a private devnet RPC (RPC_URL + RPC_KEY, Doppler project `mosaic`, config
+# `stg`) to avoid public-devnet rate limits. Without them it falls back to public devnet.
+#
+# Trigger is `pull_request_target` (not `pull_request`): GitHub gives no secrets or OIDC token to
+# workflows triggered by a fork's `pull_request` event, and most PRs here come from forks.
+# `pull_request_target` runs in the base-repo context, where Doppler is reachable.
+#
+# SAFETY INVARIANT: unlike deploy-smoke-test.yml, this job has to run the PR's own code (that is
+# what it tests), with the RPC secrets and an OIDC token able to read Doppler. So every PR run
+# goes through the `surfpool-pr` environment, which must have required reviewers: the run waits
+# until a maintainer has reviewed the PR and approves it under "Review deployments". Each new
+# push triggers a new run that needs a new approval, and the job checks out the exact head SHA
+# that was approved. Do not remove the environment gate, and do not add other triggers that
+# check out PR code.
+#
+# Setup (repo admins), in this order, so the gate exists before anything can authenticate:
+#   1. Create environment `surfpool-pr` with required reviewers (maintainers), and environment
+#      `surfpool-trusted` with deployment branches limited to main and develop.
+#   2. In Doppler, create a service identity that reads only `mosaic` / `stg` and trusts GitHub
+#      OIDC subjects `repo:solana-foundation/mosaic:environment:surfpool-pr` and
+#      `repo:solana-foundation/mosaic:environment:surfpool-trusted`.
+#   3. Set the Actions variable DOPPLER_SERVICE_IDENTITY_ID to that identity's ID. Until it is
+#      set, the Doppler step is skipped and runs use public devnet.
+# GitHub creates a referenced environment that doesn't exist yet with no protection, so step 1
+# must come before step 3.
+#
+# PR runs also skip the pnpm and surfpool caches: `pull_request_target` writes caches into the
+# base branch's scope, where trusted runs on main would restore them.
+#
+# Note: `pull_request_target` always uses the workflow file from the BASE branch, so edits here
+# only take effect for PRs once this is merged to base.
+on:
+  pull_request_target:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+# One in-flight run per PR (or per ref). A fresh push supersedes a run still waiting for approval.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  integration-surfpool:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    environment: ${{ github.event_name == 'pull_request_target' && 'surfpool-pr' || 'surfpool-trusted' }}
+    permissions:
+      contents: read
+      id-token: write # Doppler OIDC auth
+
+    steps:
+      # The approved PR head (not the merge ref, which moves when the base does); the pushed or
+      # dispatched commit otherwise.
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: ${{ github.event_name != 'pull_request_target' && 'pnpm' || '' }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup surfpool
+        uses: ./.github/actions/setup-surfpool
+        with:
+          cache: ${{ github.event_name != 'pull_request_target' }}
+
+      # Fetched last, so only the test step sees the secrets
+      - name: Fetch Doppler secrets
+        if: vars.DOPPLER_SERVICE_IDENTITY_ID != ''
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534 # v2.0.0
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_SERVICE_IDENTITY_ID }}
+          doppler-project: ${{ vars.DOPPLER_PROJECT || 'mosaic' }}
+          doppler-config: ${{ vars.DOPPLER_CONFIG_CI || 'stg' }}
+          inject-env-vars: true
+
+      - name: Test Integration (surfpool)
+        run: |
+          if [ -n "${RPC_URL:-}" ] && [ -n "${RPC_KEY:-}" ]; then
+            export SURFPOOL_DATASOURCE_RPC_URL="${RPC_URL}${RPC_KEY}"
+          fi
+          pnpm run test:integration:surfpool
