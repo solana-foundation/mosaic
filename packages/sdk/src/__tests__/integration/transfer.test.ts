@@ -366,6 +366,99 @@ describeSkipIf()('Transfer Integration Tests', () => {
             },
             DEFAULT_TIMEOUT,
         );
+
+        itSkipIf(TEST_BACKEND !== 'surfpool')(
+            'should deny permissionless thaw for a receiver outside the allowlist',
+            async () => {
+                const sender = await generateKeyPairSigner();
+                const receiver = await generateKeyPairSigner();
+
+                // Given: An SRFC-37 allowlist token with only the sender allowlisted
+                await createSrfc37Mint(client, mintAuthority, mint, 'allowlist');
+                await addToAllowlist(client, mint.address, sender.address, mintAuthority);
+
+                // Mint tokens to sender
+                const mintToSenderTx = await createMintToTransaction(
+                    client.rpc,
+                    mint.address,
+                    sender.address,
+                    1_000_000,
+                    mintAuthority,
+                    payer,
+                );
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT),
+                );
+
+                // When: Transfer to the receiver, whose permissionless thaw the gate must reject
+                const deniedTransferTx = await createTransferTransaction({
+                    rpc: client.rpc,
+                    mint: mint.address,
+                    from: sender.address,
+                    to: receiver.address,
+                    feePayer: payer,
+                    authority: sender,
+                    amount: '300000',
+                });
+
+                // Then: Transaction should fail and balances stay unchanged
+                await assertTxFailure(client, deniedTransferTx);
+                await assertBalances(
+                    client.rpc,
+                    [
+                        {
+                            wallet: sender.address,
+                            mint: mint.address,
+                            expectedAmount: decimalAmountToRaw(1_000_000, 6),
+                        },
+                        {
+                            wallet: receiver.address,
+                            mint: mint.address,
+                            expectedAmount: 0n,
+                        },
+                    ],
+                    DEFAULT_COMMITMENT,
+                );
+
+                // When: The receiver is allowlisted and the transfer is retried
+                await addToAllowlist(client, mint.address, receiver.address, mintAuthority);
+                const transferTx = await createTransferTransaction({
+                    rpc: client.rpc,
+                    mint: mint.address,
+                    from: sender.address,
+                    to: receiver.address,
+                    feePayer: payer,
+                    authority: sender,
+                    amount: '300000',
+                });
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, transferTx, DEFAULT_COMMITMENT),
+                );
+
+                // Then: Transfer succeeded and receiver account was thawed
+                await assertBalances(
+                    client.rpc,
+                    [
+                        {
+                            wallet: sender.address,
+                            mint: mint.address,
+                            expectedAmount: decimalAmountToRaw(700_000, 6),
+                        },
+                        {
+                            wallet: receiver.address,
+                            mint: mint.address,
+                            expectedAmount: decimalAmountToRaw(300_000, 6),
+                        },
+                    ],
+                    DEFAULT_COMMITMENT,
+                );
+                const frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address, DEFAULT_COMMITMENT);
+                expect(frozen).toBe(false);
+            },
+            DEFAULT_TIMEOUT,
+        );
     });
 
     describe('Edge Cases', () => {
