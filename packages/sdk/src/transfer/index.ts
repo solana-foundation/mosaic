@@ -12,10 +12,11 @@ import {
 } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
 import {
-    decimalAmountToRaw,
-    resolveTokenAccount,
+    assertValidAmountFormat,
     getMintDetails,
     isDefaultAccountStateSetFrozen,
+    resolveTokenAccount,
+    tokenAmountToRaw,
 } from '../transaction-util.js';
 import {
     getCreateAssociatedTokenIdempotentInstruction,
@@ -58,18 +59,20 @@ export const createTransferInstructions = async (input: {
     memo?: string;
 }) => {
     const { rpc, mint, from, to, amount, feePayer, authority, memo } = input;
-    // Parse and validate amount
-    const decimalAmount = parseFloat(amount);
-    if (isNaN(decimalAmount) || decimalAmount <= 0) {
-        throw new Error('Amount must be a positive number');
-    }
+    // Reject malformed and all-zero amounts before any RPC: the format and
+    // positive-number checks need no decimals, and failing first keeps a
+    // mint-fetch error from masking the real amount error. The decimals-bound
+    // checks run in tokenAmountToRaw once the mint is fetched.
+    assertValidAmountFormat(amount);
 
     // Get mint info to determine decimals
     const { decimals, extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
     const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
-    // Convert decimal amount to raw amount
-    const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
+    // Validate and convert the amount with the same strict converter the
+    // confidential path uses: it rejects over-precision and zero/sub-base-unit
+    // amounts, and scales the exact string precisely.
+    const rawAmount = tokenAmountToRaw(amount, decimals);
 
     // Resolve sender's token account
     const senderTokenAccountInfo = await resolveTokenAccount(rpc, from, mint as Address);
