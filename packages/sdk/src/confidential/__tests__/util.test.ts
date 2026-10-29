@@ -44,10 +44,19 @@ describe('tokenAmountToRaw', () => {
             expect(() => tokenAmountToRaw('1e999999999', 6)).toThrow('Amount exceeds the maximum u64 token amount');
             expect(() => tokenAmountToRaw('1e-999999999', 6)).toThrow('Amount must be a positive number');
         });
+
+        it('reports a zero mantissa as a non-positive amount, whatever the exponent', () => {
+            // The decimal-shift bound is computed from the point position
+            // alone, so without this check a zero value with a huge exponent
+            // would be misreported against the u64 bound.
+            expect(() => tokenAmountToRaw('0e2000', 6)).toThrow('Amount must be a positive number');
+            expect(() => tokenAmountToRaw('0.0e5000', 6)).toThrow('Amount must be a positive number');
+            expect(() => tokenAmountToRaw('0e999999999', 6)).toThrow('Amount must be a positive number');
+        });
     });
 
     describe('rejects malformed decimal strings', () => {
-        it.each(['1abc', '1,5', '1.2.3', '-1', '', '   ', 'abc', '1e', '1e5.5', '1.2.3e5'])(
+        it.each(['1abc', '1,5', '1.2.3', '-1', '', '   ', 'abc', '1e', '1e5.5', '1e5e5', '1.2.3e5'])(
             'throws on %p instead of silently truncating',
             bad => {
                 expect(() => tokenAmountToRaw(bad, 6)).toThrow('Amount must be a positive number');
@@ -57,6 +66,21 @@ describe('tokenAmountToRaw', () => {
         it('rejects zero', () => {
             expect(() => tokenAmountToRaw('0', 6)).toThrow('Amount must be a positive number');
             expect(() => tokenAmountToRaw('0.0', 6)).toThrow('Amount must be a positive number');
+        });
+    });
+
+    describe('scales long inputs in bounded time', () => {
+        it('rejects and converts long inputs without quadratic backtracking', () => {
+            // The previous combined exponent pattern and the /0+$/ trailing
+            // zero strip took seconds on inputs of this length; every step of
+            // the conversion is linear now, so these resolve or reject fast.
+            expect(() => tokenAmountToRaw('1'.repeat(100_000), 6)).toThrow(
+                'Amount exceeds the maximum u64 token amount',
+            );
+            expect(() => tokenAmountToRaw(`1.${'0'.repeat(100_000)}1`, 6)).toThrow(
+                'Amount cannot have more than 6 decimal places',
+            );
+            expect(tokenAmountToRaw(`1.${'0'.repeat(100_000)}`, 6)).toBe(1_000_000n);
         });
     });
 

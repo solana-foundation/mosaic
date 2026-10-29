@@ -11,8 +11,13 @@ import {
     createNoopSigner,
 } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
-import { resolveTokenAccount, getMintDetails, isDefaultAccountStateSetFrozen } from '../transaction-util.js';
-import { tokenAmountToRaw } from '../confidential/util.js';
+import {
+    assertValidAmountFormat,
+    getMintDetails,
+    isDefaultAccountStateSetFrozen,
+    resolveTokenAccount,
+    tokenAmountToRaw,
+} from '../transaction-util.js';
 import {
     getCreateAssociatedTokenIdempotentInstruction,
     getTransferCheckedInstruction,
@@ -54,13 +59,19 @@ export const createTransferInstructions = async (input: {
     memo?: string;
 }) => {
     const { rpc, mint, from, to, amount, feePayer, authority, memo } = input;
+    // Reject malformed and all-zero amounts before any RPC: the format and
+    // positive-number checks need no decimals, and failing first keeps a
+    // mint-fetch error from masking the real amount error. The decimals-bound
+    // checks run in tokenAmountToRaw once the mint is fetched.
+    assertValidAmountFormat(amount);
+
     // Get mint info to determine decimals
     const { decimals, extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
     const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
     // Validate and convert the amount with the same strict converter the
-    // confidential path uses: it rejects non-numeric junk, over-precision and
-    // zero/sub-base-unit amounts, and scales the raw string precisely.
+    // confidential path uses: it rejects over-precision and zero/sub-base-unit
+    // amounts, and scales the exact string precisely.
     const rawAmount = tokenAmountToRaw(amount, decimals);
 
     // Resolve sender's token account

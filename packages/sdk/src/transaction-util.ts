@@ -119,6 +119,150 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
     return raw;
 }
 
+/** An amount expressed either as a decimal string (e.g. `"1.5"`) or raw `bigint`. */
+export type TokenAmount = string | bigint;
+
+/**
+ * Decimal shifts beyond this magnitude can never yield a valid amount:
+ * `u64` raw amounts top out at ~1.8e19 and mint decimals at 255 (`u8`), so an
+ * exponent moving the decimal point farther than this is definitively out of
+ * range and is rejected without materializing the expansion.
+ */
+const MAX_DECIMAL_SHIFT = 1000;
+
+/**
+ * Normalizes the decimal-string spellings `parseFloat` used to accept into
+ * the strict form the converter requires, using exact string math (no float
+ * round-trip): strips a leading `+`, expands exponent notation, adds the
+ * missing integer digit for a leading `.` and drops a trailing `.`. The
+ * numeric value is unchanged.
+ */
+function normalizeAmountString(amount: string): string {
+    let normalized = amount;
+    if (normalized.startsWith('+')) {
+        normalized = normalized.slice(1);
+    }
+    // Expand exponent notation by locating the marker with `search` and
+    // validating each half with its own anchored pattern. A single combined
+    // pattern such as /^(\d*\.?\d*)[eE]([+-]?\d+)$/ backtracks in quadratic
+    // time when there is no marker, because every way of splitting the digit
+    // run between the two `\d*` groups fails, and it runs before any length
+    // check. The anchored halves below (and the trailing-zero strip in
+    // tokenAmountToRaw) keep every input linear.
+    const exponentMarker = normalized.search(/[eE]/);
+    if (exponentMarker !== -1) {
+        const mantissa = normalized.slice(0, exponentMarker);
+        const exponentPart = normalized.slice(exponentMarker + 1);
+        if (/^\d*(?:\.\d*)?$/.test(mantissa) && /^[+-]?\d+$/.test(exponentPart)) {
+            const exponent = Number(exponentPart);
+            const [integer = '', fraction = ''] = mantissa.split('.');
+            const digits = integer + fraction;
+            if (digits === '') {
+                return normalized; // e.g. ".e5"; the strict check rejects it below.
+            }
+            // An all-zero mantissa is zero whatever the exponent, so report
+            // it as a non-positive amount instead of by decimal-shift bounds.
+            if (/^0*$/.test(digits)) {
+                return '0';
+            }
+            const point = integer.length + exponent;
+            if (point > digits.length + MAX_DECIMAL_SHIFT) {
+                throw new Error('Amount exceeds the maximum u64 token amount');
+            }
+            if (-point > MAX_DECIMAL_SHIFT) {
+                throw new Error('Amount must be a positive number');
+            }
+            normalized =
+                point <= 0
+                    ? `0.${'0'.repeat(-point)}${digits}`
+                    : point >= digits.length
+                      ? digits + '0'.repeat(point - digits.length)
+                      : `${digits.slice(0, point)}.${digits.slice(point)}`;
+        }
+    }
+    if (normalized.startsWith('.')) {
+        normalized = `0${normalized}`;
+    }
+    if (normalized.endsWith('.')) {
+        normalized = normalized.slice(0, -1);
+    }
+    return normalized;
+}
+
+/**
+ * Validates and scales a {@link TokenAmount} to a raw `bigint` for a known
+ * number of mint `decimals`, without any RPC. `bigint` inputs are treated as
+ * already-raw; decimal strings are scaled by `decimals`.
+ *
+ * Decimal strings are scaled digit by digit on the exact string (no
+ * `parseFloat`): `parseFloat` accepts leading-numeric junk (`"1abc"`,
+ * `"1,5"`, `"1.2.3"`) and loses precision on large/u64-scale amounts, either
+ * of which would silently execute a different on-chain amount than the caller
+ * supplied. The spellings `parseFloat` accepted without precision loss
+ * (leading `+`, leading/trailing `.`, exponent notation) are normalized
+ * exactly, on the string, before validation. Trailing fractional zeros carry
+ * no value, so `1.5000000` on a 6-decimal mint (directly or via expansion,
+ * e.g. `50e-1`) is accepted as the exact value `1.5`. Strings with more
+ * significant fractional digits than the mint supports are rejected (rather
+ * than silently truncated), and the result is bounds-checked to
+ * `(0, U64_MAX]`.
+ */
+export function tokenAmountToRaw(amount: TokenAmount, decimals: number): bigint {
+    let rawAmount: bigint;
+    if (typeof amount === 'bigint') {
+        rawAmount = amount;
+    } else {
+        const trimmed = normalizeAmountString(amount.trim());
+        // Require a strict, fully-numeric decimal string; reject anything else.
+        if (!/^\d+(?:\.\d+)?$/.test(trimmed)) {
+            throw new Error('Amount must be a positive number');
+        }
+        assertValidDecimals(decimals);
+        // Trailing fractional zeros carry no value, so strip them before the
+        // over-precision check: `5.0` on a 0-decimal mint and `1.5000000` on a
+        // 6-decimal mint are exact spellings, not over-precision. Strip with a
+        // linear scan: a `/0+$/` pattern is not anchored at the start, so the
+        // engine retries from every zero in a run and degrades quadratically.
+        const [integerPart, fractionalPart = ''] = trimmed.split('.');
+        let end = fractionalPart.length;
+        while (end > 0 && fractionalPart[end - 1] === '0') {
+            end--;
+        }
+        const fraction = fractionalPart.slice(0, end);
+        // Reject over-precision: silently truncating the extra digits would
+        // build an instruction for a different amount than the caller
+        // supplied.
+        if (fraction.length > decimals) {
+            throw new Error(`Amount cannot have more than ${decimals} decimal places`);
+        }
+        // The strict checks above guarantee both parts are digits, so the
+        // scaled raw amount is the concatenation padded to the mint decimals.
+        rawAmount = BigInt(integerPart + fraction.padEnd(decimals, '0'));
+    }
+    if (rawAmount <= 0n) {
+        throw new Error('Amount must be a positive number');
+    }
+    if (rawAmount > U64_MAX) {
+        throw new Error('Amount exceeds the maximum u64 token amount');
+    }
+    return rawAmount;
+}
+
+/**
+ * Validates a decimal-string amount without knowing the mint decimals:
+ * normalizes the `parseFloat`-compatible spellings, requires the strict
+ * fully-numeric form and rejects all-zero amounts, throwing the same errors
+ * {@link tokenAmountToRaw} would. Lets callers fail fast on bad input before
+ * any RPC. The decimals-bound checks (over-precision, u64) still live in
+ * {@link tokenAmountToRaw} because they need the mint decimals.
+ */
+export function assertValidAmountFormat(amount: string): void {
+    const normalized = normalizeAmountString(amount.trim());
+    if (!/^\d+(?:\.\d+)?$/.test(normalized) || !/[1-9]/.test(normalized.replace('.', ''))) {
+        throw new Error('Amount must be a positive number');
+    }
+}
+
 /**
  * Token account info parsed from RPC response
  */
