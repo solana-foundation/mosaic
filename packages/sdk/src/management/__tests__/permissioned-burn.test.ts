@@ -153,6 +153,17 @@ describe('permissioned-burn', () => {
             expect(ix.accounts?.[2].address).toBe(burnAuthority);
         });
 
+        test('createBurnTransaction attaches the fee payer signer when it is not the owner', async () => {
+            seedEncodedMint(rpc, { permissionedBurnAuthority: burnAuthority });
+            mockTransactionUtil();
+            const { createBurnTransaction } = await import('../burn.js');
+            const tx = await createBurnTransaction(rpc, mint, wallet, 1, feePayer);
+
+            // The fee payer signs no instruction in a burn, so the message must carry its signer
+            // itself; set by address, it would never sign and the transaction couldn't be sent.
+            expect(tx.feePayer).toBe(feePayer);
+        });
+
         test('createBurnTransaction uses a regular burn when the extension is absent', async () => {
             seedEncodedMint(rpc, {});
             mockTransactionUtil();

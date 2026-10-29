@@ -12,13 +12,18 @@ import {
     DEFAULT_TIMEOUT,
     DEFAULT_COMMITMENT,
     describeSkipIf,
+    itSkipIf,
     assertMemo,
+    assertTxLanded,
+    createSrfc37Mint,
+    addToAllowlist,
 } from './helpers.js';
+import { TEST_BACKEND } from './env.js';
 import { Token } from '../../issuance/index.js';
 import { createMintToTransaction } from '../../management/index.js';
 import { createTransferTransaction } from '../../transfer/index.js';
 import { decimalAmountToRaw } from '../../transaction-util.js';
-import { getFreezeTransaction, TOKEN_ACL_PROGRAM_ID } from '../../token-acl/index.js';
+import { getFreezeTransaction } from '../../token-acl/index.js';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 
 describeSkipIf()('Transfer Integration Tests', () => {
@@ -296,36 +301,16 @@ describeSkipIf()('Transfer Integration Tests', () => {
             DEFAULT_TIMEOUT,
         );
 
-        it.skip(
+        itSkipIf(TEST_BACKEND !== 'surfpool')(
             'should transfer with permissionless thaw',
             async () => {
                 const sender = await generateKeyPairSigner();
                 const receiver = await generateKeyPairSigner();
 
-                // Given: A token with SRFC-37 enabled (blocklist mode)
-                const tokenBuilder = new Token()
-                    .withMetadata({
-                        mintAddress: mint.address,
-                        authority: mintAuthority.address,
-                        metadata: {
-                            name: 'SRFC37 Transfer Token',
-                            symbol: 'SRFC',
-                            uri: 'https://example.com/srfc.json',
-                        },
-                        additionalMetadata: new Map(),
-                    })
-                    .withDefaultAccountState(false); // false = frozen (blocklist)
-
-                const createTx = await tokenBuilder.buildTransaction({
-                    rpc: client.rpc,
-                    decimals: 6,
-                    mintAuthority,
-                    freezeAuthority: TOKEN_ACL_PROGRAM_ID,
-                    mint,
-                    feePayer: payer,
-                });
-
-                await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+                // Given: An SRFC-37 allowlist token (accounts are born frozen) with both wallets allowlisted
+                await createSrfc37Mint(client, mintAuthority, mint, 'allowlist');
+                await addToAllowlist(client, mint.address, sender.address, mintAuthority);
+                await addToAllowlist(client, mint.address, receiver.address, mintAuthority);
 
                 // Mint tokens to sender
                 const mintToSenderTx = await createMintToTransaction(
@@ -336,7 +321,10 @@ describeSkipIf()('Transfer Integration Tests', () => {
                     mintAuthority,
                     payer,
                 );
-                await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT),
+                );
 
                 // When: Transfer to receiver (will create frozen ATA and thaw it)
                 const transferTx = await createTransferTransaction({
@@ -349,8 +337,10 @@ describeSkipIf()('Transfer Integration Tests', () => {
                     amount: '300000',
                 });
 
-                const signature = await sendAndConfirmTransaction(client, transferTx, DEFAULT_COMMITMENT);
-                assertTxSuccess(signature);
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, transferTx, DEFAULT_COMMITMENT),
+                );
 
                 // Then: Transfer succeeded and receiver account was thawed
                 await assertBalances(
@@ -371,6 +361,99 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 );
 
                 // Verify receiver account is not frozen after transfer
+                const frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address, DEFAULT_COMMITMENT);
+                expect(frozen).toBe(false);
+            },
+            DEFAULT_TIMEOUT,
+        );
+
+        itSkipIf(TEST_BACKEND !== 'surfpool')(
+            'should deny permissionless thaw for a receiver outside the allowlist',
+            async () => {
+                const sender = await generateKeyPairSigner();
+                const receiver = await generateKeyPairSigner();
+
+                // Given: An SRFC-37 allowlist token with only the sender allowlisted
+                await createSrfc37Mint(client, mintAuthority, mint, 'allowlist');
+                await addToAllowlist(client, mint.address, sender.address, mintAuthority);
+
+                // Mint tokens to sender
+                const mintToSenderTx = await createMintToTransaction(
+                    client.rpc,
+                    mint.address,
+                    sender.address,
+                    1_000_000,
+                    mintAuthority,
+                    payer,
+                );
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT),
+                );
+
+                // When: Transfer to the receiver, whose permissionless thaw the gate must reject
+                const deniedTransferTx = await createTransferTransaction({
+                    rpc: client.rpc,
+                    mint: mint.address,
+                    from: sender.address,
+                    to: receiver.address,
+                    feePayer: payer,
+                    authority: sender,
+                    amount: '300000',
+                });
+
+                // Then: Transaction should fail and balances stay unchanged
+                await assertTxFailure(client, deniedTransferTx);
+                await assertBalances(
+                    client.rpc,
+                    [
+                        {
+                            wallet: sender.address,
+                            mint: mint.address,
+                            expectedAmount: decimalAmountToRaw(1_000_000, 6),
+                        },
+                        {
+                            wallet: receiver.address,
+                            mint: mint.address,
+                            expectedAmount: 0n,
+                        },
+                    ],
+                    DEFAULT_COMMITMENT,
+                );
+
+                // When: The receiver is allowlisted and the transfer is retried
+                await addToAllowlist(client, mint.address, receiver.address, mintAuthority);
+                const transferTx = await createTransferTransaction({
+                    rpc: client.rpc,
+                    mint: mint.address,
+                    from: sender.address,
+                    to: receiver.address,
+                    feePayer: payer,
+                    authority: sender,
+                    amount: '300000',
+                });
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, transferTx, DEFAULT_COMMITMENT),
+                );
+
+                // Then: Transfer succeeded and receiver account was thawed
+                await assertBalances(
+                    client.rpc,
+                    [
+                        {
+                            wallet: sender.address,
+                            mint: mint.address,
+                            expectedAmount: decimalAmountToRaw(700_000, 6),
+                        },
+                        {
+                            wallet: receiver.address,
+                            mint: mint.address,
+                            expectedAmount: decimalAmountToRaw(300_000, 6),
+                        },
+                    ],
+                    DEFAULT_COMMITMENT,
+                );
                 const frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(false);
             },
@@ -458,34 +541,14 @@ describeSkipIf()('Transfer Integration Tests', () => {
             DEFAULT_TIMEOUT,
         );
 
-        it.skip(
+        itSkipIf(TEST_BACKEND !== 'surfpool')(
             'should fail transfer with frozen source',
             async () => {
                 const sender = await generateKeyPairSigner();
                 const receiver = await generateKeyPairSigner();
 
-                // Given: A token with Token ACL as freeze authority
-                const tokenBuilder = new Token().withMetadata({
-                    mintAddress: mint.address,
-                    authority: mintAuthority.address,
-                    metadata: {
-                        name: 'Frozen Source Token',
-                        symbol: 'FROZ',
-                        uri: 'https://example.com/froz.json',
-                    },
-                    additionalMetadata: new Map(),
-                });
-
-                const createTx = await tokenBuilder.buildTransaction({
-                    rpc: client.rpc,
-                    decimals: 6,
-                    mintAuthority,
-                    freezeAuthority: TOKEN_ACL_PROGRAM_ID,
-                    mint,
-                    feePayer: payer,
-                });
-
-                await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+                // Given: An SRFC-37 blocklist token, so freezing goes through Token ACL
+                await createSrfc37Mint(client, mintAuthority, mint, 'blocklist');
 
                 // Verify mint exists before proceeding
                 await assertBalance(client.rpc, sender.address, mint.address, 0n, DEFAULT_COMMITMENT);
@@ -499,7 +562,10 @@ describeSkipIf()('Transfer Integration Tests', () => {
                     mintAuthority,
                     payer,
                 );
-                await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT),
+                );
 
                 // Freeze sender account
                 const [senderTokenAccount] = await findAssociatedTokenPda({
@@ -511,10 +577,10 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 const freezeTx = await getFreezeTransaction({
                     rpc: client.rpc,
                     payer,
-                    authority: freezeAuthority,
+                    authority: mintAuthority, // the Token ACL config authority
                     tokenAccount: senderTokenAccount,
                 });
-                await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
+                await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT));
 
                 // Verify sender is frozen
                 const frozen = await isAccountFrozen(client.rpc, sender.address, mint.address, DEFAULT_COMMITMENT);
@@ -540,36 +606,16 @@ describeSkipIf()('Transfer Integration Tests', () => {
             DEFAULT_TIMEOUT,
         );
 
-        it.skip(
+        itSkipIf(TEST_BACKEND !== 'surfpool')(
             'should transfer with frozen destination (should thaw if SRFC-37)',
             async () => {
                 const sender = await generateKeyPairSigner();
                 const receiver = await generateKeyPairSigner();
 
-                // Given: A token with SRFC-37 enabled, receiver account exists but is frozen
-                const tokenBuilder = new Token()
-                    .withMetadata({
-                        mintAddress: mint.address,
-                        authority: mintAuthority.address,
-                        metadata: {
-                            name: 'SRFC37 Frozen Dest Token',
-                            symbol: 'SRFCD',
-                            uri: 'https://example.com/srfcd.json',
-                        },
-                        additionalMetadata: new Map(),
-                    })
-                    .withDefaultAccountState(false); // frozen by default
-
-                const createTx = await tokenBuilder.buildTransaction({
-                    rpc: client.rpc,
-                    decimals: 6,
-                    mintAuthority,
-                    freezeAuthority: TOKEN_ACL_PROGRAM_ID,
-                    mint,
-                    feePayer: payer,
-                });
-
-                await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+                // Given: An SRFC-37 allowlist token with both wallets allowlisted
+                await createSrfc37Mint(client, mintAuthority, mint, 'allowlist');
+                await addToAllowlist(client, mint.address, sender.address, mintAuthority);
+                await addToAllowlist(client, mint.address, receiver.address, mintAuthority);
 
                 // Verify mint exists before proceeding
                 await assertBalance(client.rpc, sender.address, mint.address, 0n, DEFAULT_COMMITMENT);
@@ -583,7 +629,10 @@ describeSkipIf()('Transfer Integration Tests', () => {
                     mintAuthority,
                     payer,
                 );
-                await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT);
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, mintToSenderTx, DEFAULT_COMMITMENT),
+                );
 
                 const mintToReceiverTx = await createMintToTransaction(
                     client.rpc,
@@ -593,11 +642,12 @@ describeSkipIf()('Transfer Integration Tests', () => {
                     mintAuthority,
                     payer,
                 );
-                await sendAndConfirmTransaction(client, mintToReceiverTx, DEFAULT_COMMITMENT);
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, mintToReceiverTx, DEFAULT_COMMITMENT),
+                );
 
-                // Verify receiver starts frozen (default state is frozen)
-                // Note: After minting with SRFC-37, account should be thawed
-                // But we can freeze it again for this test
+                // Minting thawed the receiver's ATA permissionlessly (it is allowlisted); freeze it again
                 const [receiverTokenAccount] = await findAssociatedTokenPda({
                     owner: receiver.address,
                     tokenProgram: TOKEN_2022_PROGRAM_ADDRESS,
@@ -607,10 +657,10 @@ describeSkipIf()('Transfer Integration Tests', () => {
                 const freezeTx = await getFreezeTransaction({
                     rpc: client.rpc,
                     payer,
-                    authority: freezeAuthority,
+                    authority: mintAuthority, // the Token ACL config authority
                     tokenAccount: receiverTokenAccount,
                 });
-                await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT);
+                await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, freezeTx, DEFAULT_COMMITMENT));
 
                 let frozen = await isAccountFrozen(client.rpc, receiver.address, mint.address, DEFAULT_COMMITMENT);
                 expect(frozen).toBe(true);
@@ -626,8 +676,10 @@ describeSkipIf()('Transfer Integration Tests', () => {
                     amount: '200000',
                 });
 
-                const signature = await sendAndConfirmTransaction(client, transferTx, DEFAULT_COMMITMENT);
-                assertTxSuccess(signature);
+                await assertTxLanded(
+                    client.rpc,
+                    await sendAndConfirmTransaction(client, transferTx, DEFAULT_COMMITMENT),
+                );
 
                 // Then: Transfer succeeded and receiver is thawed
                 await assertBalances(

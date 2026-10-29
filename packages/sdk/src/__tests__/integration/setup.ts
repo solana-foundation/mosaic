@@ -1,15 +1,15 @@
 import {
-    airdropFactory,
     createSolanaRpc,
     createSolanaRpcSubscriptions,
     generateKeyPairSigner,
-    lamports,
     type Rpc,
     type RpcSubscriptions,
     type SolanaRpcApi,
     type SolanaRpcSubscriptionsApi,
     type TransactionSigner,
 } from '@solana/kit';
+import { RPC_URL, WS_URL } from './env.js';
+import { airdropAndWait } from './polling.js';
 
 export interface Client {
     rpc: Rpc<SolanaRpcApi>;
@@ -27,18 +27,11 @@ export interface TestSuite {
     tokenizedSecurityMint: TransactionSigner<string>;
 }
 
-const LAMPORTS_PER_SOL = 1_000_000_000;
-const CONFIG = {
-    SOLANA_RPC_URL: 'http://127.0.0.1:8899',
-    SOLANA_WS_URL: 'ws://127.0.0.1:8900',
-    SOL_DROP_AMOUNT: lamports(BigInt(LAMPORTS_PER_SOL)),
-};
-
 async function setupTestSuite(): Promise<TestSuite> {
     // Create Solana client
-    const rpc = createSolanaRpc(CONFIG.SOLANA_RPC_URL);
-    const rpcSubscriptions = createSolanaRpcSubscriptions(CONFIG.SOLANA_WS_URL);
-    const airdrop = airdropFactory({ rpc, rpcSubscriptions });
+    const rpc = createSolanaRpc(RPC_URL);
+    // Unused by the shared helpers (they confirm over HTTP polling), but part of the Client type.
+    const rpcSubscriptions = createSolanaRpcSubscriptions(WS_URL);
     const client: Client = { rpc, rpcSubscriptions };
 
     // Get or create keypairs
@@ -51,15 +44,7 @@ async function setupTestSuite(): Promise<TestSuite> {
 
     // Airdrop SOL to possible payers
     const walletsToAirdrop = [payer, freezeAuthority, mintAuthority];
-    await Promise.all(
-        walletsToAirdrop.map(async recipient => {
-            return airdrop({
-                commitment: 'processed',
-                lamports: CONFIG.SOL_DROP_AMOUNT,
-                recipientAddress: recipient.address,
-            });
-        }),
-    );
+    await Promise.all(walletsToAirdrop.map(recipient => airdropAndWait(rpc, recipient.address, 1)));
 
     return {
         client,

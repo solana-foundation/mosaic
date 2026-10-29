@@ -1,0 +1,34 @@
+name: 'Setup surfpool'
+description: 'Install and cache a pinned surfpool release'
+
+inputs:
+  version:
+    description: 'surfpool release tag. Keep in sync with SURFPOOL_VERSION in packages/sdk/src/scripts/test-with-surfpool.js.'
+    default: 'v1.6.0'
+  cache:
+    description: "Cache the binary. Pass 'false' on pull_request_target runs, whose caches land in the base branch's scope."
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    # Keyed on the exact version with no restore-keys: surfpool's Token-2022 is the ELF embedded in
+    # the binary, so a cached binary from another version would silently change what is tested.
+    - name: Cache surfpool binary
+      id: cache
+      if: inputs.cache == 'true'
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/bin/surfpool
+        key: surfpool-${{ runner.os }}-${{ inputs.version }}
+
+    - name: Install surfpool
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: curl -sL https://run.surfpool.run/ | VERSION=${{ inputs.version }} bash
+
+    - name: Add surfpool to PATH
+      shell: bash
+      run: |
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        "$HOME/.local/bin/surfpool" --version
