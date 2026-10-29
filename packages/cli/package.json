@@ -25,7 +25,7 @@
         "dev": "tsc --watch",
         "dev:run": "tsx --import ./bin/register-zk-node.mjs src/index.ts",
         "start": "node bin/mosaic.mjs",
-        "test": "sh -c 'tsx --test src/utils/*.test.ts'",
+        "test": "tsx --test src/**/*.test.ts",
         "lint": "eslint src --ext .ts",
         "lint:fix": "eslint src --ext .ts --fix",
         "type-check": "tsc --noEmit",

@@ -32,15 +32,12 @@ export function tokenAmountToRaw(amount: TokenAmount, decimals: number): bigint 
     } else {
         const trimmed = amount.trim();
         // Require a strict, fully-numeric decimal string; reject anything else.
-        const match = /^\d+(?:\.(\d+))?$/.exec(trimmed);
-        if (!match) {
+        if (!/^\d+(?:\.\d+)?$/.test(trimmed)) {
             throw new Error('Amount must be a positive number');
         }
-        // Reject over-precision up front, with the same error `decimalAmountToRaw`
-        // raises, so the extra digits never build a different amount.
-        if ((match[1]?.length ?? 0) > decimals) {
-            throw new Error(`Amount cannot have more than ${decimals} decimal places`);
-        }
+        // `decimalAmountToRaw` validates precision itself (ignoring trailing
+        // zeros), so '1.5000000' on a 6-decimal mint is accepted here exactly
+        // as it is by mint, burn and transfer, and over-precision still throws.
         rawAmount = decimalAmountToRaw(trimmed, decimals);
     }
     if (rawAmount <= 0n) {
