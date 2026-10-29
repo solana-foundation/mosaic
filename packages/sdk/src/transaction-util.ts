@@ -88,8 +88,14 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
     assertValidDecimals(decimals);
 
     // Use the string form directly when given one (no float precision loss);
-    // otherwise stringify the number.
-    const amountStr = typeof decimalAmount === 'string' ? decimalAmount : decimalAmount.toString();
+    // otherwise stringify the number without exponent notation. `toString()`
+    // renders values below 1e-6 (and >= 1e21) in exponent form, e.g.
+    // `(1e-7).toString() === '1e-7'`, which the strict format check below would
+    // reject even though 1e-7 is a valid amount on a 9-decimal mint.
+    const amountStr =
+        typeof decimalAmount === 'string'
+            ? decimalAmount
+            : decimalAmount.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 20 });
 
     // Reject negative amounts
     if (amountStr.startsWith('-')) {
@@ -104,7 +110,14 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
     const integerPart = match[1] ?? '0';
     // Trailing zeros don't change the value, so they shouldn't count toward the
     // mint's decimal places: '5.0' at 0 decimals and '1.5000000' at 6 are exact.
-    const fractionalPart = (match[2] ?? match[3] ?? '').replace(/0+$/, '');
+    // Strip them with a linear scan; an unanchored `/0+$/` replace backtracks
+    // quadratically on a long run of zeros.
+    const rawFractional = match[2] ?? match[3] ?? '';
+    let fractionalEnd = rawFractional.length;
+    while (fractionalEnd > 0 && rawFractional[fractionalEnd - 1] === '0') {
+        fractionalEnd--;
+    }
+    const fractionalPart = rawFractional.slice(0, fractionalEnd);
     if (fractionalPart.length > decimals) {
         throw new Error(`Amount cannot have more than ${decimals} decimal places`);
     }
@@ -120,6 +133,21 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
         throw new Error('Amount exceeds the maximum u64 token amount');
     }
     return raw;
+}
+
+/**
+ * Validates a user-supplied decimal amount string before it is scaled by
+ * {@link decimalAmountToRaw}. Accepts the same plain-decimal format and also
+ * requires the amount to be positive (at least one non-zero digit), so a
+ * zero-amount mint or burn is rejected up front. Exported so the CLI validates
+ * against one rule rather than a hand-kept copy.
+ *
+ * @throws If the amount is not a positive plain-decimal string
+ */
+export function validateDecimalAmount(amount: string): void {
+    if (!/^(?:\d+\.?\d*|\.\d+)$/.test(amount) || !/[1-9]/.test(amount)) {
+        throw new Error('Amount must be a positive decimal number');
+    }
 }
 
 /**

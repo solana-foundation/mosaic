@@ -7,4 +7,6 @@
 
 `createMintToTransaction`, `createBurnTransaction`, `createForceBurnTransaction` and `createForceTransferTransaction` accept the amount as `number | string`. The CLI `mint`, `burn`, `force-burn` and `force-transfer` commands now forward the amount string unchanged instead of passing it through `parseFloat`, so amounts above 2^53 reach the chain exactly as typed. These commands now accept only plain decimal digits: exponent (`1e3`) and signed (`+1`) spellings are rejected.
 
+A `number` amount is now stringified without exponent notation, so small values such as `1e-7` on a high-decimal mint are scaled correctly instead of being rejected as malformed.
+
 CLI `force-transfer` now passes the authority and fee payer as signers rather than bare addresses, so the built transaction carries its signers.
