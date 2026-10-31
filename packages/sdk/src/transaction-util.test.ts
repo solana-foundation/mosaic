@@ -57,7 +57,33 @@ describe('decimalAmountToRaw', () => {
         expect(decimalAmountToRaw('0.000001', 6)).toBe(1n);
         expect(decimalAmountToRaw('.5', 6)).toBe(500_000n);
         expect(decimalAmountToRaw('1.', 6)).toBe(1_000_000n);
-        expect(decimalAmountToRaw('0', 6)).toBe(0n);
+    });
+
+    it.each(['0', '0.0', '.0', '0.000', 0, -0])('rejects the zero amount %p', amount => {
+        expect(() => decimalAmountToRaw(amount, 6)).toThrow('Amount must be a positive number');
+    });
+
+    it('expands number amounts in exponent notation without rounding', () => {
+        expect(decimalAmountToRaw(1e-7, 9)).toBe(100n);
+        expect(decimalAmountToRaw(1.5e-7, 9)).toBe(150n);
+        expect(decimalAmountToRaw(1e-21, 21)).toBe(1n);
+        expect(decimalAmountToRaw(1.23456789012345e-15, 29)).toBe(123_456_789_012_345n);
+    });
+
+    it('rejects number amounts below the mint precision instead of rounding them to zero', () => {
+        expect(() => decimalAmountToRaw(1e-21, 9)).toThrow('Amount cannot have more than 9 decimal places');
+        expect(() => decimalAmountToRaw(1.23456789012345e-15, 20)).toThrow(
+            'Amount cannot have more than 20 decimal places',
+        );
+    });
+
+    it('keeps the u64 and sign checks for number amounts in exponent notation', () => {
+        expect(() => decimalAmountToRaw(1e21, 0)).toThrow('Amount exceeds the maximum u64 token amount');
+        expect(() => decimalAmountToRaw(-1e-7, 9)).toThrow('Amount must be positive');
+    });
+
+    it.each([NaN, Infinity])('rejects the non-finite number %p', amount => {
+        expect(() => decimalAmountToRaw(amount, 6)).toThrow('Invalid amount format');
     });
 
     it('preserves precision beyond Number.MAX_SAFE_INTEGER', () => {
