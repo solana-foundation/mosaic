@@ -67,35 +67,60 @@ export function assertValidDecimals(decimals: number): void {
 }
 
 /**
+ * Renders a number in plain decimal notation, using exactly the digits of its
+ * shortest round-trip form. `toString()` switches to exponent notation below
+ * 1e-6 and from 1e21 up, and `toLocaleString` rounds to at most 20 fractional
+ * digits, which can turn a positive amount into `0`.
+ *
+ * @param value - The number to render
+ * @returns The number without an exponent; non-finite values are returned as `toString()` renders them
+ */
+function numberToPlainDecimal(value: number): string {
+    const text = value.toString();
+    const match = /^(-?)(\d+)(?:\.(\d+))?e([+-]\d+)$/.exec(text);
+    if (!match) {
+        return text;
+    }
+
+    const [, sign, integerDigits, fractionalDigits = '', exponent] = match;
+    const digits = integerDigits + fractionalDigits;
+    const pointIndex = integerDigits.length + Number(exponent);
+    if (pointIndex <= 0) {
+        return `${sign}0.${'0'.repeat(-pointIndex)}${digits}`;
+    }
+    if (pointIndex >= digits.length) {
+        return `${sign}${digits}${'0'.repeat(pointIndex - digits.length)}`;
+    }
+    return `${sign}${digits.slice(0, pointIndex)}.${digits.slice(pointIndex)}`;
+}
+
+/**
  * Converts a decimal amount to raw token amount based on mint decimals
  *
  * Prefer passing a `string`: a `number` is stringified first, which loses
- * precision for large (u64-scale) amounts and renders values >= 1e21 in
- * exponential form. A `string` is scaled digit-by-digit with no float round-trip.
+ * precision for large (u64-scale) amounts. A `string` is scaled digit-by-digit
+ * with no float round-trip.
  *
  * The amount must be plain decimal digits with at most one decimal point
  * (`"1"`, `"1.5"`, `".5"`, `"1."`). Exponents, signs, separators, whitespace
  * and empty strings throw, as does an amount with more fractional digits than
  * `decimals`: truncating them would build an instruction for a different
- * amount than the caller supplied.
+ * amount than the caller supplied. A zero amount throws too, since the
+ * instruction would pay fees and move nothing.
  *
  * @param decimalAmount - The decimal amount (e.g., `1.5` or `"1.5"`)
  * @param decimals - The number of decimals the token has
  * @returns The raw token amount as bigint
- * @throws If `decimals` is invalid, the amount is negative or malformed, has more than `decimals` fractional digits, or the raw amount exceeds u64
+ * @throws If `decimals` is invalid, the amount is zero, negative or malformed, has more than `decimals` fractional digits, or the raw amount exceeds u64
  */
 export function decimalAmountToRaw(decimalAmount: number | string, decimals: number): bigint {
     assertValidDecimals(decimals);
 
     // Use the string form directly when given one (no float precision loss);
-    // otherwise stringify the number without exponent notation. `toString()`
-    // renders values below 1e-6 (and >= 1e21) in exponent form, e.g.
-    // `(1e-7).toString() === '1e-7'`, which the strict format check below would
-    // reject even though 1e-7 is a valid amount on a 9-decimal mint.
-    const amountStr =
-        typeof decimalAmount === 'string'
-            ? decimalAmount
-            : decimalAmount.toLocaleString('en-US', { useGrouping: false, maximumFractionDigits: 20 });
+    // otherwise stringify the number without exponent notation, which the strict
+    // format check below would reject even though 1e-7 is a valid amount on a
+    // 9-decimal mint.
+    const amountStr = typeof decimalAmount === 'string' ? decimalAmount : numberToPlainDecimal(decimalAmount);
 
     // Reject negative amounts
     if (amountStr.startsWith('-')) {
@@ -129,6 +154,9 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
 
     // Convert to BigInt
     const raw = BigInt(rawAmountStr);
+    if (raw === 0n) {
+        throw new Error('Amount must be a positive number');
+    }
     if (raw > U64_MAX) {
         throw new Error('Amount exceeds the maximum u64 token amount');
     }
