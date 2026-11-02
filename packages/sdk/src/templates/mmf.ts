@@ -19,7 +19,7 @@ import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw.js';
 import { getCreateListInstructions } from '../abl/list.js';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
-import { resolveTemplateSigner } from './resolve-signer.js';
+import { resolveTemplateSigners } from './resolve-signer.js';
 
 /**
  * Creates a transaction to initialize a Money Market Fund (MMF) mint.
@@ -70,8 +70,7 @@ export const createMmfInitTransaction = async (
     },
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
-    const feePayerSigner = resolveTemplateSigner(feePayer, mintAuthority);
-    const mintAuthoritySigner = resolveTemplateSigner(mintAuthority, feePayerSigner);
+    const { feePayerSigner, mintAuthoritySigner } = resolveTemplateSigners(feePayer, mintAuthority);
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
 
     const aclMode = options?.aclMode ?? 'allowlist';
@@ -80,13 +79,13 @@ export const createMmfInitTransaction = async (
     const metadataAuthority = options?.metadataAuthority || mintAuthorityAddress;
     const pausableAuthority = options?.pausableAuthority || mintAuthorityAddress;
     const permanentDelegateAuthority = options?.permanentDelegateAuthority || mintAuthorityAddress;
-    // transferHookAuthority must sign UpdateTransferHook below. Default to the mintAuthority
-    // input (preserving its TransactionSigner if provided) so the existing signer covers it.
+    // transferHookAuthority must sign UpdateTransferHook below. Default to the resolved mint
+    // authority signer, so the instruction reuses the one signer object for that address.
     // Callers that want a different key MUST pass a TransactionSigner here — passing a bare
     // Address only works if some other instruction in the same tx already attaches a signer
     // for that address, otherwise signTransactionMessageWithSigners will leave it unsigned.
     const transferHookAuthorityInput: Address | TransactionSigner<string> =
-        options?.transferHookAuthority ?? mintAuthority;
+        options?.transferHookAuthority ?? mintAuthoritySigner;
     const transferHookAuthorityAddress =
         typeof transferHookAuthorityInput === 'string'
             ? transferHookAuthorityInput

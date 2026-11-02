@@ -6,11 +6,17 @@ import type {
     TransactionMessageWithFeePayer,
 } from '@solana/kit';
 import {
+    appendTransactionMessageInstruction,
     blockhash,
+    createTransactionMessage,
     flattenTransactionPlan,
     generateKeyPairSigner,
     getAddressEncoder,
+    getTransactionMessageSize,
+    getTransactionMessageSizeLimit,
     parallelInstructionPlan,
+    pipe,
+    setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
 } from '@solana/kit';
 import { createMockRpc, createMockSigner, seedMintDetails, MOCK_EPOCH } from '../../__tests__/test-utils.js';
@@ -94,6 +100,7 @@ import {
     createApproveConfidentialAccountInstructionPlan,
     createConfidentialDepositInstructionPlan,
     createConfidentialTransferInstructionPlan,
+    FEE_SCHEDULE_CHANGE_GUARD_SLOTS,
     createConfidentialWithdrawInstructionPlan,
     createConfigureConfidentialAccountInstructionPlan,
     createEmptyConfidentialAccountInstructionPlan,
@@ -444,7 +451,7 @@ describe('confidential operation builders', () => {
         });
     });
 
-    describe('transfer on a ConfidentialTransferFee mint', () => {
+    describe('transfer on a fee-bearing mint', () => {
         const transferArgs = {
             mint: MINT,
             sourceToken: SOURCE_TOKEN,
@@ -453,16 +460,33 @@ describe('confidential operation builders', () => {
             amount: '3',
         };
 
-        /** A mint carrying both halves the fee-aware transfer needs. */
-        function seedFeeMint() {
+        const fee = (epoch: bigint, transferFeeBasisPoints: number) => ({
+            epoch,
+            transferFeeBasisPoints,
+            maximumFee: 1_000n,
+        });
+
+        /**
+         * A confidential mint with a fee config, which Token-2022 only allows together
+         * with `ConfidentialTransferFee`. By default the newer schedule is already in force.
+         */
+        function seedFeeMint(newerTransferFee = fee(0n, 50)) {
             mockMintExtensions = {
                 __option: 'Some',
                 value: [
                     { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
-                    { __kind: 'TransferFeeConfig' },
+                    { __kind: 'TransferFeeConfig', olderTransferFee: fee(0n, 50), newerTransferFee },
                     { __kind: 'ConfidentialTransferFee' },
                 ],
             };
+        }
+
+        /** Makes the mock RPC report `slotsLeft` slots remaining in {@link MOCK_EPOCH}. */
+        function seedSlotsLeftInEpoch(slotsLeft: bigint) {
+            jest.spyOn(rpc as unknown as { getEpochInfo: () => unknown }, 'getEpochInfo').mockReturnValue({
+                send: () =>
+                    Promise.resolve({ epoch: MOCK_EPOCH, slotIndex: 432_000n - slotsLeft, slotsInEpoch: 432_000n }),
+            });
         }
 
         it('routes to the fee-aware helper instead of the standard one', async () => {
@@ -492,7 +516,7 @@ describe('confidential operation builders', () => {
             );
         });
 
-        it('never reads the epoch for a mint without ConfidentialTransferFee', async () => {
+        it('never reads the epoch for a mint without TransferFeeConfig', async () => {
             const getEpochInfo = jest.spyOn(rpc as unknown as { getEpochInfo: () => unknown }, 'getEpochInfo');
             await createConfidentialTransferInstructionPlan({
                 rpc: rpc as never,
@@ -546,14 +570,9 @@ describe('confidential operation builders', () => {
             );
         });
 
-        it('fails fast when ConfidentialTransferFee is present without TransferFeeConfig', async () => {
-            mockMintExtensions = {
-                __option: 'Some',
-                value: [
-                    { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
-                    { __kind: 'ConfidentialTransferFee' },
-                ],
-            };
+        it('refuses to plan right before an epoch boundary where the fee changes', async () => {
+            seedFeeMint(fee(MOCK_EPOCH + 1n, 75));
+            seedSlotsLeftInEpoch(FEE_SCHEDULE_CHANGE_GUARD_SLOTS);
             await expect(
                 createConfidentialTransferInstructionPlan({
                     rpc: rpc as never,
@@ -561,28 +580,34 @@ describe('confidential operation builders', () => {
                     ...transferArgs,
                     keys: fakeKeys,
                 }),
-            ).rejects.toThrow(/without TransferFeeConfig/);
+            ).rejects.toThrow(/transfer fee changes at epoch 43/);
             expect(getConfidentialTransferWithFeeInstructionPlan).not.toHaveBeenCalled();
         });
 
-        it('leaves a plain TransferFeeConfig mint on the standard no-fee path', async () => {
-            // TransferFeeConfig alone is a plaintext transfer fee; only the
-            // confidential half switches the proof set.
-            mockMintExtensions = {
-                __option: 'Some',
-                value: [
-                    { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
-                    { __kind: 'TransferFeeConfig' },
-                ],
-            };
-            const plan = await createConfidentialTransferInstructionPlan({
-                rpc: rpc as never,
-                payer,
-                ...transferArgs,
-                keys: fakeKeys,
-            });
-            expect(plan).toBe(mockTransferPlan);
-            expect(getConfidentialTransferWithFeeInstructionPlan).not.toHaveBeenCalled();
+        it('plans normally when the fee change is further away than the guard', async () => {
+            seedFeeMint(fee(MOCK_EPOCH + 1n, 75));
+            seedSlotsLeftInEpoch(FEE_SCHEDULE_CHANGE_GUARD_SLOTS + 1n);
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    keys: fakeKeys,
+                }),
+            ).resolves.toBe(mockTransferWithFeePlan);
+        });
+
+        it('plans normally at a boundary where the scheduled fee is unchanged', async () => {
+            seedFeeMint(fee(MOCK_EPOCH + 1n, 50));
+            seedSlotsLeftInEpoch(1n);
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    keys: fakeKeys,
+                }),
+            ).resolves.toBe(mockTransferWithFeePlan);
         });
     });
 
@@ -751,6 +776,23 @@ describe('confidential operation builders', () => {
             expect(txPlan.message.config).toEqual({ computeUnitLimit: 0, loadedAccountsDataSizeLimit: 0 });
         });
 
+        it('reserves a compute-unit-limit instruction at version 0 when asked', async () => {
+            const feePayer = await generateKeyPairSigner();
+            const owner = await generateKeyPairSigner();
+            const instructionPlan = createEnableConfidentialCreditsInstructionPlan({
+                tokenAccount: SOURCE_TOKEN,
+                authority: owner,
+            });
+            const plain: any = await planConfidentialInstructions({ instructionPlan, feePayer });
+            const reserved: any = await planConfidentialInstructions({
+                instructionPlan,
+                feePayer,
+                reserveComputeUnitLimit: true,
+            });
+            expect(reserved.message.version).toBe(0);
+            expect(reserved.message.instructions).toHaveLength(plain.message.instructions.length + 1);
+        });
+
         it('fits more instructions per transaction at version 1 than at version 0', async () => {
             // Synthetic oversized instructions rather than real confidential ones:
             // the upstream plan helpers are mocked here, and what is under test is
@@ -784,7 +826,10 @@ describe('confidential operation builders', () => {
             } as unknown as Rpc<SimulateTransactionApi>;
         }
 
-        async function planOne(version: 0 | 1): Promise<TransactionMessage & TransactionMessageWithFeePayer> {
+        async function planOne(
+            version: 0 | 1,
+            reserveComputeUnitLimit = false,
+        ): Promise<TransactionMessage & TransactionMessageWithFeePayer> {
             const feePayer = await generateKeyPairSigner();
             const owner = await generateKeyPairSigner();
             const txPlan: any = await planConfidentialInstructions({
@@ -794,6 +839,7 @@ describe('confidential operation builders', () => {
                 }),
                 feePayer,
                 version,
+                reserveComputeUnitLimit,
             });
             return txPlan.message;
         }
@@ -837,9 +883,43 @@ describe('confidential operation builders', () => {
                 transactionMessage: message,
             });
             expect(updated.config).toBeUndefined();
-            // The added ComputeBudget instruction is what makes `recordBackedProof`
-            // necessary at version 0: it grows an already size-critical message.
+            // Unreserved, the ComputeBudget instruction is added here and grows the message.
             expect(updated.instructions.length).toBe(message.instructions.length + 1);
+        });
+
+        it('only rewrites the instruction the version-0 planner reserved', async () => {
+            const message = setTransactionMessageLifetimeUsingBlockhash(LIFETIME, await planOne(0, true));
+            const updated: any = await estimateAndSetConfidentialResourceLimits({
+                rpc: mockSimulationRpc({ err: null, unitsConsumed: 99_000n }),
+                transactionMessage: message,
+            });
+            expect(updated.instructions.length).toBe(message.instructions.length);
+            expect(getTransactionMessageSize(updated)).toBe(getTransactionMessageSize(message));
+        });
+
+        it('throws a targeted error when the added limit overflows a full version-0 message', async () => {
+            const feePayer = await generateKeyPairSigner();
+            const program = (await generateKeyPairSigner()).address;
+            const withData = (length: number) =>
+                pipe(
+                    createTransactionMessage({ version: 0 }),
+                    m => setTransactionMessageFeePayerSigner(feePayer, m),
+                    m => setTransactionMessageLifetimeUsingBlockhash(LIFETIME, m),
+                    m =>
+                        appendTransactionMessageInstruction(
+                            { programAddress: program, data: new Uint8Array(length) },
+                            m,
+                        ),
+                );
+            // 5 bytes under the limit: fits as planned, but not with a ComputeBudget instruction.
+            const sample = withData(200);
+            const length = getTransactionMessageSizeLimit(sample) - getTransactionMessageSize(sample) + 200 - 5;
+            await expect(
+                estimateAndSetConfidentialResourceLimits({
+                    rpc: mockSimulationRpc({ err: null, unitsConsumed: 99_000n }),
+                    transactionMessage: withData(length),
+                }),
+            ).rejects.toThrow(/reserveComputeUnitLimit/);
         });
     });
 });

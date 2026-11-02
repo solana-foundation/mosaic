@@ -14,6 +14,8 @@ import {
     estimateAndSetResourceLimitsFactory,
     estimateResourceLimitsFactory,
     fillTransactionMessageProvisoryResourceLimits,
+    getTransactionMessageSize,
+    getTransactionMessageSizeLimit,
     pipe,
     setTransactionMessageFeePayerSigner,
 } from '@solana/kit';
@@ -68,6 +70,20 @@ export type ConfidentialPlannerOptions = {
      * path's job — see {@link estimateAndSetConfidentialResourceLimits}.
      */
     version?: ConfidentialTransactionVersion;
+    /**
+     * Version 0 only (version 1 always reserves its header fields). Reserve a
+     * compute-unit-limit instruction in every message while packing, so an
+     * executor that sets compute-unit limits — kit's default, or
+     * {@link estimateAndSetConfidentialResourceLimits} — only rewrites its value
+     * and never grows a message past 1232 bytes. Defaults to `false`, which packs
+     * without it as the SDK always has.
+     *
+     * With it on, a fee-mint confidential transfer and an inline withdraw both
+     * plan cleanly at version 0. A plain transfer's inline range proof leaves no
+     * room for the instruction, so planning it fails up front with a capacity
+     * error; pass `recordBackedProof` to that builder, or plan at version 1.
+     */
+    reserveComputeUnitLimit?: boolean;
 };
 
 /**
@@ -91,12 +107,14 @@ export function createConfidentialTransactionPlanner(
                 version === 1 ? createTransactionMessage({ version: 1 }) : createTransactionMessage({ version: 0 }),
                 m => setTransactionMessageFeePayerSigner(feePayer, m),
             ),
-        // Version 1 only: reserve the resource-limit header fields while the
-        // planner sizes messages, otherwise packing under-counts by the bytes
-        // the real limits will occupy. Left off for version 0, where the
-        // equivalent would be a ComputeBudget *instruction* the SDK has never
-        // emitted and callers may not want.
-        ...(version === 1 ? { onTransactionMessageUpdated: fillTransactionMessageProvisoryResourceLimits } : {}),
+        // Reserve the resource limits while the planner sizes messages, otherwise
+        // packing under-counts by the bytes the real limits will occupy. Always
+        // on for version 1 (header fields). Opt-in for version 0, where it is a
+        // ComputeBudget *instruction* that callers who send without limits do
+        // not want.
+        ...(version === 1 || options.reserveComputeUnitLimit
+            ? { onTransactionMessageUpdated: fillTransactionMessageProvisoryResourceLimits }
+            : {}),
     });
 }
 
@@ -110,8 +128,11 @@ export async function planConfidentialInstructions(input: {
     feePayer: TransactionSigner;
     /** See {@link ConfidentialPlannerOptions.version}. Defaults to `0`. */
     version?: ConfidentialTransactionVersion;
+    /** See {@link ConfidentialPlannerOptions.reserveComputeUnitLimit}. Defaults to `false`. */
+    reserveComputeUnitLimit?: boolean;
 }): Promise<TransactionPlan> {
-    return createConfidentialTransactionPlanner(input.feePayer, { version: input.version })(input.instructionPlan);
+    const { instructionPlan, feePayer, ...options } = input;
+    return createConfidentialTransactionPlanner(feePayer, options)(instructionPlan);
 }
 
 /**
@@ -133,17 +154,17 @@ export async function planConfidentialInstructions(input: {
  * alone, so a caller that knows its own budget can pre-set one and this call
  * becomes a no-op for that field.
  *
- * Version 0 and legacy messages get a compute-unit-limit *instruction*, which
- * adds bytes to an already-sized message — that is exactly the collision
- * `recordBackedProof` exists to work around. A fee-mint confidential transfer
- * has a version-0 transaction at exactly 1232 bytes that `recordBackedProof`
- * cannot shrink, so this overflows it; plan those at version 1. Version 1
- * messages get header fields whose bytes the planner has already reserved, so
- * nothing changes size.
+ * Version 0 and legacy messages get a compute-unit-limit *instruction*. If the
+ * planner reserved it (`reserveComputeUnitLimit`), only its value changes;
+ * otherwise it adds bytes to an already-sized message and can push it past the
+ * size limit. Version 1 messages get header fields whose bytes the planner has
+ * already reserved, so nothing changes size.
  *
  * @throws If the message has no lifetime, or if simulation fails. For version 1
  * it also throws when the RPC omits `loadedAccountsDataSize` from the
- * simulation result, since version 1 cannot be sent without that limit.
+ * simulation result, since version 1 cannot be sent without that limit. It also
+ * throws when the message with its limits no longer fits the transaction size
+ * limit, naming `reserveComputeUnitLimit` as the fix.
  */
 export async function estimateAndSetConfidentialResourceLimits<
     TTransactionMessage extends TransactionMessage & TransactionMessageWithFeePayer,
@@ -162,5 +183,14 @@ export async function estimateAndSetConfidentialResourceLimits<
         );
     }
     const estimateAndSet = estimateAndSetResourceLimitsFactory(estimateResourceLimitsFactory({ rpc }));
-    return estimateAndSet(transactionMessage, config);
+    const withLimits = await estimateAndSet(transactionMessage, config);
+    const size = getTransactionMessageSize(withLimits);
+    const limit = getTransactionMessageSizeLimit(withLimits);
+    if (size > limit) {
+        throw new Error(
+            `Adding resource limits grew this transaction message to ${size} bytes, over the ${limit}-byte limit. ` +
+                `Plan it with \`reserveComputeUnitLimit: true\` (or \`version: 1\`) so the planner leaves room for them.`,
+        );
+    }
+    return withLimits;
 }

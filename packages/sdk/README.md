@@ -192,26 +192,15 @@ The burn authority can be rotated or removed with `getUpdateAuthorityTransaction
 
 The SDK supports the Token-2022 Confidential Transfer extension: token amounts are encrypted on-chain (under a per-account ElGamal + AES key pair) while remaining publicly auditable, across the standard flow (configure → deposit → apply → transfer → withdraw → empty).
 
-> **Import path.** Everything below imports from the dedicated
-> `@solana/mosaic-sdk/confidential` subpath — _not_ the package root. This subpath
-> pulls in the `@solana/zk-sdk` WASM proof/crypto dependency, which is deliberately
-> kept out of the root barrel so plain (non-confidential) imports stay lightweight.
+> **Import path.** Everything below imports from the dedicated `@solana/mosaic-sdk/confidential` subpath — _not_ the package root. This subpath pulls in the `@solana/zk-sdk` WASM proof/crypto dependency, which is deliberately kept out of the root barrel so plain (non-confidential) imports stay lightweight.
 >
-> **Cluster requirement.** Confidential operations verify zero-knowledge proofs via
-> the ZK ElGamal Proof Program, which must be live on the target cluster. In practice
-> that means **devnet**: it is not always enabled on mainnet, and a stock local
-> validator fails these flows (deposit returns `InvalidInstructionData`), which is why
-> `pnpm test:integration` skips every confidential suite. Several operations span
-> multiple transactions to set up and reclaim proof context-state accounts.
+> **Cluster requirement.** Confidential operations verify zero-knowledge proofs via the ZK ElGamal Proof Program, which must be live on the target cluster. In practice that means **devnet**: it is not always enabled on mainnet, and a stock local validator fails these flows (deposit returns `InvalidInstructionData`), which is why `pnpm test:integration` skips every confidential suite. Several operations span multiple transactions to set up and reclaim proof context-state accounts.
 >
-> **Memory.** `ConfidentialKeys` hold WASM-backed memory — call
-> `freeConfidentialKeys(keys)` when you're done with them.
+> **Memory.** `ConfidentialKeys` hold WASM-backed memory — call `freeConfidentialKeys(keys)` when you're done with them.
 
 ### 1. Enable at mint creation
 
-Use the `Token` builder to add the extension. `policy` is `'opt-in'` (accounts
-self-configure) or `'whitelist'` (default — accounts must be approved by the
-confidential-transfer authority before use).
+Use the `Token` builder to add the extension. `policy` is `'opt-in'` (accounts self-configure) or `'whitelist'` (default — accounts must be approved by the confidential-transfer authority before use).
 
 ```ts
 import { Token } from '@solana/mosaic-sdk';
@@ -247,8 +236,7 @@ fallbackSignMessage)`, then `createMessageSigner(owner, signMessage)` to get the
 
 ### 3. Configure the account
 
-Creates the ATA (if needed), reallocates for the extension, and registers the keys.
-On whitelist mints, follow with an approval by the confidential-transfer authority.
+Creates the ATA (if needed), reallocates for the extension, and registers the keys. On whitelist mints, follow with an approval by the confidential-transfer authority.
 
 ```ts
 import {
@@ -275,8 +263,7 @@ const approvePlan = createApproveConfidentialAccountInstructionPlan({
 
 ### 4. Deposit, apply, transfer, withdraw, empty
 
-The standard confidential-balance lifecycle. All functions return an
-`InstructionPlan` — see [Executing plans](#executing-plans) below.
+The standard confidential-balance lifecycle. All functions return an `InstructionPlan` — see [Executing plans](#executing-plans) below.
 
 ```ts
 import {
@@ -337,15 +324,13 @@ const empty = await createEmptyConfidentialAccountInstructionPlan({
 });
 ```
 
-> **Transfer fees.** On a mint carrying `TransferFeeConfig` + `ConfidentialTransferFee`, `createConfidentialTransferInstructionPlan` routes itself to the fee-aware variant, which verifies five proofs instead of three and withholds the fee into the destination account. That path needs the current epoch to pick between the mint's older and newer fee schedule; it is read via `getEpochInfo` only on that path, and you can pass `currentEpoch` to skip the round trip. A mint with `ConfidentialTransferFee` but no `TransferFeeConfig` is malformed and is rejected before any proof is built.
+> **Transfer fees.** On a mint carrying `TransferFeeConfig`, `createConfidentialTransferInstructionPlan` routes itself to the fee-aware variant, as the program requires. (Token-2022 only lets a confidential mint have a fee config together with `ConfidentialTransferFee`, and the `Token` builder rejects the combination without it.) The fee-aware variant verifies five proofs instead of three and withholds the fee into the destination account. It needs the current epoch to pick between the mint's older and newer fee schedule; it is read via `getEpochInfo` only on that path, and you can pass `currentEpoch` to skip the round trip.
 >
-> The fee-aware range proof is always staged in an SPL Record account, with or without `recordBackedProof`. Even so, one of the plan's version-0 transactions fills the 1232-byte limit exactly, so there is no room for a compute-unit-limit instruction: send fee-mint transfers at version 0 without adding one, or plan them with `version: 1`. The fee schedule is fixed when the plan is built, so a transfer that lands after a scheduled fee change takes effect is rejected on-chain. Avoid planning transfers in the last moments of the epoch before a scheduled change. Holder accounts on a `TransferFeeConfig` mint need room for `ConfidentialTransferFeeAmount`; `createConfigureConfidentialAccountInstructionPlan` reads the mint and adds it automatically (or pass `includeConfidentialTransferFeeAmount`).
+> The fee-aware range proof is always staged in an SPL Record account, with or without `recordBackedProof`. The fee schedule is fixed when the plan is built, so a transfer that lands after a scheduled fee change takes effect is rejected on-chain. When the builder fetches the epoch itself, it refuses to plan within `FEE_SCHEDULE_CHANGE_GUARD_SLOTS` (1500 slots, about 10 minutes) of an epoch boundary where the fee changes; a supplied `currentEpoch` skips that check and must be fresh. Holder accounts on a `TransferFeeConfig` mint need room for `ConfidentialTransferFeeAmount`; `createConfigureConfidentialAccountInstructionPlan` reads the mint and adds it automatically (or pass `includeConfidentialTransferFeeAmount`).
 
 ### Credits (who may send you what)
 
-Four proof-free toggles, each signed by the token account's owner, controlling
-which kinds of incoming transfer the account accepts. Useful before `empty` /
-account closure, and to park an account that should stop receiving.
+Four proof-free toggles, each signed by the token account's owner, controlling which kinds of incoming transfer the account accepts. Useful before `empty` / account closure, and to park an account that should stop receiving.
 
 ```ts
 import {
@@ -366,9 +351,7 @@ The `NonConfidential` pair governs incoming regular (plaintext) transfers instea
 
 ### Reading state before you ask for keys
 
-Deriving keys costs a wallet signature, so a UI usually wants to know what it is
-dealing with first. These readers are WASM-free and take an already-decoded mint or
-token account, so they cost nothing beyond the fetch you were making anyway.
+Deriving keys costs a wallet signature, so a UI usually wants to know what it is dealing with first. These readers are WASM-free and take an already-decoded mint or token account, so they cost nothing beyond the fetch you were making anyway.
 
 ```ts
 import {
@@ -388,15 +371,9 @@ if (isConfidentialTransferMint(mint)) {
 
 `assertConfidentialKeysMatchAccount(keys, registeredPubkey, label)` asserts that a caller's `ConfidentialKeys` are the ones a given account was actually registered with. The builders call it internally; call it yourself to fail early in a UI, before a wrong-wallet key surfaces as an opaque on-chain proof rejection.
 
-For raw ciphertexts and their decryption there are `fetchConfidentialAccountState`
-(the lower-level counterpart to `inspectConfidentialAccount`) plus
-`decryptConfidentialBalances`, and the two primitives `decryptAesBalance` (fast and
-exact, for a `decryptableAvailableBalance`) and `decryptElGamalBalance` (a discrete-log
-search — only practical for small amounts).
+For raw ciphertexts and their decryption there are `fetchConfidentialAccountState` (the lower-level counterpart to `inspectConfidentialAccount`) plus `decryptConfidentialBalances`, and the two primitives `decryptAesBalance` (fast and exact, for a `decryptableAvailableBalance`) and `decryptElGamalBalance` (a discrete-log search — only practical for small amounts).
 
-`isSignerRejection` / `describeError` tell "the user dismissed the wallet prompt"
-apart from "this wallet cannot sign the derivation message at all", which a UI has
-to report differently.
+`isSignerRejection` / `describeError` tell "the user dismissed the wallet prompt" apart from "this wallet cannot sign the derivation message at all", which a UI has to report differently.
 
 ### Amounts
 
@@ -406,10 +383,7 @@ Builders that take a user-facing amount accept a `TokenAmount` — a decimal str
 
 ### Executing plans
 
-Confidential operations return an `InstructionPlan` rather than a single
-transaction (some span multiple transactions for proof context-state setup and
-cleanup). Turn one into a signable `TransactionPlan` with `planConfidentialInstructions`,
-then sign and send each transaction in order.
+Confidential operations return an `InstructionPlan` rather than a single transaction (some span multiple transactions for proof context-state setup and cleanup). Turn one into a signable `TransactionPlan` with `planConfidentialInstructions`, then sign and send each transaction in order.
 
 ```ts
 import { planConfidentialInstructions } from '@solana/mosaic-sdk/confidential';
@@ -418,6 +392,16 @@ const plan = await planConfidentialInstructions({ instructionPlan: transfer, fee
 // plan.kind === 'single' → one message; otherwise walk plan.plans in order,
 // adding a fresh blockhash, signing, and sending each.
 ```
+
+#### Compute-unit limits at version 0
+
+Planned version-0 messages carry no compute-unit limit, and the runtime's default of 200k CUs per instruction applies. If you send through an executor that sets compute-unit limits (kit's default does, as does `estimateAndSetConfidentialResourceLimits`), plan with `reserveComputeUnitLimit: true`. The planner then reserves the ComputeBudget instruction while packing, and the executor only rewrites its value. Without the reservation the added instruction can push a packed message past 1232 bytes; `estimateAndSetConfidentialResourceLimits` throws in that case rather than returning a message that cannot be sent.
+
+```ts
+const plan = await planConfidentialInstructions({ instructionPlan: withdraw, feePayer, reserveComputeUnitLimit: true });
+```
+
+With the reservation, withdraw and fee-mint transfers plan as usual. The one exception is a plain confidential transfer: its inline range proof leaves no room for the instruction, so planning fails up front with a capacity error. Pass `recordBackedProof: {}` to that transfer, which stages the proof in an SPL Record account at the cost of extra transactions, or plan at version 1.
 
 #### Transaction v1 (SIMD-0385)
 
@@ -448,7 +432,7 @@ Do this per transaction as the plan progresses, not once over the whole plan up 
 
 Two consequences for version 1 worth knowing:
 
-- **`recordBackedProof` is a version-0 workaround.** It exists only because a version-0 range-proof transaction sits too close to 1232 bytes to also fit a compute-unit-limit _instruction_. Version 1 carries that limit in a header field and has 4096 bytes, so leave the option off — there it only adds transactions and rent churn. The reverse also holds: on a `ConfidentialTransferFee` mint the transfer is already record-backed and still has a version-0 transaction at exactly 1232 bytes, so if your executor sets compute-unit limits, version 1 is the only way to send it.
+- **`recordBackedProof` is a version-0 workaround.** It exists only because a plain version-0 transfer's range-proof transaction sits too close to 1232 bytes to also fit a compute-unit-limit _instruction_. Version 1 carries that limit in a header field and has 4096 bytes, so leave the option off — there it only adds transactions and rent churn.
 - **No address lookup tables.** Version 1 inlines all accounts (max 64 accounts, 64 instructions, no duplicates). With 4096 raw bytes that is not a constraint for these flows, but "version 1" and "compressed via a lookup table" are mutually exclusive.
 
 ### Inspecting confidential accounts
@@ -464,14 +448,7 @@ console.log(info?.decrypted?.availableBalance); // bigint (raw units)
 
 For a runnable end-to-end example of the transfer flow, see `packages/sdk/src/__tests__/integration/confidential.test.ts`.
 
-> **Deprecated: `confidential/proof.ts`.** `buildProofVerificationIxs`,
-> `buildTransferProofIxs`, `buildWithdrawProofIxs`, `buildPubkeyValidityProofIxs`,
-> `buildZeroCiphertextProofIxs` and `buildCloseContextStateInstruction` are still
-> exported, but no builder in this SDK constructs proofs by hand any more — every
-> operation delegates to `@solana-program/token-2022/confidential`. They remain only
-> for callers who wired their own flows on them, and are slated for removal in a
-> future breaking release. They are also the only remaining way to reach the
-> sibling/inline proof mode; the supported builders all use context-state proofs.
+> **Deprecated: `confidential/proof.ts`.** `buildProofVerificationIxs`, `buildTransferProofIxs`, `buildWithdrawProofIxs`, `buildPubkeyValidityProofIxs`, `buildZeroCiphertextProofIxs` and `buildCloseContextStateInstruction` are still exported, but no builder in this SDK constructs proofs by hand any more — every operation delegates to `@solana-program/token-2022/confidential`. They remain only for callers who wired their own flows on them, and are slated for removal in a future breaking release. They are also the only remaining way to reach the sibling/inline proof mode; the supported builders all use context-state proofs.
 
 ## Access lists (ABL, SRFC-37)
 

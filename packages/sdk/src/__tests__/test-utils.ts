@@ -51,7 +51,8 @@ export function createMockRpc(): Rpc<any> {
         // The fee-aware confidential transfer reads the current epoch to choose
         // between a mint's older and newer transfer-fee schedule.
         getEpochInfo: () => ({
-            send: () => Promise.resolve({ epoch: MOCK_EPOCH }),
+            // Mid-epoch, far from any boundary.
+            send: () => Promise.resolve({ epoch: MOCK_EPOCH, slotIndex: 0n, slotsInEpoch: 432_000n }),
         }),
         getProgramAccounts: (programAddress: Address, _opts?: any) => ({
             send: async () => {

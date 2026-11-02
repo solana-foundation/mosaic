@@ -110,5 +110,5 @@ pnpm start  # Start production server
 - Uses `@solana/kit` for RPC + transaction building and `@solana-program/token-2022` for instructions
 - All token creation functions return `FullTransaction` objects ready for signing
 - Uses Turbo for monorepo build orchestration (faster builds with caching)
-- Node.js 20+ and pnpm 10+ required
+- Node.js 20.19+ and pnpm 10+ required
 - TypeScript 5.9+ for all packages

@@ -45,8 +45,9 @@ export async function createConfidentialWithdrawInstructionPlan(input: {
     keys: ConfidentialKeys;
     /**
      * Stage the batched range proof in an SPL Record account instead of inline in
-     * the verify instruction data. Pass this (`{}` is enough) when sending with an
-     * executor that sets compute-unit limits — see {@link RecordBackedProof}.
+     * the verify instruction data. Not needed for compute-unit limits: the inline
+     * withdraw plan fits one when planned with `reserveComputeUnitLimit`, so this
+     * only adds transactions — see {@link RecordBackedProof}.
      */
     recordBackedProof?: RecordBackedProof;
 }): Promise<InstructionPlan> {

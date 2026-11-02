@@ -60,6 +60,27 @@ export interface ConfidentialBalancesOptions {
  */
 export type ConfidentialBalancesConfig = Omit<ConfidentialBalancesOptions, 'authority'>;
 
+/**
+ * Rejects extension sets that Token-2022 refuses at `InitializeMint` with
+ * `InvalidExtensionCombination`, so the caller gets a named error at build time
+ * instead of a failed transaction.
+ */
+function assertValidExtensionCombination(extensions: Extension[]): void {
+    const has = (kind: Extension['__kind']) => extensions.some(ext => ext.__kind === kind);
+    if (has('TransferFeeConfig') && has('ConfidentialTransferMint') && !has('ConfidentialTransferFee')) {
+        throw new Error(
+            'A mint with both a transfer fee and confidential balances also needs the confidential transfer fee ' +
+                'extension (withConfidentialTransferFee, or enableConfidentialTransferFee on the custom token ' +
+                'template); Token-2022 rejects the mint without it.',
+        );
+    }
+    if (has('ScaledUiAmountConfig') && has('InterestBearingConfig')) {
+        throw new Error(
+            'The scaled UI amount and interest-bearing extensions cannot be combined; Token-2022 rejects a mint with both.',
+        );
+    }
+}
+
 export class Token {
     private extensions: Extension[] = [];
 
@@ -364,10 +385,17 @@ export class Token {
         mint: TransactionSigner<string>;
         feePayer: TransactionSigner<string>;
     }): Promise<Instruction[]> {
-        // A bare address equal to the fee payer's is the fee payer: use its signer, so the
+        assertValidExtensionCombination(this.extensions);
+        // A mint authority with the fee payer's address is the fee payer, whether given as
+        // a bare address or as a different signer object for the same key (e.g. a no-op
+        // signer next to the wallet's). Use the fee payer's signer for both, so the
         // metadata init can sign with it and the transaction never holds two signer
         // objects for one address (kit rejects that at signing time).
-        const mintAuthority = mintAuthorityInput === feePayer.address ? feePayer : mintAuthorityInput;
+        const mintAuthority =
+            (typeof mintAuthorityInput === 'string' ? mintAuthorityInput : mintAuthorityInput?.address) ===
+            feePayer.address
+                ? feePayer
+                : mintAuthorityInput;
         // Get instructions for creating and initializing the mint account
         const mintAuthorityAddress = mintAuthority
             ? typeof mintAuthority === 'string'

@@ -1,10 +1,11 @@
-import { createKeyPairSignerFromPrivateKeyBytes, generateKeyPairSigner, getAddressDecoder } from '@solana/kit';
+import { createKeyPairSignerFromPrivateKeyBytes, generateKeyPairSigner } from '@solana/kit';
 import { ElGamalKeypair, AeKey } from '@solana/zk-sdk/node';
 import { deriveConfidentialKeys as upstreamDeriveConfidentialKeys } from '@solana-program/token-2022/confidential';
 import {
     assertConfidentialKeysMatchAccount,
     deriveConfidentialKeys,
     freeConfidentialKeys,
+    getConfidentialKeysElgamalAddress,
     decryptAesBalance,
     decryptElGamalBalance,
 } from '../keys.js';
@@ -111,16 +112,9 @@ describe('deriveConfidentialKeys', () => {
                 ourSecret.free?.();
             }
 
-            const ourPubkey = ours.elgamal.pubkey();
-            try {
-                // Upstream exposes the ElGamal pubkey as a base58 Address; ours is raw
-                // bytes, so compare through the same decoder the SDK uses internally.
-                expect(getAddressDecoder().decode(new Uint8Array(ourPubkey.toBytes()))).toBe(
-                    theirs.elgamalKeypair.elgamalPubkey,
-                );
-            } finally {
-                ourPubkey.free?.();
-            }
+            // Upstream exposes the ElGamal pubkey as a base58 Address; ours is a WASM
+            // object, so compare through the conversion the SDK uses internally.
+            expect(getConfidentialKeysElgamalAddress(ours)).toBe(theirs.elgamalKeypair.elgamalPubkey);
 
             expect(new Uint8Array(ours.aes.toBytes())).toEqual(new Uint8Array(theirs.aeKey));
         } finally {
@@ -165,7 +159,7 @@ describe('assertConfidentialKeysMatchAccount', () => {
     it('does not throw when the derived pubkey matches the registered one', async () => {
         const signer = await generateKeyPairSigner();
         const keys = await deriveConfidentialKeys({ signer });
-        const registered = getAddressDecoder().decode(keys.elgamal.pubkey().toBytes());
+        const registered = getConfidentialKeysElgamalAddress(keys);
 
         expect(() => assertConfidentialKeysMatchAccount(keys, registered, 'token account X')).not.toThrow();
 
@@ -181,7 +175,7 @@ describe('assertConfidentialKeysMatchAccount', () => {
         const otherSigner = await generateKeyPairSigner();
         const keys = await deriveConfidentialKeys({ signer });
         const staleRegistered = await deriveConfidentialKeys({ signer: otherSigner });
-        const registered = getAddressDecoder().decode(staleRegistered.elgamal.pubkey().toBytes());
+        const registered = getConfidentialKeysElgamalAddress(staleRegistered);
 
         expect(() => assertConfidentialKeysMatchAccount(keys, registered, 'token account X')).toThrow(
             /does not match token account X's registered key/,

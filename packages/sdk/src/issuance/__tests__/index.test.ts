@@ -1,6 +1,6 @@
 // Test imports - Jest globals are available automatically
 import type { AccountSignerMeta, Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
-import { generateKeyPairSigner } from '@solana/kit';
+import { createNoopSigner, generateKeyPairSigner } from '@solana/kit';
 import {
     AccountState,
     TOKEN_2022_PROGRAM_ADDRESS,
@@ -434,6 +434,54 @@ describe('Token', () => {
                 rpc: mockRpc,
                 decimals: 6,
                 mintAuthority: feePayer.address,
+                mint: mockMint,
+                feePayer,
+            });
+
+            const signersForFeePayer = new Set(
+                instructions.flatMap(ix =>
+                    (ix.accounts ?? [])
+                        .filter(
+                            (meta): meta is AccountSignerMeta => meta.address === feePayer.address && 'signer' in meta,
+                        )
+                        .map(meta => meta.signer),
+                ),
+            );
+            expect(signersForFeePayer).toEqual(new Set([feePayer]));
+        });
+
+        it('rejects a transfer fee with confidential balances but no confidential transfer fee', async () => {
+            token.withConfidentialBalances({ authority: TEST_AUTHORITY }).withTransferFee({
+                authority: TEST_AUTHORITY,
+                withdrawAuthority: TEST_AUTHORITY,
+                feeBasisPoints: 50,
+                maximumFee: 1_000n,
+            });
+            await expect(
+                token.buildInstructions({ rpc: mockRpc, decimals: 6, mint: mockMint, feePayer: mockFeePayer }),
+            ).rejects.toThrow(/confidential transfer fee/);
+        });
+
+        it('rejects combining scaled UI amount with interest bearing', async () => {
+            token.withScaledUiAmount(TEST_AUTHORITY, 2).withInterestBearing({ authority: TEST_AUTHORITY, rate: 5 });
+            await expect(
+                token.buildInstructions({ rpc: mockRpc, decimals: 6, mint: mockMint, feePayer: mockFeePayer }),
+            ).rejects.toThrow(/cannot be combined/);
+        });
+
+        it("uses the fee payer's signer when mintAuthority is another signer object for its address", async () => {
+            const feePayer = await generateKeyPairSigner();
+            token.withMetadata({
+                mintAddress: mockMint.address,
+                authority: feePayer.address,
+                metadata: TEST_METADATA,
+                additionalMetadata: new Map(),
+            });
+
+            const instructions = await token.buildInstructions({
+                rpc: mockRpc,
+                decimals: 6,
+                mintAuthority: createNoopSigner(feePayer.address),
                 mint: mockMint,
                 feePayer,
             });

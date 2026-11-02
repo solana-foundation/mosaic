@@ -150,10 +150,11 @@ export async function deriveConfidentialKeys(input: DeriveConfidentialKeysInput)
 }
 
 /**
- * The ElGamal public key of a {@link ConfidentialKeys} pair, as a kit `Address`.
- * Frees the intermediate WASM pubkey object.
+ * The ElGamal public key of a {@link ConfidentialKeys} pair, as a kit `Address` —
+ * the form a token account's `ConfidentialTransferAccount` extension stores it
+ * in. Frees the intermediate WASM pubkey object.
  */
-function derivedElgamalAddress(keys: ConfidentialKeys): Address {
+export function getConfidentialKeysElgamalAddress(keys: ConfidentialKeys): Address {
     const pubkey = keys.elgamal.pubkey();
     try {
         return getAddressDecoder().decode(pubkey.toBytes());
@@ -185,7 +186,7 @@ export function assertConfidentialKeysMatchAccount(
     registeredElgamalPubkey: Address,
     context: string,
 ): void {
-    const derived = derivedElgamalAddress(keys);
+    const derived = getConfidentialKeysElgamalAddress(keys);
     if (derived !== registeredElgamalPubkey) {
         throw new Error(
             `The provided confidential keys' ElGamal public key (${derived}) does not match ${context}'s ` +

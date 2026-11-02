@@ -12,20 +12,19 @@ import type { fetchMint, fetchToken } from '@solana-program/token-2022';
 export type DecodedMint = Awaited<ReturnType<typeof fetchMint>>;
 export type DecodedToken = Awaited<ReturnType<typeof fetchToken>>;
 
+/** Whether a decoded mint or token account carries an extension of the given kind. */
+function hasExtension(account: DecodedMint | DecodedToken, kind: string): boolean {
+    return account.data.extensions.__option === 'Some' && account.data.extensions.value.some(e => e.__kind === kind);
+}
+
 /** Whether a decoded mint carries the `ConfidentialTransferMint` extension. */
 export function isConfidentialTransferMint(mint: DecodedMint): boolean {
-    return (
-        mint.data.extensions.__option === 'Some' &&
-        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferMint')
-    );
+    return hasExtension(mint, 'ConfidentialTransferMint');
 }
 
 /** Whether a decoded token account carries the `ConfidentialTransferAccount` extension. */
 export function isConfidentialTransferAccount(token: DecodedToken): boolean {
-    return (
-        token.data.extensions.__option === 'Some' &&
-        token.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferAccount')
-    );
+    return hasExtension(token, 'ConfidentialTransferAccount');
 }
 
 /**
@@ -44,27 +43,21 @@ export function getConfidentialTransferAccountElgamalPubkey(token: DecodedToken)
 }
 
 /**
- * Whether a decoded mint carries the `ConfidentialTransferFee` extension, which
- * requires the fee-aware confidential transfer variant rather than the standard
- * one.
+ * Whether a decoded mint carries the `ConfidentialTransferFee` extension (the
+ * withdraw-withheld authority's ElGamal key for confidentially withheld fees).
  */
 export function mintHasConfidentialTransferFee(mint: DecodedMint): boolean {
-    return (
-        mint.data.extensions.__option === 'Some' &&
-        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferFee')
-    );
+    return hasExtension(mint, 'ConfidentialTransferFee');
 }
 
 /**
- * Whether a decoded mint carries the `TransferFeeConfig` extension. Token-2022
- * requires it alongside `ConfidentialTransferFee` — the fee-aware transfer reads
- * the basis points and maximum fee from it — so the transfer builder checks both
- * rather than letting the upstream helper throw a generic missing-extension
- * error deep in proof generation.
+ * Whether a decoded mint carries the `TransferFeeConfig` extension. On a
+ * confidential mint this is what makes Token-2022 require the fee-aware
+ * `TransferWithFee` instruction: the program refuses to create a mint with
+ * `TransferFeeConfig` + `ConfidentialTransferMint` but no
+ * `ConfidentialTransferFee`, so a confidential mint with a fee config always
+ * has both.
  */
 export function mintHasTransferFeeConfig(mint: DecodedMint): boolean {
-    return (
-        mint.data.extensions.__option === 'Some' &&
-        mint.data.extensions.value.some(e => e.__kind === 'TransferFeeConfig')
-    );
+    return hasExtension(mint, 'TransferFeeConfig');
 }
