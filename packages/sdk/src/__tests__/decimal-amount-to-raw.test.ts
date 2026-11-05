@@ -46,7 +46,7 @@ describe('decimalAmountToRaw', () => {
         });
 
         it('keeps the negative and malformed amount errors', () => {
-            expect(() => decimalAmountToRaw('-1', 6)).toThrow('Amount must be positive');
+            expect(() => decimalAmountToRaw('-1', 6)).toThrow('Amount must be a positive number');
             expect(() => decimalAmountToRaw('abc', 6)).toThrow('Invalid amount format');
         });
     });

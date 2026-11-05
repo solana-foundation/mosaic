@@ -7,7 +7,7 @@ import {
     TEST_AUTHORITY,
 } from './__tests__/test-utils.js';
 import { TOKEN_ACL_PROGRAM_ID } from './token-acl/utils.js';
-import { decimalAmountToRaw, getMintDetails } from './transaction-util.js';
+import { decimalAmountToRaw, getMintDetails, validateDecimalAmount } from './transaction-util.js';
 
 describe('getMintDetails', () => {
     let rpc: Rpc<SolanaRpcApi>;
@@ -79,7 +79,7 @@ describe('decimalAmountToRaw', () => {
 
     it('keeps the u64 and sign checks for number amounts in exponent notation', () => {
         expect(() => decimalAmountToRaw(1e21, 0)).toThrow('Amount exceeds the maximum u64 token amount');
-        expect(() => decimalAmountToRaw(-1e-7, 9)).toThrow('Amount must be positive');
+        expect(() => decimalAmountToRaw(-1e-7, 9)).toThrow('Amount must be a positive number');
     });
 
     it.each([NaN, Infinity])('rejects the non-finite number %p', amount => {
@@ -116,7 +116,26 @@ describe('decimalAmountToRaw', () => {
     });
 
     it('still rejects negatives and out-of-range decimals', () => {
-        expect(() => decimalAmountToRaw('-1', 6)).toThrow('Amount must be positive');
+        expect(() => decimalAmountToRaw('-1', 6)).toThrow('Amount must be a positive number');
         expect(() => decimalAmountToRaw('1', 256)).toThrow('Decimals must be an integer between 0 and 255');
+    });
+});
+
+describe('validateDecimalAmount', () => {
+    it.each(['1', '1.', '.5', '0.000001', '9007199254740993'])('accepts %p', amount => {
+        expect(() => validateDecimalAmount(amount)).not.toThrow();
+    });
+
+    it.each(['0', '0.0', '.', '', '-1', '1e3', '+1', '1.2.3'])('rejects %p with the shared message', amount => {
+        expect(() => validateDecimalAmount(amount)).toThrow('Amount must be a positive number');
+    });
+
+    it('rejects a long run of digits in linear time', () => {
+        // `\d+\.?\d*` took seconds here: it tries every split of the digit run.
+        const amount = '1'.repeat(100_000) + 'x';
+        const start = Date.now();
+        expect(() => validateDecimalAmount(amount)).toThrow('Amount must be a positive number');
+        expect(() => decimalAmountToRaw(amount, 6)).toThrow('Invalid amount format');
+        expect(Date.now() - start).toBeLessThan(1000);
     });
 });

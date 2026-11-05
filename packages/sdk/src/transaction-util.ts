@@ -94,6 +94,12 @@ function numberToPlainDecimal(value: number): string {
     return `${sign}${digits.slice(0, pointIndex)}.${digits.slice(pointIndex)}`;
 }
 
+// The one plain-decimal grammar the SDK accepts: '1', '1.', '1.5' or '.5'.
+// Each alternative reads a run of digits only one way, so a failed match is
+// linear; `\d+\.?\d*` can split the run at every position and backtracks
+// quadratically on a long run of digits.
+const DECIMAL_AMOUNT_PATTERN = /^(?:(\d+)(?:\.(\d*))?|\.(\d+))$/;
+
 /**
  * Converts a decimal amount to raw token amount based on mint decimals
  *
@@ -124,10 +130,10 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
 
     // Reject negative amounts
     if (amountStr.startsWith('-')) {
-        throw new Error('Amount must be positive');
+        throw new Error('Amount must be a positive number');
     }
 
-    const match = /^(?:(\d+)(?:\.(\d*))?|\.(\d+))$/.exec(amountStr);
+    const match = DECIMAL_AMOUNT_PATTERN.exec(amountStr);
     if (!match) {
         throw new Error('Invalid amount format');
     }
@@ -173,8 +179,8 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
  * @throws If the amount is not a positive plain-decimal string
  */
 export function validateDecimalAmount(amount: string): void {
-    if (!/^(?:\d+\.?\d*|\.\d+)$/.test(amount) || !/[1-9]/.test(amount)) {
-        throw new Error('Amount must be a positive decimal number');
+    if (!DECIMAL_AMOUNT_PATTERN.test(amount) || !/[1-9]/.test(amount)) {
+        throw new Error('Amount must be a positive number');
     }
 }
 

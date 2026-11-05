@@ -1,7 +1,11 @@
 import type { Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
 import { address } from '@solana/kit';
 import { createMockRpc, createMockSigner, seedMintDetails, seedTokenAccount } from '../../__tests__/test-utils.js';
-import { Token2022Instruction, identifyToken2022Instruction } from '@solana-program/token-2022';
+import {
+    Token2022Instruction,
+    getMintToCheckedInstructionDataDecoder,
+    identifyToken2022Instruction,
+} from '@solana-program/token-2022';
 import {
     createBurnLockTransaction,
     createCancelBurnLockTransaction,
@@ -61,6 +65,23 @@ describe('mmf lock ops', () => {
             Token2022Instruction.MintToChecked,
             Token2022Instruction.FreezeAccount,
         ]);
+    });
+
+    test('createMintLockTransaction encodes a string amount exactly', async () => {
+        // 9007199254740993 raw units is above 2^53, so a number amount could not carry it
+        const tx = await createMintLockTransaction(rpc, {
+            mint: MINT,
+            holder: HOLDER,
+            decimalAmount: '9007199254.740993',
+            permanentDelegate: pd,
+            freezeAuthority: freezeAuth,
+            mintAuthority,
+            feePayer,
+        });
+        const mintTo = tx.instructions[1];
+        expect(getMintToCheckedInstructionDataDecoder().decode(mintTo.data ?? new Uint8Array()).amount).toBe(
+            9_007_199_254_740_993n,
+        );
     });
 
     test('createBurnLockTransaction: thaw -> transferChecked -> freeze', async () => {
