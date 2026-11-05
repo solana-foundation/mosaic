@@ -72,7 +72,7 @@ export const createMintToTransaction = async (
         getMintToInstruction(
             {
                 mint: mint,
-                mintAuthority: mintAuthority,
+                mintAuthority: mintAuthoritySigner,
                 token: destinationAta,
                 amount: rawAmount,
             },

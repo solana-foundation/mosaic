@@ -1,7 +1,9 @@
 import type { Address, ReadonlyUint8Array, Rpc, SolanaRpcApi } from '@solana/kit';
+import { isSignerRole } from '@solana/kit';
 import {
     TOKEN_2022_PROGRAM_ADDRESS,
     getMintToInstructionDataDecoder,
+    getPermissionedBurnCheckedInstructionDataDecoder,
     getBurnCheckedInstructionDataDecoder,
     getTransferCheckedInstructionDataDecoder,
 } from '@solana-program/token-2022';
@@ -92,5 +94,19 @@ describe('management amount precision', () => {
             feePayer,
         );
         expect(lastAmount(tx, getTransferCheckedInstructionDataDecoder())).toBe(PRECISE_RAW);
+    });
+
+    test('createPermissionedBurnTransaction encodes the exact amount', async () => {
+        const { createPermissionedBurnTransaction } = await import('../permissioned-burn.js');
+        const tx = await createPermissionedBurnTransaction(rpc, mint, account, PRECISE_AMOUNT, authority, feePayer);
+        expect(lastAmount(tx, getPermissionedBurnCheckedInstructionDataDecoder())).toBe(PRECISE_RAW);
+    });
+
+    test('createMintToTransaction marks an Address mint authority as a signer', async () => {
+        const { createMintToTransaction } = await import('../mint.js');
+        const tx = await createMintToTransaction(rpc, mint, account, '1', authority.address, feePayer);
+        const mintTo = tx.instructions[tx.instructions.length - 1];
+        const authorityMeta = mintTo.accounts?.find(meta => meta.address === authority.address);
+        expect(authorityMeta && isSignerRole(authorityMeta.role)).toBe(true);
     });
 });

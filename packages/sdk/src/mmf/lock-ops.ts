@@ -26,7 +26,7 @@ import { deriveLockAccountAddress, type LockType } from './lock-address.js';
 interface LockOpCommon {
     mint: Address;
     holder: Address;
-    decimalAmount: number;
+    decimalAmount: number | string;
     permanentDelegate: TransactionSigner<string>;
     freezeAuthority: TransactionSigner<string>;
     feePayer: TransactionSigner<string>;
