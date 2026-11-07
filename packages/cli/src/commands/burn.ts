@@ -1,11 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createBurnTransaction, getPermissionedBurnAuthority } from '@solana/mosaic-sdk';
+import { createBurnTransaction, getPermissionedBurnAuthority, validateDecimalAmount } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../utils/cli.js';
-import { validateDecimalAmount } from '../utils/amount.js';
 
 interface BurnOptions {
     mintAddress: string;

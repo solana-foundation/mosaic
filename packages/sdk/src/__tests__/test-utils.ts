@@ -183,3 +183,35 @@ export function seedAccountOwner(rpc: Rpc<any>, account: Address, owner: Address
     const reg = (rpc as any).__registry;
     reg.accountInfoRegistry.set(account as string, { owner });
 }
+
+/**
+ * Mocks the RPC-backed helpers of `transaction-util` for a builder test, but
+ * keeps the real `decimalAmountToRaw`, so the amount is actually scaled and
+ * encoded. Call it after `jest.resetModules()` and import the builder
+ * dynamically afterwards, so it picks up the mock.
+ *
+ * @param decimals - The decimals `getMintDetails` reports for the mint
+ * @param balance - The raw balance `resolveTokenAccount` reports for the token account
+ */
+export function mockTransactionUtilWithRealAmounts(decimals: number, balance = 0n): void {
+    const { decimalAmountToRaw } = jest.requireActual('../transaction-util.js');
+    jest.doMock('../transaction-util.js', () => ({
+        resolveTokenAccount: jest.fn().mockResolvedValue({
+            // A valid address, so a test can compile and sign the built transaction.
+            tokenAccount: 'FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT',
+            isInitialized: true,
+            isFrozen: false,
+            balance,
+            uiBalance: 0,
+        }),
+        decimalAmountToRaw,
+        getMintDetails: jest.fn().mockResolvedValue({
+            decimals,
+            freezeAuthority: 'NotTokenACL111111111111111111111111111111',
+            extensions: [],
+            usesTokenAcl: false,
+            programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+        }),
+        isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
+    }));
+}

@@ -42,7 +42,14 @@ export const createMintToTransaction = async (
     feePayer: Address | TransactionSigner<string>,
 ): Promise<FullTransaction> => {
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-    const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
+    // Reuse feePayerSigner when the authority is the fee payer's address, so the
+    // transaction doesn't pair a real signer with a noop signer for one address.
+    const mintAuthoritySigner =
+        typeof mintAuthority !== 'string'
+            ? mintAuthority
+            : mintAuthority === feePayerSigner.address
+              ? feePayerSigner
+              : createNoopSigner(mintAuthority);
 
     const { tokenAccount: destinationAta, isFrozen } = await resolveTokenAccount(rpc, recipient, mint);
 
