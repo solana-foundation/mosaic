@@ -2,8 +2,8 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { createBurnTransaction, getPermissionedBurnAuthority } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
-import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
-import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
+import { loadKeypair, resolveSigners } from '../utils/solana.js';
+import { type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../utils/cli.js';
 
 interface BurnOptions {
@@ -33,17 +33,7 @@ export const burnCommand = new Command('burn')
             const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
-            let owner: TransactionSigner<string>;
-            let payer: TransactionSigner<string>;
-            if (rawTx) {
-                const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
-                owner = createNoopSigner((parentOpts.authority as Address) || defaultAddr);
-                payer = createNoopSigner((parentOpts.feePayer as Address) || owner.address);
-            } else {
-                const kp = await loadKeypair(parentOpts.keypair);
-                owner = kp;
-                payer = kp;
-            }
+            const { authority: owner, feePayer: payer } = await resolveSigners(parentOpts);
 
             // Parse and validate amount
             const decimalAmount = parseFloat(options.amount);

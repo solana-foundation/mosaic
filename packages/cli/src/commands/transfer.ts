@@ -1,24 +1,18 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import {
-    signTransactionMessageWithSigners,
     type Address,
     pipe,
     createTransactionMessage,
-    setTransactionMessageFeePayer,
+    setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
-    createNoopSigner,
-    type TransactionSigner,
     sendAndConfirmTransactionFactory,
-    getSignatureFromTransaction,
-    assertIsTransactionWithBlockhashLifetime,
 } from '@solana/kit';
 import { createTransferInstructions } from '@solana/mosaic-sdk';
-import { createSpinner, getGlobalOpts } from '../utils/cli.js';
-import { maybeOutputRawTx } from '../utils/raw-tx.js';
+import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../utils/cli.js';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
-import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
+import { resolveSigners } from '../utils/solana.js';
 
 interface TransferOptions {
     mintAddress: string;
@@ -49,20 +43,9 @@ export const transferCommand = new Command('transfer')
             const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
-            let authority: TransactionSigner<string>;
-            let feePayer: TransactionSigner<string>;
-            let senderAddress: Address;
-            if (rawTx) {
-                const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
-                authority = createNoopSigner((parentOpts.authority as Address) || defaultAddr);
-                feePayer = createNoopSigner((parentOpts.feePayer as Address) || authority.address);
-                senderAddress = (options.sender as Address) || authority.address;
-            } else {
-                const kp = await loadKeypair(parentOpts.keypair);
-                authority = kp;
-                feePayer = kp;
-                senderAddress = kp.address as Address;
-            }
+            const { authority, feePayer } = await resolveSigners(parentOpts);
+            // --sender only applies to --raw-tx; otherwise the --keypair signer sends
+            const senderAddress = rawTx ? (options.sender as Address) || authority.address : authority.address;
 
             spinner.text = 'Building transfer transaction...';
             const instructions = await createTransferInstructions({
@@ -82,29 +65,19 @@ export const transferCommand = new Command('transfer')
             // Create transaction
             const transaction = pipe(
                 createTransactionMessage({ version: 0 }),
-                m => setTransactionMessageFeePayer(feePayer.address, m),
+                // As a signer, not an address, so the --keypair fee payer actually signs
+                m => setTransactionMessageFeePayerSigner(feePayer, m),
                 m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
                 m => appendTransactionMessageInstructions(instructions, m),
             );
 
-            if (maybeOutputRawTx(rawTx, transaction)) {
-                return;
-            }
-
-            spinner.text = 'Signing transaction...';
-
-            // Sign the transaction
-            const signedTransaction = await signTransactionMessageWithSigners(transaction);
-
-            spinner.text = 'Sending transaction...';
-
-            // Assert blockhash lifetime and send
-            assertIsTransactionWithBlockhashLifetime(signedTransaction);
-            await sendAndConfirmTransaction(signedTransaction, {
-                skipPreflight: true,
-                commitment: 'confirmed',
-            });
-            const signature = getSignatureFromTransaction(signedTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
+            if (raw) return;
 
             spinner.succeed('Transfer completed successfully!');
 

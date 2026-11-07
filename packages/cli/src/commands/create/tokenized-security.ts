@@ -2,19 +2,16 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { ABL_PROGRAM_ID, TOKEN_ACL_PROGRAM_ID, createTokenizedSecurityInitTransaction } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
+import { loadKeypair, resolveSigners } from '../../utils/solana.js';
 import {
     generateKeyPairSigner,
-    signTransactionMessageWithSigners,
     type Address,
     type TransactionSigner,
     sendAndConfirmTransactionFactory,
-    assertIsTransactionWithBlockhashLifetime,
-    getSignatureFromTransaction,
 } from '@solana/kit';
 import { findListConfigPda } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda } from '@solana/token-acl-sdk';
-import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
+import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface TokenizedSecuritiesOptions {
     name: string;
@@ -77,9 +74,15 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-            const signerKeypair = rawTx ? null : await loadKeypair(parentOpts.keypair);
-            const signerAddress = rawTx ? (options.mintAuthority as Address) : (signerKeypair!.address as Address);
+            // The mint authority signs (metadata init requires it), so it is resolved as a signer:
+            // --mint-authority, else --authority, else the --keypair signer.
+            const { authority: mintAuthoritySigner, feePayer } = await resolveSigners(
+                parentOpts,
+                options.mintAuthority ?? parentOpts.authority,
+                options.mintAuthority ? '--mint-authority' : '--authority',
+            );
 
+            // Generate or load the mint keypair; it always signs, in raw mode too
             let mintKeypair: TransactionSigner<string>;
             if (options.mintKeypair) {
                 mintKeypair = await loadKeypair(options.mintKeypair);
@@ -97,7 +100,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
                 throw new Error('Multiplier must be a positive number');
             }
 
-            const mintAuthority = (options.mintAuthority || signerAddress) as Address;
+            const mintAuthority = mintAuthoritySigner.address;
             const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
             const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
             const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
@@ -112,9 +115,9 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
                 options.symbol,
                 decimals,
                 options.uri || '',
-                mintAuthority,
-                rawTx ? (mintKeypair.address as Address) : mintKeypair,
-                rawTx ? (signerAddress as Address) : (signerKeypair as TransactionSigner<string>),
+                mintAuthoritySigner,
+                mintKeypair,
+                feePayer,
                 undefined, // freezeAuthority - TODO add argument for this
                 {
                     aclMode: options.aclMode,
@@ -132,19 +135,16 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             );
 
             if (rawTx) {
-                const { maybeOutputRawTx } = await import('../../utils/raw-tx.js');
-                if (maybeOutputRawTx(rawTx, transaction)) {
-                    return;
-                }
+                // stdout carries only the transaction; the new mint's address goes to stderr
+                console.error(`Mint Address: ${mintKeypair.address}`);
             }
-
-            spinner.text = 'Signing transaction...';
-            const signedTransaction = await signTransactionMessageWithSigners(transaction);
-
-            spinner.text = 'Sending transaction...';
-            assertIsTransactionWithBlockhashLifetime(signedTransaction);
-            await sendAndConfirmTransaction(signedTransaction, { commitment: 'confirmed' });
-            const signature = getSignatureFromTransaction(signedTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
+            if (raw) return;
 
             spinner.succeed('Tokenized security created successfully!');
 
@@ -205,12 +205,10 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             }
         } catch (error) {
             spinner.fail('Failed to create tokenized security');
-            if (error && typeof error === 'object' && 'context' in error) {
-                const typedError = error as { context: { logs: string[] } };
-                console.error(
-                    chalk.red(`❌ Transaction simulation failed:`),
-                    `\n\t${typedError.context.logs.join('\n\t')}`,
-                );
+            // Not every error with a `context` (e.g. a Kit SolanaError) carries simulation logs
+            const logs = (error as { context?: { logs?: unknown } } | undefined)?.context?.logs;
+            if (Array.isArray(logs)) {
+                console.error(chalk.red(`❌ Transaction simulation failed:`), `\n\t${logs.join('\n\t')}`);
             } else {
                 console.error(chalk.red('❌ Error:'), error instanceof Error ? error.message : 'Unknown error');
             }

@@ -2,8 +2,8 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { createAddToBlocklistTransaction } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
-import { resolveSigner } from '../../utils/solana.js';
-import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
+import { resolveSigners } from '../../utils/solana.js';
+import { type Address, sendAndConfirmTransactionFactory, setTransactionMessageFeePayerSigner } from '@solana/kit';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface AddOptions {
@@ -24,7 +24,6 @@ export const addCommand = new Command('add')
         // Get global options from parent command
         const parentOpts = getGlobalOpts(command);
         const rpcUrl = parentOpts.rpcUrl;
-        const keypairPath = parentOpts.keypair;
         const rawTx: string | undefined = parentOpts.rawTx;
 
         const spinner = createSpinner('Adding account to blocklist...', rawTx);
@@ -35,12 +34,9 @@ export const addCommand = new Command('add')
             const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
-            // Resolve authority signer or address
-            const { signer: authoritySigner, address: authorityAddress } = await resolveSigner(
-                rawTx,
-                keypairPath,
-                parentOpts.authority,
-            );
+            // Resolve the authority and fee payer signers
+            const { authority: authoritySigner, feePayer } = await resolveSigners(parentOpts);
+            const authorityAddress = authoritySigner.address;
 
             spinner.text = 'Building add transaction...';
 
@@ -53,7 +49,8 @@ export const addCommand = new Command('add')
             );
 
             const { raw, signature } = await sendOrOutputTransaction(
-                transaction,
+                // The SDK builder makes the authority pay; apply --fee-payer on top of it
+                setTransactionMessageFeePayerSigner(feePayer, transaction),
                 rawTx,
                 spinner,
                 sendAndConfirmTransaction,

@@ -2,18 +2,9 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { getThawTransaction } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
-import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import {
-    createNoopSigner,
-    signTransactionMessageWithSigners,
-    type Address,
-    type TransactionSigner,
-    sendAndConfirmTransactionFactory,
-    assertIsTransactionWithBlockhashLifetime,
-    getSignatureFromTransaction,
-} from '@solana/kit';
-import { maybeOutputRawTx } from '../../utils/raw-tx.js';
-import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
+import { resolveSigners } from '../../utils/solana.js';
+import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
+import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface CreateConfigOptions {
     tokenAccount: string;
@@ -35,17 +26,7 @@ export const thaw = new Command('thaw')
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-            let authority: TransactionSigner<string>;
-            let payer: TransactionSigner<string>;
-            if (rawTx) {
-                const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
-                authority = createNoopSigner((parentOpts.authority as Address) || defaultAddr);
-                payer = createNoopSigner((parentOpts.feePayer as Address) || authority.address);
-            } else {
-                const kp = await loadKeypair(parentOpts.keypair);
-                authority = kp;
-                payer = kp;
-            }
+            const { authority, feePayer: payer } = await resolveSigners(parentOpts);
 
             const transaction = await getThawTransaction({
                 rpc,
@@ -54,24 +35,13 @@ export const thaw = new Command('thaw')
                 tokenAccount: options.tokenAccount as Address,
             });
 
-            if (maybeOutputRawTx(rawTx, transaction)) {
-                return;
-            }
-
-            spinner.text = 'Signing transaction...';
-
-            // Sign the transaction
-            const signedTransaction = await signTransactionMessageWithSigners(transaction);
-
-            spinner.text = 'Sending transaction...';
-
-            // Assert blockhash lifetime and send
-            assertIsTransactionWithBlockhashLifetime(signedTransaction);
-            await sendAndConfirmTransaction(signedTransaction, {
-                skipPreflight: true,
-                commitment: 'confirmed',
-            });
-            const signature = getSignatureFromTransaction(signedTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
+            if (raw) return;
 
             spinner.succeed('Thawing token account successfully!');
 

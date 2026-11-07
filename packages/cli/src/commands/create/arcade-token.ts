@@ -2,19 +2,16 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { ABL_PROGRAM_ID, createArcadeTokenInitTransaction, TOKEN_ACL_PROGRAM_ID } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
+import { loadKeypair, resolveSigners } from '../../utils/solana.js';
 import {
     generateKeyPairSigner,
-    signTransactionMessageWithSigners,
     type Address,
     type TransactionSigner,
     sendAndConfirmTransactionFactory,
-    assertIsTransactionWithBlockhashLifetime,
-    getSignatureFromTransaction,
 } from '@solana/kit';
 import { findListConfigPda } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda } from '@solana/token-acl-sdk';
-import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
+import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface ArcadeTokenOptions {
     name: string;
@@ -62,11 +59,15 @@ export const createArcadeTokenCommand = new Command('arcade-token')
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-            // Load signer and payer keypairs
-            const signerKeypair = rawTx ? null : await loadKeypair(parentOpts.keypair);
-            const signerAddress = rawTx ? (options.mintAuthority as Address) : (signerKeypair!.address as Address);
+            // The mint authority signs (metadata init requires it), so it is resolved as a signer:
+            // --mint-authority, else --authority, else the --keypair signer.
+            const { authority: mintAuthoritySigner, feePayer } = await resolveSigners(
+                parentOpts,
+                options.mintAuthority ?? parentOpts.authority,
+                options.mintAuthority ? '--mint-authority' : '--authority',
+            );
 
-            // Generate or load mint keypair (must be a signer if not raw)
+            // Generate or load the mint keypair; it always signs, in raw mode too
             let mintKeypair: TransactionSigner<string>;
             if (options.mintKeypair) {
                 mintKeypair = await loadKeypair(options.mintKeypair);
@@ -80,8 +81,8 @@ export const createArcadeTokenCommand = new Command('arcade-token')
                 throw new Error('Decimals must be a number between 0 and 9');
             }
 
-            // Set authorities (default to signer if not provided)
-            const mintAuthority = (options.mintAuthority || signerAddress) as Address;
+            // Set authorities (default to the mint authority if not provided)
+            const mintAuthority = mintAuthoritySigner.address;
             const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
             const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
             const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
@@ -95,9 +96,9 @@ export const createArcadeTokenCommand = new Command('arcade-token')
                 options.symbol,
                 decimals,
                 options.uri || '',
-                mintAuthority,
-                rawTx ? mintKeypair.address : mintKeypair,
-                rawTx ? signerAddress : signerKeypair!,
+                mintAuthoritySigner,
+                mintKeypair,
+                feePayer,
                 metadataAuthority,
                 pausableAuthority,
                 permanentDelegateAuthority,
@@ -105,26 +106,16 @@ export const createArcadeTokenCommand = new Command('arcade-token')
             );
 
             if (rawTx) {
-                const { maybeOutputRawTx } = await import('../../utils/raw-tx.js');
-                if (maybeOutputRawTx(rawTx, transaction)) {
-                    return;
-                }
+                // stdout carries only the transaction; the new mint's address goes to stderr
+                console.error(`Mint Address: ${mintKeypair.address}`);
             }
-
-            spinner.text = 'Signing transaction...';
-
-            // Sign the transaction
-            const signedTransaction = await signTransactionMessageWithSigners(transaction);
-
-            spinner.text = 'Sending transaction...';
-
-            // Assert blockhash lifetime and send
-            assertIsTransactionWithBlockhashLifetime(signedTransaction);
-            await sendAndConfirmTransaction(signedTransaction, {
-                skipPreflight: true,
-                commitment: 'confirmed',
-            });
-            const signature = getSignatureFromTransaction(signedTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
+            if (raw) return;
 
             spinner.succeed('Arcade token created successfully!');
 

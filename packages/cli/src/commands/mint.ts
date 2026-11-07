@@ -2,8 +2,8 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { createMintToTransaction } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
-import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
-import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
+import { resolveSigners } from '../utils/solana.js';
+import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../utils/cli.js';
 
 interface MintOptions {
@@ -26,7 +26,6 @@ export const mintCommand = new Command('mint')
         // Get global options from parent command
         const parentOpts = getGlobalOpts(command);
         const rpcUrl = parentOpts.rpcUrl;
-        const keypairPath = parentOpts.keypair;
         const rawTx: string | undefined = parentOpts.rawTx;
 
         const spinner = createSpinner('Minting tokens...', rawTx);
@@ -35,20 +34,8 @@ export const mintCommand = new Command('mint')
             // Create RPC client
             const rpc = createRpcClient(rpcUrl);
 
-            // Resolve authorities: support address-based for raw mode
-            let mintAuthority: TransactionSigner<string>;
-            let feePayer: TransactionSigner<string>;
-            let signerKp: TransactionSigner<string>;
-            if (rawTx) {
-                mintAuthority = createNoopSigner(
-                    (parentOpts.authority as Address) || (await getAddressFromKeypair(keypairPath)),
-                );
-                feePayer = createNoopSigner((parentOpts.feePayer as Address) || mintAuthority.address);
-            } else {
-                signerKp = await loadKeypair(keypairPath);
-                mintAuthority = signerKp;
-                feePayer = signerKp;
-            }
+            // Resolve authorities: noop signers for --raw-tx, the --keypair signer otherwise
+            const { authority: mintAuthority, feePayer } = await resolveSigners(parentOpts);
 
             spinner.text = 'Getting mint information...';
 
@@ -92,7 +79,7 @@ export const mintCommand = new Command('mint')
             console.log(`   ${chalk.bold('Recipient:')} ${options.recipient}`);
             console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
             console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
-            console.log(`   ${chalk.bold('Mint Authority:')} ${mintAuthority}`);
+            console.log(`   ${chalk.bold('Mint Authority:')} ${mintAuthority.address}`);
 
             console.log(chalk.cyan('\\n🎯 Result:'));
             console.log(`   ${chalk.green('✓')} Associated Token Account created/updated`);
