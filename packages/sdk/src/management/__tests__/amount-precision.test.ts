@@ -1,15 +1,14 @@
 import type { Address, ReadonlyUint8Array, Rpc, SolanaRpcApi } from '@solana/kit';
-import { isSignerRole } from '@solana/kit';
+import { generateKeyPairSigner, isSignerRole, signTransactionMessageWithSigners } from '@solana/kit';
 import {
-    TOKEN_2022_PROGRAM_ADDRESS,
     getMintToInstructionDataDecoder,
     getPermissionedBurnCheckedInstructionDataDecoder,
     getBurnCheckedInstructionDataDecoder,
     getTransferCheckedInstructionDataDecoder,
 } from '@solana-program/token-2022';
 
-import { createMockRpc, createMockSigner } from '../../__tests__/test-utils.js';
-import { decimalAmountToRaw, type FullTransaction } from '../../transaction-util.js';
+import { createMockRpc, createMockSigner, mockTransactionUtilWithRealAmounts } from '../../__tests__/test-utils.js';
+import type { FullTransaction } from '../../transaction-util.js';
 
 // parseFloat('9007199254740993') === 9007199254740992 (2^53 + 1 is not
 // representable as a JS number). On a 0-decimal mint the exact string must be
@@ -42,26 +41,7 @@ describe('management amount precision', () => {
     beforeEach(() => {
         jest.resetModules();
         rpc = createMockRpc();
-        // Mock the RPC-backed helpers, but run the real decimalAmountToRaw so the
-        // amount is actually scaled and encoded.
-        jest.doMock('../../transaction-util.js', () => ({
-            resolveTokenAccount: jest.fn().mockResolvedValue({
-                tokenAccount: 'Ata77777777777777777777777777777777777777',
-                isInitialized: true,
-                isFrozen: false,
-                balance: 10_000_000_000_000_000n,
-                uiBalance: 0,
-            }),
-            decimalAmountToRaw,
-            getMintDetails: jest.fn().mockResolvedValue({
-                decimals: 0,
-                freezeAuthority: 'NotTokenACL111111111111111111111111111111',
-                extensions: [],
-                usesTokenAcl: false,
-                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-            }),
-            isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-        }));
+        mockTransactionUtilWithRealAmounts(0, 10_000_000_000_000_000n);
     });
 
     test('createMintToTransaction encodes the exact amount', async () => {
@@ -108,5 +88,18 @@ describe('management amount precision', () => {
         const mintTo = tx.instructions[tx.instructions.length - 1];
         const authorityMeta = mintTo.accounts?.find(meta => meta.address === authority.address);
         expect(authorityMeta && isSignerRole(authorityMeta.role)).toBe(true);
+    });
+
+    test('createMintToTransaction signs when the Address mint authority is the fee payer', async () => {
+        const { createMintToTransaction } = await import('../mint.js');
+        // A noop signer for the authority next to the real fee payer signer would make
+        // signing throw "Multiple distinct signers were identified for address".
+        const [wallet, realMint, recipient] = await Promise.all([
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+            generateKeyPairSigner(),
+        ]);
+        const tx = await createMintToTransaction(rpc, realMint.address, recipient.address, '1', wallet.address, wallet);
+        await expect(signTransactionMessageWithSigners(tx)).resolves.toBeDefined();
     });
 });

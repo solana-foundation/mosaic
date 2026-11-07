@@ -91,7 +91,9 @@ function numberToPlainDecimal(value: number): string {
     if (pointIndex >= digits.length) {
         return `${sign}${digits}${'0'.repeat(pointIndex - digits.length)}`;
     }
-    return `${sign}${digits.slice(0, pointIndex)}.${digits.slice(pointIndex)}`;
+    // toString() only uses an exponent below 1e-6 or from 1e21 up, with a single
+    // integer digit, so one of the two branches above always returns.
+    throw new Error(`Unexpected exponent notation: ${text}`);
 }
 
 // The one plain-decimal grammar the SDK accepts: '1', '1.', '1.5' or '.5'.
@@ -109,15 +111,18 @@ const DECIMAL_AMOUNT_PATTERN = /^(?:(\d+)(?:\.(\d*))?|\.(\d+))$/;
  *
  * The amount must be plain decimal digits with at most one decimal point
  * (`"1"`, `"1.5"`, `".5"`, `"1."`). Exponents, signs, separators, whitespace
- * and empty strings throw, as does an amount with more fractional digits than
- * `decimals`: truncating them would build an instruction for a different
- * amount than the caller supplied. A zero amount throws too, since the
- * instruction would pay fees and move nothing.
+ * and empty strings throw. A string with more fractional digits than `decimals`
+ * throws too: truncating them would build an instruction for a different
+ * amount than the caller supplied. A number is rounded half-up to `decimals`
+ * instead, because a computed value such as `0.1 + 0.2` carries float noise
+ * (`0.30000000000000004`) past any mint's precision. A zero amount, including
+ * a number that rounds to zero, throws, since the instruction would pay fees
+ * and move nothing.
  *
  * @param decimalAmount - The decimal amount (e.g., `1.5` or `"1.5"`)
  * @param decimals - The number of decimals the token has
  * @returns The raw token amount as bigint
- * @throws If `decimals` is invalid, the amount is zero, negative or malformed, has more than `decimals` fractional digits, or the raw amount exceeds u64
+ * @throws If `decimals` is invalid, the amount is zero, negative or malformed, a string has more than `decimals` fractional digits, or the raw amount exceeds u64
  */
 export function decimalAmountToRaw(decimalAmount: number | string, decimals: number): bigint {
     assertValidDecimals(decimals);
@@ -149,17 +154,19 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
         fractionalEnd--;
     }
     const fractionalPart = rawFractional.slice(0, fractionalEnd);
-    if (fractionalPart.length > decimals) {
+    const isNumber = typeof decimalAmount === 'number';
+    if (fractionalPart.length > decimals && !isNumber) {
         throw new Error(`Amount cannot have more than ${decimals} decimal places`);
     }
+    const roundUp = isNumber && fractionalPart.length > decimals && fractionalPart[decimals] >= '5';
 
-    const adjustedFractional = fractionalPart.padEnd(decimals, '0');
+    const adjustedFractional = fractionalPart.slice(0, decimals).padEnd(decimals, '0');
 
     // Concatenate integer and fractional parts
     const rawAmountStr = integerPart + adjustedFractional;
 
     // Convert to BigInt
-    const raw = BigInt(rawAmountStr);
+    const raw = BigInt(rawAmountStr) + (roundUp ? 1n : 0n);
     if (raw === 0n) {
         throw new Error('Amount must be a positive number');
     }
@@ -171,15 +178,21 @@ export function decimalAmountToRaw(decimalAmount: number | string, decimals: num
 
 /**
  * Validates a user-supplied decimal amount string before it is scaled by
- * {@link decimalAmountToRaw}. Accepts the same plain-decimal format and also
- * requires the amount to be positive (at least one non-zero digit), so a
- * zero-amount mint or burn is rejected up front. Exported so the CLI validates
- * against one rule rather than a hand-kept copy.
+ * {@link decimalAmountToRaw}. Runs the same checks in the same order (sign,
+ * format, zero), so each input gets the message `decimalAmountToRaw` would
+ * give it, and a zero-amount mint or burn is rejected up front. Exported so
+ * the CLI validates against one rule rather than a hand-kept copy.
  *
- * @throws If the amount is not a positive plain-decimal string
+ * @throws If the amount is negative, zero or not a plain-decimal string
  */
 export function validateDecimalAmount(amount: string): void {
-    if (!DECIMAL_AMOUNT_PATTERN.test(amount) || !/[1-9]/.test(amount)) {
+    if (amount.startsWith('-')) {
+        throw new Error('Amount must be a positive number');
+    }
+    if (!DECIMAL_AMOUNT_PATTERN.test(amount)) {
+        throw new Error('Invalid amount format');
+    }
+    if (!/[1-9]/.test(amount)) {
         throw new Error('Amount must be a positive number');
     }
 }
