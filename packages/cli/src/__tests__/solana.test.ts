@@ -2,8 +2,13 @@ import { generateKeyPairSync } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createKeyPairSignerFromBytes, isKeyPairSigner, type TransactionSigner } from '@solana/kit';
-import { resolveSigner, resolveSigners } from '../utils/solana';
+import {
+    createKeyPairSignerFromBytes,
+    generateKeyPairSigner,
+    isKeyPairSigner,
+    type TransactionSigner,
+} from '@solana/kit';
+import { loadKeypair, resolveSigner, resolveSigners } from '../utils/solana';
 
 // Fixed, well-formed addresses that no keypair in these tests owns.
 const AUTHORITY = '9DMWvjE7svY2VCmpkdn5fHS7aG4msACtnMUwnhnB82wF';
@@ -151,6 +156,56 @@ describe('signer resolution', () => {
             await expect(resolveSigners({ keypair: kp.path, feePayer: FEE_PAYER })).rejects.toThrow(
                 `--fee-payer ${FEE_PAYER} does not match the --keypair signer ${kp.address}`,
             );
+        });
+
+        describe('with keys the command holds', () => {
+            it('hands a raw-mode --fee-payer at a held address that same signer', async () => {
+                const held = await generateKeyPairSigner();
+                const { authority, feePayer } = await resolveSigners(
+                    { rawTx: 'b64', authority: AUTHORITY, feePayer: held.address },
+                    AUTHORITY,
+                    '--authority',
+                    [held],
+                );
+                expect(feePayer).toBe(held);
+                await expectNoopSigner(authority);
+            });
+
+            it('hands a raw-mode authority at a held address that same signer, and the fee payer with it', async () => {
+                const held = await generateKeyPairSigner();
+                const { authority, feePayer } = await resolveSigners({ rawTx: 'b64' }, held.address, '--authority', [
+                    undefined,
+                    held,
+                ]);
+                expect(authority).toBe(held);
+                expect(feePayer).toBe(held);
+            });
+
+            it('reuses a held key loaded from the --keypair file itself without --raw-tx', async () => {
+                // e.g. `burn --permissioned-burn-keypair` pointing at the --keypair file: two loads
+                // of one file are two distinct signers, which Kit rejects for one address.
+                const kp = await writeKeypair(dir, 'authority.json');
+                const held = await loadKeypair(kp.path);
+                const { authority, feePayer } = await resolveSigners({ keypair: kp.path }, undefined, '--authority', [
+                    held,
+                ]);
+                expect(authority).toBe(held);
+                expect(feePayer).toBe(held);
+            });
+
+            it('leaves roles alone when no held key shares their address', async () => {
+                const held = await generateKeyPairSigner();
+                const { authority, feePayer } = await resolveSigners(
+                    { rawTx: 'b64', authority: AUTHORITY, feePayer: FEE_PAYER },
+                    AUTHORITY,
+                    '--authority',
+                    [held],
+                );
+                expect(authority.address).toBe(AUTHORITY);
+                expect(feePayer.address).toBe(FEE_PAYER);
+                await expectNoopSigner(authority);
+                await expectNoopSigner(feePayer);
+            });
         });
     });
 });

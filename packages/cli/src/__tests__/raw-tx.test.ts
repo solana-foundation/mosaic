@@ -14,17 +14,23 @@ import {
     setTransactionMessageLifetimeUsingBlockhash,
     verifySignature,
     type KeyPairSigner,
+    type TransactionSigner,
 } from '@solana/kit';
 import { outputRawTransaction } from '../utils/raw-tx';
+import { resolveSigners } from '../utils/solana';
 
 const MEMO_PROGRAM = address('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr');
 const FEE_PAYER = address('9DMWvjE7svY2VCmpkdn5fHS7aG4msACtnMUwnhnB82wF');
+const AUTHORITY = address('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb');
 
-/** A message with a noop fee payer (as in raw mode) and one signer the CLI holds a key for (like a mint). */
-function buildMessage(held: KeyPairSigner) {
+/**
+ * A message with a fee payer (a noop signer by default, as in raw mode) and one signer the CLI
+ * holds a key for (like a mint or a `--permissioned-burn-keypair` co-signer).
+ */
+function buildMessage(held: KeyPairSigner, feePayer: TransactionSigner<string> = createNoopSigner(FEE_PAYER)) {
     return pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayerSigner(createNoopSigner(FEE_PAYER), m),
+        m => setTransactionMessageFeePayerSigner(feePayer, m),
         m =>
             setTransactionMessageLifetimeUsingBlockhash(
                 { blockhash: blockhash('11111111111111111111111111111111'), lastValidBlockHeight: 0n },
@@ -69,6 +75,24 @@ describe('outputRawTransaction', () => {
         const heldSignature = tx.signatures[held.address];
         expect(heldSignature).not.toBeNull();
         await expect(verifySignature(held.keyPair.publicKey, heldSignature!, tx.messageBytes)).resolves.toBe(true);
+    });
+
+    it('prints the transaction when --fee-payer names a key the CLI holds (sponsored raw burn)', async () => {
+        // `force-burn --raw-tx --fee-payer <X> --permissioned-burn-keypair <X's file>`: the
+        // co-signer pays, so the fee payer slot belongs to a key this process holds.
+        const held = await generateKeyPairSigner();
+        const { feePayer } = await resolveSigners(
+            { rawTx: 'b64', authority: AUTHORITY, feePayer: held.address },
+            AUTHORITY,
+            '--authority',
+            [held],
+        );
+        await outputRawTransaction('b64', buildMessage(held, feePayer));
+
+        const tx = getTransactionDecoder().decode(getBase64Encoder().encode(log.mock.calls[0][0] as string));
+        const signature = tx.signatures[held.address];
+        expect(signature).not.toBeNull();
+        await expect(verifySignature(held.keyPair.publicKey, signature!, tx.messageBytes)).resolves.toBe(true);
     });
 
     it('rejects an unknown encoding without printing anything', async () => {

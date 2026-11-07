@@ -59,14 +59,6 @@ export const createArcadeTokenCommand = new Command('arcade-token')
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-            // The mint authority signs (metadata init requires it), so it is resolved as a signer:
-            // --mint-authority, else --authority, else the --keypair signer.
-            const { authority: mintAuthoritySigner, feePayer } = await resolveSigners(
-                parentOpts,
-                options.mintAuthority ?? parentOpts.authority,
-                options.mintAuthority ? '--mint-authority' : '--authority',
-            );
-
             // Generate or load the mint keypair; it always signs, in raw mode too
             let mintKeypair: TransactionSigner<string>;
             if (options.mintKeypair) {
@@ -74,6 +66,16 @@ export const createArcadeTokenCommand = new Command('arcade-token')
             } else {
                 mintKeypair = await generateKeyPairSigner();
             }
+
+            // The mint authority signs (metadata init requires it), so it is resolved as a signer:
+            // --mint-authority, else --authority, else the --keypair signer. A role at the mint's
+            // address reuses the mint keypair's signer.
+            const { authority: mintAuthoritySigner, feePayer } = await resolveSigners(
+                parentOpts,
+                options.mintAuthority ?? parentOpts.authority,
+                options.mintAuthority ? '--mint-authority' : '--authority',
+                [mintKeypair],
+            );
 
             // Parse decimals
             const decimals = parseInt(options.decimals, 10);

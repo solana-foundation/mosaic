@@ -133,20 +133,29 @@ export async function resolveSigner(
  *
  * @param authorityOverride - The authority address; defaults to the global `--authority`.
  * @param authorityFlag - The flag the override came from, for error messages.
+ * @param held - Keys the command itself holds, such as a mint keypair or a
+ *   `--permissioned-burn-keypair` co-signer. A role at one of their addresses resolves to that
+ *   exact signer: Kit rejects a transaction carrying two distinct signers for one address.
  */
 export async function resolveSigners(
     opts: Pick<GlobalOptions, 'rawTx' | 'keypair' | 'authority' | 'feePayer'>,
     authorityOverride: string | undefined = opts.authority,
     authorityFlag = '--authority',
+    held: ReadonlyArray<TransactionSigner<string> | undefined> = [],
 ): Promise<{ authority: TransactionSigner<string>; feePayer: TransactionSigner<string> }> {
+    const preferHeld = (signer: TransactionSigner<string>) =>
+        held.find(key => key?.address === signer.address) ?? signer;
+
     const { signer: authority } = await resolveSigner(opts.rawTx, opts.keypair, authorityOverride, authorityFlag);
     if (!opts.rawTx) {
         assertSignsAs('--fee-payer', opts.feePayer, authority.address);
-        return { authority, feePayer: authority };
+        const signer = preferHeld(authority);
+        return { authority: signer, feePayer: signer };
     }
     if (!opts.feePayer || opts.feePayer === authority.address) {
-        return { authority, feePayer: authority };
+        const signer = preferHeld(authority);
+        return { authority: signer, feePayer: signer };
     }
     const { signer: feePayer } = await resolveSigner(opts.rawTx, undefined, opts.feePayer, '--fee-payer');
-    return { authority, feePayer };
+    return { authority: preferHeld(authority), feePayer: preferHeld(feePayer) };
 }

@@ -33,7 +33,17 @@ export const burnCommand = new Command('burn')
             const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
-            const { authority: owner, feePayer: payer } = await resolveSigners(parentOpts);
+            // Loaded before resolveSigners so a role at the co-signer's address reuses this signer.
+            const heldBurnAuthority = options.permissionedBurnKeypair
+                ? await loadKeypair(options.permissionedBurnKeypair)
+                : undefined;
+
+            const { authority: owner, feePayer: payer } = await resolveSigners(
+                parentOpts,
+                parentOpts.authority,
+                '--authority',
+                [heldBurnAuthority],
+            );
 
             // Parse and validate amount
             const decimalAmount = parseFloat(options.amount);
@@ -46,8 +56,8 @@ export const burnCommand = new Command('burn')
             // On permissioned burn mints the configured burn authority must co-sign.
             // Default to the signer when it matches the configured authority.
             let permissionedBurnAuthority: TransactionSigner<string> | undefined;
-            if (options.permissionedBurnKeypair) {
-                permissionedBurnAuthority = await loadKeypair(options.permissionedBurnKeypair);
+            if (heldBurnAuthority) {
+                permissionedBurnAuthority = heldBurnAuthority;
                 if (!rawTx) {
                     // A keypair that doesn't match the mint's configured authority would
                     // only fail at send time with a generic signature error, so reject it

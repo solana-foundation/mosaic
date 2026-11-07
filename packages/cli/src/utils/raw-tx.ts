@@ -14,7 +14,9 @@ type Tx = FullTransaction;
  * In raw mode the authority and fee payer are noop signers, so their signature slots stay empty
  * for the external signer to fill. A key the CLI itself holds still signs here: a generated or
  * `--mint-keypair` mint, or a `--permissioned-burn-keypair` co-signer. That key never leaves this
- * process, so without its signature the printed transaction could never be completed.
+ * process, so without its signature the printed transaction could never be completed. When a role
+ * shares its address with a held key, `resolveSigners` hands it the held signer, so that slot is
+ * signed here too.
  */
 export async function outputRawTransaction(encoding: string, transaction: Tx): Promise<void> {
     const enc = encoding.toLowerCase();

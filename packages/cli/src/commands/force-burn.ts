@@ -42,7 +42,17 @@ export const forceBurnCommand = new Command('force-burn')
             const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
-            const { authority, feePayer: payer } = await resolveSigners(parentOpts);
+            // Loaded before resolveSigners so a role at the co-signer's address reuses this signer.
+            const permissionedBurnAuthority = options.permissionedBurnKeypair
+                ? await loadKeypair(options.permissionedBurnKeypair)
+                : undefined;
+
+            const { authority, feePayer: payer } = await resolveSigners(
+                parentOpts,
+                parentOpts.authority,
+                '--authority',
+                [permissionedBurnAuthority],
+            );
 
             // Parse and validate amount
             const decimalAmount = parseFloat(options.amount);
@@ -56,10 +66,6 @@ export const forceBurnCommand = new Command('force-burn')
             await validatePermanentDelegateForBurn(rpc, options.mintAddress as Address, authority.address);
 
             spinner.text = 'Building force burn transaction...';
-
-            const permissionedBurnAuthority = options.permissionedBurnKeypair
-                ? await loadKeypair(options.permissionedBurnKeypair)
-                : undefined;
 
             if (!rawTx) {
                 // The burn authority configured on the mint must co-sign. Without a matching

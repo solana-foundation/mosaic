@@ -74,14 +74,6 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-            // The mint authority signs (metadata init requires it), so it is resolved as a signer:
-            // --mint-authority, else --authority, else the --keypair signer.
-            const { authority: mintAuthoritySigner, feePayer } = await resolveSigners(
-                parentOpts,
-                options.mintAuthority ?? parentOpts.authority,
-                options.mintAuthority ? '--mint-authority' : '--authority',
-            );
-
             // Generate or load the mint keypair; it always signs, in raw mode too
             let mintKeypair: TransactionSigner<string>;
             if (options.mintKeypair) {
@@ -89,6 +81,16 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             } else {
                 mintKeypair = await generateKeyPairSigner();
             }
+
+            // The mint authority signs (metadata init requires it), so it is resolved as a signer:
+            // --mint-authority, else --authority, else the --keypair signer. A role at the mint's
+            // address reuses the mint keypair's signer.
+            const { authority: mintAuthoritySigner, feePayer } = await resolveSigners(
+                parentOpts,
+                options.mintAuthority ?? parentOpts.authority,
+                options.mintAuthority ? '--mint-authority' : '--authority',
+                [mintKeypair],
+            );
 
             const decimals = parseInt(options.decimals, 10);
             if (isNaN(decimals) || decimals < 0 || decimals > 9) {

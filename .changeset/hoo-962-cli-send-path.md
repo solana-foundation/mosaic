@@ -10,7 +10,7 @@ The CLI can now sign and send every transaction with `--keypair`, and `--raw-tx 
 
 **Without `--raw-tx`, `--authority`, `--fee-payer` and `--mint-authority` must match the `--keypair` signer.** The CLI can only sign with `--keypair`, so a different address is now rejected before anything is built, instead of being silently ignored or failing at send time with a missing signature. Pass `--raw-tx` to build a transaction for another signer.
 
-**`--raw-tx` output from `create` carries the mint's signature.** The mint keypair, generated or loaded with `--mint-keypair`, never leaves the CLI process, so it signs the printed transaction; the authority and fee payer slots stay empty for the external signer. The same applies to `--permissioned-burn-keypair` on `burn`/`force-burn`. Every other raw transaction is unchanged: no signatures. The new mint's address is printed to stderr, keeping stdout to the transaction alone.
+**`--raw-tx` output from `create` carries the mint's signature.** The mint keypair, generated or loaded with `--mint-keypair`, never leaves the CLI process, so it signs the printed transaction; the authority and fee payer slots stay empty for the external signer. The same applies to `--permissioned-burn-keypair` on `burn`/`force-burn`. When `--authority` or `--fee-payer` names the address of one of these keys, for example a co-signer that also pays, that slot is signed too. Every other raw transaction is unchanged: no signatures. The new mint's address is printed to stderr, keeping stdout to the transaction alone.
 
 **`--fee-payer` is honoured by `allowlist add|remove` and `blocklist add|remove`.** These used to pay with the authority regardless.
 
