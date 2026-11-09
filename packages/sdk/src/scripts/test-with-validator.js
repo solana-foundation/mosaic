@@ -3,15 +3,33 @@ import { setTimeout } from 'timers/promises';
 import { platform } from 'os';
 
 const config = {
-    validatorStartupTime: parseInt(process.env.SOLANA_VALIDATOR_STARTUP_TIME) || 3000,
+    // How long to wait for the validator's RPC to answer. A cold `solana-test-validator -r` on a
+    // CI runner can need more than 10s to build its ledger, which flaked the old 10-try budget.
+    startupTimeoutMs: parseInt(process.env.SOLANA_VALIDATOR_STARTUP_TIMEOUT_MS) || 60_000,
     // Short epochs so the rate-extension tests can check that the on-chain transfer fee epoch
     // comes from the cluster clock; with the default 432000 slots the cluster stays at epoch 0,
     // which is indistinguishable from the client-side `0n` placeholder (HOO-1684, HOO-1714).
     validatorArgs: (process.env.SOLANA_VALIDATOR_ARGS || '-r --slots-per-epoch 32').split(' '),
-    maxHealthCheckRetries: 10,
+    rpcUrl: 'http://127.0.0.1:8899',
 };
 
 let validatorProcess = null;
+// How the validator exited, once it has: a validator that dies during startup fails the run at
+// once with this, instead of waiting out the startup timeout.
+let validatorExit = null;
+// The tail of the validator's stdout and stderr, printed when it fails to start. Reading the
+// pipes also keeps the validator from blocking on a full pipe during a long test run.
+let validatorOutput = '';
+const VALIDATOR_OUTPUT_LIMIT = 8_000;
+
+function keepValidatorOutput(chunk) {
+    validatorOutput = (validatorOutput + chunk).slice(-VALIDATOR_OUTPUT_LIMIT);
+}
+
+function startupError(message) {
+    const output = validatorOutput.trim();
+    return new Error(output ? `${message}\nValidator output:\n${output}` : message);
+}
 
 async function checkSolanaCLI() {
     try {
@@ -32,11 +50,16 @@ async function checkSolanaCLI() {
 async function waitForValidator() {
     console.log('Waiting for validator to be ready...');
 
-    for (let i = 0; i < config.maxHealthCheckRetries; i++) {
+    const deadline = Date.now() + config.startupTimeoutMs;
+    while (Date.now() < deadline) {
+        if (validatorExit) {
+            throw startupError(`Validator exited during startup with ${validatorExit}`);
+        }
+
         try {
             // Target the local validator explicitly: without `--url` the CLI uses its config
             // file, which may point at a live cluster and pass before the validator is up.
-            const checkProcess = spawn('solana', ['cluster-version', '--url', 'http://127.0.0.1:8899'], {
+            const checkProcess = spawn('solana', ['cluster-version', '--url', config.rpcUrl], {
                 stdio: 'pipe',
             });
             const exitCode = await new Promise(resolve => {
@@ -55,7 +78,7 @@ async function waitForValidator() {
         await setTimeout(1000);
     }
 
-    throw new Error('Validator failed to start within timeout period');
+    throw startupError(`Validator did not answer on ${config.rpcUrl} within ${config.startupTimeoutMs / 1000}s`);
 }
 
 async function runTestsWithValidator() {
@@ -66,6 +89,12 @@ async function runTestsWithValidator() {
         validatorProcess = spawn('solana-test-validator', config.validatorArgs, {
             stdio: ['ignore', 'pipe', 'pipe'],
             detached: false,
+        });
+
+        validatorProcess.stdout.setEncoding('utf8').on('data', keepValidatorOutput);
+        validatorProcess.stderr.setEncoding('utf8').on('data', keepValidatorOutput);
+        validatorProcess.on('exit', (code, signal) => {
+            validatorExit = signal ? `signal ${signal}` : `exit code ${code}`;
         });
 
         // Handle validator errors
@@ -95,7 +124,7 @@ async function runTestsWithValidator() {
 }
 
 function cleanup() {
-    if (validatorProcess && !validatorProcess.killed) {
+    if (validatorProcess && !validatorProcess.killed && !validatorExit) {
         console.log('Shutting down Solana test validator...');
 
         // Graceful shutdown
