@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: funded
 # Open /manage/<mint> for the token create-stablecoin.sh made, check the tabs
 # render, and mint tokens to the connected wallet through Admin Actions.
 FLOW=manage
