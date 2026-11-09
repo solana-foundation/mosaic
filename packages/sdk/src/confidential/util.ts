@@ -1,14 +1,12 @@
-import { type Address, type Rpc, type SolanaRpcApi, type TransactionSigner, createNoopSigner } from '@solana/kit';
+import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
+import type { GetConfidentialWithdrawWithRecordInstructionPlanInput } from '@solana-program/token-2022/confidential';
 import { U64_MAX, decimalAmountToRaw, getMintDetails } from '../transaction-util.js';
 
-/**
- * Normalizes an authority that may be given as a bare `Address` into a
- * `TransactionSigner`. A string becomes a no-op signer (the caller signs later,
- * mirroring `transfer/index.ts`); an existing signer is returned unchanged.
- */
-export function toAuthoritySigner(authority: Address | TransactionSigner): TransactionSigner {
-    return typeof authority === 'string' ? createNoopSigner(authority) : authority;
-}
+/** Upstream's record-backed-proof options: every `record*` field its `…WithRecord` helpers take. */
+type UpstreamRecordProofOptions = Pick<
+    GetConfidentialWithdrawWithRecordInstructionPlanInput,
+    Extract<keyof GetConfidentialWithdrawWithRecordInstructionPlanInput, `record${string}`>
+>;
 
 /**
  * Opt-in to staging a confidential operation's batched **range proof** in an SPL
@@ -33,32 +31,12 @@ export function toAuthoritySigner(authority: Address | TransactionSigner): Trans
  * mint the transfer's range proof is always record-backed (upstream gives the
  * fee-aware variant no inline form), so there this option only overrides the
  * record's payer, authority and rent receiver.
+ *
+ * The fields are upstream's own (`recordPayer`, `recordAuthority`,
+ * `recordRentReceiver`) and are passed through unchanged, so any `record*`
+ * option upstream adds is accepted here too.
  */
-export type RecordBackedProof = {
-    /** Funds the record account that stages the range proof. Defaults to the operation's `payer`. */
-    payer?: TransactionSigner;
-    /** Signs the record account's write and close. Defaults to an ephemeral signer. */
-    authority?: TransactionSigner;
-    /** Receives the record account's reclaimed rent on close. Defaults to the record payer. */
-    rentReceiver?: Address;
-};
-
-/**
- * Maps {@link RecordBackedProof} onto the `record*` fields the upstream
- * `get*WithRecordInstructionPlan` helpers take. Kept in one place so the
- * builders that support it stay identical in behaviour.
- */
-export function toRecordProofArgs(options: RecordBackedProof): {
-    recordPayer?: TransactionSigner;
-    recordAuthority?: TransactionSigner;
-    recordRentReceiver?: Address;
-} {
-    return {
-        recordPayer: options.payer,
-        recordAuthority: options.authority,
-        recordRentReceiver: options.rentReceiver,
-    };
-}
+export type RecordBackedProof = UpstreamRecordProofOptions;
 
 /** An amount expressed either as a decimal string (e.g. `"1.5"`) or raw `bigint`. */
 export type TokenAmount = string | bigint;

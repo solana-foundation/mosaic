@@ -17,7 +17,9 @@ The main driver is staying on the supported Kit line: the whole `@solana-program
 
 Only a plain confidential transfer needs it, and only at version 0 through an executor that sets compute-unit limits (Kit's default does). Its inline range-proof transaction is 1207 bytes, too close to the 1232-byte limit to fit a compute-unit-limit instruction. Pass `recordBackedProof: {}` there and plan with `reserveComputeUnitLimit: true`, at the cost of extra transactions to create, write and close the record account. An inline withdraw already fits the instruction, so the option only adds transactions there.
 
-**`createEmptyConfidentialAccountInstructionPlan` now delegates upstream** to `getEmptyConfidentialTransferAccountInstructionPlan` instead of hand-wiring a sibling `ZeroCiphertext` proof. Its `rpc` parameter now also requires `GetMinimumBalanceForRentExemptionApi` (matching every other confidential builder), and the emitted transaction shape changes: the proof is verified through a context-state account rather than as a sibling instruction at `proofInstructionOffset: -1`. The account-configured and keys-match-account fail-fasts are unchanged.
+**`createEmptyConfidentialAccountInstructionPlan` now delegates upstream** to `getEmptyConfidentialTransferAccountInstructionPlan` instead of hand-wiring a sibling `ZeroCiphertext` proof. The emitted transaction shape changes: the proof is verified through a context-state account rather than as a sibling instruction at `proofInstructionOffset: -1`. The plan stays non-divisible, so it still lands or fails as one unit. Its `rpc` parameter is unchanged, and the account-configured and keys-match-account fail-fasts are too.
+
+**`recordBackedProof` takes upstream's field names** (`recordPayer`, `recordAuthority`, `recordRentReceiver`) and passes them through unchanged, so any `record*` option upstream adds is accepted too.
 
 **`confidential/proof.ts` is deprecated.** Empty-account was its last in-SDK consumer, so no builder here constructs proofs by hand any more. The module stays exported for external callers who built their own flows on it, and is slated for removal in a future breaking release.
 

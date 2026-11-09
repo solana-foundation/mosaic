@@ -19,7 +19,7 @@ import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw.js';
 import { getCreateListInstructions } from '../abl/list.js';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
-import { resolveTemplateSigners } from './resolve-signer.js';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 
 /**
  * Creates a transaction to initialize a Money Market Fund (MMF) mint.
@@ -70,7 +70,10 @@ export const createMmfInitTransaction = async (
     },
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
-    const { feePayerSigner, mintAuthoritySigner } = resolveTemplateSigners(feePayer, mintAuthority);
+    const { feePayerSigner, authoritySigner: mintAuthoritySigner } = resolveFeePayerAndAuthority(
+        feePayer,
+        mintAuthority,
+    );
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
 
     const aclMode = options?.aclMode ?? 'allowlist';
@@ -126,7 +129,9 @@ export const createMmfInitTransaction = async (
     const instructions = await tokenBuilder.buildInstructions({
         rpc,
         decimals,
-        mintAuthority: mintAuthoritySigner,
+        // The raw input, not mintAuthoritySigner: buildInstructions resolves a fee-payer-address
+        // authority itself, and must still see a distinct bare address to reject it under TokenMetadata.
+        mintAuthority,
         freezeAuthority: resolvedFreezeAuthority,
         mint: mintSigner,
         feePayer: feePayerSigner,

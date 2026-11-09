@@ -395,7 +395,7 @@ const plan = await planConfidentialInstructions({ instructionPlan: transfer, fee
 
 #### Compute-unit limits at version 0
 
-Planned version-0 messages carry no compute-unit limit, and the runtime's default of 200k CUs per instruction applies. If you send through an executor that sets compute-unit limits (kit's default does, as does `estimateAndSetConfidentialResourceLimits`), plan with `reserveComputeUnitLimit: true`. The planner then reserves the ComputeBudget instruction while packing, and the executor only rewrites its value. Without the reservation the added instruction can push a packed message past 1232 bytes; `estimateAndSetConfidentialResourceLimits` throws in that case rather than returning a message that cannot be sent.
+Planned version-0 messages carry no compute-unit limit, and the runtime's default of 200k CUs per instruction applies. If you send through an executor that sets compute-unit limits (kit's default does, as does `estimateAndSetConfidentialResourceLimits`), plan with `reserveComputeUnitLimit: true`. The planner then reserves the ComputeBudget instruction while packing, and the executor only rewrites its value. Without the reservation the added instruction can push a packed message past 1232 bytes; `estimateAndSetConfidentialResourceLimits` throws in that case, before simulating, rather than returning a message that cannot be sent.
 
 ```ts
 const plan = await planConfidentialInstructions({ instructionPlan: withdraw, feePayer, reserveComputeUnitLimit: true });
@@ -427,6 +427,8 @@ const withLimits = await estimateAndSetConfidentialResourceLimits({
 });
 const signed = await signTransactionMessageWithSigners(withLimits);
 ```
+
+It writes the simulated compute units and loaded-accounts data size plus 10% headroom, capped at the runtime maximums, so a small difference between simulation and landing does not fail a transaction partway through a plan. Pre-set a limit to an explicit value to opt out for that field.
 
 Do this per transaction as the plan progresses, not once over the whole plan up front: simulation needs a lifetime (planned messages deliberately have none), and a plan's later transactions read proof context-state accounts that its own earlier transactions create, so simulating them before those land fails on a missing account.
 

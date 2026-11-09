@@ -1,31 +1,20 @@
-import {
-    type Address,
-    type GetMinimumBalanceForRentExemptionApi,
-    type InstructionPlan,
-    type Rpc,
-    type SolanaRpcApi,
-    type TransactionSigner,
-} from '@solana/kit';
+import { type Address, type InstructionPlan, type Rpc, type SolanaRpcApi, type TransactionSigner } from '@solana/kit';
 import { fetchMint, fetchToken } from '@solana-program/token-2022';
 import {
     getConfidentialTransferInstructionPlan,
     getConfidentialTransferWithFeeInstructionPlan,
     getConfidentialTransferWithRecordInstructionPlan,
 } from '@solana-program/token-2022/confidential';
+import { toSigner } from '../signers.js';
 import {
     type DecodedMint,
+    getMintTransferFeeConfig,
     isConfidentialTransferAccount,
     isConfidentialTransferMint,
     mintHasTransferFeeConfig,
 } from './extensions.js';
 import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
-import {
-    type RecordBackedProof,
-    type TokenAmount,
-    toRecordProofArgs,
-    tokenAmountToRaw,
-    toAuthoritySigner,
-} from './util.js';
+import { type RecordBackedProof, type TokenAmount, tokenAmountToRaw } from './util.js';
 
 /**
  * Confidentially transfers tokens from one account to another. Wraps the
@@ -68,7 +57,7 @@ import {
  * wrong schedule outright, so pass it only when it is fresh.
  */
 export async function createConfidentialTransferInstructionPlan(input: {
-    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
+    rpc: Rpc<SolanaRpcApi>;
     /** Pays for the context-state account rent. */
     payer: TransactionSigner;
     /** The token mint. */
@@ -158,7 +147,7 @@ export async function createConfidentialTransferInstructionPlan(input: {
         sourceTokenAccount: sourceDecoded.data,
         destinationToken: input.destinationToken,
         destinationTokenAccount: destinationDecoded.data,
-        authority: toAuthoritySigner(input.authority),
+        authority: toSigner(input.authority),
         amount: rawAmount,
         sourceElgamalKeypair: input.keys.elgamal,
         aesKey: input.keys.aes,
@@ -171,17 +160,14 @@ export async function createConfidentialTransferInstructionPlan(input: {
     if (withFee) {
         return getConfidentialTransferWithFeeInstructionPlan({
             ...args,
-            ...(input.recordBackedProof !== undefined ? toRecordProofArgs(input.recordBackedProof) : {}),
+            ...input.recordBackedProof,
             // Always set on this path: supplied, or fetched because the mint has a fee config.
             currentEpoch: input.currentEpoch ?? epochInfo!.epoch,
         });
     }
 
     if (input.recordBackedProof !== undefined) {
-        return getConfidentialTransferWithRecordInstructionPlan({
-            ...args,
-            ...toRecordProofArgs(input.recordBackedProof),
-        });
+        return getConfidentialTransferWithRecordInstructionPlan({ ...args, ...input.recordBackedProof });
     }
     return getConfidentialTransferInstructionPlan(args);
 }
@@ -205,11 +191,8 @@ function assertNoImminentFeeScheduleChange(
     mintDecoded: DecodedMint,
     epochInfo: { epoch: bigint; slotIndex: bigint; slotsInEpoch: bigint },
 ): void {
-    const config =
-        mintDecoded.data.extensions.__option === 'Some'
-            ? mintDecoded.data.extensions.value.find(e => e.__kind === 'TransferFeeConfig')
-            : undefined;
-    if (config?.__kind !== 'TransferFeeConfig') {
+    const config = getMintTransferFeeConfig(mintDecoded);
+    if (!config) {
         return;
     }
     const { olderTransferFee: older, newerTransferFee: newer } = config;

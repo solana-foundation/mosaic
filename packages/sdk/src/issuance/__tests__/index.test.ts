@@ -206,6 +206,31 @@ describe('Token', () => {
             ]);
         });
 
+        it('replaces the config on a repeat call instead of registering the extension twice', () => {
+            const first = generateMockAddress() as Address;
+            const second = generateMockAddress() as Address;
+            token
+                .withConfidentialBalances(TEST_AUTHORITY)
+                .withTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawAuthority: TEST_AUTHORITY,
+                    feeBasisPoints: 100,
+                    maximumFee: 1000n,
+                })
+                .withConfidentialTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawWithheldAuthorityElGamalPubkey: first,
+                })
+                .withConfidentialTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawWithheldAuthorityElGamalPubkey: second,
+                });
+
+            const fees = token.getExtensions().filter(e => e.__kind === 'ConfidentialTransferFee');
+            expect(fees).toHaveLength(1);
+            expect(fees[0]).toEqual(expect.objectContaining({ elgamalPubkey: second }));
+        });
+
         it('should include confidential transfer fee instruction in buildInstructions', async () => {
             const elGamalPubkey = generateMockAddress() as Address;
             token

@@ -12,6 +12,8 @@ import {
     flattenTransactionPlan,
     generateKeyPairSigner,
     getAddressEncoder,
+    getLinearMessagePackerInstructionPlan,
+    getTransactionMessageComputeUnitLimit,
     getTransactionMessageSize,
     getTransactionMessageSizeLimit,
     parallelInstructionPlan,
@@ -30,7 +32,8 @@ const mockConfigurePlan = { kind: 'configurePlan' } as const;
 const mockWithdrawPlan = { kind: 'withdrawPlan' } as const;
 const mockTransferPlan = { kind: 'transferPlan' } as const;
 const mockApplyIx = { tag: 'applyIx' } as const;
-const mockEmptyPlan = { kind: 'emptyPlan' } as const;
+// Shaped like a real (divisible) instruction plan, so wrapping it is observable.
+const mockEmptyPlan = { kind: 'sequential', divisible: true, planType: 'instructionPlan', plans: [] } as const;
 // Record-backed variants stage the batched range proof in an SPL Record account
 // rather than inline; distinct identities so dispatch can be asserted.
 const mockWithdrawWithRecordPlan = { kind: 'withdrawWithRecordPlan' } as const;
@@ -561,7 +564,7 @@ describe('confidential operation builders', () => {
                 payer,
                 ...transferArgs,
                 keys: fakeKeys,
-                recordBackedProof: { authority: recordAuthority },
+                recordBackedProof: { recordAuthority },
             });
             expect(plan).toBe(mockTransferWithFeePlan);
             expect(getConfidentialTransferWithRecordInstructionPlan).not.toHaveBeenCalled();
@@ -623,7 +626,14 @@ describe('confidential operation builders', () => {
                 authority: AUTHORITY,
                 keys: fakeKeys,
             });
-            expect(plan).toBe(mockEmptyPlan);
+            // Upstream's plan is divisible; wrapping it keeps the planner from splitting
+            // the proof setup away from the empty instruction when composed after another plan.
+            expect(plan).toEqual({
+                kind: 'sequential',
+                divisible: false,
+                planType: 'instructionPlan',
+                plans: [mockEmptyPlan],
+            });
             expect(getEmptyConfidentialTransferAccountInstructionPlan).toHaveBeenCalledWith(
                 expect.objectContaining({
                     payer,
@@ -703,7 +713,7 @@ describe('confidential operation builders', () => {
                 authority: AUTHORITY,
                 amount: '1',
                 keys: fakeKeys,
-                recordBackedProof: { rentReceiver: AUTHORITY },
+                recordBackedProof: { recordRentReceiver: AUTHORITY },
             });
             expect(withRecord).toBe(mockWithdrawWithRecordPlan);
             expect(getConfidentialWithdrawWithRecordInstructionPlan).toHaveBeenCalledWith(
@@ -811,6 +821,29 @@ describe('confidential operation builders', () => {
             expect(flattenTransactionPlan(v0)).toHaveLength(2);
             expect(flattenTransactionPlan(v1)).toHaveLength(1);
         });
+
+        it.each([
+            ['version 1', { version: 1 as const }],
+            ['version 0 with reserveComputeUnitLimit', { reserveComputeUnitLimit: true }],
+        ])('reserves the limits before a message packer fills a fresh message (%s)', async (_name, options) => {
+            // A message packer (e.g. an SPL Record write) fills each new message to
+            // capacity. Limits added after packing would push every one of them over.
+            const feePayer = await generateKeyPairSigner();
+            const program = (await generateKeyPairSigner()).address;
+            const instructionPlan = getLinearMessagePackerInstructionPlan({
+                totalLength: 6000,
+                getInstruction: (_offset, length) => ({ programAddress: program, data: new Uint8Array(length) }),
+            });
+
+            const plan = await createConfidentialTransactionPlanner(feePayer, options)(instructionPlan);
+
+            const messages = flattenTransactionPlan(plan).map(p => p.message);
+            expect(messages.length).toBeGreaterThan(1);
+            for (const message of messages) {
+                expect(getTransactionMessageComputeUnitLimit(message)).toBe(0);
+                expect(getTransactionMessageSize(message)).toBeLessThanOrEqual(getTransactionMessageSizeLimit(message));
+            }
+        });
     });
 
     describe('estimateAndSetConfidentialResourceLimits', () => {
@@ -855,13 +888,23 @@ describe('confidential operation builders', () => {
             ).rejects.toThrow(/without a lifetime/);
         });
 
-        it('replaces version-1 provisory limits with the simulated values', async () => {
+        it('replaces version-1 provisory limits with the simulated values plus 10% headroom', async () => {
             const message = setTransactionMessageLifetimeUsingBlockhash(LIFETIME, await planOne(1));
             const updated: any = await estimateAndSetConfidentialResourceLimits({
                 rpc: mockSimulationRpc({ err: null, unitsConsumed: 123_456n, loadedAccountsDataSize: 65_536 }),
                 transactionMessage: message,
             });
-            expect(updated.config).toEqual({ computeUnitLimit: 123_456, loadedAccountsDataSizeLimit: 65_536 });
+            // 123_456 + ceil(12_345.6) and 65_536 + ceil(6_553.6).
+            expect(updated.config).toEqual({ computeUnitLimit: 135_802, loadedAccountsDataSizeLimit: 72_090 });
+        });
+
+        it('caps the headroom at the runtime compute-unit maximum', async () => {
+            const message = setTransactionMessageLifetimeUsingBlockhash(LIFETIME, await planOne(1));
+            const updated: any = await estimateAndSetConfidentialResourceLimits({
+                rpc: mockSimulationRpc({ err: null, unitsConsumed: 1_350_000n, loadedAccountsDataSize: 65_536 }),
+                transactionMessage: message,
+            });
+            expect(updated.config.computeUnitLimit).toBe(1_400_000);
         });
 
         it('throws for version 1 when the RPC omits the loaded-accounts data size', async () => {
@@ -914,12 +957,13 @@ describe('confidential operation builders', () => {
             // 5 bytes under the limit: fits as planned, but not with a ComputeBudget instruction.
             const sample = withData(200);
             const length = getTransactionMessageSizeLimit(sample) - getTransactionMessageSize(sample) + 200 - 5;
+            const rpc = mockSimulationRpc({ err: null, unitsConsumed: 99_000n });
             await expect(
-                estimateAndSetConfidentialResourceLimits({
-                    rpc: mockSimulationRpc({ err: null, unitsConsumed: 99_000n }),
-                    transactionMessage: withData(length),
-                }),
+                estimateAndSetConfidentialResourceLimits({ rpc, transactionMessage: withData(length) }),
             ).rejects.toThrow(/reserveComputeUnitLimit/);
+            // Checked before simulating: a real RPC rejects the oversized message
+            // itself, which would surface only as an opaque estimation failure.
+            expect(rpc.simulateTransaction).not.toHaveBeenCalled();
         });
     });
 });

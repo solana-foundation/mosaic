@@ -1,24 +1,12 @@
-import {
-    type Address,
-    type GetMinimumBalanceForRentExemptionApi,
-    type InstructionPlan,
-    type Rpc,
-    type SolanaRpcApi,
-    type TransactionSigner,
-} from '@solana/kit';
+import { type Address, type InstructionPlan, type Rpc, type SolanaRpcApi, type TransactionSigner } from '@solana/kit';
 import { fetchToken } from '@solana-program/token-2022';
 import {
     getConfidentialWithdrawInstructionPlan,
     getConfidentialWithdrawWithRecordInstructionPlan,
 } from '@solana-program/token-2022/confidential';
+import { toSigner } from '../signers.js';
 import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
-import {
-    type RecordBackedProof,
-    type TokenAmount,
-    resolveRawAmount,
-    toRecordProofArgs,
-    toAuthoritySigner,
-} from './util.js';
+import { type RecordBackedProof, type TokenAmount, resolveRawAmount } from './util.js';
 
 /**
  * Withdraws tokens from the account's **available confidential** balance back to
@@ -30,7 +18,7 @@ import {
  * Fetches and decodes the token account to read the current available balance.
  */
 export async function createConfidentialWithdrawInstructionPlan(input: {
-    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
+    rpc: Rpc<SolanaRpcApi>;
     /** Pays for the context-state account rent. */
     payer: TransactionSigner;
     /** The token mint (used to resolve decimals). */
@@ -64,7 +52,7 @@ export async function createConfidentialWithdrawInstructionPlan(input: {
         token: input.tokenAccount,
         mint: input.mint,
         tokenAccount: decoded.data,
-        authority: toAuthoritySigner(input.authority),
+        authority: toSigner(input.authority),
         amount: rawAmount,
         decimals,
         elgamalKeypair: input.keys.elgamal,
@@ -72,10 +60,7 @@ export async function createConfidentialWithdrawInstructionPlan(input: {
     };
 
     if (input.recordBackedProof !== undefined) {
-        return getConfidentialWithdrawWithRecordInstructionPlan({
-            ...args,
-            ...toRecordProofArgs(input.recordBackedProof),
-        });
+        return getConfidentialWithdrawWithRecordInstructionPlan({ ...args, ...input.recordBackedProof });
     }
     return getConfidentialWithdrawInstructionPlan(args);
 }

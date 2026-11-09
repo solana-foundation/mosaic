@@ -18,7 +18,7 @@ import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw.js';
 import { getCreateListInstructions } from '../abl/list.js';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
-import { resolveTemplateSigners } from './resolve-signer.js';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 
 /**
  * Creates a transaction to initialize a new custom token mint on Solana with user-selected extensions.
@@ -118,7 +118,10 @@ export const createCustomTokenInitTransaction = async (
     },
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
-    const { feePayerSigner, mintAuthoritySigner } = resolveTemplateSigners(feePayer, mintAuthority);
+    const { feePayerSigner, authoritySigner: mintAuthoritySigner } = resolveFeePayerAndAuthority(
+        feePayer,
+        mintAuthority,
+    );
     const mintAuthorityAddress = typeof mintAuthority === 'string' ? mintAuthority : mintAuthority.address;
 
     const useSrfc37 = options?.enableSrfc37 ?? false;
@@ -292,7 +295,9 @@ export const createCustomTokenInitTransaction = async (
     const instructions = await tokenBuilder.buildInstructions({
         rpc,
         decimals,
-        mintAuthority: mintAuthoritySigner,
+        // The raw input, not mintAuthoritySigner: buildInstructions resolves a fee-payer-address
+        // authority itself, and must still see a distinct bare address to reject it under TokenMetadata.
+        mintAuthority,
         // On the sRFC-37 path the freeze authority MUST be the mint authority: the
         // Token-ACL `create_config` instruction requires the mint's current freeze
         // authority to equal its signer (the mint authority) and then reassigns it to

@@ -23,6 +23,7 @@ import {
     getUpdateMultiplierScaledUiMintInstruction,
 } from '@solana-program/token-2022';
 import { createUpdateFieldInstruction } from './create-update-field-instruction.js';
+import { addressOf, getSharedFeePayerSigner } from '../signers.js';
 
 // Anything larger is almost certainly a millisecond timestamp (10^10 s is the year 2286).
 const MAX_UNIX_SECONDS_TIMESTAMP = 10_000_000_000n;
@@ -365,8 +366,15 @@ export class Token {
             elgamalPubkey: config.withdrawWithheldAuthorityElGamalPubkey,
             harvestToMintEnabled: true,
             withheldAmount: new Uint8Array(64),
-        };
-        this.extensions.push(confidentialTransferFeeExtension as Extension);
+        } as Extension;
+        // A repeat call replaces the config rather than adding a second entry, which would
+        // oversize the mint and emit a second initializer that fails on chain.
+        const existing = this.extensions.findIndex(ext => ext.__kind === 'ConfidentialTransferFee');
+        if (existing === -1) {
+            this.extensions.push(confidentialTransferFeeExtension);
+        } else {
+            this.extensions[existing] = confidentialTransferFeeExtension;
+        }
         return this;
     }
 
@@ -387,21 +395,16 @@ export class Token {
     }): Promise<Instruction[]> {
         assertValidExtensionCombination(this.extensions);
         // A mint authority with the fee payer's address is the fee payer, whether given as
-        // a bare address or as a different signer object for the same key (e.g. a no-op
-        // signer next to the wallet's). Use the fee payer's signer for both, so the
-        // metadata init can sign with it and the transaction never holds two signer
-        // objects for one address (kit rejects that at signing time).
+        // a bare address or as a different signer object for the same key. Use the fee
+        // payer's signer for both, so the metadata init can sign with it and the
+        // transaction never holds two signer objects for one address. A distinct bare
+        // address stays an address, so the TokenMetadata guard below still rejects it.
         const mintAuthority =
-            (typeof mintAuthorityInput === 'string' ? mintAuthorityInput : mintAuthorityInput?.address) ===
-            feePayer.address
-                ? feePayer
-                : mintAuthorityInput;
+            mintAuthorityInput === undefined
+                ? undefined
+                : (getSharedFeePayerSigner(feePayer, mintAuthorityInput) ?? mintAuthorityInput);
         // Get instructions for creating and initializing the mint account
-        const mintAuthorityAddress = mintAuthority
-            ? typeof mintAuthority === 'string'
-                ? mintAuthority
-                : mintAuthority.address
-            : feePayer.address;
+        const mintAuthorityAddress = mintAuthority ? addressOf(mintAuthority) : feePayer.address;
         const [createMintAccountInstruction, initMintInstruction] = await getCreateMintInstructions({
             rpc: rpc,
             decimals,

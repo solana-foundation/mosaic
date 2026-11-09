@@ -61,4 +61,16 @@ describe.each(templates)('%s template, single signer', (_name, build) => {
         const tx = await build(createMockRpc(), createNoopSigner(feePayer.address), mint, feePayer);
         await expect(signTransactionMessageWithSigners(tx as never)).resolves.toBeDefined();
     });
+
+    // A bare address that is not the fee payer has no signer to initialize the
+    // metadata with. It must fail here, with the targeted error, rather than build
+    // a transaction that later fails to sign with a generic missing-signature error.
+    it('rejects a different bare-address mint authority up front', async () => {
+        const feePayer = await generateKeyPairSigner();
+        const mint = await generateKeyPairSigner();
+        const otherAuthority = (await generateKeyPairSigner()).address;
+        await expect(build(createMockRpc(), otherAuthority, mint, feePayer)).rejects.toThrow(
+            /mintAuthority must be a TransactionSigner/,
+        );
+    });
 });

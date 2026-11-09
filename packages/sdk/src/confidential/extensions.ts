@@ -1,5 +1,5 @@
 import type { Address } from '@solana/kit';
-import type { fetchMint, fetchToken } from '@solana-program/token-2022';
+import type { Extension, fetchMint, fetchToken } from '@solana-program/token-2022';
 
 /**
  * Shared, WASM-free predicates over already-decoded (Codama) mint and token
@@ -12,9 +12,23 @@ import type { fetchMint, fetchToken } from '@solana-program/token-2022';
 export type DecodedMint = Awaited<ReturnType<typeof fetchMint>>;
 export type DecodedToken = Awaited<ReturnType<typeof fetchToken>>;
 
+type ExtensionKind = Extension['__kind'];
+type ExtensionOfKind<K extends ExtensionKind> = Extract<Extension, { __kind: K }>;
+
+/** The extension of the given kind on a decoded mint or token account, if it has one. */
+function findExtension<K extends ExtensionKind>(
+    account: DecodedMint | DecodedToken,
+    kind: K,
+): ExtensionOfKind<K> | undefined {
+    if (account.data.extensions.__option !== 'Some') {
+        return undefined;
+    }
+    return account.data.extensions.value.find((e): e is ExtensionOfKind<K> => e.__kind === kind);
+}
+
 /** Whether a decoded mint or token account carries an extension of the given kind. */
-function hasExtension(account: DecodedMint | DecodedToken, kind: string): boolean {
-    return account.data.extensions.__option === 'Some' && account.data.extensions.value.some(e => e.__kind === kind);
+function hasExtension(account: DecodedMint | DecodedToken, kind: ExtensionKind): boolean {
+    return findExtension(account, kind) !== undefined;
 }
 
 /** Whether a decoded mint carries the `ConfidentialTransferMint` extension. */
@@ -35,11 +49,7 @@ export function isConfidentialTransferAccount(token: DecodedToken): boolean {
  * change) before attempting to decrypt or build a proof with them.
  */
 export function getConfidentialTransferAccountElgamalPubkey(token: DecodedToken): Address | null {
-    if (token.data.extensions.__option !== 'Some') {
-        return null;
-    }
-    const ext = token.data.extensions.value.find(e => e.__kind === 'ConfidentialTransferAccount');
-    return ext && ext.__kind === 'ConfidentialTransferAccount' ? ext.elgamalPubkey : null;
+    return findExtension(token, 'ConfidentialTransferAccount')?.elgamalPubkey ?? null;
 }
 
 /**
@@ -59,5 +69,10 @@ export function mintHasConfidentialTransferFee(mint: DecodedMint): boolean {
  * has both.
  */
 export function mintHasTransferFeeConfig(mint: DecodedMint): boolean {
-    return hasExtension(mint, 'TransferFeeConfig');
+    return getMintTransferFeeConfig(mint) !== undefined;
+}
+
+/** A decoded mint's `TransferFeeConfig` extension (both fee schedules), if it has one. */
+export function getMintTransferFeeConfig(mint: DecodedMint): ExtensionOfKind<'TransferFeeConfig'> | undefined {
+    return findExtension(mint, 'TransferFeeConfig');
 }

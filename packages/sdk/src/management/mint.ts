@@ -1,7 +1,6 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
 import {
-    createNoopSigner,
     pipe,
     createTransactionMessage,
     setTransactionMessageFeePayer,
@@ -14,6 +13,7 @@ import {
     getCreateAssociatedTokenIdempotentInstruction,
 } from '@solana-program/token-2022';
 import { getThawPermissionlessInstructions } from '../token-acl/index.js';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 import {
     decimalAmountToRaw,
     getMintDetails,
@@ -41,8 +41,13 @@ export const createMintToTransaction = async (
     mintAuthority: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
 ): Promise<FullTransaction> => {
-    const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-    const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
+    // One signer object per address: a mint authority on the fee payer's key shares its signer,
+    // otherwise the SRFC-37 thaw path would carry two signers for one address and Kit would
+    // refuse to sign.
+    const { feePayerSigner, authoritySigner: mintAuthoritySigner } = resolveFeePayerAndAuthority(
+        feePayer,
+        mintAuthority,
+    );
 
     const { tokenAccount: destinationAta, isFrozen } = await resolveTokenAccount(rpc, recipient, mint);
 
@@ -72,7 +77,7 @@ export const createMintToTransaction = async (
         getMintToInstruction(
             {
                 mint: mint,
-                mintAuthority: mintAuthority,
+                mintAuthority: mintAuthoritySigner,
                 token: destinationAta,
                 amount: rawAmount,
             },
