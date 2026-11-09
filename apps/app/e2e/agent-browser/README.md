@@ -7,9 +7,10 @@ There are two ways in:
 - **Agent-driven verification:** the [`ui-verify`](../../../../skills/ui-verify/SKILL.md) skill. Claude (or any coding agent) drives the running app to check a change end to end, reproduce a bug, or walk a PR's affected flow.
 - **Scripted flows:** `pnpm e2e:agent [flow|group ...]`, shell scripts under `flows/` grouped by `groups/*.group`. This directory is the harness; each suite adds flow files, a group, and if it needs them its own `lib-<suite>.sh` and `chain-<suite>.mjs`.
 
-| suite   | run              | covers                                                  |
-| ------- | ---------------- | ------------------------------------------------------- |
-| `smoke` | `pnpm e2e:agent` | connect, create a stablecoin, mint to it from `/manage` |
+| suite          | run                           | covers                                                                             |
+| -------------- | ----------------------------- | ---------------------------------------------------------------------------------- |
+| `smoke`        | `pnpm e2e:agent`              | connect, create a stablecoin, mint to it from `/manage`                            |
+| `confidential` | `pnpm e2e:agent confidential` | the confidential-transfer wizard (HOO-891): see [CONFIDENTIAL.md](CONFIDENTIAL.md) |
 
 ## Why agent-browser
 
