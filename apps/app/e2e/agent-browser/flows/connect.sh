@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e:
 # Connect the injected test wallet from the disconnected dashboard, then check
 # that a reload auto-connects it (`recentlyConnectedWallet` + connector storage).
 FLOW=connect

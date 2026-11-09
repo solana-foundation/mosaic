@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# e2e: funded
 # Create a stablecoin on devnet through the create-token modal (all defaults past
 # name/symbol) and hand its mint address to later flows via $OUT/mint.txt.
 # Needs connect.sh to have run in the same session.

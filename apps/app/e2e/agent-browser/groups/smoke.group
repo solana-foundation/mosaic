@@ -1,0 +1,4 @@
+# The default run: connect, create a stablecoin, mint to it from /manage.
+connect
+create-stablecoin
+manage

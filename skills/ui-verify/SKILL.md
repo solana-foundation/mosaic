@@ -22,7 +22,7 @@ The app is driven by [agent-browser](https://agent-browser.dev), and it connects
 
 ### 3. The test wallet is built
 
-From `apps/app`: `node e2e/agent-browser/build-test-wallet.mjs`, which writes `.agent-browser/test-wallet.js` (gitignored: it embeds the secret key). It reads `MOSAIC_TEST_KEYPAIR`, defaulting to `~/.config/solana/devnet-test.json`. Anything that sends a transaction needs devnet SOL on that key; check with `solana balance` and top it up at https://faucet.solana.com.
+From `apps/app`: `node e2e/agent-browser/build-test-wallet.mjs`, which writes `.agent-browser/test-wallet.js` (gitignored: it embeds the secret key). It reads `MOSAIC_TEST_KEYPAIR`, defaulting to `~/.config/solana/devnet-test.json`. Anything that sends a transaction needs devnet SOL on that key; check with `node e2e/agent-browser/chain.mjs balance` (or `solana balance`) and top it up at https://faucet.solana.com. Pass `--keypair <path>` to sign as another wallet, `--no-sign-message` for a wallet that cannot sign messages, and `--out <name>` to keep several bundles side by side. In the page, `window.__mosaicTestWallet` can refuse messages, reject the Nth transaction, delay signatures, disconnect or switch accounts, and counts every sign request; see the e2e README.
 
 ### 4. A session is launched with the wallet
 
