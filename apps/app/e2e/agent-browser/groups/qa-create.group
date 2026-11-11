@@ -1,0 +1,6 @@
+# The UI QA matrix, token creation on devnet (spends SOL, about 25 mints,
+# ~0.07 SOL): every Custom extension alone and without metadata, the three
+# templates, and the §3c combinations, each checked against chain.
+qa-create-custom
+qa-create-templates
+qa-create-combos

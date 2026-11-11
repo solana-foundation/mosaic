@@ -1,0 +1,6 @@
+# The whole UI QA matrix (workspace plans/mosaic-ui-qa-matrix.md), one run per
+# group: the zero-SOL half first, then the funded groups on devnet.
+@qa-free
+@qa-create
+@qa-manage
+@qa-access

@@ -1,0 +1,16 @@
+# The UI QA matrix, zero-SOL half (workspace plans/mosaic-ui-qa-matrix.md):
+# app shell, template and Custom wizards up to submit, config validation,
+# import, the read-only manage page on devnet fixtures, unauthorized paths,
+# errors, persistence and layout. Spends nothing: every submit that could
+# reach the chain is rejected by the wallet or has nothing to spend.
+# qa-fixtures runs first: it blocks the run if a fixture has changed, and
+# caches each fixture's chain state for the flows after it.
+qa-fixtures
+qa-shell
+qa-template-forms
+qa-custom-wizard
+qa-import
+qa-manage-read
+qa-unauthorized
+qa-errors
+qa-insufficient-sol

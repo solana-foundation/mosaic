@@ -44,6 +44,7 @@ Work the **observe → act → re-observe** loop until the thing under test has 
 - `errors` and `console` after each significant step. A Next.js error overlay or uncaught exception is a finding in its own right.
 - `screenshot <scratchpad>/<name>.png` when the visual result matters, and read the image back to check it.
 - For a regression check across the core flows, run `pnpm e2e:agent` from `apps/app` (connect → create stablecoin → manage/mint), against either server: against `next dev` the connect flow skips its reload auto-connect check and notes why. `pnpm e2e:agent connect` runs a single flow; every flow connects the wallet itself.
+- For a wider regression check that spends no SOL, run `pnpm e2e:agent qa-free` (the UI QA matrix's zero-SOL half, about 2.5 minutes). `qa-create`, `qa-manage` and `qa-access` cover the funded half; the suite table in `apps/app/e2e/agent-browser/README.md` lists what each covers and costs.
 
 Done means: every claim in your report is backed by a snapshot line, a `get text` result, a screenshot you looked at, or command output.
 

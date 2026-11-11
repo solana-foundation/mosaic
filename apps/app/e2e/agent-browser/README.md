@@ -7,9 +7,16 @@ There are two ways in:
 - **Agent-driven verification:** the [`ui-verify`](../../../../skills/ui-verify/SKILL.md) skill. Claude (or any coding agent) drives the running app to check a change end to end, reproduce a bug, or walk a PR's affected flow.
 - **Scripted flows:** `pnpm e2e:agent [flow|group ...]`, shell scripts under `flows/` grouped by `groups/*.group`. This directory is the harness; each suite adds flow files, a group, and if it needs them its own `lib-<suite>.sh` and `chain-<suite>.mjs`.
 
-| suite   | run              | covers                                                  |
-| ------- | ---------------- | ------------------------------------------------------- |
-| `smoke` | `pnpm e2e:agent` | connect, create a stablecoin, mint to it from `/manage` |
+| suite       | run                        | covers                                                                                                                                                  | SOL                   |
+| ----------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------- |
+| `smoke`     | `pnpm e2e:agent`           | connect, create a stablecoin, mint to it from `/manage`                                                                                                 | 1 mint                |
+| `qa-free`   | `pnpm e2e:agent qa-free`   | the UI QA matrix's zero-SOL half: app shell, wizards and validation up to submit, import, the read-only manage page, unauthorized paths, errors, layout | none                  |
+| `qa-create` | `pnpm e2e:agent qa-create` | every Custom extension alone, the templates, extension combinations, each diffed against chain                                                          | ~25 mints, ~0.07      |
+| `qa-manage` | `pnpm e2e:agent qa-manage` | every Admin Actions item, Permissions edit and revoke, close empty account, each checked on chain                                                       | 5 mints plus fees     |
+| `qa-access` | `pnpm e2e:agent qa-access` | sRFC-37 allowlist and blocklist: add, remove, duplicates, transfers by mode                                                                             | 2 mints plus list ops |
+| `qa`        | `pnpm e2e:agent qa`        | all four QA groups, one run each                                                                                                                        | the sum               |
+
+The `qa-*` suites automate the manual UI QA matrix; [The QA suites](#the-qa-suites) below says how they are built.
 
 ## Why agent-browser
 
@@ -75,10 +82,10 @@ assert_no_page_errors
 finish_flow
 ```
 
-- **The header line** (`# e2e:`) declares `funded` if the flow spends SOL, and `sessions=b,nosign` if it needs wallet B or the wallet without `signMessage` (drive them with `as_wallet b <command>`).
+- **The header line** (`# e2e:`) declares `funded` if the flow spends SOL, and `sessions=b,nosign,empty` if it needs wallet B, the wallet without `signMessage`, or a wallet generated for the run that never holds SOL (drive them with `as_wallet b <command>`, or set `AB_ACTIVE="$AB_SESSION-empty"` for a whole flow).
 - **Checks** are `check` (stops the flow), `soft_check` (keeps going; the flow fails when it ends, or at `finish_flow`), `known_defect TICKET` (expected to fail until the ticket is fixed: XFAIL keeps the run green, XPASS says it is time to make it a plain check), `note` (an observation for a write-up) and `block_run` (stop the whole run, exit 3). A command that fails outside a check stops the flow and is recorded as `stopped at: <command>`. A run is green only when every flow exits 0 and `results.tsv` has no `fail` line.
 - **Locators:** `find role|label|placeholder|text … click|fill` and `wait --text`; never snapshot refs. Where the app gives nothing to hold on to, tag elements from the page with `js` (an `eval` wrapper that prints JSON) and target the tag.
-- **The chain:** `chain.mjs` (`CHAIN token --role a --mint M`, `token_field`, `await_value`, `sol_of`, `raw`) reads what a step did on chain, and sets up what the UI cannot (`create-ata`, `fund`). Wallet-side failure modes are `wallet_ctl` and `sign_count`.
+- **The chain:** `chain.mjs` reads what a step did on chain (`token --mint M [--owner A]` with `frozen`, `mint --mint M` with every extension's fields, `balance --address A`, `account-owner`, `memos`) and sets up what the UI cannot (`create-ata`, `fund`); `token_field`, `await_value`, `sol_of` and `raw` wrap it in `lib.sh`. Wallet-side failure modes are `wallet_ctl` and `sign_count`.
 - **Add it to a group** in `groups/`, and a row to the suite table above.
 - **Run it** on its own first, `HEADED=1 KEEP_OPEN=1`, then explore the leftover session with `agent-browser --session <name> snapshot -i`.
 
@@ -99,6 +106,7 @@ finish_flow
 | `test-wallet-a.js`        | A, with B as the alt account    | wallet A, the default session; `switchAccount()` swaps to B as a user would in the extension |
 | `test-wallet-b.js`        | B                               | wallet B, the `-b` session: a second user (recipient, non-creator, non-authority)            |
 | `test-wallet-a-nosign.js` | A, without `solana:signMessage` | a wallet that cannot sign messages at all, the `-nosign` session                             |
+| `test-wallet-empty.js`    | generated per run, never funded | a wallet with no SOL, the `-empty` session (`.agent-browser/empty-keypair.json`)             |
 
 Build options: `--role a|b` or `--keypair <path>`, `--alt-role b` or `--alt <path>`, `--no-sign-message`, `--out`. The build prints the address it embedded. Keypairs resolve through `keypairs.mjs`, exactly as `chain.mjs` resolves them: `MOSAIC_TEST_KEYPAIR_A` (else `MOSAIC_TEST_KEYPAIR`), `MOSAIC_TEST_KEYPAIR_B` and `MOSAIC_TEST_KEYPAIR_MASTER`, defaulting to `~/.config/solana/mosaic-e2e-{a,b,master}.json`.
 
@@ -126,6 +134,22 @@ The counters live in the page, so a full navigation resets them. `pnpm test` (`s
 
 Every app string these flows match is quoted in the flow scripts, so a copy change that breaks a flow points straight at the line to update.
 
+## The QA suites
+
+The `qa-*` flows automate the manual UI QA matrix (the Mosaic workspace's `plans/mosaic-ui-qa-matrix.md`): each flow names the matrix sections it covers. They share `lib-qa.sh`, sourced after `lib.sh`:
+
+- **Pages:** `button_state`/`btn_enabled`/`btn_disabled` (by text, aria-label or title, inside the topmost dialog), `dialog_text`, `dialog_click`, `popper_text`, `toasts`, `set_input` (a value React sees, for clearing a field or a datetime input), `eventually`.
+- **Wallet guard:** `arm_reject` makes the next transaction a wallet rejection, so a submit that reaches the wallet costs nothing and `no_sign_requests` says whether it got that far. `stub_confirm` answers native `window.confirm`s.
+- **Dashboard and import:** `import_token` (answers the re-import confirm, retries the metadata fetch), `stored_tokens`, `stored_has`, `clear_dashboard`.
+- **Creation:** `open_wizard`, `wizard_identity`, `set_extensions` (sets the Custom selection exactly), `create_custom_token`, `submit_and_read_mint`, `expected_kinds` (wizard labels → on-chain extension kinds), `retry_429`.
+- **Manage page:** `open_manage` (imports first if needed), `overview_value`, `tab_cards`/`tab_card`, `open_tab`, `admin_menu_items`, `admin_action`, and `ui_action` for an action whose effect the next check reads from chain.
+
+**Fixtures.** `fixtures/qa-devnet.json` lists devnet mints made by hand during the manual QA pass. Their authorities belong to a wallet the test wallets do not hold, so they are also the "connected wallet is not the authority" case, which is how `qa-free` covers unauthorized paths without spending anything. `qa-fixtures` runs first, blocks the run if one has changed, and caches each fixture's chain state for the flows after it.
+
+**Known defects.** A failing expectation with a ticket uses that ticket (`HOO-953`, `HOO-954`, `HOO-955`). One found by these flows and not yet filed uses `unfiled:<slug>`; give it the ticket id once it is filed.
+
+**The chain is the source of truth.** Under public-devnet rate limits the app can report a failure for a transaction that landed, and reads that fail are often swallowed into a plausible default (not paused, no token account). So funded flows assert on chain state and record the UI's verdict as a note (`ui_action`); rate-limited steps are retried only when nothing was signed yet, and UI reads that depend on a swallowed RPC call get a reload before they are judged.
+
 ## Gotchas found while building this
 
 - **Launch options are per session.** Changing an `AGENT_BROWSER_*` environment variable between commands (for example `AGENT_BROWSER_DEFAULT_TIMEOUT`) makes the daemon relaunch the browser blank and without the init script. Use per-call flags instead (`wait --text … --timeout 90000`, wrapped as `wait_slow` in `lib.sh`).
@@ -135,6 +159,11 @@ Every app string these flows match is quoted in the flow scripts, so a copy chan
 - **`@solana/connector` 0.1.4 drops wallet-side events.** A `change` event with no accounts (the user disconnecting in the extension) is ignored, and one with a new account updates `accounts` but never `selectedAccount`, so the app keeps acting as the old account.
 - **The connector signs in two steps.** `@solana/connector` 0.1.4 first calls `solana:signTransaction` with a non-standard `{ transactions: [...] }` input and falls back to the standard `{ transaction }` on _any_ error, user rejections included. The wallet refuses the non-standard shape, as real wallets do; accepting it meant a simulated rejection was swallowed by the fallback and the transaction signed anyway. (A wallet that did accept that shape would prompt the user a second time after a rejection, worth raising with connectorkit.)
 - **Public devnet rate-limits** a run hard after a few minutes (HTTP 429, "Solana error #8100002" in the app). Keep chain polling gentle (`await_value` polls every 5s) and expect the app to surface raw 429s. `SOLANA_RPC_URL` moves `chain.mjs` and pre-flight to a provider RPC, but the app itself cannot leave public devnet: `NEXT_PUBLIC_SOLANA_RPC_URL` only replaces the Mainnet cluster's URL, and a custom RPC added from the wallet menu signs with its own chain id (`custom-<timestamp>`), which the test wallet refuses.
+- **macOS ships bash 3.2.** No `${var^^}`, no associative arrays, and its ERR trap skips a failing `[[ … ]]`, which is why `lib.sh` reports stops from an EXIT trap.
+- **Inside `eventually`, `$1`/`$@` are `eventually`'s own arguments.** Pass values to an `eval`'d predicate through a variable (`QA_WANT_TAB`, `QA_PRED`).
+- **jq's `//` treats `false` as missing.** Read booleans with `if has("frozen") then .frozen else … end`.
+- **Admin Actions items keep the menu open behind their modal** (`onSelect` prevents the default), so after a modal closes the menu is still up and its trigger is aria-hidden; `admin_action` reuses an open menu.
+- **Re-importing a token** raises a native `window.confirm`, which blocks every later agent-browser command until answered.
 - **`eval` prints JSON**, except for `undefined`, which `js` in `lib.sh` maps to an empty string.
 - **The default viewport is short** (1280×577), so sticky elements overlap content; `run.sh` sets 1440×1600. Where a pointer click still lands on an overlay, `dom_click` clicks through the DOM.
 - **The Next dev server occasionally answers a request with a 500** (`SyntaxError: Unexpected end of JSON input` in its own manifest read), which shows up as a timed-out wait over the Next error overlay. `run.sh` prints `errors` on failure so this is recognisable. Rerunning passes. A production build avoids it.
@@ -146,4 +175,5 @@ Every app string these flows match is quoted in the flow scripts, so a copy chan
 ## Not done yet
 
 - CI. The flows need a funded devnet key as a secret, and devnet and the faucet are rate-limited, so this needs its own decision about where and how often to run. A local `solana-test-validator` would remove the faucet dependency, but needs the wallet's chain guard and the connector cluster to accept localnet.
-- The arcade, tokenized-security and custom templates, and the rest of the management actions (freeze/thaw, pause, force transfer/burn, access lists, transfer hook, scaled UI amount). Each is one more flow file in the same shape.
+- The transfer-hook update and confidential flows on `/manage` (the confidential wizard has its own suite on the confidential branch).
+- What stays manual in the QA matrix: real wallets (Phantom prompts, installed-wallet ranking, account switching inside the extension), the mobile wallet flow, how pages and copy look, and the missing error boundary.

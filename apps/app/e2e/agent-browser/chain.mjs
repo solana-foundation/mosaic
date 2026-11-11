@@ -7,9 +7,13 @@
 // Usage: node e2e/agent-browser/chain.mjs <command> [options]   (prints JSON)
 //
 //   address  --role a|b|master                     the role's address
-//   balance  --role a|b|master                     SOL balance
-//   token    --role a|b --mint M                   the role's token account: address,
-//                                                  existence, raw public balance
+//   balance  --role a|b|master | --address A       SOL balance of the role (or of any address)
+//   token    --role a|b --mint M [--owner A]       the role's (or <A>'s) token account:
+//                                                  address, existence, raw balance, frozen
+//   memos    --address A                           memos on the address's latest transactions
+//   account-owner --address A                      the program that owns an account (null if none)
+//   mint     --mint M                              the mint: existence, decimals, supply,
+//                                                  authorities and every extension's fields
 //   create-ata --role a --owner <address> --mint M create <owner>'s associated token
 //                                                  account, paid by the role
 //   fund     --role a --to <address> --sol 0.05    move SOL from the role to an address
@@ -24,7 +28,7 @@
 // helpers below, add commands, and call `runCli(commands)` (see a suite's
 // chain-*.mjs). The CLI only runs when this file is executed directly; a suite
 // file that is itself imported somewhere can guard its own with `isMain`.
-/* global process, console, setTimeout */
+/* global process, console, setTimeout, Buffer */
 import { readFileSync, realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -40,12 +44,15 @@ import {
     lamports,
     pipe,
     setTransactionMessageFeePayerSigner,
+    unwrapOption,
     setTransactionMessageLifetimeUsingBlockhash,
     signTransactionMessageWithSigners,
 } from '@solana/kit';
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
+    AccountState,
     TOKEN_2022_PROGRAM_ADDRESS,
+    fetchMaybeMint,
     fetchMaybeToken,
     findAssociatedTokenPda,
     getCreateAssociatedTokenIdempotentInstruction,
@@ -148,16 +155,51 @@ export async function solBalance(addr) {
     return Number(value) / 1e9;
 }
 
-/** The role's associated token account for a mint: { tokenAccount, exists, publicBalance? }. */
-export async function tokenState(role, mint) {
-    const signer = await signerFor(role);
-    const tokenAccount = await ataFor(signer.address, toAddress(mint));
+/**
+ * An owner's associated token account for a mint: { tokenAccount, exists, publicBalance?, frozen? }.
+ * The owner is the role's address unless `owner` is given.
+ */
+export async function tokenState(role, mint, owner) {
+    const ownerAddress = owner ? toAddress(owner) : (await signerFor(role)).address;
+    const tokenAccount = await ataFor(ownerAddress, toAddress(mint));
     const token = await withBackoff(() => fetchMaybeToken(rpc, tokenAccount, { commitment: 'confirmed' }));
     return {
-        owner: signer.address,
+        owner: ownerAddress,
         tokenAccount,
         exists: token.exists,
-        ...(token.exists ? { publicBalance: token.data.amount } : {}),
+        ...(token.exists ? { publicBalance: token.data.amount, frozen: token.data.state === AccountState.Frozen } : {}),
+    };
+}
+
+/** Options become values or null, and kit's `{ __option }` wrappers inside extensions are unwrapped. */
+function plain(value) {
+    if (value && typeof value === 'object') {
+        if ('__option' in value) return plain(unwrapOption(value));
+        if (Array.isArray(value)) return value.map(plain);
+        if (value instanceof Uint8Array) return Buffer.from(value).toString('hex');
+        return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, plain(v)]));
+    }
+    return value;
+}
+
+/**
+ * A mint as the flows assert on it: `extensions` is the list of extension kinds
+ * (`TokenMetadata`, `PausableConfig`, ...) and `extension` maps each kind to its fields.
+ */
+export async function mintState(mint) {
+    const account = await withBackoff(() => fetchMaybeMint(rpc, toAddress(mint), { commitment: 'confirmed' }));
+    if (!account.exists) return { mint, exists: false };
+    const { decimals, supply, mintAuthority, freezeAuthority, extensions } = account.data;
+    const list = plain(extensions) ?? [];
+    return {
+        mint,
+        exists: true,
+        decimals,
+        supply,
+        mintAuthority: plain(mintAuthority),
+        freezeAuthority: plain(freezeAuthority),
+        extensions: list.map(e => e.__kind),
+        extension: Object.fromEntries(list.map(({ __kind, ...fields }) => [__kind, fields])),
     };
 }
 
@@ -166,13 +208,34 @@ export const commands = {
         return (await signerFor(role)).address;
     },
 
-    async balance({ role }) {
-        return solBalance((await signerFor(role)).address);
+    async balance({ role, address }) {
+        return solBalance(address ? toAddress(address) : (await signerFor(role)).address);
     },
 
-    async token({ role, mint }) {
+    async token({ role, mint, owner }) {
         if (!mint) die('token needs --mint');
-        return tokenState(role, mint);
+        return tokenState(role, mint, owner);
+    },
+
+    async memos({ address }) {
+        if (!address) die('memos needs --address');
+        const list = await withBackoff(() =>
+            rpc.getSignaturesForAddress(toAddress(address), { limit: 10, commitment: 'confirmed' }).send(),
+        );
+        return list.map(s => s.memo).filter(Boolean);
+    },
+
+    async 'account-owner'({ address }) {
+        if (!address) die('account-owner needs --address');
+        const { value } = await withBackoff(() =>
+            rpc.getAccountInfo(toAddress(address), { encoding: 'base64', commitment: 'confirmed' }).send(),
+        );
+        return value?.owner ?? 'null';
+    },
+
+    async mint({ mint }) {
+        if (!mint) die('mint needs --mint');
+        return mintState(mint);
     },
 
     async 'create-ata'({ role, owner, mint }) {
@@ -214,6 +277,7 @@ export const OPTIONS = {
     role: { type: 'string', default: 'a' },
     mint: { type: 'string' },
     owner: { type: 'string' },
+    address: { type: 'string' },
     to: { type: 'string' },
     sol: { type: 'string' },
 };

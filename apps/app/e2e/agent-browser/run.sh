@@ -11,7 +11,8 @@
 #
 # A flow declares what it needs in a header line, read before anything launches:
 #   # e2e: sessions=b,nosign funded
-#   sessions=  extra wallet sessions besides A: b (wallet B), nosign (A without signMessage)
+#   sessions=  extra wallet sessions besides A: b (wallet B), nosign (A without signMessage),
+#              empty (a keypair generated for the run and never funded)
 #   funded     the flow spends devnet SOL, so pre-flight checks and refills wallet A
 #
 #   BASE_URL                    app under test (default http://localhost:3000)
@@ -227,6 +228,18 @@ for role in "${SESSIONS[@]}"; do
         a) build --role a $ALT --out test-wallet-a.js ;;
         b) build --role b --out test-wallet-b.js ;;
         nosign) build --role a --no-sign-message --out test-wallet-a-nosign.js ;;
+        empty)
+            # A fresh keypair per run that never holds SOL, for the insufficient-funds paths.
+            EMPTY_KEYPAIR="$APP_ROOT/.agent-browser/empty-keypair.json"
+            node -e '
+                const { generateKeyPairSync } = require("node:crypto");
+                const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+                const seed = privateKey.export({ format: "der", type: "pkcs8" }).subarray(-32);
+                const pub = publicKey.export({ format: "der", type: "spki" }).subarray(-32);
+                console.log(JSON.stringify([...seed, ...pub]));
+            ' >"$EMPTY_KEYPAIR"
+            build --keypair "$EMPTY_KEYPAIR" --out test-wallet-empty.js
+            ;;
         *) fail "unknown session role '$role' in a flow's '# e2e: sessions=' line" ;;
     esac
 done
