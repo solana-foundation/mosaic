@@ -3,6 +3,7 @@ export {
     type ConfidentialApprovePolicy,
     type ConfidentialBalancesConfig,
     type ConfidentialBalancesOptions,
+    type ConfidentialMintBurnOptions,
 } from './issuance/index.js';
 export {
     createUpdateFieldInstruction,

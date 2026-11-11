@@ -121,7 +121,7 @@ export async function fetchOnChainTransaction(client: Client, signature: Signatu
         .getTransaction(signature, {
             commitment: 'confirmed',
             encoding: 'base64',
-            maxSupportedTransactionVersion: 0,
+            maxSupportedTransactionVersion: 1,
         })
         .send();
     if (!tx) {
@@ -162,7 +162,7 @@ export async function fetchConfirmedTransactionSnapshot(
         .getTransaction(signature, {
             commitment: 'confirmed',
             encoding: 'base64',
-            maxSupportedTransactionVersion: 0,
+            maxSupportedTransactionVersion: 1,
         })
         .send();
     if (!tx) {

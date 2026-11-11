@@ -6,60 +6,27 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
-import { fetchMint, fetchToken, getConfidentialTransferInstructionPlan } from '@solana-program/token-2022';
-import type { ConfidentialKeys } from './keys.js';
-import { type TokenAmount, tokenAmountToRaw, toAuthoritySigner } from './util.js';
-
-type DecodedMint = Awaited<ReturnType<typeof fetchMint>>;
-type DecodedToken = Awaited<ReturnType<typeof fetchToken>>;
-
-/**
- * Reads the auditor ElGamal pubkey configured on the mint's
- * `ConfidentialTransferMint` extension (or `undefined` if none). When a mint has
- * an auditor, every confidential transfer must encrypt the amount to it, so this
- * is folded into the transfer automatically. Takes an already-decoded mint to
- * avoid a redundant fetch.
- */
-function getMintAuditorElgamalPubkey(mint: DecodedMint): Address | undefined {
-    if (mint.data.extensions.__option !== 'Some') {
-        return undefined;
-    }
-    const ext = mint.data.extensions.value.find(
-        (e): e is Extract<typeof e, { __kind: 'ConfidentialTransferMint' }> => e.__kind === 'ConfidentialTransferMint',
-    );
-    if (!ext || ext.auditorElgamalPubkey.__option !== 'Some') {
-        return undefined;
-    }
-    return ext.auditorElgamalPubkey.value;
-}
-
-/** Whether a decoded token account carries the `ConfidentialTransferAccount` extension. */
-function isConfidentialTransferAccount(token: DecodedToken): boolean {
-    return (
-        token.data.extensions.__option === 'Some' &&
-        token.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferAccount')
-    );
-}
-
-/** Whether a decoded mint carries the `ConfidentialTransferMint` extension. */
-function isConfidentialTransferMint(mint: DecodedMint): boolean {
-    return (
-        mint.data.extensions.__option === 'Some' &&
-        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferMint')
-    );
-}
-
-/**
- * Whether a decoded mint carries the `ConfidentialTransferFee` extension. Such
- * mints require the fee-aware confidential transfer variant, which this helper
- * does not yet build.
- */
-function mintHasConfidentialTransferFee(mint: DecodedMint): boolean {
-    return (
-        mint.data.extensions.__option === 'Some' &&
-        mint.data.extensions.value.some(e => e.__kind === 'ConfidentialTransferFee')
-    );
-}
+import { fetchMint, fetchToken } from '@solana-program/token-2022';
+import {
+    getConfidentialTransferInstructionPlan,
+    getConfidentialTransferWithFeeInstructionPlan,
+    getConfidentialTransferWithRecordInstructionPlan,
+} from '@solana-program/token-2022/confidential';
+import {
+    getConfidentialTransferAccountElgamalPubkey,
+    isConfidentialTransferAccount,
+    isConfidentialTransferMint,
+    mintHasConfidentialTransferFee,
+    mintHasTransferFeeConfig,
+} from './extensions.js';
+import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
+import {
+    type RecordBackedProof,
+    type TokenAmount,
+    toRecordProofArgs,
+    tokenAmountToRaw,
+    toAuthoritySigner,
+} from './util.js';
 
 /**
  * Confidentially transfers tokens from one account to another. Wraps the
@@ -69,13 +36,17 @@ function mintHasConfidentialTransferFee(mint: DecodedMint): boolean {
  * accounts, emitting the full setup → transfer → cleanup plan.
  *
  * Reads the source token account (for the current available balance), the
- * destination token account (for its ElGamal pubkey), and the mint (for decimals
- * and the optional auditor pubkey). The auditor is detected from the mint unless
- * overridden via `auditorElgamalPubkey`.
+ * destination token account (for its ElGamal pubkey), and the mint (for decimals).
+ * The decoded mint is forwarded to the upstream helper as `mintAccount`, which
+ * resolves the configured auditor from it — unless overridden via
+ * `auditorElgamalPubkey`.
  *
- * Note: this targets the standard (no-fee) confidential transfer. Mints that
- * also carry `TransferFeeConfig` + `ConfidentialTransferFee` need the fee-aware
- * variant — not yet wired here.
+ * Mints that also carry `TransferFeeConfig` + `ConfidentialTransferFee` are
+ * routed to the fee-aware variant instead, which verifies five proofs rather
+ * than three and withholds the fee into the destination account. That variant
+ * needs the current epoch to pick between the mint's older and newer fee
+ * schedule; it is fetched only on that path, so a no-fee transfer still costs
+ * the same three account reads it always did.
  */
 export async function createConfidentialTransferInstructionPlan(input: {
     rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
@@ -95,6 +66,18 @@ export async function createConfidentialTransferInstructionPlan(input: {
     keys: ConfidentialKeys;
     /** Override the auditor pubkey; defaults to the mint's configured auditor. */
     auditorElgamalPubkey?: Address;
+    /**
+     * Current epoch, used only on a `ConfidentialTransferFee` mint to select the
+     * older or newer transfer-fee schedule. Fetched via `getEpochInfo` when
+     * omitted; pass it to save that round trip.
+     */
+    currentEpoch?: number | bigint;
+    /**
+     * Stage the batched range proof in an SPL Record account instead of inline in
+     * the verify instruction data. Pass this (`{}` is enough) when sending with an
+     * executor that sets compute-unit limits — see {@link RecordBackedProof}.
+     */
+    recordBackedProof?: RecordBackedProof;
 }): Promise<InstructionPlan> {
     const [mintDecoded, sourceDecoded, destinationDecoded] = await Promise.all([
         fetchMint(input.rpc, input.mint),
@@ -112,13 +95,17 @@ export async function createConfidentialTransferInstructionPlan(input: {
         );
     }
 
-    // ...and this helper only builds the standard (no-fee) confidential
-    // transfer. A mint carrying `ConfidentialTransferFee` needs the fee-aware
-    // variant, so fail fast rather than silently building a rejected plan.
-    if (mintHasConfidentialTransferFee(mintDecoded)) {
+    // ...and a mint carrying `ConfidentialTransferFee` takes the fee-aware
+    // variant. Token-2022 reads the basis points and maximum fee from
+    // `TransferFeeConfig`, so both extensions must be present; a mint with only
+    // one of them is malformed and gets a message naming the missing half rather
+    // than upstream's generic missing-extension throw from inside proof
+    // generation.
+    const withFee = mintHasConfidentialTransferFee(mintDecoded);
+    if (withFee && !mintHasTransferFeeConfig(mintDecoded)) {
         throw new Error(
-            `Mint ${input.mint} is configured with confidential transfer fees; ` +
-                `the fee-aware confidential transfer variant is not yet supported.`,
+            `Mint ${input.mint} carries the ConfidentialTransferFee extension without ` +
+                `TransferFeeConfig; a fee-aware confidential transfer needs both.`,
         );
     }
 
@@ -129,16 +116,25 @@ export async function createConfidentialTransferInstructionPlan(input: {
                 `Configure it first with createConfigureConfidentialAccountInstructionPlan.`,
         );
     }
+    const sourceElgamalPubkey = getConfidentialTransferAccountElgamalPubkey(sourceDecoded);
+    if (sourceElgamalPubkey !== null) {
+        assertConfidentialKeysMatchAccount(
+            input.keys,
+            sourceElgamalPubkey,
+            `source token account ${input.sourceToken}`,
+        );
+    }
 
-    // Single mint fetch above feeds both the amount scaling and the auditor.
+    // Single mint fetch above feeds both the amount scaling and the auditor: the
+    // decoded mint is forwarded as `mintAccount` so the upstream helper resolves
+    // the configured auditor without a redundant fetch (mirrors mint.ts/burn.ts).
     const rawAmount = tokenAmountToRaw(input.amount, mintDecoded.data.decimals);
-    const auditorElgamalPubkey = input.auditorElgamalPubkey ?? getMintAuditorElgamalPubkey(mintDecoded);
 
-    return getConfidentialTransferInstructionPlan({
+    const args = {
         rpc: input.rpc,
         payer: input.payer,
-        proofMode: 'context-state',
         mint: input.mint,
+        mintAccount: mintDecoded.data,
         sourceToken: input.sourceToken,
         sourceTokenAccount: sourceDecoded.data,
         destinationToken: input.destinationToken,
@@ -147,6 +143,25 @@ export async function createConfidentialTransferInstructionPlan(input: {
         amount: rawAmount,
         sourceElgamalKeypair: input.keys.elgamal,
         aesKey: input.keys.aes,
-        auditorElgamalPubkey,
-    });
+        auditorElgamalPubkey: input.auditorElgamalPubkey,
+    };
+
+    // The fee-aware helper has no separate `…WithRecord` twin — it takes the
+    // record fields inline — so the record option folds into the same call.
+    if (withFee) {
+        return getConfidentialTransferWithFeeInstructionPlan({
+            ...args,
+            ...(input.recordBackedProof !== undefined ? toRecordProofArgs(input.recordBackedProof) : {}),
+            mintAccount: mintDecoded.data,
+            currentEpoch: input.currentEpoch ?? (await input.rpc.getEpochInfo().send()).epoch,
+        });
+    }
+
+    if (input.recordBackedProof !== undefined) {
+        return getConfidentialTransferWithRecordInstructionPlan({
+            ...args,
+            ...toRecordProofArgs(input.recordBackedProof),
+        });
+    }
+    return getConfidentialTransferInstructionPlan(args);
 }
