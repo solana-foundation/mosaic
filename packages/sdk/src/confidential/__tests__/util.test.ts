@@ -20,8 +20,43 @@ describe('tokenAmountToRaw', () => {
         });
     });
 
+    describe('normalizes parseFloat-compatible spellings exactly', () => {
+        it('accepts a leading dot, a trailing dot and a leading plus', () => {
+            expect(tokenAmountToRaw('.5', 6)).toBe(500_000n);
+            expect(tokenAmountToRaw('5.', 6)).toBe(5_000_000n);
+            expect(tokenAmountToRaw('+1', 6)).toBe(1_000_000n);
+        });
+
+        it('expands exponent notation without float math', () => {
+            expect(tokenAmountToRaw('1e-3', 6)).toBe(1_000n);
+            expect(tokenAmountToRaw('1.5e2', 6)).toBe(150_000_000n);
+            expect(tokenAmountToRaw('1.5e-2', 6)).toBe(15_000n);
+            expect(tokenAmountToRaw('.5e1', 6)).toBe(5_000_000n);
+            expect(tokenAmountToRaw('5.e-1', 6)).toBe(500_000n);
+            expect(tokenAmountToRaw('1e19', 0)).toBe(10_000_000_000_000_000_000n);
+        });
+
+        it('rejects over-precision that exponent expansion reveals', () => {
+            expect(() => tokenAmountToRaw('1e-7', 6)).toThrow('Amount cannot have more than 6 decimal places');
+        });
+
+        it('rejects astronomically large or small exponents without expanding them', () => {
+            expect(() => tokenAmountToRaw('1e999999999', 6)).toThrow('Amount exceeds the maximum u64 token amount');
+            expect(() => tokenAmountToRaw('1e-999999999', 6)).toThrow('Amount must be a positive number');
+        });
+
+        it('reports a zero mantissa as a non-positive amount, whatever the exponent', () => {
+            // The decimal-shift bound is computed from the point position
+            // alone, so without this check a zero value with a huge exponent
+            // would be misreported against the u64 bound.
+            expect(() => tokenAmountToRaw('0e2000', 6)).toThrow('Amount must be a positive number');
+            expect(() => tokenAmountToRaw('0.0e5000', 6)).toThrow('Amount must be a positive number');
+            expect(() => tokenAmountToRaw('0e999999999', 6)).toThrow('Amount must be a positive number');
+        });
+    });
+
     describe('rejects malformed decimal strings', () => {
-        it.each(['1abc', '1,5', '1.2.3', '1.', '.5', '-1', '', '   ', 'abc', '1e5'])(
+        it.each(['1abc', '1,5', '1.2.3', '-1', '', '   ', 'abc', '1e', '1e5.5', '1e5e5', '1.2.3e5'])(
             'throws on %p instead of silently truncating',
             bad => {
                 expect(() => tokenAmountToRaw(bad, 6)).toThrow('Amount must be a positive number');
@@ -31,6 +66,21 @@ describe('tokenAmountToRaw', () => {
         it('rejects zero', () => {
             expect(() => tokenAmountToRaw('0', 6)).toThrow('Amount must be a positive number');
             expect(() => tokenAmountToRaw('0.0', 6)).toThrow('Amount must be a positive number');
+        });
+    });
+
+    describe('scales long inputs in bounded time', () => {
+        it('rejects and converts long inputs without quadratic backtracking', () => {
+            // The previous combined exponent pattern and the /0+$/ trailing
+            // zero strip took seconds on inputs of this length; every step of
+            // the conversion is linear now, so these resolve or reject fast.
+            expect(() => tokenAmountToRaw('1'.repeat(100_000), 6)).toThrow(
+                'Amount exceeds the maximum u64 token amount',
+            );
+            expect(() => tokenAmountToRaw(`1.${'0'.repeat(100_000)}1`, 6)).toThrow(
+                'Amount cannot have more than 6 decimal places',
+            );
+            expect(tokenAmountToRaw(`1.${'0'.repeat(100_000)}`, 6)).toBe(1_000_000n);
         });
     });
 
@@ -48,6 +98,24 @@ describe('tokenAmountToRaw', () => {
 
         it('accepts trailing-zero precision up to the limit', () => {
             expect(tokenAmountToRaw('1.500000', 6)).toBe(1_500_000n);
+        });
+
+        it('accepts exact values whose trailing zeros run past the mint decimals', () => {
+            // Trailing zeros are valueless: stripping them first leaves an
+            // in-range fraction, so these are exact spellings, not
+            // over-precision. `10e-7`/`1.0e-6`/`50e-1` reach this path through
+            // exponent expansion.
+            expect(tokenAmountToRaw('5.0', 0)).toBe(5n);
+            expect(tokenAmountToRaw('1.5000000', 6)).toBe(1_500_000n);
+            expect(tokenAmountToRaw('1.2300000', 6)).toBe(1_230_000n);
+            expect(tokenAmountToRaw('10e-7', 6)).toBe(1n);
+            expect(tokenAmountToRaw('50e-1', 6)).toBe(5_000_000n);
+            expect(tokenAmountToRaw('1.0e-6', 6)).toBe(1n);
+        });
+
+        it('still rejects nonzero digits past the mint decimals', () => {
+            expect(() => tokenAmountToRaw('1.5000001', 6)).toThrow('Amount cannot have more than 6 decimal places');
+            expect(() => tokenAmountToRaw('1.0000005e0', 6)).toThrow('Amount cannot have more than 6 decimal places');
         });
     });
 

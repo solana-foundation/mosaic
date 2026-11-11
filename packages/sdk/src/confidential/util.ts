@@ -1,5 +1,11 @@
 import { type Address, type Rpc, type SolanaRpcApi, type TransactionSigner, createNoopSigner } from '@solana/kit';
-import { U64_MAX, decimalAmountToRaw, getMintDetails } from '../transaction-util.js';
+import { type TokenAmount, getMintDetails, tokenAmountToRaw } from '../transaction-util.js';
+
+// The amount converter is shared by every token path, so it lives in
+// transaction-util.ts next to decimalAmountToRaw and U64_MAX instead of
+// making sibling paths depend on the confidential module. Re-exported here so
+// confidential callers keep their import path.
+export { type TokenAmount, tokenAmountToRaw } from '../transaction-util.js';
 
 /**
  * Normalizes an authority that may be given as a bare `Address` into a
@@ -8,49 +14,6 @@ import { U64_MAX, decimalAmountToRaw, getMintDetails } from '../transaction-util
  */
 export function toAuthoritySigner(authority: Address | TransactionSigner): TransactionSigner {
     return typeof authority === 'string' ? createNoopSigner(authority) : authority;
-}
-
-/** An amount expressed either as a decimal string (e.g. `"1.5"`) or raw `bigint`. */
-export type TokenAmount = string | bigint;
-
-/**
- * Validates and scales a {@link TokenAmount} to a raw `bigint` for a known
- * number of mint `decimals` — without any RPC. `bigint` inputs are treated as
- * already-raw; decimal strings are scaled by `decimals`.
- *
- * Decimal strings are scaled via {@link decimalAmountToRaw} on the raw string
- * (no `parseFloat`): `parseFloat` accepts leading-numeric junk (`"1abc"`,
- * `"1,5"`, `"1.2.3"`) and loses precision on large/u64-scale amounts, either of
- * which would silently execute a different on-chain amount than the caller
- * supplied. Strings with more fractional digits than the mint supports are
- * rejected (rather than silently truncated by {@link decimalAmountToRaw}), and
- * the result is bounds-checked to `(0, U64_MAX]`.
- */
-export function tokenAmountToRaw(amount: TokenAmount, decimals: number): bigint {
-    let rawAmount: bigint;
-    if (typeof amount === 'bigint') {
-        rawAmount = amount;
-    } else {
-        const trimmed = amount.trim();
-        // Require a strict, fully-numeric decimal string; reject anything else.
-        const match = /^\d+(?:\.(\d+))?$/.exec(trimmed);
-        if (!match) {
-            throw new Error('Amount must be a positive number');
-        }
-        // Reject over-precision: `decimalAmountToRaw` would otherwise truncate
-        // the extra digits and build an instruction for a different amount.
-        if ((match[1]?.length ?? 0) > decimals) {
-            throw new Error(`Amount cannot have more than ${decimals} decimal places`);
-        }
-        rawAmount = decimalAmountToRaw(trimmed, decimals);
-    }
-    if (rawAmount <= 0n) {
-        throw new Error('Amount must be a positive number');
-    }
-    if (rawAmount > U64_MAX) {
-        throw new Error('Amount exceeds the maximum u64 token amount');
-    }
-    return rawAmount;
 }
 
 /**
