@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import {
     createForceBurnTransaction,
     getPermissionedBurnAuthority,
+    validateDecimalAmount,
     validatePermanentDelegateForBurn,
 } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
@@ -55,10 +56,7 @@ export const forceBurnCommand = new Command('force-burn')
             }
 
             // Parse and validate amount
-            const decimalAmount = parseFloat(options.amount);
-            if (isNaN(decimalAmount) || decimalAmount <= 0) {
-                throw new Error('Amount must be a positive number');
-            }
+            validateDecimalAmount(options.amount);
 
             spinner.text = 'Validating permanent delegate authority...';
 
@@ -93,7 +91,7 @@ export const forceBurnCommand = new Command('force-burn')
                 rpc,
                 options.mintAddress as Address,
                 options.fromAccount as Address,
-                decimalAmount,
+                options.amount,
                 authority,
                 payer,
                 permissionedBurnAuthority,
@@ -114,7 +112,7 @@ export const forceBurnCommand = new Command('force-burn')
             console.log(chalk.cyan('📋 Details:'));
             console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
             console.log(`   ${chalk.bold('From Account:')} ${options.fromAccount}`);
-            console.log(`   ${chalk.bold('Amount Burned:')} ${decimalAmount}`);
+            console.log(`   ${chalk.bold('Amount Burned:')} ${options.amount}`);
             console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
             console.log(`   ${chalk.bold('Permanent Delegate:')} ${authority.address}`);
 

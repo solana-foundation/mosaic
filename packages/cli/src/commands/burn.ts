@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createBurnTransaction, getPermissionedBurnAuthority } from '@solana/mosaic-sdk';
+import { createBurnTransaction, getPermissionedBurnAuthority, validateDecimalAmount } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
@@ -46,10 +46,7 @@ export const burnCommand = new Command('burn')
             }
 
             // Parse and validate amount
-            const decimalAmount = parseFloat(options.amount);
-            if (isNaN(decimalAmount) || decimalAmount <= 0) {
-                throw new Error('Amount must be a positive number');
-            }
+            validateDecimalAmount(options.amount);
 
             spinner.text = 'Building burn transaction...';
 
@@ -90,7 +87,7 @@ export const burnCommand = new Command('burn')
                 rpc,
                 options.mintAddress as Address,
                 owner,
-                decimalAmount,
+                options.amount,
                 payer,
                 permissionedBurnAuthority,
             );
@@ -110,7 +107,7 @@ export const burnCommand = new Command('burn')
             console.log(chalk.cyan('📋 Details:'));
             console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
             console.log(`   ${chalk.bold('Owner:')} ${owner.address}`);
-            console.log(`   ${chalk.bold('Amount Burned:')} ${decimalAmount}`);
+            console.log(`   ${chalk.bold('Amount Burned:')} ${options.amount}`);
             console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
             if (permissionedBurnAuthority) {
                 console.log(`   ${chalk.bold('Permissioned Burn Authority:')} ${permissionedBurnAuthority.address}`);

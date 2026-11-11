@@ -28,7 +28,7 @@ import {
  * @param rpc - The Solana RPC client instance
  * @param mint - The mint address
  * @param recipient - The recipient's wallet address (owner of the ATA)
- * @param amount - The raw token amount (already adjusted for decimals)
+ * @param amount - The decimal amount to mint, optionally as a string to preserve precision
  * @param mintAuthority - The mint authority signer
  * @param feePayer - The fee payer signer
  * @returns A promise that resolves to a FullTransaction object for minting tokens
@@ -37,12 +37,19 @@ export const createMintToTransaction = async (
     rpc: Rpc<SolanaRpcApi>,
     mint: Address,
     recipient: Address,
-    amount: number,
+    amount: number | string,
     mintAuthority: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
 ): Promise<FullTransaction> => {
     const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-    const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
+    // Reuse feePayerSigner when the authority is the fee payer's address, so the
+    // transaction doesn't pair a real signer with a noop signer for one address.
+    const mintAuthoritySigner =
+        typeof mintAuthority !== 'string'
+            ? mintAuthority
+            : mintAuthority === feePayerSigner.address
+              ? feePayerSigner
+              : createNoopSigner(mintAuthority);
 
     const { tokenAccount: destinationAta, isFrozen } = await resolveTokenAccount(rpc, recipient, mint);
 
@@ -72,7 +79,7 @@ export const createMintToTransaction = async (
         getMintToInstruction(
             {
                 mint: mint,
-                mintAuthority: mintAuthority,
+                mintAuthority: mintAuthoritySigner,
                 token: destinationAta,
                 amount: rawAmount,
             },

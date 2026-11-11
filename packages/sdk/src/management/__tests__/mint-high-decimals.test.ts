@@ -1,7 +1,6 @@
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
-import { TOKEN_2022_PROGRAM_ADDRESS, getMintToInstructionDataDecoder } from '@solana-program/token-2022';
-import { createMockSigner, createMockRpc } from '../../__tests__/test-utils.js';
-import { decimalAmountToRaw } from '../../transaction-util.js';
+import { getMintToInstructionDataDecoder } from '@solana-program/token-2022';
+import { createMockSigner, createMockRpc, mockTransactionUtilWithRealAmounts } from '../../__tests__/test-utils.js';
 
 describe('createMintToTransaction: mint with more than 9 decimals', () => {
     let rpc: Rpc<SolanaRpcApi>;
@@ -13,24 +12,7 @@ describe('createMintToTransaction: mint with more than 9 decimals', () => {
     beforeEach(() => {
         jest.resetModules();
         rpc = createMockRpc();
-        jest.doMock('../../transaction-util.js', () => ({
-            resolveTokenAccount: jest.fn().mockResolvedValue({
-                tokenAccount: 'Ata77777777777777777777777777777777777777',
-                isInitialized: true,
-                isFrozen: false,
-                balance: 0n,
-                uiBalance: 0,
-            }),
-            // The real conversion, so the 18-decimal amount is actually scaled.
-            decimalAmountToRaw,
-            getMintDetails: jest.fn().mockResolvedValue({
-                decimals: 18,
-                freezeAuthority: 'NotTokenACL111111111111111111111111111111',
-                extensions: [],
-                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-            }),
-            isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(false),
-        }));
+        mockTransactionUtilWithRealAmounts(18);
     });
 
     test('encodes the amount scaled by 18 decimals', async () => {
