@@ -72,6 +72,9 @@ record() {
     check "§3c $what: nothing selected is silently dropped" not contains "$outcome" "dropped:"
 }
 
+# A combination Token-2022 accepts: it must be created, not just left undropped.
+created() { check "§3c $1 is created" contains "$2" "ok "; }
+
 step "§3c 4: Scaled UI Amount, scheduled and rebasing"
 scheduled() {
     ab find role button click --name "Scheduled Plan a change" >/dev/null
@@ -82,6 +85,7 @@ scheduled() {
 CONFIGURE=scheduled
 outcome="$(combo_retry sched "Scaled UI Amount")"
 record "scaled UI scheduled" "$outcome"
+created "scaled UI scheduled" "$outcome"
 if [[ "$outcome" == ok* ]]; then
     cfg="$(mint_field "${outcome#ok }" .extension.ScaledUiAmountConfig)"
     note "scheduled config on chain: $(jq -c . <<<"$cfg")"
@@ -95,6 +99,7 @@ rebasing() {
 CONFIGURE=rebasing
 outcome="$(combo_retry rebase "Scaled UI Amount")"
 record "scaled UI rebasing" "$outcome"
+created "scaled UI rebasing" "$outcome"
 [[ "$outcome" != ok* ]] || check "rebasing: multiplier 1.5 on chain" equals "$(mint_field "${outcome#ok }" .extension.ScaledUiAmountConfig.multiplier)" 1.5
 
 step "§3c 5: Transfer Fee at 10000 bps with a cap"
@@ -102,6 +107,7 @@ fee_max() { ab fill "#transferFeeBasisPoints" "10000" >/dev/null && ab fill "#tr
 CONFIGURE=fee_max
 outcome="$(combo_retry fee100 "Transfer Fee")"
 record "transfer fee 10000 bps" "$outcome"
+created "transfer fee 10000 bps" "$outcome"
 [[ "$outcome" != ok* ]] || check "10000 bps reached the chain" equals \
     "$(mint_field "${outcome#ok }" .extension.TransferFeeConfig.newerTransferFee.transferFeeBasisPoints)" 10000
 
@@ -122,7 +128,9 @@ known_defect unfiled:s3c-invalid-combos "non-transferable + confidential is bloc
 step "§3c 8: Confidential Balances + Transfer Hook"
 hook() { ab fill "#transferHookProgramId" "$SYSTEM_PROGRAM" >/dev/null; }
 CONFIGURE=hook
-record "confidential + transfer hook" "$(combo_retry cbth "Confidential Balances" "Transfer Hook")"
+outcome="$(combo_retry cbth "Confidential Balances" "Transfer Hook")"
+record "confidential + transfer hook" "$outcome"
+created "confidential + transfer hook" "$outcome"
 
 step "§3c 8b: Confidential Balances + Transfer Fee"
 fee_only() { dialog_click "1%" && ab fill "#transferFeeMaximum" "1000000" >/dev/null; }
