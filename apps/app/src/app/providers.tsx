@@ -11,17 +11,22 @@ export function Providers({ children }: { children: ReactNode }) {
     const customRpcs = useRpcStore(state => state.customRpcs);
 
     const connectorConfig = useMemo(() => {
-        // Get custom RPC URL from environment variable
+        // Optional RPC override applied to whichever cluster is selected. When set,
+        // it replaces the public endpoint for every network so writes go through the
+        // configured provider (the public endpoints are rate-limited and may reject
+        // browser writes with HTTP 403).
         const envRpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+
+        const label = (name: string) => (envRpcUrl ? `${name} (Env RPC)` : name);
 
         // Base clusters - always available. The list itself lives in
         // lib/solana/network.ts so the network picker sees the same one; only the
-        // env RPC override is applied here.
-        const baseClusters = BUILTIN_CLUSTERS.map(cluster =>
-            cluster.name === 'mainnet-beta' && envRpcUrl
-                ? { ...cluster, label: 'Mainnet (Env RPC)', url: envRpcUrl }
-                : cluster,
-        );
+        // env RPC override is applied here, to every network (see above).
+        const baseClusters = BUILTIN_CLUSTERS.map(cluster => ({
+            ...cluster,
+            label: label(cluster.label),
+            url: envRpcUrl || cluster.url,
+        }));
 
         // Add user-defined custom RPCs
         const userClusters = customRpcs.map(rpc => ({

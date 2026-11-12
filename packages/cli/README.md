@@ -60,6 +60,8 @@ If your signer (fee payer) is also the mint authority, the create commands will 
 
 ## Command reference
 
+> **Confidential balances.** The CLI exposes confidential balances only as a mint-creation flag (`--confidential-balances-authority`). Confidential _runtime_ operations — configure account, deposit/apply/withdraw, and confidential transfer — are SDK-only for now; see the [SDK confidential guide](../sdk/README.md#confidential-balances--transfers).
+
 ### Create
 
 ```bash
