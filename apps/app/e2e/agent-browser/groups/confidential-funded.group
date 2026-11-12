@@ -1,0 +1,7 @@
+# The funded confidential flows, in order: optin leaves A and B configured on the run's
+# opt-in mint for the flows after it. Run through confidential-v0 or confidential-v1.
+confidential-optin
+confidential-validation
+confidential-whitelist
+confidential-recipient
+confidential-interrupt

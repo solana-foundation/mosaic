@@ -1,0 +1,5 @@
+# The same flows as SIMD-0385 version-1 transactions: the wallets advertise v1, so the app
+# plans v1 (the RPC must run Agave >= 4.2.2). Blocked while @solana/connector 0.1.4 cannot
+# hand a v1 transaction to a wallet; see CONFIDENTIAL.md.
+tx-version: 1
+@confidential-funded

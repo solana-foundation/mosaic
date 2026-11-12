@@ -11,6 +11,9 @@ export const MOCK_RENT_EXEMPT_LAMPORTS = 2039280n;
 /**
  * Creates a mock RPC client for testing
  */
+/** Epoch reported by {@link createMockRpc}'s `getEpochInfo`. */
+export const MOCK_EPOCH = 42n;
+
 export function createMockRpc(): Rpc<any> {
     const accountInfoRegistry = new Map<string, { owner?: Address; jsonParsed?: string; base64?: string }>();
     const programAccountsRegistry = new Map<string, Array<{ pubkey: Address; dataBase64: string }>>();
@@ -44,6 +47,11 @@ export function createMockRpc(): Rpc<any> {
                 }
                 return { value: { owner } };
             },
+        }),
+        // The fee-aware confidential transfer reads the current epoch to choose
+        // between a mint's older and newer transfer-fee schedule.
+        getEpochInfo: () => ({
+            send: () => Promise.resolve({ epoch: MOCK_EPOCH }),
         }),
         getProgramAccounts: (programAddress: Address, _opts?: any) => ({
             send: async () => {
