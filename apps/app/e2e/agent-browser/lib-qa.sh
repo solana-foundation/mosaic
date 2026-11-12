@@ -168,9 +168,18 @@ import_token() {
     fi
     for attempt in 1 2 3; do
         ab find role button click --name "Import Token" >/dev/null
-        eventually 60 eval '[[ "$(dialog_text)" == *"Successfully Imported"* || "$(dialog_text)" == *"Failed to import"* || -z "$(dialog_text)" ]]' || true
+        eventually 60 eval '[[ "$(dialog_text)" == *"Successfully Imported"* || "$(dialog_text)" == *"Failed to import"* || -z "$(dialog_text)" ]]' || {
+            echo "import of $mint did not finish within 60s: $(dialog_text | tr '\n' ' ' | cut -c1-300)" >&2
+            return 1
+        }
         text="$(dialog_text)"
-        [[ "$text" == *"Failed to import"* ]] || return 0
+        # Success is the success copy, or the modal having closed itself with the token stored.
+        [[ "$text" == *"Successfully Imported"* ]] && return 0
+        if [[ -z "$text" ]]; then
+            stored_has "$mint" && return 0
+            echo "import of $mint closed the modal without storing the token" >&2
+            return 1
+        fi
         [[ "$text" == *"Failed to fetch"* ]] || {
             echo "import of $mint failed: $text" >&2
             return 1

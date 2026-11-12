@@ -55,6 +55,8 @@ import_token "$ARCADE"
 eventually 6 eval 'equals "$(dialog_text)" ""' || escape_all
 ab tab qa2 >/dev/null
 arcade_name="$(stored_tokens | jq -r --arg m "$ARCADE" '.[] | select(.address == $m) | .name')"
+# An empty name would match any page below.
+check "the imported arcade fixture is stored with a name" test -n "$arcade_name"
 sleep 2
 if contains "$(main_text)" "$arcade_name"; then synced=yes; else synced=no; fi
 note "a token imported in another tab shows here without a reload: $synced"
