@@ -115,8 +115,10 @@ known_defect HOO-954 "force transfer moves tokens out of a blocklisted (frozen) 
 
 step "blocklist: remove B"
 check "removing B thaws its token account on chain" list_op remove Blocklist "$B" is_frozen "$B" false
+# B holds 1 while HOO-954 stands, 0 once the clawback above works: expect one more than now.
+b_before="$(bal "$B")"
 ui_action "Transfer 1 to B after removal succeeds" "Transfer Tokens" fill_transfer_b "Send Tokens" "Transfer Successful"
-check "B holds 2" await_value 60 "$(raw 2)" bal "$B"
+check "B gains 1 (from $b_before raw)" await_value 60 "$((b_before + $(raw 1)))" bal "$B"
 
 step "allowlist: create, list A, mint 10 to A"
 goto "/"

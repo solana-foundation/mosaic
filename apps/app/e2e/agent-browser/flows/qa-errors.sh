@@ -19,7 +19,16 @@ wizard_identity "QA Reject" "QAREJ"
 ab wait --text "Authority Parameters" >/dev/null
 arm_reject
 dialog_click "Create Custom Token"
-check "the rejection comes back as Creation Failed" eventually 60 eval 'contains "$(dialog_text)" "Creation Failed"'
+# Today that is "Creation Failed"; row20 below expects cancellation copy instead, so accept either.
+# Wait for the wallet to have seen the request first: the wizard's own Cancel button matches /cancel/.
+rejection_shown() {
+    local text
+    [[ "$(sign_count signTransaction)" != 0 ]] || return 1
+    text="$(dialog_text)"
+    not_contains "$text" "Creating..." || return 1
+    contains "$text" "Creation Failed" || grep -qiE "cancell?ed|rejected" <<<"$text"
+}
+check "the rejection ends the attempt (Creation Failed or a cancellation)" eventually 60 rejection_shown
 check "exactly one transaction reached the wallet, and it was rejected" equals "$(sign_count signTransaction)" 1
 text="$(dialog_text)"
 note "rejection copy: $(grep -A1 'Error:' <<<"$text" | tr '\n' ' ' | sed 's/ *Close *$//')"

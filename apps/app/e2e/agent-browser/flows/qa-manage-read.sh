@@ -85,8 +85,9 @@ for key in stablecoin security arcade confidential paused scaled blocklist allow
         name="$(ext_display_name "$kind")"
         check "$key: Extensions row for $kind ($name)" grep -qx "$name" <<<"$rows"
     done
+    # PermissionedBurn is left out on both sides, so its row turning up is an XPASS above, not a miscount.
     check "$key: no Extensions row without an extension behind it" equals \
-        "$(grep -c . <<<"$rows")" "$(jq '[.extensions[] | select(. != "PermissionedBurn")] | length' <<<"$state")"
+        "$(grep -vx "Permissioned Burn" <<<"$rows" | grep -c . || true)" "$(jq '[.extensions[] | select(. != "PermissionedBurn")] | length' <<<"$state")"
     if jq -e '.extension.ScaledUiAmountConfig' <<<"$state" >/dev/null; then
         multiplier="$(jq -r '.extension.ScaledUiAmountConfig.multiplier' <<<"$state")"
         known_defect HOO-955 "$key: Scaled UI Amount row shows the on-chain multiplier ($multiplier, row 26)" \
