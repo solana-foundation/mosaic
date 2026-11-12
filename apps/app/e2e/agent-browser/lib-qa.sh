@@ -430,6 +430,10 @@ close_result() {
 # Admin Actions on a token the wallet controls (funded suites)
 # ---------------------------------------------------------------------------
 
+# The last action_once's dialog text and how many transactions it signed.
+LAST_ACTION_TEXT=""
+LAST_ACTION_SIGNED=0
+
 # Opens an Admin Actions item, runs a fill function, clicks the modal's submit
 # button and waits for the success copy. Leaves the modal closed. A public
 # devnet rate limit (HTTP 429) before anything was signed is retried; one
@@ -467,7 +471,12 @@ action_once() {
     sleep 0.3
     before="$(sign_count signTransaction)"
     dialog_click "$submit" || {
+        # Record this attempt's result too, so action and ui_action never read the previous one.
+        LAST_ACTION_TEXT="'$submit' $(button_state "$submit"): $(dialog_text)"
+        LAST_ACTION_SIGNED=0
         echo "$item: '$submit' not enabled ($(button_state "$submit"))" >&2
+        escape_all
+        eventually 5 eval 'equals "$(dialog_text)" ""' || escape_all
         return 1
     }
     # Wait for the success copy, or for the modal's error block.
