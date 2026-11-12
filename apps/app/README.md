@@ -88,7 +88,7 @@ src/
 Both are inlined at build time, so changing either requires a rebuild/redeploy.
 
 - `NEXT_PUBLIC_SOLANA_NETWORK`: The network the app boots into when the user has never picked one. Accepts `devnet`, `testnet`, or `mainnet-beta` (`mainnet` is an alias). Defaults to `devnet`. This sets the **default**, not a hard override: a user's explicit in-app network choice is persisted and wins on their next visit.
-- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom Solana RPC endpoint URL, attached to the **Mainnet** cluster entry. Since the app defaults to Devnet, a paid mainnet endpoint also needs `NEXT_PUBLIC_SOLANA_NETWORK=mainnet-beta` for users to land on it. This variable is exposed to the client-side and available in production builds. See `.env.example` for more details.
+- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom Solana RPC endpoint URL for the network in `NEXT_PUBLIC_SOLANA_NETWORK` (Devnet by default). A paid mainnet endpoint therefore also needs `NEXT_PUBLIC_SOLANA_NETWORK=mainnet-beta`. `next build` and `next dev` ask the endpoint for its genesis hash and fail when it serves a different public cluster than the configured network. The URL is inlined into the client bundle, so an API key in it is public: use a key restricted to your domains for deployments. See `.env.example` for more details.
 
 ## Development
 
