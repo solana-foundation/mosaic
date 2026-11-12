@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { createPauseTransaction, MINT_ALREADY_PAUSED_ERROR } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
-import { resolveSigner } from '../../utils/solana.js';
+import { resolveSigners } from '../../utils/solana.js';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface PauseOptions {
@@ -24,7 +24,6 @@ export const pauseCommand = new Command('pause')
         // Get global options from parent command
         const parentOpts = getGlobalOpts(command);
         const rpcUrl = parentOpts.rpcUrl;
-        const keypairPath = parentOpts.keypair;
         const rawTx: string | undefined = parentOpts.rawTx;
 
         const spinner = createSpinner('Checking token state...', rawTx);
@@ -59,19 +58,17 @@ export const pauseCommand = new Command('pause')
 
             spinner.start('Preparing pause transaction...');
 
-            // Resolve pause authority signer or address
-            const { signer: pauseAuthority, address: pauseAuthorityAddress } = await resolveSigner(
-                rawTx,
-                keypairPath,
-                parentOpts.authority,
-            );
+            // Resolve the pause authority and fee payer signers. A bare --fee-payer string used to
+            // be passed where the SDK needs a signer.
+            const { authority: pauseAuthority, feePayer } = await resolveSigners(parentOpts);
+            const pauseAuthorityAddress = pauseAuthority.address;
 
             spinner.text = 'Sending pause transaction...';
 
             const { transactionMessage } = await createPauseTransaction(rpc, {
                 mint: options.mintAddress as Address,
                 pauseAuthority,
-                feePayer: parentOpts.feePayer || pauseAuthority,
+                feePayer,
             });
 
             const { raw, signature } = await sendOrOutputTransaction(

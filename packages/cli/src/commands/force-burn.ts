@@ -6,8 +6,8 @@ import {
     validatePermanentDelegateForBurn,
 } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
-import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
-import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
+import { loadKeypair, resolveSigners } from '../utils/solana.js';
+import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../utils/cli.js';
 
 interface ForceBurnOptions {
@@ -42,17 +42,17 @@ export const forceBurnCommand = new Command('force-burn')
             const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
-            let authority: TransactionSigner<string>;
-            let payer: TransactionSigner<string>;
-            if (rawTx) {
-                const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
-                authority = createNoopSigner((parentOpts.authority as Address) || defaultAddr);
-                payer = createNoopSigner((parentOpts.feePayer as Address) || authority.address);
-            } else {
-                const kp = await loadKeypair(parentOpts.keypair);
-                authority = kp;
-                payer = kp;
-            }
+            // Loaded before resolveSigners so a role at the co-signer's address reuses this signer.
+            const permissionedBurnAuthority = options.permissionedBurnKeypair
+                ? await loadKeypair(options.permissionedBurnKeypair)
+                : undefined;
+
+            const { authority, feePayer: payer } = await resolveSigners(
+                parentOpts,
+                parentOpts.authority,
+                '--authority',
+                [permissionedBurnAuthority],
+            );
 
             // Parse and validate amount
             const decimalAmount = parseFloat(options.amount);
@@ -66,10 +66,6 @@ export const forceBurnCommand = new Command('force-burn')
             await validatePermanentDelegateForBurn(rpc, options.mintAddress as Address, authority.address);
 
             spinner.text = 'Building force burn transaction...';
-
-            const permissionedBurnAuthority = options.permissionedBurnKeypair
-                ? await loadKeypair(options.permissionedBurnKeypair)
-                : undefined;
 
             if (!rawTx) {
                 // The burn authority configured on the mint must co-sign. Without a matching

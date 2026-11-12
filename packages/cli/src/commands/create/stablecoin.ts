@@ -2,18 +2,11 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { ABL_PROGRAM_ID, createStablecoinInitTransaction, TOKEN_ACL_PROGRAM_ID } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
-import {
-    generateKeyPairSigner,
-    signTransactionMessageWithSigners,
-    type Address,
-    sendAndConfirmTransactionFactory,
-    assertIsTransactionWithBlockhashLifetime,
-    getSignatureFromTransaction,
-} from '@solana/kit';
+import { loadKeypair, resolveSigners } from '../../utils/solana.js';
+import { generateKeyPairSigner, type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { findListConfigPda } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda } from '@solana/token-acl-sdk';
-import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
+import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface StablecoinOptions {
     name: string;
@@ -58,7 +51,6 @@ export const createStablecoinCommand = new Command('stablecoin')
     .action(async (options: StablecoinOptions, command) => {
         const parentOpts = getGlobalOpts(command);
         const rpcUrl = parentOpts.rpcUrl;
-        const keypairPath = parentOpts.keypair;
         const rawTx: string | undefined = parentOpts.rawTx;
         const spinner = createSpinner('Creating stablecoin...', rawTx);
 
@@ -69,13 +61,9 @@ export const createStablecoinCommand = new Command('stablecoin')
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-            // Default to the provided mint authority if raw tx, otherwise use keypair
-            const signerKeypair = rawTx ? null : await loadKeypair(keypairPath);
-            const signerAddress = rawTx ? (options.mintAuthority as Address) : (signerKeypair!.address as Address);
-
             spinner.text = 'Loading keypairs...';
 
-            // Generate or load mint keypair (must be a signer if not raw)
+            // Generate or load the mint keypair; it always signs, in raw mode too
             let mintKeypair;
             if (options.mintKeypair) {
                 mintKeypair = await loadKeypair(options.mintKeypair);
@@ -83,14 +71,24 @@ export const createStablecoinCommand = new Command('stablecoin')
                 mintKeypair = await generateKeyPairSigner();
             }
 
+            // The mint authority signs (metadata init requires it), so it is resolved as a signer:
+            // --mint-authority, else --authority, else the --keypair signer. A role at the mint's
+            // address reuses the mint keypair's signer.
+            const { authority: mintAuthoritySigner, feePayer } = await resolveSigners(
+                parentOpts,
+                options.mintAuthority ?? parentOpts.authority,
+                options.mintAuthority ? '--mint-authority' : '--authority',
+                [mintKeypair],
+            );
+
             // Parse decimals
             const decimals = parseInt(options.decimals, 10);
             if (isNaN(decimals) || decimals < 0 || decimals > 9) {
                 throw new Error('Decimals must be a number between 0 and 9');
             }
 
-            // Set authorities (default to signer if not provided)
-            const mintAuthority = (options.mintAuthority || signerAddress) as Address;
+            // Set authorities (default to the mint authority if not provided)
+            const mintAuthority = mintAuthoritySigner.address;
             const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
             const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
             const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
@@ -105,9 +103,9 @@ export const createStablecoinCommand = new Command('stablecoin')
                 options.symbol,
                 decimals,
                 options.uri || '',
-                mintAuthority,
-                rawTx ? (mintKeypair.address as Address) : mintKeypair,
-                rawTx ? signerAddress : signerKeypair!,
+                mintAuthoritySigner,
+                mintKeypair,
+                feePayer,
                 options.aclMode || 'blocklist',
                 metadataAuthority,
                 pausableAuthority,
@@ -117,23 +115,16 @@ export const createStablecoinCommand = new Command('stablecoin')
             );
 
             if (rawTx) {
-                const { maybeOutputRawTx } = await import('../../utils/raw-tx.js');
-                if (maybeOutputRawTx(rawTx, transaction)) {
-                    return;
-                }
+                // stdout carries only the transaction; the new mint's address goes to stderr
+                console.error(`Mint Address: ${mintKeypair.address}`);
             }
-
-            spinner.text = 'Signing transaction...';
-
-            // Sign the transaction (buildTransaction includes signers but doesn't auto-sign)
-            const signedTransaction = await signTransactionMessageWithSigners(transaction);
-
-            spinner.text = 'Sending transaction...';
-
-            // Assert blockhash lifetime and send
-            assertIsTransactionWithBlockhashLifetime(signedTransaction);
-            await sendAndConfirmTransaction(signedTransaction, { commitment: 'confirmed' });
-            const signature = getSignatureFromTransaction(signedTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
+            if (raw) return;
 
             spinner.succeed('Stablecoin created successfully!');
 
@@ -193,12 +184,10 @@ export const createStablecoinCommand = new Command('stablecoin')
             }
         } catch (error) {
             spinner.fail('Failed to create stablecoin');
-            if (error && typeof error === 'object' && 'context' in error) {
-                const typedError = error as { context: { logs: string[] } };
-                console.error(
-                    chalk.red(`❌ Transaction simulation failed:`),
-                    `\n\t${typedError.context.logs.join('\n\t')}`,
-                );
+            // Not every error with a `context` (e.g. a Kit SolanaError) carries simulation logs
+            const logs = (error as { context?: { logs?: unknown } } | undefined)?.context?.logs;
+            if (Array.isArray(logs)) {
+                console.error(chalk.red(`❌ Transaction simulation failed:`), `\n\t${logs.join('\n\t')}`);
             } else {
                 console.error(chalk.red('❌ Error:'), error instanceof Error ? error.message : 'Unknown error');
             }
