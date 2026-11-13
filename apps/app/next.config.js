@@ -1,3 +1,62 @@
+import { PHASE_DEVELOPMENT_SERVER, PHASE_PRODUCTION_BUILD } from 'next/constants.js';
+
+/** The app's custom RPC endpoint; see providers.tsx. */
+const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+
+/** Genesis hashes of the public clusters, keyed by NEXT_PUBLIC_SOLANA_NETWORK value. */
+const GENESIS_HASHES = {
+    devnet: 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG',
+    testnet: '4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY',
+    'mainnet-beta': '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d',
+};
+
+/** Mirrors getConfiguredNetwork() in src/lib/solana/network.ts. */
+function configuredNetwork() {
+    const value = process.env.NEXT_PUBLIC_SOLANA_NETWORK?.trim().toLowerCase();
+    if (value === 'mainnet' || value === 'mainnet-beta') return 'mainnet-beta';
+    if (value === 'testnet') return 'testnet';
+    return 'devnet';
+}
+
+/** Hides query strings, where providers put API keys. */
+function redact(url) {
+    try {
+        const parsed = new URL(url);
+        return parsed.search ? `${parsed.origin}${parsed.pathname}?…` : url;
+    } catch {
+        return '<invalid URL>';
+    }
+}
+
+/**
+ * The app attaches the env RPC to the configured network's cluster, so a URL
+ * that serves another public cluster would put e.g. mainnet behind the Devnet
+ * label. Refuse that. An unknown genesis hash (a local validator, surfpool) is
+ * allowed, and an unreachable endpoint only warns so offline builds still work.
+ */
+async function assertRpcServesNetwork(url, network) {
+    let genesisHash;
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getGenesisHash' }),
+            signal: AbortSignal.timeout(10_000),
+        });
+        genesisHash = (await response.json()).result;
+    } catch (error) {
+        console.warn(`Could not check which cluster ${redact(url)} serves: ${error.message}`);
+        return;
+    }
+    const served = Object.keys(GENESIS_HASHES).find(name => GENESIS_HASHES[name] === genesisHash);
+    if (served && served !== network) {
+        throw new Error(
+            `The RPC URL ${redact(url)} serves ${served}, but the app's network is ${network}. ` +
+                `Set NEXT_PUBLIC_SOLANA_NETWORK=${served} or point the RPC URL at ${network}.`,
+        );
+    }
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     transpilePackages: ['@solana/mosaic-sdk'],
@@ -60,4 +119,9 @@ const nextConfig = {
     },
 };
 
-export default nextConfig;
+export default async function config(phase) {
+    if (rpcUrl && (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_DEVELOPMENT_SERVER)) {
+        await assertRpcServesNetwork(rpcUrl, configuredNetwork());
+    }
+    return nextConfig;
+}
