@@ -38,10 +38,13 @@ export async function commandOutput(command, args) {
 /**
  * Poll the RPC's getHealth until it answers "ok". Queries the URL directly, so a healthy
  * remote cluster in the ambient `solana config` can't make a local one look ready.
+ * `assertAlive` runs before each poll and can throw to stop waiting early, e.g. when the
+ * cluster process has already exited.
  */
-export async function waitForHealthy(rpcUrl, retries, intervalMs = 1000) {
+export async function waitForHealthy(rpcUrl, retries, { intervalMs = 1000, assertAlive = () => {} } = {}) {
     console.log(`Waiting for ${rpcUrl} to be healthy...`);
     for (let i = 0; i < retries; i++) {
+        assertAlive();
         try {
             const res = await fetch(rpcUrl, {
                 method: 'POST',
