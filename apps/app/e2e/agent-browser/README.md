@@ -40,7 +40,7 @@ HEADED=1 KEEP_OPEN=1 pnpm e2e:agent manage         # watch it, and poke around a
 
 1. **Expands** the arguments into flows. A group file lists flows or `@other-group`s; a group made only of `@group`s is a suite of runs, and each runs separately (e.g. one per transaction version).
 2. **Reads each flow's `# e2e:` header** for the sessions it needs and whether it spends SOL.
-3. **Pre-flight:** the app is up; for a funded run, wallet A holds at least 0.3 devnet SOL, refilled from the master wallet when there is one, and wallet B is topped up from A.
+3. **Pre-flight:** the app is up and wallet A's keypair is readable. Wallet B's keypair is required only when a flow opens its session (otherwise it is wallet A's alt account if present). Only a funded run reads balances: wallet A must hold at least 0.3 devnet SOL, refilled from the master wallet when there is one, and wallet B is topped up from A.
 4. **Builds** the wallet bundles the flows need and **launches a fresh session** per wallet.
 5. **Runs the flows in order.** Sessions persist across flows, and flows hand values to later ones through `$OUT` (`create-stablecoin` writes `mint.txt` for `manage`).
 6. **Summarises** `results.tsv` and exits 0 (green, known defects allowed), 1 (a check failed) or 3 (blocked).
@@ -111,7 +111,7 @@ Build options: `--keypair`, `--alt`, `--no-sign-message`, `--tx-v1` (advertise v
 - `lastError`: what the most recent sign request threw, `null` once one is signed
 - `reset()`
 
-The counters live in the page, so a full navigation resets them. `pnpm test` (`selftest.mjs`) checks this bookkeeping offline, with throwaway keys.
+The counters live in the page, so a full navigation resets them. `pnpm test` (`selftest.mjs`) checks this bookkeeping offline with throwaway keys, along with the keypair resolution and `run.sh` driven through a stub agent-browser.
 
 **Guardrail:** the wallet signs without prompting, so it advertises only `solana:devnet` and throws for any other chain. Point it only at devnet keypairs.
 

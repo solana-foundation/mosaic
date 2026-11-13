@@ -7,12 +7,23 @@
 /* global process */
 import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import {
+    cpSync,
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    readdirSync,
+    readFileSync,
+    rmSync,
+    symlinkSync,
+    writeFileSync,
+} from 'node:fs';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { after, describe, test } from 'node:test';
+import { after, before, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { runInThisContext } from 'node:vm';
 import {
     address,
@@ -258,5 +269,172 @@ describe('test wallet', () => {
             w.control.log.map(r => `${r.n}:${r.outcome}`),
             ['1:signed', '2:signed', '3:rejected', '4:signed'],
         );
+    });
+});
+
+// ---------------------------------------------------------------------------
+// run.sh and lib.sh, against a stub agent-browser and a local app/RPC server
+// ---------------------------------------------------------------------------
+
+// A copy of the harness at the same depth (so ../.. and module resolution
+// still work), where fixture flows can be added without touching the real one.
+const SANDBOX_ROOT = join(APP_ROOT, '.agent-browser', 'selftest');
+const SANDBOX = join(SANDBOX_ROOT, 'e2e', 'agent-browser');
+const BIN = join(TMP, 'bin');
+const HAS_SHELL_TOOLS = ['bash', 'jq', 'curl', 'awk'].every(tool => spawnSync(tool, ['--version']).status === 0);
+
+// Logs every call, fails the ones whose arguments match $STUB_FAIL, and answers
+// `eval` from $STUB_EVAL: lines of "<regex><TAB><answer>", first match wins,
+// `null` otherwise.
+const STUB_AGENT_BROWSER = `#!/usr/bin/env bash
+printf '%s\\n' "$*" >>"$STUB_LOG"
+if [[ -n "\${STUB_FAIL:-}" && "$*" =~ $STUB_FAIL ]]; then
+    echo "stub: failing '$*'" >&2
+    exit 1
+fi
+if [[ "$3" == eval ]]; then
+    if [[ -n "\${STUB_EVAL:-}" ]]; then
+        while IFS=$'\\t' read -r pattern answer; do
+            if [[ -n "$pattern" && "$4" =~ $pattern ]]; then
+                printf '%s\\n' "$answer"
+                exit 0
+            fi
+        done <"$STUB_EVAL"
+    fi
+    echo null
+fi
+exit 0
+`;
+
+/** Fixture flows, by name: the header line and the body after sourcing lib.sh. */
+const FIXTURE_FLOWS = {
+    noop: ['# e2e:', 'check "the stub answers" ab get title'],
+    spend: ['# e2e: funded', 'check "the stub answers" ab get title'],
+    'two-sessions': ['# e2e: sessions=b,nosign', 'check "the stub answers" ab get title'],
+};
+
+function writeFlow(name, [header, ...body]) {
+    const script = ['#!/usr/bin/env bash', header, `FLOW=${name}`, 'source "$(dirname "$0")/../lib.sh"', ...body, ''];
+    writeFileSync(join(SANDBOX, 'flows', `${name}.sh`), script.join('\n'));
+}
+
+/** What the local server answers: the app's page, and getBalance in lamports. */
+const server = { page: '<html><body>Mosaic</body></html>', lamports: 1_000_000_000, url: '' };
+const httpServer = createServer((req, res) => {
+    if (req.method !== 'POST') {
+        res.writeHead(200, { 'content-type': 'text/html' });
+        res.end(server.page);
+        return;
+    }
+    let body = '';
+    req.on('data', chunk => (body += chunk));
+    req.on('end', () => {
+        const { id, method } = JSON.parse(body);
+        const result = method === 'getBalance' ? { context: { slot: 1 }, value: server.lamports } : null;
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ jsonrpc: '2.0', id, result }));
+    });
+});
+
+let runCount = 0;
+/**
+ * Runs the sandbox's run.sh with the stub and returns its exit status, output,
+ * and the stub's call log. Every run gets wallets A and B unless `env` says
+ * otherwise; pass a missing path to take a wallet away.
+ */
+function runHarness(args, env = {}, stubEval = []) {
+    runCount += 1;
+    const log = join(TMP, `stub-${runCount}.log`);
+    const evalFile = join(TMP, `stub-eval-${runCount}.tsv`);
+    writeFileSync(log, '');
+    writeFileSync(evalFile, stubEval.map(([pattern, answer]) => `${pattern}\t${answer}`).join('\n'));
+    const child = spawn('bash', [join(SANDBOX, 'run.sh'), ...args], {
+        cwd: APP_ROOT,
+        env: {
+            ...BASE_ENV,
+            PATH: `${BIN}:${process.env.PATH}`,
+            BASE_URL: server.url,
+            SOLANA_RPC_URL: server.url,
+            AB_SESSION: 'st',
+            MOSAIC_TEST_KEYPAIR_A: KEY_A.path,
+            MOSAIC_TEST_KEYPAIR_B: KEY_B.path,
+            STUB_LOG: log,
+            STUB_EVAL: evalFile,
+            ...env,
+        },
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', chunk => (stdout += chunk));
+    child.stderr.on('data', chunk => (stderr += chunk));
+    return new Promise(resolvePromise =>
+        child.on('close', status =>
+            resolvePromise({ status, stdout, stderr, calls: readFileSync(log, 'utf8').split('\n').filter(Boolean) }),
+        ),
+    );
+}
+
+/** The results.tsv of the most recent run in the sandbox. */
+function lastResults() {
+    const runs = join(SANDBOX_ROOT, '.agent-browser', 'runs');
+    const latest = readdirSync(runs).sort().pop();
+    const file = join(runs, latest, 'results.tsv');
+    return existsSync(file) ? readFileSync(file, 'utf8') : '';
+}
+
+describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' }, () => {
+    before(async () => {
+        rmSync(SANDBOX_ROOT, { recursive: true, force: true });
+        cpSync(HERE, SANDBOX, { recursive: true });
+        for (const [name, flow] of Object.entries(FIXTURE_FLOWS)) writeFlow(name, flow);
+        mkdirSync(BIN, { recursive: true });
+        writeFileSync(join(BIN, 'agent-browser'), STUB_AGENT_BROWSER, { mode: 0o755 });
+        // The node that runs this test, whatever version manager put it on PATH.
+        symlinkSync(process.execPath, join(BIN, 'node'));
+        await new Promise(ready => httpServer.listen(0, '127.0.0.1', ready));
+        server.url = `http://127.0.0.1:${httpServer.address().port}`;
+    });
+    after(() => {
+        httpServer.close();
+        rmSync(SANDBOX_ROOT, { recursive: true, force: true });
+    });
+
+    test('an unfunded run needs neither wallet B nor devnet', async () => {
+        const run = await runHarness(['noop'], {
+            MOSAIC_TEST_KEYPAIR_B: join(TMP, 'missing.json'),
+            SOLANA_RPC_URL: 'http://127.0.0.1:9',
+        });
+        assert.equal(run.status, 0, run.stdout + run.stderr);
+        assert.match(run.stdout, /no wallet B keypair/);
+        assert.match(run.stdout, /all flows passed/);
+    });
+
+    test('a failed launch closes the sessions already started', async () => {
+        const run = await runHarness(['two-sessions'], { STUB_FAIL: '^--session st-b .*open about:blank' });
+        assert.notEqual(run.status, 0);
+        assert.ok(run.calls.includes('--session st close'), run.calls.join('\n'));
+        assert.ok(run.calls.includes('--session st-b close'), run.calls.join('\n'));
+        assert.deepEqual(
+            run.calls.filter(call => call.startsWith('--session st-nosign ')),
+            [],
+            'a session that never launched was touched (agent-browser would start a browser for it)',
+        );
+    });
+
+    test('a funded run stops when wallet A is below the minimum, and runs at 1 SOL', async () => {
+        server.lamports = 100_000_000;
+        const poor = await runHarness(['spend']);
+        assert.equal(poor.status, 1, poor.stdout + poor.stderr);
+        assert.match(poor.stderr, /need at least 0\.3 devnet SOL/);
+        server.lamports = 1_000_000_000;
+        const funded = await runHarness(['spend']);
+        assert.equal(funded.status, 0, funded.stdout + funded.stderr);
+    });
+
+    test('a funded run fails when the balance cannot be read', async () => {
+        const run = await runHarness(['spend'], { SOLANA_RPC_URL: 'http://127.0.0.1:9' });
+        assert.equal(run.status, 1, run.stdout + run.stderr);
+        assert.match(run.stderr, /could not read wallet a's balance/);
+        assert.doesNotMatch(run.stdout, /all flows passed/);
     });
 });
