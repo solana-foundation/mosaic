@@ -75,7 +75,7 @@ finish_flow
 ```
 
 - **The header line** (`# e2e:`) declares `funded` if the flow spends SOL, and `sessions=b,nosign` if it needs wallet B or the wallet without `signMessage` (drive them with `as_wallet b <command>`).
-- **Checks** are `check` (stops the flow), `soft_check` (keeps going; `finish_flow` fails it), `known_defect TICKET` (expected to fail until the ticket is fixed: XFAIL keeps the run green, XPASS says it is time to make it a plain check), `note` (an observation for a write-up) and `block_run` (stop the whole run, exit 3).
+- **Checks** are `check` (stops the flow), `soft_check` (keeps going; the flow fails when it ends, or at `finish_flow`), `known_defect TICKET` (expected to fail until the ticket is fixed: XFAIL keeps the run green, XPASS says it is time to make it a plain check), `note` (an observation for a write-up) and `block_run` (stop the whole run, exit 3). A command that fails outside a check stops the flow and is recorded as `stopped at: <command>`. A run is green only when every flow exits 0 and `results.tsv` has no `fail` line.
 - **Locators:** `find role|label|placeholder|text … click|fill` and `wait --text`; never snapshot refs. Where the app gives nothing to hold on to, tag elements from the page with `js` (an `eval` wrapper that prints JSON), as the confidential suite's `tag_cards` does.
 - **The chain:** `chain.mjs` (`CHAIN token --role a --mint M`, `token_field`, `await_value`, `sol_of`, `raw`) reads what a step did on chain, and sets up what the UI cannot (`create-ata`, `fund`). Wallet-side failure modes are `wallet_ctl` and `sign_count`.
 - **Add it to a group** in `groups/`, and a row to the suite table above.

@@ -311,6 +311,11 @@ const FIXTURE_FLOWS = {
     noop: ['# e2e:', 'check "the stub answers" ab get title'],
     spend: ['# e2e: funded', 'check "the stub answers" ab get title'],
     'two-sessions': ['# e2e: sessions=b,nosign', 'check "the stub answers" ab get title'],
+    // A soft failure, and no finish_flow at the end.
+    soft: ['# e2e:', 'soft_check "a soft check" false', 'check "a later check" true'],
+    // A command that fails outside any check.
+    boom: ['# e2e:', 'false', 'check "never reached" true'],
+    blocked: ['# e2e:', 'block_run "the fixture is missing"'],
 };
 
 function writeFlow(name, [header, ...body]) {
@@ -436,5 +441,27 @@ describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' },
         assert.equal(run.status, 1, run.stdout + run.stderr);
         assert.match(run.stderr, /could not read wallet a's balance/);
         assert.doesNotMatch(run.stdout, /all flows passed/);
+    });
+
+    test('a failed soft_check fails the run without finish_flow', async () => {
+        const run = await runHarness(['soft']);
+        assert.equal(run.status, 1, run.stdout + run.stderr);
+        assert.doesNotMatch(run.stdout, /all flows passed/);
+        assert.match(lastResults(), /^fail\tsoft\ta soft check$/m);
+    });
+
+    test('a command that fails outside a check is recorded', async () => {
+        const run = await runHarness(['boom']);
+        assert.equal(run.status, 1, run.stdout + run.stderr);
+        assert.match(lastResults(), /^fail\tboom\tstopped at: false$/m);
+        assert.match(run.stdout, /results, /, 'the summary was not printed');
+        assert.doesNotMatch(lastResults(), /never reached/);
+    });
+
+    test('a blocked run exits 3 and skips the remaining flows', async () => {
+        const run = await runHarness(['blocked', 'noop']);
+        assert.equal(run.status, 3, run.stdout + run.stderr);
+        assert.match(run.stdout, /run blocked during blocked/);
+        assert.doesNotMatch(lastResults(), /the stub answers/);
     });
 });

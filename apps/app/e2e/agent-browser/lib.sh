@@ -33,6 +33,28 @@ E2E_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$OUT"
 RESULTS="$OUT/results.tsv"
 
+# A command that fails outside a check (a locator that finds nothing, a wait
+# that times out) ends the flow through `set -e`. Say which one, and record it.
+# An EXIT trap rather than ERR: bash 3.2 (macOS) skips the ERR trap when a
+# failing `[[ ... ]]` ends the shell. $BASH_COMMAND must be the trap's first
+# expansion, before the trap's own commands replace it. run.sh sets its own
+# EXIT trap after sourcing this file, so this only applies to flows.
+#
+# It also makes a failed soft_check fail the flow when it ends, whether or not
+# the flow reached finish_flow, so the exit status and results.tsv agree.
+on_exit() {
+    local status=$? command="$1"
+    if ((status == 0)) && [[ -n "${SOFT_FAILED:-}" ]]; then
+        printf '\033[31m✗ %s had failed checks\033[0m\n' "${FLOW:-flow}" >&2
+        exit 1
+    fi
+    ((status == 0)) || [[ -n "${FAILURE_RECORDED:-}" ]] || {
+        printf '\033[31m✗ %s stopped at `%s` (exit %s)\033[0m\n' "${FLOW:-flow}" "$command" "$status" >&2
+        printf 'fail\t%s\tstopped at: %s\n' "${FLOW:-?}" "$command" >>"$RESULTS"
+    }
+}
+trap 'on_exit "$BASH_COMMAND"' EXIT
+
 ab() {
     agent-browser --session "$AB_ACTIVE" "$@"
 }
@@ -62,6 +84,7 @@ step() {
 fail() {
     printf '\033[31m✗ %s\033[0m\n' "$*" >&2
     printf 'fail\t%s\t%s\n' "${FLOW:-?}" "$*" >>"$RESULTS"
+    FAILURE_RECORDED=1
     exit 1
 }
 
@@ -78,7 +101,7 @@ js() {
 #
 #   check "<what>" <command...>             pass or fail (fail stops the flow)
 #   soft_check "<what>" <command...>        records a fail but keeps going;
-#                                           finish_flow then fails the flow
+#                                           the flow fails when it ends
 #   known_defect HOO-123 "<what>" <cmd...>  a check that is expected to fail
 #                                           until the ticket is fixed: failing
 #                                           is XFAIL, passing is XPASS (time to
@@ -138,10 +161,12 @@ block_run() {
     exit 0
 }
 
-# Ends a flow: fails it if any soft_check failed.
+# Ends a flow: fails it if any soft_check failed. A flow that ends without it
+# fails the same way (see on_exit); calling it stops a flow early.
 finish_flow() {
     [[ -z "${SOFT_FAILED:-}" ]] || {
         printf '\033[31m✗ %s had failed checks\033[0m\n' "${FLOW:-flow}" >&2
+        FAILURE_RECORDED=1
         exit 1
     }
 }

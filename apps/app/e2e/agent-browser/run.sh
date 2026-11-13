@@ -284,5 +284,13 @@ for flow in "${FLOWS[@]}"; do
     ((flow_status == 0)) || exit "$flow_status"
 done
 
+# The exit statuses and results.tsv must agree: a fail line written by
+# anything (a suite helper that records results itself, a flow that exits 0
+# regardless) fails the run.
+if grep -q '^fail	' "$RESULTS" 2>/dev/null; then
+    printf '\n\033[31m✗ results.tsv records failed checks\033[0m\n' >&2
+    exit 1
+fi
+
 ab screenshot "$OUT/final.png" >/dev/null
 printf '\n\033[32m✓ all flows passed\033[0m (%s)\n' "$OUT"
