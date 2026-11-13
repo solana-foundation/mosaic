@@ -27,8 +27,6 @@ E2E_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 : "${SLOW_TIMEOUT_MS:=90000}"
 # Which session `ab` drives; `as_wallet` switches it for one command.
 : "${AB_ACTIVE:=$AB_SESSION}"
-# The transaction version this run's wallets advertise (run.sh sets it).
-: "${TX_VERSION:=0}"
 
 mkdir -p "$OUT"
 RESULTS="$OUT/results.tsv"

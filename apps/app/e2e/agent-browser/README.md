@@ -39,14 +39,14 @@ HEADED=1 KEEP_OPEN=1 pnpm e2e:agent create-stablecoin manage   # watch it, and p
 
 `run.sh`:
 
-1. **Expands** the arguments into flows. A group file lists flows or `@other-group`s; a group made only of `@group`s is a suite of runs, and each runs separately (e.g. one per transaction version).
+1. **Expands** the arguments into flows. A group file lists flows or `@other-group`s; a group made only of `@group`s is a suite of runs, and each runs separately, with its own sessions and results.
 2. **Reads each flow's `# e2e:` header** for the sessions it needs and whether it spends SOL.
 3. **Pre-flight:** the app is up and wallet A's keypair is readable. Wallet B's keypair is required only when a flow opens its session (otherwise it is wallet A's alt account if present). Only a funded run reads balances: wallet A must hold at least 0.3 devnet SOL, refilled from the master wallet when there is one, and wallet B is topped up from A.
 4. **Builds** the wallet bundles the flows need and **launches a fresh session** per wallet.
 5. **Runs the flows in order.** Sessions persist across flows, and flows hand values to later ones through `$OUT` (`create-stablecoin` writes `mint.txt` for `manage`).
 6. **Summarises** `results.tsv` and exits 0 (green, known defects allowed), 1 (a check failed) or 3 (blocked).
 
-Each run's artifacts land in `.agent-browser/runs/<run id>-v<tx version>/`: `results.tsv`, the final screenshot, and on failure a screenshot and console log per session. `REUSE_OUT=<run id>` copies a run's handed-over files into a new one, to resume after a failure without recreating fixtures.
+Each run's artifacts land in `.agent-browser/runs/<run id>/`: `results.tsv`, the final screenshot, and on failure a screenshot and console log per session. `REUSE_OUT=<run id>` copies a run's handed-over files into a new one, to resume after a failure without recreating fixtures.
 
 ## Writing a flow
 
@@ -77,7 +77,7 @@ finish_flow
 
 - **The header line** (`# e2e:`) declares `funded` if the flow spends SOL, and `sessions=b,nosign` if it needs wallet B or the wallet without `signMessage` (drive them with `as_wallet b <command>`).
 - **Checks** are `check` (stops the flow), `soft_check` (keeps going; the flow fails when it ends, or at `finish_flow`), `known_defect TICKET` (expected to fail until the ticket is fixed: XFAIL keeps the run green, XPASS says it is time to make it a plain check), `note` (an observation for a write-up) and `block_run` (stop the whole run, exit 3). A command that fails outside a check stops the flow and is recorded as `stopped at: <command>`. A run is green only when every flow exits 0 and `results.tsv` has no `fail` line.
-- **Locators:** `find role|label|placeholder|text … click|fill` and `wait --text`; never snapshot refs. Where the app gives nothing to hold on to, tag elements from the page with `js` (an `eval` wrapper that prints JSON), as the confidential suite's `tag_cards` does.
+- **Locators:** `find role|label|placeholder|text … click|fill` and `wait --text`; never snapshot refs. Where the app gives nothing to hold on to, tag elements from the page with `js` (an `eval` wrapper that prints JSON) and target the tag.
 - **The chain:** `chain.mjs` (`CHAIN token --role a --mint M`, `token_field`, `await_value`, `sol_of`, `raw`) reads what a step did on chain, and sets up what the UI cannot (`create-ata`, `fund`). Wallet-side failure modes are `wallet_ctl` and `sign_count`.
 - **Add it to a group** in `groups/`, and a row to the suite table above.
 - **Run it** on its own first, `HEADED=1 KEEP_OPEN=1`, then explore the leftover session with `agent-browser --session <name> snapshot -i`.
@@ -100,7 +100,7 @@ finish_flow
 | `test-wallet-b.js`        | B                               | wallet B, the `-b` session: a second user (recipient, non-creator, non-authority)            |
 | `test-wallet-a-nosign.js` | A, without `solana:signMessage` | a wallet that cannot sign messages at all, the `-nosign` session                             |
 
-Build options: `--role a|b` or `--keypair <path>`, `--alt-role b` or `--alt <path>`, `--no-sign-message`, `--tx-v1` (advertise version-1 transactions; Kit 8 signs them on the same path), `--out`. The build prints the address it embedded. Keypairs resolve through `keypairs.mjs`, exactly as `chain.mjs` resolves them: `MOSAIC_TEST_KEYPAIR_A` (else `MOSAIC_TEST_KEYPAIR`), `MOSAIC_TEST_KEYPAIR_B` and `MOSAIC_TEST_KEYPAIR_MASTER`, defaulting to `~/.config/solana/mosaic-e2e-{a,b,master}.json`.
+Build options: `--role a|b` or `--keypair <path>`, `--alt-role b` or `--alt <path>`, `--no-sign-message`, `--out`. The build prints the address it embedded. Keypairs resolve through `keypairs.mjs`, exactly as `chain.mjs` resolves them: `MOSAIC_TEST_KEYPAIR_A` (else `MOSAIC_TEST_KEYPAIR`), `MOSAIC_TEST_KEYPAIR_B` and `MOSAIC_TEST_KEYPAIR_MASTER`, defaulting to `~/.config/solana/mosaic-e2e-{a,b,master}.json`.
 
 **Failure modes.** The page gets `window.__mosaicTestWallet` (`TestWalletControl` in `test-wallet.ts`), which flows drive through `agent-browser eval` (`wallet_ctl` in `lib.sh`):
 
@@ -134,7 +134,6 @@ Every app string these flows match is quoted in the flow scripts, so a copy chan
 - **Auto-connect never fires under `next dev`.** React StrictMode mounts the connector's provider twice, and the first unmount calls `ConnectorClient.destroy()`, which disconnects and clears `connector-kit:v1:wallet`. A full page load therefore always lands disconnected, so `goto` in `lib.sh` reconnects after every navigation. Production builds auto-connect normally (verified with `pnpm build && pnpm start`). `connect.sh` checks reload auto-connect only against one, and against a dev server (`is_dev_server` in `lib.sh`) notes that it skipped the check.
 - **`@solana/connector` 0.1.4 drops wallet-side events.** A `change` event with no accounts (the user disconnecting in the extension) is ignored, and one with a new account updates `accounts` but never `selectedAccount`, so the app keeps acting as the old account.
 - **The connector signs in two steps.** `@solana/connector` 0.1.4 first calls `solana:signTransaction` with a non-standard `{ transactions: [...] }` input and falls back to the standard `{ transaction }` on _any_ error, user rejections included. The wallet refuses the non-standard shape, as real wallets do; accepting it meant a simulated rejection was swallowed by the fallback and the transaction signed anyway. (A wallet that did accept that shape would prompt the user a second time after a rejection, worth raising with connectorkit.)
-- **The connector cannot hand a version-1 transaction to a wallet.** Its kit adapter (`createKitTransactionSigner`) hand-builds the legacy/v0 wire layout `[numSigs][zeroed signatures][message]` rather than using kit's encoder; for v0 that is byte-identical, but a v1 transaction starts with its message, so the wallet receives bytes it cannot decode.
 - **Public devnet rate-limits** a run hard after a few minutes (HTTP 429, "Solana error #8100002" in the app). Keep chain polling gentle (`await_value` polls every 5s) and expect the app to surface raw 429s. `SOLANA_RPC_URL` moves `chain.mjs` and pre-flight to a provider RPC, but the app itself cannot leave public devnet: `NEXT_PUBLIC_SOLANA_RPC_URL` only replaces the Mainnet cluster's URL, and a custom RPC added from the wallet menu signs with its own chain id (`custom-<timestamp>`), which the test wallet refuses.
 - **`eval` prints JSON**, except for `undefined`, which `js` in `lib.sh` maps to an empty string.
 - **The default viewport is short** (1280×577), so sticky elements overlap content; `run.sh` sets 1440×1600. Where a pointer click still lands on an overlay, `dom_click` clicks through the DOM.

@@ -36,8 +36,6 @@ declare const __MOSAIC_TEST_SECRET_KEY__: number[];
 declare const __MOSAIC_TEST_ALT_SECRET_KEY__: number[] | null;
 /** False builds a wallet without `solana:signMessage`, like a wallet that cannot sign messages at all. */
 declare const __MOSAIC_TEST_SIGN_MESSAGE__: boolean;
-/** Advertising `1` makes the app plan confidential operations as SIMD-0385 v1 transactions. */
-declare const __MOSAIC_TEST_TX_VERSIONS__: ('legacy' | 0 | 1)[];
 
 const WALLET_NAME = 'Mosaic Test Wallet';
 const DEVNET = 'solana:devnet';
@@ -282,7 +280,7 @@ function createTestWallet(): { wallet: Wallet; control: TestWalletControl } {
         },
         'solana:signTransaction': {
             version: '1.0.0',
-            supportedTransactionVersions: __MOSAIC_TEST_TX_VERSIONS__,
+            supportedTransactionVersions: ['legacy', 0],
             signTransaction: async (...inputs: SignTransactionInput[]) => {
                 // Refused before anything is booked: the connector's non-standard
                 // first call (see SignTransactionInput) is not a sign request.
