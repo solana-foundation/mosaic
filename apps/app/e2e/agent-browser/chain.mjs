@@ -15,20 +15,18 @@
 //   fund     --role a --to <address> --sol 0.05    move SOL from the role to an address
 //   new-address                                    a fresh address nobody holds a key for
 //
-// Roles: a = $MOSAIC_TEST_KEYPAIR_A (default ~/.config/solana/mosaic-e2e-a.json),
-//        b = $MOSAIC_TEST_KEYPAIR_B (default ~/.config/solana/mosaic-e2e-b.json),
-//        master = $MOSAIC_TEST_KEYPAIR_MASTER (default ~/.config/solana/mosaic-e2e-master.json),
-//        an optional faucet-funded wallet that run.sh refills A from.
+// Roles: a, b and master, resolved by keypairs.mjs (the same keys the wallet
+//        bundles embed); master is an optional faucet-funded wallet that run.sh
+//        refills A from.
 // RPC:   $SOLANA_RPC_URL, default public devnet. Devnet and localnet only.
 //
 // Suites extend this file rather than copy it: import `commands` and the
 // helpers below, add commands, and call `runCli(commands)` (see a suite's
-// chain-*.mjs). The CLI only runs when this file is executed directly.
+// chain-*.mjs). The CLI only runs when this file is executed directly; a suite
+// file that is itself imported somewhere can guard its own with `isMain`.
 /* global process, console, setTimeout */
-import { readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { join } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { readFileSync, realpathSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import {
     address as toAddress,
@@ -52,13 +50,9 @@ import {
     findAssociatedTokenPda,
     getCreateAssociatedTokenIdempotentInstruction,
 } from '@solana-program/token-2022';
+import { keypairPath } from './keypairs.mjs';
 
 export const RPC_URL = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
-const KEYPAIRS = {
-    a: process.env.MOSAIC_TEST_KEYPAIR_A ?? join(homedir(), '.config/solana/mosaic-e2e-a.json'),
-    b: process.env.MOSAIC_TEST_KEYPAIR_B ?? join(homedir(), '.config/solana/mosaic-e2e-b.json'),
-    master: process.env.MOSAIC_TEST_KEYPAIR_MASTER ?? join(homedir(), '.config/solana/mosaic-e2e-master.json'),
-};
 
 export const rpc = createSolanaRpc(RPC_URL);
 export const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -70,9 +64,28 @@ export function die(message) {
     process.exit(1);
 }
 
+/**
+ * Whether the module at `metaUrl` is the script node was started with. Compares
+ * real paths: `import.meta.url` is resolved through symlinks but argv[1] is
+ * not, so a plain comparison is false whenever the checkout is reached through
+ * a symlink, and the CLI would silently do nothing.
+ */
+export function isMain(metaUrl) {
+    if (!process.argv[1]) return false;
+    try {
+        return realpathSync(fileURLToPath(metaUrl)) === realpathSync(process.argv[1]);
+    } catch {
+        return false;
+    }
+}
+
 export async function signerFor(role) {
-    const path = KEYPAIRS[role];
-    if (!path) die(`unknown role '${role}' (expected a, b or master)`);
+    let path;
+    try {
+        path = keypairPath(role);
+    } catch (error) {
+        die(error.message);
+    }
     try {
         return await createKeyPairSignerFromBytes(new Uint8Array(JSON.parse(readFileSync(path, 'utf8'))));
     } catch (error) {
@@ -215,6 +228,6 @@ export async function runCli(table, extraOptions = {}) {
     console.log(typeof result === 'string' ? result : json(result));
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isMain(import.meta.url)) {
     await runCli(commands);
 }

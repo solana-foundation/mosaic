@@ -2,29 +2,40 @@
 // with a devnet test keypair embedded.
 //
 // Usage: node e2e/agent-browser/build-test-wallet.mjs [options]
-//   --keypair <path>     Solana CLI keypair JSON the wallet signs with
-//                        (default: $MOSAIC_TEST_KEYPAIR, else ~/.config/solana/devnet-test.json)
-//   --alt <path>         second keypair, reachable with window.__mosaicTestWallet.switchAccount()
+//   --role a|b           sign with that role's keypair (default a), resolved by
+//                        keypairs.mjs exactly as chain.mjs resolves it
+//   --keypair <path>     sign with this Solana CLI keypair JSON instead
+//   --alt-role b         second keypair, reachable with window.__mosaicTestWallet.switchAccount()
+//   --alt <path>         the same, from a file
 //   --no-sign-message    leave out solana:signMessage, like a wallet that cannot sign messages
 //   --tx-v1              advertise version-1 transactions, so the app plans SIMD-0385 messages
 //   --out <name>         output file name (default: test-wallet.js)
 //
-// Output: apps/app/.agent-browser/<name>, which is gitignored because it
-// contains secret keys. Never commit it or paste it anywhere.
+// Prints the address it embedded. Output: apps/app/.agent-browser/<name>,
+// which is gitignored because it contains secret keys. Never commit it or
+// paste it anywhere.
 /* global process, console */
 import { build } from 'esbuild';
 import { mkdirSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { getBase58Decoder } from '@solana/kit';
+import { keypairPath } from './keypairs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
 
+function die(message) {
+    console.error(`build-test-wallet: ${message}`);
+    process.exit(1);
+}
+
 const { values: args } = parseArgs({
     options: {
+        role: { type: 'string', default: 'a' },
         keypair: { type: 'string' },
+        'alt-role': { type: 'string' },
         alt: { type: 'string' },
         'no-sign-message': { type: 'boolean', default: false },
         'tx-v1': { type: 'boolean', default: false },
@@ -32,28 +43,35 @@ const { values: args } = parseArgs({
     },
 });
 
-const keypairPath =
-    args.keypair ?? process.env.MOSAIC_TEST_KEYPAIR ?? join(homedir(), '.config/solana/devnet-test.json');
-const outfile = join(appRoot, '.agent-browser', basename(args.out));
+function pathFor(path, role) {
+    if (path) return path;
+    try {
+        return keypairPath(role);
+    } catch (error) {
+        die(error.message);
+    }
+}
 
 function readKeypair(path) {
     let secretKey;
     try {
         secretKey = JSON.parse(readFileSync(path, 'utf8'));
     } catch (error) {
-        console.error(`build-test-wallet: could not read keypair at ${path}: ${error.message}`);
-        process.exit(1);
+        die(`could not read keypair at ${path}: ${error.message}`);
     }
     if (!Array.isArray(secretKey) || secretKey.length !== 64) {
-        console.error(`build-test-wallet: ${path} is not a 64-byte Solana CLI keypair`);
-        process.exit(1);
+        die(`${path} is not a 64-byte Solana CLI keypair`);
     }
     return secretKey;
 }
 
-const secretKey = readKeypair(keypairPath);
-const altSecretKey = args.alt ? readKeypair(args.alt) : null;
+const secretKey = readKeypair(pathFor(args.keypair, args.role));
+const altPath = args.alt ?? (args['alt-role'] ? pathFor(undefined, args['alt-role']) : null);
+const altSecretKey = altPath ? readKeypair(altPath) : null;
 const txVersions = args['tx-v1'] ? ['legacy', 0, 1] : ['legacy', 0];
+// A Solana CLI keypair file is the 32-byte seed followed by the 32-byte public key.
+const walletAddress = getBase58Decoder().decode(new Uint8Array(secretKey.slice(32)));
+const outfile = join(appRoot, '.agent-browser', basename(args.out));
 
 mkdirSync(dirname(outfile), { recursive: true });
 
@@ -81,4 +99,4 @@ const modes = [
     args['no-sign-message'] && 'no signMessage',
     args['tx-v1'] && 'tx v1',
 ].filter(Boolean);
-console.log(`build-test-wallet: wrote ${outfile}${modes.length ? ` (${modes.join(', ')})` : ''}`);
+console.log(`build-test-wallet: wrote ${outfile} for ${walletAddress}${modes.length ? ` (${modes.join(', ')})` : ''}`);

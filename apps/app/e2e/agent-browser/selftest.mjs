@@ -7,12 +7,12 @@
 /* global process */
 import assert from 'node:assert/strict';
 import { generateKeyPairSync } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { after, describe, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { runInThisContext } from 'node:vm';
 import {
     address,
@@ -29,11 +29,13 @@ import {
 const HERE = dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = resolve(HERE, '../..');
 const TMP = mkdtempSync(join(tmpdir(), 'mosaic-e2e-selftest-'));
+// Bundles this test builds, one per suite: tests run after every suite has been collected.
 const BUNDLE = 'selftest-wallet.js';
+const KEYS_BUNDLE = 'selftest-keys.js';
 
 after(() => {
     rmSync(TMP, { recursive: true, force: true });
-    rmSync(join(APP_ROOT, '.agent-browser', BUNDLE), { force: true });
+    for (const name of [BUNDLE, KEYS_BUNDLE]) rmSync(join(APP_ROOT, '.agent-browser', name), { force: true });
 });
 
 /** Writes a fresh Solana CLI keypair file (seed followed by public key) and returns its path and address. */
@@ -49,14 +51,75 @@ function newKeypair(name) {
 const KEY_A = newKeypair('a');
 const KEY_B = newKeypair('b');
 
-/** Runs build-test-wallet.mjs and returns what it printed. */
-function buildWallet(args, env = {}) {
-    return execFileSync(process.execPath, [join(HERE, 'build-test-wallet.mjs'), ...args, '--out', BUNDLE], {
+/**
+ * The environment child processes get: no keypair or RPC variables from the
+ * caller, and HOME pointed at the scratch directory, so the default
+ * ~/.config/solana keypairs can never be the real ones.
+ */
+const BASE_ENV = {
+    ...Object.fromEntries(
+        Object.entries(process.env).filter(([k]) => !k.startsWith('MOSAIC_TEST_KEYPAIR') && k !== 'SOLANA_RPC_URL'),
+    ),
+    HOME: TMP,
+};
+
+/** Runs a node script with BASE_ENV plus `env`; returns { status, stdout, stderr }. */
+function runNode(script, args, env = {}) {
+    const result = spawnSync(process.execPath, [script, ...args], {
         cwd: APP_ROOT,
-        env: { ...process.env, ...env },
+        env: { ...BASE_ENV, ...env },
         encoding: 'utf8',
     });
+    return { status: result.status, stdout: result.stdout.trim(), stderr: result.stderr.trim() };
 }
+
+/** Runs build-test-wallet.mjs; returns the address it says it embedded. */
+function buildWallet(args, env = {}, out = BUNDLE) {
+    const { status, stdout, stderr } = runNode(join(HERE, 'build-test-wallet.mjs'), [...args, '--out', out], env);
+    assert.equal(status, 0, stderr);
+    const embedded = / for ([1-9A-HJ-NP-Za-km-z]{32,44})/.exec(stdout);
+    assert.ok(embedded, `no address in: ${stdout}`);
+    return embedded[1];
+}
+
+// ---------------------------------------------------------------------------
+// Keypairs: one resolution for the wallet bundle and chain.mjs
+// ---------------------------------------------------------------------------
+
+describe('keypairs', () => {
+    test('chain.mjs runs through a symlinked path', () => {
+        const link = join(TMP, 'linked-harness');
+        symlinkSync(HERE, link, 'dir');
+        const chain = join(link, 'chain.mjs');
+        const address = runNode(chain, ['address', '--role', 'a'], { MOSAIC_TEST_KEYPAIR_A: KEY_A.path });
+        assert.equal(address.status, 0, address.stderr);
+        assert.equal(address.stdout, KEY_A.address);
+        const bogus = runNode(chain, ['no-such-command']);
+        assert.equal(bogus.status, 1);
+        assert.match(bogus.stderr, /unknown command 'no-such-command'/);
+    });
+
+    test('the wallet bundle and chain.mjs use the same key by default', () => {
+        const chainAddress = env => {
+            const { status, stdout, stderr } = runNode(join(HERE, 'chain.mjs'), ['address', '--role', 'a'], env);
+            assert.equal(status, 0, stderr);
+            return stdout;
+        };
+        const legacy = { MOSAIC_TEST_KEYPAIR: KEY_A.path };
+        assert.equal(buildWallet([], legacy, KEYS_BUNDLE), KEY_A.address);
+        assert.equal(chainAddress(legacy), KEY_A.address);
+        const both = { MOSAIC_TEST_KEYPAIR: KEY_A.path, MOSAIC_TEST_KEYPAIR_A: KEY_B.path };
+        assert.equal(buildWallet([], both, KEYS_BUNDLE), KEY_B.address);
+        assert.equal(chainAddress(both), KEY_B.address);
+        assert.equal(buildWallet(['--role', 'b'], { MOSAIC_TEST_KEYPAIR_B: KEY_A.path }, KEYS_BUNDLE), KEY_A.address);
+    });
+
+    test('a missing keypair fails the build and names the file', () => {
+        const { status, stderr } = runNode(join(HERE, 'build-test-wallet.mjs'), ['--out', KEYS_BUNDLE]);
+        assert.equal(status, 1);
+        assert.match(stderr, /could not read keypair at .*mosaic-e2e-a\.json/);
+    });
+});
 
 // ---------------------------------------------------------------------------
 // The test wallet
