@@ -498,3 +498,19 @@ describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' },
         );
     });
 });
+
+// ---------------------------------------------------------------------------
+// Shell scripts: prettier and eslint do not read them
+// ---------------------------------------------------------------------------
+
+test('every harness shell script parses', { skip: !HAS_SHELL_TOOLS && 'needs bash' }, () => {
+    const scripts = [
+        ...readdirSync(HERE).filter(name => name.endsWith('.sh')),
+        ...readdirSync(join(HERE, 'flows')).map(name => join('flows', name)),
+    ].filter(name => name.endsWith('.sh'));
+    assert.ok(scripts.length > 3, `found only ${scripts.join(', ')}`);
+    for (const script of scripts) {
+        const { status, stderr } = spawnSync('bash', ['-n', join(HERE, script)], { encoding: 'utf8' });
+        assert.equal(status, 0, `${script}: ${stderr}`);
+    }
+});

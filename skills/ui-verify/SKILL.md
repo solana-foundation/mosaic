@@ -22,7 +22,7 @@ The app is driven by [agent-browser](https://agent-browser.dev), and it connects
 
 ### 3. The test wallet is built
 
-From `apps/app`: `node e2e/agent-browser/build-test-wallet.mjs`, which writes `.agent-browser/test-wallet.js` (gitignored: it embeds the secret key). It reads `MOSAIC_TEST_KEYPAIR`, defaulting to `~/.config/solana/devnet-test.json`. Anything that sends a transaction needs devnet SOL on that key; check with `node e2e/agent-browser/chain.mjs balance` (or `solana balance`) and top it up at https://faucet.solana.com. Pass `--keypair <path>` to sign as another wallet, `--no-sign-message` for a wallet that cannot sign messages, and `--out <name>` to keep several bundles side by side. In the page, `window.__mosaicTestWallet` can refuse messages, reject the Nth transaction, delay signatures, disconnect or switch accounts, and counts every sign request; see the e2e README.
+From `apps/app`: `node e2e/agent-browser/build-test-wallet.mjs`, which writes `.agent-browser/test-wallet.js` (gitignored: it embeds the secret key) and prints the address it embedded. It signs as wallet A, resolved by `e2e/agent-browser/keypairs.mjs`: `MOSAIC_TEST_KEYPAIR_A`, else `MOSAIC_TEST_KEYPAIR`, else `~/.config/solana/mosaic-e2e-a.json`. `node e2e/agent-browser/chain.mjs balance` reads the same key. Anything that sends a transaction needs devnet SOL on it; top it up at https://faucet.solana.com. Pass `--role b` or `--keypair <path>` to sign as another wallet, `--alt-role b` for a second account `switchAccount()` can swap to, `--no-sign-message` for a wallet that cannot sign messages, and `--out <name>` to keep several bundles side by side. In the page, `window.__mosaicTestWallet` can refuse messages, reject the Nth transaction, delay signatures, disconnect or switch accounts, and counts every sign request; see the e2e README.
 
 ### 4. A session is launched with the wallet
 
@@ -33,7 +33,7 @@ S="ui-verify-$(date +%s)"
 agent-browser --session "$S" --init-script "$PWD/.agent-browser/test-wallet.js" open http://localhost:3000/
 ```
 
-Every later command passes the same `--session "$S"`. To connect: click "Connect Wallet", `wait --text "Mosaic Test Wallet"`, then click it. The header then shows `E3XF...29S5` and reloads auto-connect.
+Every later command passes the same `--session "$S"`. To connect: click "Connect Wallet", `wait --text "Mosaic Test Wallet"`, then click it. The header then shows the address the build printed, shortened to its first and last four characters. Under `next dev` every full page load (`open`, `reload`) lands disconnected, so connect again after each one; a production build (`pnpm build && pnpm start`) reconnects by itself.
 
 ### 5. The change is exercised
 
@@ -43,7 +43,7 @@ Work the **observe → act → re-observe** loop until the thing under test has 
 - Re-snapshot after every action that changes the DOM, because refs are reassigned on each snapshot.
 - `errors` and `console` after each significant step. A Next.js error overlay or uncaught exception is a finding in its own right.
 - `screenshot <scratchpad>/<name>.png` when the visual result matters, and read the image back to check it.
-- For a regression check across the core flows, run `pnpm e2e:agent` from `apps/app` (connect → create stablecoin → manage/mint). `pnpm e2e:agent connect` runs a single flow.
+- For a regression check across the core flows, run `pnpm e2e:agent` from `apps/app` (connect → create stablecoin → manage/mint), against either server: against `next dev` the connect flow skips its reload auto-connect check and notes why. `pnpm e2e:agent connect` runs a single flow; every flow connects the wallet itself.
 
 Done means: every claim in your report is backed by a snapshot line, a `get text` result, a screenshot you looked at, or command output.
 

@@ -33,7 +33,8 @@ cd apps/app
 pnpm build && pnpm start                           # in another terminal (or pnpm dev, see Gotchas)
 pnpm e2e:agent                                     # the smoke group
 pnpm e2e:agent connect                             # a single flow
-HEADED=1 KEEP_OPEN=1 pnpm e2e:agent manage         # watch it, and poke around afterwards
+MINT=<address> pnpm e2e:agent manage               # any flow runs on its own in a fresh session
+HEADED=1 KEEP_OPEN=1 pnpm e2e:agent create-stablecoin manage   # watch it, and poke around afterwards
 ```
 
 `run.sh`:
@@ -99,7 +100,7 @@ finish_flow
 | `test-wallet-b.js`        | B                               | wallet B, the `-b` session: a second user (recipient, non-creator, non-authority)            |
 | `test-wallet-a-nosign.js` | A, without `solana:signMessage` | a wallet that cannot sign messages at all, the `-nosign` session                             |
 
-Build options: `--keypair`, `--alt`, `--no-sign-message`, `--tx-v1` (advertise version-1 transactions; Kit 8 signs them on the same path), `--out`. Keypairs default to `~/.config/solana/mosaic-e2e-{a,b,master}.json` (`MOSAIC_TEST_KEYPAIR_A`/`_B`/`_MASTER` override them).
+Build options: `--role a|b` or `--keypair <path>`, `--alt-role b` or `--alt <path>`, `--no-sign-message`, `--tx-v1` (advertise version-1 transactions; Kit 8 signs them on the same path), `--out`. The build prints the address it embedded. Keypairs resolve through `keypairs.mjs`, exactly as `chain.mjs` resolves them: `MOSAIC_TEST_KEYPAIR_A` (else `MOSAIC_TEST_KEYPAIR`), `MOSAIC_TEST_KEYPAIR_B` and `MOSAIC_TEST_KEYPAIR_MASTER`, defaulting to `~/.config/solana/mosaic-e2e-{a,b,master}.json`.
 
 **Failure modes.** The page gets `window.__mosaicTestWallet` (`TestWalletControl` in `test-wallet.ts`), which flows drive through `agent-browser eval` (`wallet_ctl` in `lib.sh`):
 
@@ -130,11 +131,11 @@ Every app string these flows match is quoted in the flow scripts, so a copy chan
 - **Launch options are per session.** Changing an `AGENT_BROWSER_*` environment variable between commands (for example `AGENT_BROWSER_DEFAULT_TIMEOUT`) makes the daemon relaunch the browser blank and without the init script. Use per-call flags instead (`wait --text … --timeout 90000`, wrapped as `wait_slow` in `lib.sh`).
 - **Closing and immediately reopening a session name** can race the daemon's shutdown (`EOF while parsing`), so `run.sh` uses a new session name per run.
 - **The wallet list trails the init script** by a few seconds, more on a cold route compile. Until it catches up, the modal shows the "Get Phantom" install links, so `ensure_connected` waits for the wallet's name before clicking and reloads once if it never shows.
-- **Auto-connect never fires under `next dev`.** React StrictMode mounts the connector's provider twice, and the first unmount calls `ConnectorClient.destroy()`, which disconnects and clears `connector-kit:v1:wallet`. A full page load therefore always lands disconnected, so `goto` in `lib.sh` reconnects after every navigation. Production builds auto-connect normally (verified with `pnpm build && pnpm start`), and `connect.sh`'s reload check only passes against one.
+- **Auto-connect never fires under `next dev`.** React StrictMode mounts the connector's provider twice, and the first unmount calls `ConnectorClient.destroy()`, which disconnects and clears `connector-kit:v1:wallet`. A full page load therefore always lands disconnected, so `goto` in `lib.sh` reconnects after every navigation. Production builds auto-connect normally (verified with `pnpm build && pnpm start`). `connect.sh` checks reload auto-connect only against one, and against a dev server (`is_dev_server` in `lib.sh`) notes that it skipped the check.
 - **`@solana/connector` 0.1.4 drops wallet-side events.** A `change` event with no accounts (the user disconnecting in the extension) is ignored, and one with a new account updates `accounts` but never `selectedAccount`, so the app keeps acting as the old account.
 - **The connector signs in two steps.** `@solana/connector` 0.1.4 first calls `solana:signTransaction` with a non-standard `{ transactions: [...] }` input and falls back to the standard `{ transaction }` on _any_ error, user rejections included. The wallet refuses the non-standard shape, as real wallets do; accepting it meant a simulated rejection was swallowed by the fallback and the transaction signed anyway. (A wallet that did accept that shape would prompt the user a second time after a rejection, worth raising with connectorkit.)
 - **The connector cannot hand a version-1 transaction to a wallet.** Its kit adapter (`createKitTransactionSigner`) hand-builds the legacy/v0 wire layout `[numSigs][zeroed signatures][message]` rather than using kit's encoder; for v0 that is byte-identical, but a v1 transaction starts with its message, so the wallet receives bytes it cannot decode.
-- **Public devnet rate-limits** a run hard after a few minutes (HTTP 429, "Solana error #8100002" in the app). Keep chain polling gentle (`await_value` polls every 5s) and expect the app to surface raw 429s. A provider RPC (`NEXT_PUBLIC_SOLANA_RPC_URL` for the app, `SOLANA_RPC_URL` for `chain.mjs`) avoids it.
+- **Public devnet rate-limits** a run hard after a few minutes (HTTP 429, "Solana error #8100002" in the app). Keep chain polling gentle (`await_value` polls every 5s) and expect the app to surface raw 429s. `SOLANA_RPC_URL` moves `chain.mjs` and pre-flight to a provider RPC, but the app itself cannot leave public devnet: `NEXT_PUBLIC_SOLANA_RPC_URL` only replaces the Mainnet cluster's URL, and a custom RPC added from the wallet menu signs with its own chain id (`custom-<timestamp>`), which the test wallet refuses.
 - **`eval` prints JSON**, except for `undefined`, which `js` in `lib.sh` maps to an empty string.
 - **The default viewport is short** (1280×577), so sticky elements overlap content; `run.sh` sets 1440×1600. Where a pointer click still lands on an overlay, `dom_click` clicks through the DOM.
 - **The Next dev server occasionally answers a request with a 500** (`SyntaxError: Unexpected end of JSON input` in its own manifest read), which shows up as a timed-out wait over the Next error overlay. `run.sh` prints `errors` on failure so this is recognisable. Rerunning passes. A production build avoids it.
