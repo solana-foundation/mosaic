@@ -487,6 +487,50 @@ describe('Token', () => {
             ).rejects.toThrow(/confidential transfer fee/);
         });
 
+        it('rejects a confidential transfer fee without confidential balances', async () => {
+            token
+                .withConfidentialBalances({ authority: TEST_AUTHORITY })
+                .withTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawAuthority: TEST_AUTHORITY,
+                    feeBasisPoints: 50,
+                    maximumFee: 1_000n,
+                })
+                .withConfidentialTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawWithheldAuthorityElGamalPubkey: TEST_AUTHORITY,
+                });
+            // The builder checks call order only; the extension list itself stays mutable.
+            const extensions = token.getExtensions();
+            extensions.splice(
+                extensions.findIndex(ext => ext.__kind === 'ConfidentialTransferMint'),
+                1,
+            );
+            await expect(
+                token.buildInstructions({ rpc: mockRpc, decimals: 6, mint: mockMint, feePayer: mockFeePayer }),
+            ).rejects.toThrow(/confidential transfer fee extension needs both/);
+        });
+
+        it('rejects confidential mint and burn without confidential balances', async () => {
+            token.getExtensions().push({
+                __kind: 'ConfidentialMintBurn',
+                confidentialSupply: new Uint8Array(64),
+                decryptableSupply: new Uint8Array(36),
+                supplyElgamalPubkey: TEST_AUTHORITY,
+                pendingBurn: new Uint8Array(64),
+            } as never);
+            await expect(
+                token.buildInstructions({ rpc: mockRpc, decimals: 6, mint: mockMint, feePayer: mockFeePayer }),
+            ).rejects.toThrow(/confidential mint and burn extension needs confidential balances/);
+        });
+
+        it('rejects a non-transferable mint with confidential balances', async () => {
+            token.withNonTransferable().withConfidentialBalances({ authority: TEST_AUTHORITY });
+            await expect(
+                token.buildInstructions({ rpc: mockRpc, decimals: 6, mint: mockMint, feePayer: mockFeePayer }),
+            ).rejects.toThrow(/non-transferable mint with confidential balances/);
+        });
+
         it('rejects combining scaled UI amount with interest bearing', async () => {
             token.withScaledUiAmount(TEST_AUTHORITY, 2).withInterestBearing({ authority: TEST_AUTHORITY, rate: 5 });
             await expect(

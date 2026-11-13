@@ -64,10 +64,17 @@ export type ConfidentialBalancesConfig = Omit<ConfidentialBalancesOptions, 'auth
 /**
  * Rejects extension sets that Token-2022 refuses at `InitializeMint` with
  * `InvalidExtensionCombination`, so the caller gets a named error at build time
- * instead of a failed transaction.
+ * instead of a failed transaction. Mirrors every rule in upstream
+ * `ExtensionType::check_for_invalid_mint_extension_combinations`.
  */
 function assertValidExtensionCombination(extensions: Extension[]): void {
     const has = (kind: Extension['__kind']) => extensions.some(ext => ext.__kind === kind);
+    if (has('ConfidentialTransferFee') && !(has('TransferFeeConfig') && has('ConfidentialTransferMint'))) {
+        throw new Error(
+            'The confidential transfer fee extension needs both the transfer fee and confidential balances ' +
+                'extensions; Token-2022 rejects the mint without them.',
+        );
+    }
     if (has('TransferFeeConfig') && has('ConfidentialTransferMint') && !has('ConfidentialTransferFee')) {
         throw new Error(
             'A mint with both a transfer fee and confidential balances also needs the confidential transfer fee ' +
@@ -75,9 +82,20 @@ function assertValidExtensionCombination(extensions: Extension[]): void {
                 'template); Token-2022 rejects the mint without it.',
         );
     }
+    if (has('ConfidentialMintBurn') && !has('ConfidentialTransferMint')) {
+        throw new Error(
+            'The confidential mint and burn extension needs confidential balances; Token-2022 rejects the mint without it.',
+        );
+    }
     if (has('ScaledUiAmountConfig') && has('InterestBearingConfig')) {
         throw new Error(
             'The scaled UI amount and interest-bearing extensions cannot be combined; Token-2022 rejects a mint with both.',
+        );
+    }
+    if (has('NonTransferable') && has('ConfidentialTransferMint') && !has('ConfidentialMintBurn')) {
+        throw new Error(
+            'A non-transferable mint with confidential balances also needs the confidential mint and burn extension; ' +
+                'Token-2022 rejects the mint without it.',
         );
     }
 }

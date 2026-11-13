@@ -79,3 +79,24 @@ describe('createCustomTokenInitTransaction - Transfer Hook', () => {
         expect(findIx(tx.instructions, Token2022Instruction.UpdateTransferHook)).toBeUndefined();
     });
 });
+
+describe('createCustomTokenInitTransaction - extension combinations', () => {
+    // Token-2022 v11+ refuses a non-transferable mint with confidential balances unless
+    // it also has confidential mint and burn, which the template cannot add.
+    test('rejects non-transferable together with confidential balances', async () => {
+        const mintAuthority = createMockSigner();
+        await expect(
+            createCustomTokenInitTransaction(
+                createMockRpc(),
+                'Token',
+                'TKN',
+                6,
+                'uri',
+                mintAuthority,
+                createMockSigner(),
+                mintAuthority,
+                { enableNonTransferable: true, enableConfidentialBalances: true },
+            ),
+        ).rejects.toThrow(/non-transferable mint with confidential balances/);
+    });
+});
