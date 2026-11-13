@@ -6,9 +6,10 @@ import {
     type TransactionSigner,
     singleInstructionPlan,
 } from '@solana/kit';
-import { fetchToken, getApplyConfidentialPendingBalanceInstructionFromToken } from '@solana-program/token-2022';
-import type { ConfidentialKeys } from './keys.js';
-import { toAuthoritySigner } from './util.js';
+import { fetchToken } from '@solana-program/token-2022';
+import { getApplyConfidentialPendingBalanceInstructionFromToken } from '@solana-program/token-2022/confidential';
+import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
+import { toSigner } from '../signers.js';
 
 /**
  * Applies the account's **pending** confidential balance into its **available**
@@ -31,12 +32,14 @@ export async function createApplyConfidentialPendingBalanceInstructionPlan(input
 }): Promise<InstructionPlan> {
     const decoded = await fetchToken(input.rpc, input.tokenAccount);
 
+    assertConfidentialKeysMatchTokenAccount(input.keys, decoded, `token account ${input.tokenAccount}`);
+
     const elgamalSecretKey = input.keys.elgamal.secret();
     try {
         const instruction = getApplyConfidentialPendingBalanceInstructionFromToken({
             token: input.tokenAccount,
             tokenAccount: decoded.data,
-            authority: toAuthoritySigner(input.authority),
+            authority: toSigner(input.authority),
             elgamalSecretKey,
             aesKey: input.keys.aes,
         });

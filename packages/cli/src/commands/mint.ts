@@ -43,7 +43,11 @@ export const mintCommand = new Command('mint')
                 mintAuthority = createNoopSigner(
                     (parentOpts.authority as Address) || (await getAddressFromKeypair(keypairPath)),
                 );
-                feePayer = createNoopSigner((parentOpts.feePayer as Address) || mintAuthority.address);
+                // Reuse the authority's signer when the fee payer is the same key: two no-op
+                // signers for one address make Kit refuse the transaction.
+                const feePayerAddress = (parentOpts.feePayer as Address) || mintAuthority.address;
+                feePayer =
+                    feePayerAddress === mintAuthority.address ? mintAuthority : createNoopSigner(feePayerAddress);
             } else {
                 signerKp = await loadKeypair(keypairPath);
                 mintAuthority = signerKp;

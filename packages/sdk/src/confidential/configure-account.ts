@@ -1,16 +1,14 @@
 import {
     type Address,
-    type GetMinimumBalanceForRentExemptionApi,
     type InstructionPlan,
     type Rpc,
     type SolanaRpcApi,
     type TransactionSigner,
     singleInstructionPlan,
 } from '@solana/kit';
-import {
-    getApproveConfidentialTransferAccountInstruction,
-    getCreateConfidentialTransferAccountInstructionPlan,
-} from '@solana-program/token-2022';
+import { fetchMint, getApproveConfidentialTransferAccountInstruction } from '@solana-program/token-2022';
+import { getCreateConfidentialTransferAccountInstructionPlan } from '@solana-program/token-2022/confidential';
+import { mintHasTransferFeeConfig } from './extensions.js';
 import type { ConfidentialKeys } from './keys.js';
 
 /**
@@ -20,13 +18,19 @@ import type { ConfidentialKeys } from './keys.js';
  * `ConfidentialTransferAccount` extension, configures it under the supplied
  * ElGamal/AES keys, and verifies the required pubkey-validity proof.
  *
+ * On a mint carrying `TransferFeeConfig`, Token-2022's `ConfigureAccount` also
+ * initializes `ConfidentialTransferFeeAmount` on the account (and a fee-aware
+ * confidential transfer needs it on the destination), so the reallocation has
+ * to make room for that extension too. The mint is fetched to decide this unless
+ * `includeConfidentialTransferFeeAmount` is passed explicitly.
+ *
  * Must run before deposit/apply/withdraw/transfer can touch the account. If the
  * mint uses the **manual-approve** (whitelist) policy, the account stays
  * unusable until the confidential authority approves it via
  * {@link createApproveConfidentialAccountInstructionPlan}.
  */
 export async function createConfigureConfidentialAccountInstructionPlan(input: {
-    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
+    rpc: Rpc<SolanaRpcApi>;
     /** Pays for account creation / rent. */
     payer: TransactionSigner;
     /** The token account owner. */
@@ -39,7 +43,15 @@ export async function createConfigureConfidentialAccountInstructionPlan(input: {
     token?: Address;
     /** Max pending credits before `ApplyPendingBalance` must be run. */
     maximumPendingBalanceCreditCounter?: number | bigint;
+    /**
+     * Also reallocate for `ConfidentialTransferFeeAmount`. Required on mints with
+     * `TransferFeeConfig`; read from the mint when omitted — pass it to save
+     * that round trip.
+     */
+    includeConfidentialTransferFeeAmount?: boolean;
 }): Promise<InstructionPlan> {
+    const includeConfidentialTransferFeeAmount =
+        input.includeConfidentialTransferFeeAmount ?? mintHasTransferFeeConfig(await fetchMint(input.rpc, input.mint));
     return getCreateConfidentialTransferAccountInstructionPlan({
         rpc: input.rpc,
         payer: input.payer,
@@ -49,6 +61,7 @@ export async function createConfigureConfidentialAccountInstructionPlan(input: {
         elgamalKeypair: input.keys.elgamal,
         aesKey: input.keys.aes,
         maximumPendingBalanceCreditCounter: input.maximumPendingBalanceCreditCounter,
+        includeConfidentialTransferFeeAmount,
     });
 }
 

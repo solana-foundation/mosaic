@@ -17,6 +17,7 @@ import { getSetGatingProgramInstructions } from '../token-acl/set-gating-program
 import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-permissionless-thaw.js';
 import { getCreateListInstructions } from '../abl/list.js';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 
 /**
  * Creates a transaction to initialize a new stablecoin mint on Solana with common stablecoin features.
@@ -61,8 +62,10 @@ export const createStablecoinInitTransaction = async (
     confidentialBalances?: ConfidentialBalancesConfig,
 ): Promise<FullTransaction> => {
     const mintSigner = typeof mint === 'string' ? createNoopSigner(mint) : mint;
-    const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-    const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
+    const { feePayerSigner, authoritySigner: mintAuthoritySigner } = resolveFeePayerAndAuthority(
+        feePayer,
+        mintAuthority,
+    );
 
     aclMode = aclMode || 'blocklist';
     const useSrfc37 = enableSrfc37 ?? false;
@@ -94,6 +97,8 @@ export const createStablecoinInitTransaction = async (
         .buildInstructions({
             rpc,
             decimals,
+            // The raw input, not mintAuthoritySigner: buildInstructions resolves a fee-payer-address
+            // authority itself, and must still see a distinct bare address to reject it under TokenMetadata.
             mintAuthority,
             // On the sRFC-37 path the freeze authority MUST be the mint authority: the
             // Token-ACL `create_config` instruction requires the mint's current freeze

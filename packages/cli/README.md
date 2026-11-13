@@ -11,7 +11,7 @@ CLI for building and operating Token-2022 mints with modern extensions on Solana
 
 ## Installation
 
-Requires Node.js 20.6+.
+Requires Node.js 20.19+.
 
 ```bash
 # from npm
@@ -59,6 +59,8 @@ If your signer (fee payer) is also the mint authority, the create commands will 
 - enable Token ACL permissionless thaw
 
 ## Command reference
+
+> **Confidential balances.** The CLI exposes confidential balances only as a mint-creation flag (`--confidential-balances-authority`). Confidential _runtime_ operations — configure account, deposit/apply/withdraw, and confidential transfer — are SDK-only for now; see the [SDK confidential guide](../sdk/README.md#confidential-balances--transfers).
 
 ### Create
 
