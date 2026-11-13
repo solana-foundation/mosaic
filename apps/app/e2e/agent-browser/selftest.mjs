@@ -316,6 +316,7 @@ const FIXTURE_FLOWS = {
     // A command that fails outside any check.
     boom: ['# e2e:', 'false', 'check "never reached" true'],
     blocked: ['# e2e:', 'block_run "the fixture is missing"'],
+    'connect-check': ['# e2e:', 'ensure_connected', 'check "ensure_connected returned" true'],
 };
 
 function writeFlow(name, [header, ...body]) {
@@ -352,7 +353,7 @@ function runHarness(args, env = {}, stubEval = []) {
     const log = join(TMP, `stub-${runCount}.log`);
     const evalFile = join(TMP, `stub-eval-${runCount}.tsv`);
     writeFileSync(log, '');
-    writeFileSync(evalFile, stubEval.map(([pattern, answer]) => `${pattern}\t${answer}`).join('\n'));
+    writeFileSync(evalFile, stubEval.map(([pattern, answer]) => `${pattern}\t${answer}\n`).join(''));
     const child = spawn('bash', [join(SANDBOX, 'run.sh'), ...args], {
         cwd: APP_ROOT,
         env: {
@@ -463,5 +464,37 @@ describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' },
         assert.equal(run.status, 3, run.stdout + run.stderr);
         assert.match(run.stdout, /run blocked during blocked/);
         assert.doesNotMatch(lastResults(), /the stub answers/);
+    });
+
+    // Stub answers for lib.sh's wallet probes.
+    const WALLET_PRESENT = ['!!window\\.__mosaicTestWallet\\)', 'true'];
+    const CONNECT_BUTTON_SHOWN = ['=== "Connect Wallet"', 'true'];
+
+    test('ensure_connected fails on a page with neither the wallet nor a Connect Wallet button', async () => {
+        const run = await runHarness(['connect-check'], { STUB_FAIL: 'wait --fn' }, [WALLET_PRESENT]);
+        assert.equal(run.status, 1, run.stdout + run.stderr);
+        assert.match(lastResults(), /^fail\tconnect-check\tthe page shows neither the connected wallet/m);
+    });
+
+    test('ensure_connected does not pass when eval fails', async () => {
+        const run = await runHarness(['connect-check'], { STUB_FAIL: '( eval | wait --fn )' });
+        assert.notEqual(run.status, 0, run.stdout + run.stderr);
+        assert.doesNotMatch(run.stdout, /all flows passed/);
+    });
+
+    test('ensure_connected connects through Connect Wallet when auto-connect does not come', async () => {
+        const run = await runHarness(['connect-check'], { STUB_FAIL: 'wait --fn .* --timeout 5000$' }, [
+            WALLET_PRESENT,
+            CONNECT_BUTTON_SHOWN,
+        ]);
+        assert.equal(run.status, 0, run.stdout + run.stderr);
+        assert.ok(
+            run.calls.includes('--session st find role button click --name Connect Wallet'),
+            run.calls.join('\n'),
+        );
+        assert.ok(
+            run.calls.includes('--session st find role button click --name Mosaic Test Wallet'),
+            run.calls.join('\n'),
+        );
     });
 });

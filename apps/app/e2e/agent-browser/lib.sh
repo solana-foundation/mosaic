@@ -197,21 +197,26 @@ is_rate_limited() { grep -qE '8100002|429|Too Many Requests' <<<"$1"; }
 # Wallet
 # ---------------------------------------------------------------------------
 
-# Connects Mosaic Test Wallet if the page shows a "Connect Wallet" button.
-#
-# Needed after every full page load under `next dev`: React StrictMode mounts
-# the connector's provider twice, and the first unmount calls
-# `ConnectorClient.destroy()`, which disconnects and clears the stored wallet,
-# so auto-connect never fires there. Production builds auto-connect normally
-# (verified with `next build && next start`), which is why it waits first.
-ensure_connected() {
-    # Give auto-connect (production builds) a moment before stepping in, or the
-    # modal opens just as it connects and closes under the click.
-    local i
-    for i in 1 2 3 4 5 6 7 8 9 10; do
-        is_disconnected || return 0
-        sleep 0.5
-    done
+# A JavaScript predicate that holds once the header shows the page's test
+# wallet connected: the connected wallet button's only text is the short
+# address (connect-button.tsx). This is the positive signal to wait for. The
+# absence of the Connect Wallet button is not: it is also absent while the
+# connector is connecting, on an error page, and when an eval fails.
+connected_js() {
+    printf '%s' '(() => { const w = window.__mosaicTestWallet; if (!w) return false; const s = w.address.slice(0, 4) + "..." + w.address.slice(-4); return [...document.querySelectorAll("button")].some(b => b.textContent.trim() === s); })()'
+}
+is_connected() { [[ "$(js "$(connected_js)")" == true ]]; }
+# Waits up to `ms` (default 20000) for the header to show the wallet connected.
+wait_connected() { ab wait --fn "$(connected_js)" --timeout "${1:-20000}" >/dev/null 2>&1; }
+
+# Whether the header shows the "Connect Wallet" button.
+is_disconnected() {
+    [[ "$(js '[...document.querySelectorAll("button")].some(b => b.textContent.trim() === "Connect Wallet")')" == true ]]
+}
+
+# Connects Mosaic Test Wallet through the header's Connect Wallet button, and
+# fails the flow unless the header then shows it connected.
+connect_wallet() {
     ab find role button click --name "Connect Wallet" >/dev/null
     # The connector's wallet list can trail registration on a cold load; until
     # it catches up the modal shows "Get Phantom"-style install links.
@@ -221,22 +226,48 @@ ensure_connected() {
         ab find role button click --name "Connect Wallet" >/dev/null
         ab wait --text "Mosaic Test Wallet" --timeout 30000 >/dev/null
     fi
-    # A late auto-connect can still close the modal first; that counts as connected.
-    ab find role button click --name "Mosaic Test Wallet" >/dev/null 2>&1 || is_disconnected || return 0
-    ab wait --text "$(wallet_short)" --timeout 20000 >/dev/null
+    # A late auto-connect can close the modal first; that is connected too.
+    is_connected || ab find role button click --name "Mosaic Test Wallet" >/dev/null
+    wait_connected 20000 || fail "the wallet did not connect: the header never showed $(wallet_short)"
 }
 
-# Whether the header shows the "Connect Wallet" button.
-is_disconnected() {
-    [[ "$(js '[...document.querySelectorAll("button")].some(b => b.textContent.trim() === "Connect Wallet")')" == true ]]
+# Makes sure the page's test wallet is connected, connecting it if the header
+# offers Connect Wallet, and fails the flow when the page shows neither.
+#
+# Needed after every full page load under `next dev`: React StrictMode mounts
+# the connector's provider twice, and the first unmount calls
+# `ConnectorClient.destroy()`, which disconnects and clears the stored wallet,
+# so auto-connect never fires there. Production builds auto-connect normally
+# (verified with `next build && next start`), which is why it waits first.
+ensure_connected() {
+    # agent-browser occasionally relaunches its browser ("[agent-browser]
+    # relaunched browser"), and the new one has no init script, so no wallet.
+    [[ "$(js '!!window.__mosaicTestWallet')" == true ]] ||
+        block_run "the browser lost the test wallet (agent-browser relaunched it without the init script); rerun"
+    # Give auto-connect (production builds) a moment before stepping in, or the
+    # modal opens just as it connects and closes under the click.
+    wait_connected 5000 && return 0
+    is_disconnected ||
+        fail "the page shows neither the connected wallet nor a Connect Wallet button (an error page, or stuck connecting)"
+    connect_wallet
 }
 
 # Opens a path and makes sure the wallet is connected afterwards.
 goto() {
     ab open "$BASE_URL$1" >/dev/null
-    # The header renders on every route; give a cold route time to compile.
-    ab wait --text "Toggle theme" --timeout "$SLOW_TIMEOUT_MS" >/dev/null 2>&1 || true
+    # The header renders on every route, and its "Toggle theme" text only once
+    # the page has hydrated; give a cold route time to compile.
+    ab wait --text "Toggle theme" --timeout "$SLOW_TIMEOUT_MS" >/dev/null ||
+        fail "$1 did not render the app header within $((SLOW_TIMEOUT_MS / 1000))s"
     ensure_connected
+}
+
+# Whether the app under test is `next dev` rather than a production build: a
+# dev server's pages carry the build id "development" in their inline React
+# Server Components payload, and render Next's dev overlay (<nextjs-portal>).
+is_dev_server() {
+    [[ "$(curl -s "$BASE_URL/")" == *'\"b\":\"development\"'* ]] ||
+        [[ "$(js '!!document.querySelector("nextjs-portal")')" == true ]]
 }
 
 # The connected test wallet's address, and its short header form ("SAYh...iuyC").
