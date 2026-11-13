@@ -107,10 +107,11 @@ Build options: `--keypair`, `--alt`, `--no-sign-message`, `--tx-v1` (advertise v
 - `rejectSignTransaction(n, msg?)`: the Nth transaction from now is rejected as a user rejection (code 4001)
 - `delaySignMs(ms)`: every signature is held back, e.g. to interrupt a multi-transaction plan
 - `disconnect()`, `switchAccount()`: wallet-side events, emitted through `standard:events`
-- `counts`, `log`, `lastError`: every sign request and the last exception, so a flow can assert that a bad input never reached the wallet
+- `counts`, `log`: every sign request the wallet received, including the ones it refused (another chain, an account that is not connected) or rejected, so a flow can assert that a bad input never reached the wallet. Each request's number and account are fixed when it arrives. The connector's non-standard first call (see Gotchas) is not a request.
+- `lastError`: what the most recent sign request threw, `null` once one is signed
 - `reset()`
 
-The counters live in the page, so a full navigation resets them.
+The counters live in the page, so a full navigation resets them. `pnpm test` (`selftest.mjs`) checks this bookkeeping offline, with throwaway keys.
 
 **Guardrail:** the wallet signs without prompting, so it advertises only `solana:devnet` and throws for any other chain. Point it only at devnet keypairs.
 

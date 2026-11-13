@@ -75,11 +75,18 @@ interface SignMessageInput {
 
 type ChangeListener = (properties: { accounts?: readonly WalletAccount[] }) => void;
 
+/** One sign request, booked when it arrived. */
 interface SignRecord {
     kind: 'signTransaction' | 'signMessage';
-    /** 1-based count of this kind since the page loaded (or the last `reset()`). */
+    /** 1-based number of this request among its kind since the page loaded (or the last `reset()`). */
     n: number;
+    /**
+     * `rejected`: `rejectSignTransaction()` turned it down as the user would.
+     * `refused`: the wallet would not sign it (another chain, an account that
+     * is not connected, `refuseSignMessage()`, unreadable bytes).
+     */
     outcome: 'signed' | 'rejected' | 'refused';
+    /** The account the app asked to sign with, `(none)` if it named none. */
     account: string;
 }
 
@@ -87,15 +94,21 @@ interface SignRecord {
 export interface TestWalletControl {
     readonly address: string;
     readonly connected: boolean;
-    /** Sign requests received, by kind. Transactions count one per transaction, not per call. */
+    /**
+     * Sign requests received, by kind, including the ones the wallet refused or
+     * rejected. Transactions count one per transaction, not per call. The
+     * connector's non-standard first call (see `SignTransactionInput`) is not a
+     * request and is not counted.
+     */
     readonly counts: { signTransaction: number; signMessage: number };
+    /** One entry per counted request, in the order they finished. */
     readonly log: readonly SignRecord[];
-    /** The last exception a sign request threw (rejections included), for debugging. */
+    /** What the most recent sign request threw, or null once one is signed. */
     readonly lastError: string | null;
     /** Make every `signMessage` throw `message` (Phantom's refusal by default); `null` restores signing. */
     refuseSignMessage(message?: string | null): void;
     /**
-     * Reject the `n`th transaction signed from now on (1 = the next one) as a
+     * Reject the `n`th transaction request from now on (1 = the next one) as a
      * user rejection, code 4001. Pass a message to throw a plain error instead.
      */
     rejectSignTransaction(n: number, message?: string): void;
@@ -181,18 +194,36 @@ function createTestWallet(): { wallet: Wallet; control: TestWalletControl } {
     let rejectTransactionAt: { n: number; message?: string } | null = null;
     let delayMs = 0;
     let lastError: string | null = null;
-    /** Runs a sign request, remembering what it threw. */
-    const remembering = async <T>(fn: () => Promise<T>): Promise<T> => {
-        try {
-            return await fn();
-        } catch (error) {
-            lastError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-            throw error;
-        }
-    };
+    /** Errors that stand for the user rejecting a request: logged as `rejected`, not `refused`. */
+    const rejections = new WeakSet<object>();
 
-    const record = (kind: SignRecord['kind'], outcome: SignRecord['outcome']) => {
-        log.push({ kind, n: counts[kind], outcome, account: current().account.address });
+    /**
+     * Books a sign request the moment it arrives. Its count, its number and the
+     * account it was made for are fixed here, before `run` awaits anything, so
+     * overlapping requests and a `switchAccount()` while one is pending cannot
+     * change them. The outcome is then logged against that booking, and
+     * `lastError` follows the most recent request.
+     */
+    const handle = <T>(
+        kind: SignRecord['kind'],
+        account: WalletAccount | undefined,
+        run: (n: number) => Promise<T>,
+    ): Promise<T> => {
+        counts[kind] += 1;
+        const booking = { kind, n: counts[kind], account: account?.address ?? '(none)' };
+        return run(booking.n).then(
+            value => {
+                log.push({ ...booking, outcome: 'signed' });
+                lastError = null;
+                return value;
+            },
+            (error: unknown) => {
+                const rejected = typeof error === 'object' && error !== null && rejections.has(error);
+                log.push({ ...booking, outcome: rejected ? 'rejected' : 'refused' });
+                lastError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+                throw error;
+            },
+        );
     };
 
     const identityFor = (account: WalletAccount | undefined): Identity => {
@@ -205,19 +236,24 @@ function createTestWallet(): { wallet: Wallet; control: TestWalletControl } {
 
     const decoder = getTransactionDecoder();
     const encoder = getTransactionEncoder();
-    const signWireTransaction = async (identity: Identity, bytes: Uint8Array): Promise<Uint8Array> => {
-        counts.signTransaction += 1;
-        if (rejectTransactionAt && counts.signTransaction === rejectTransactionAt.n) {
-            const { message } = rejectTransactionAt;
-            rejectTransactionAt = null;
-            record('signTransaction', 'rejected');
-            throw message ? new Error(message) : userRejection();
-        }
-        if (delayMs > 0) await sleep(delayMs);
-        const signed = await partiallySignTransaction([await identity.keyPair()], decoder.decode(bytes));
-        record('signTransaction', 'signed');
-        return new Uint8Array(encoder.encode(signed));
-    };
+    const signWireTransaction = (input: SignTransactionInput & { transaction: Uint8Array }): Promise<Uint8Array> =>
+        handle('signTransaction', input.account, async n => {
+            if (rejectTransactionAt && n === rejectTransactionAt.n) {
+                const { message } = rejectTransactionAt;
+                rejectTransactionAt = null;
+                const error = message ? new Error(message) : userRejection();
+                rejections.add(error);
+                throw error;
+            }
+            assertDevnet(input.chain);
+            const identity = identityFor(input.account);
+            if (delayMs > 0) await sleep(delayMs);
+            const signed = await partiallySignTransaction(
+                [await identity.keyPair()],
+                decoder.decode(input.transaction),
+            );
+            return new Uint8Array(encoder.encode(signed));
+        });
 
     // Mutable while it is assembled; `Wallet['features']` is a readonly record.
     const features: Record<`${string}:${string}`, unknown> = {
@@ -247,19 +283,18 @@ function createTestWallet(): { wallet: Wallet; control: TestWalletControl } {
         'solana:signTransaction': {
             version: '1.0.0',
             supportedTransactionVersions: __MOSAIC_TEST_TX_VERSIONS__,
-            signTransaction: (...inputs: SignTransactionInput[]) =>
-                remembering(async () => {
-                    const outputs: { signedTransaction: Uint8Array }[] = [];
-                    for (const input of inputs) {
-                        if (!input.transaction) {
-                            throw new Error(`${WALLET_NAME}: expected the Wallet Standard \`transaction\` input`);
-                        }
-                        assertDevnet(input.chain);
-                        const identity = identityFor(input.account);
-                        outputs.push({ signedTransaction: await signWireTransaction(identity, input.transaction) });
-                    }
-                    return outputs;
-                }),
+            signTransaction: async (...inputs: SignTransactionInput[]) => {
+                // Refused before anything is booked: the connector's non-standard
+                // first call (see SignTransactionInput) is not a sign request.
+                if (inputs.some(input => !input.transaction)) {
+                    throw new Error(`${WALLET_NAME}: expected the Wallet Standard \`transaction\` input`);
+                }
+                const outputs: { signedTransaction: Uint8Array }[] = [];
+                for (const input of inputs as (SignTransactionInput & { transaction: Uint8Array })[]) {
+                    outputs.push({ signedTransaction: await signWireTransaction(input) });
+                }
+                return outputs;
+            },
         },
     };
 
@@ -269,18 +304,18 @@ function createTestWallet(): { wallet: Wallet; control: TestWalletControl } {
             signMessage: async (...inputs: SignMessageInput[]) => {
                 const outputs: { signedMessage: Uint8Array; signature: Uint8Array }[] = [];
                 for (const { account, message } of inputs) {
-                    counts.signMessage += 1;
-                    if (messageRefusal !== null) {
-                        record('signMessage', 'refused');
-                        throw new Error(messageRefusal);
-                    }
-                    const identity = identityFor(account);
-                    if (delayMs > 0) await sleep(delayMs);
-                    // Raw bytes, unprefixed and unhashed: anything else would derive
-                    // different confidential keys than the SDK and CLI do.
-                    const signature = new Uint8Array(await signBytes((await identity.keyPair()).privateKey, message));
-                    record('signMessage', 'signed');
-                    outputs.push({ signedMessage: message, signature });
+                    const output = await handle('signMessage', account, async () => {
+                        if (messageRefusal !== null) throw new Error(messageRefusal);
+                        const identity = identityFor(account);
+                        if (delayMs > 0) await sleep(delayMs);
+                        // Raw bytes, unprefixed and unhashed: anything else would derive
+                        // different confidential keys than the SDK and CLI do.
+                        const signature = new Uint8Array(
+                            await signBytes((await identity.keyPair()).privateKey, message),
+                        );
+                        return { signedMessage: message, signature };
+                    });
+                    outputs.push(output);
                 }
                 return outputs;
             },

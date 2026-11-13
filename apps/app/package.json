@@ -10,6 +10,7 @@
         "lint": "eslint src",
         "type-check": "tsc --noEmit",
         "smoke-test": "node scripts/smoke-test.mjs",
+        "test": "node e2e/agent-browser/selftest.mjs",
         "e2e:agent": "bash e2e/agent-browser/run.sh"
     },
     "dependencies": {
