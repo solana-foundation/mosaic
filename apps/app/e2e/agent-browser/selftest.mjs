@@ -319,6 +319,9 @@ const FIXTURE_FLOWS = {
     'connect-check': ['# e2e:', 'ensure_connected', 'check "ensure_connected returned" true'],
 };
 
+/** Fixture groups, by name: their lines. `suite` is made only of @groups. */
+const FIXTURE_GROUPS = { 'st-one': ['noop'], 'st-two': ['noop'], 'st-suite': ['# two runs', '@st-one', '@st-two'] };
+
 function writeFlow(name, [header, ...body]) {
     const script = ['#!/usr/bin/env bash', header, `FLOW=${name}`, 'source "$(dirname "$0")/../lib.sh"', ...body, ''];
     writeFileSync(join(SANDBOX, 'flows', `${name}.sh`), script.join('\n'));
@@ -393,6 +396,9 @@ describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' },
         rmSync(SANDBOX_ROOT, { recursive: true, force: true });
         cpSync(HERE, SANDBOX, { recursive: true });
         for (const [name, flow] of Object.entries(FIXTURE_FLOWS)) writeFlow(name, flow);
+        for (const [name, lines] of Object.entries(FIXTURE_GROUPS)) {
+            writeFileSync(join(SANDBOX, 'groups', `${name}.group`), `${lines.join('\n')}\n`);
+        }
         mkdirSync(BIN, { recursive: true });
         writeFileSync(join(BIN, 'agent-browser'), STUB_AGENT_BROWSER, { mode: 0o755 });
         // The node that runs this test, whatever version manager put it on PATH.
@@ -455,7 +461,7 @@ describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' },
         const run = await runHarness(['boom']);
         assert.equal(run.status, 1, run.stdout + run.stderr);
         assert.match(lastResults(), /^fail\tboom\tstopped at: false$/m);
-        assert.match(run.stdout, /results, /, 'the summary was not printed');
+        assert.match(run.stdout, /results.* \(.*results\.tsv\)/, 'the summary was not printed');
         assert.doesNotMatch(lastResults(), /never reached/);
     });
 
@@ -496,6 +502,13 @@ describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' },
             run.calls.includes('--session st find role button click --name Mosaic Test Wallet'),
             run.calls.join('\n'),
         );
+    });
+
+    test('a group made only of @groups runs each as its own run', async () => {
+        const run = await runHarness(['st-suite']);
+        assert.equal(run.status, 0, run.stdout + run.stderr);
+        assert.equal(run.stdout.match(/all flows passed/g)?.length, 2, run.stdout);
+        assert.equal(run.calls.filter(call => call.endsWith('open about:blank')).length, 2, run.calls.join('\n'));
     });
 });
 
