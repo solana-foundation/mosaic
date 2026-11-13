@@ -62,6 +62,16 @@ describe.each(templates)('%s template, single signer', (_name, build) => {
         await expect(signTransactionMessageWithSigners(tx as never)).resolves.toBeDefined();
     });
 
+    // The reverse: a no-op fee payer must not replace the real mint authority, or the
+    // key would carry an empty signature.
+    it('signs with the real mint authority when the fee payer is a no-op for the same key', async () => {
+        const mintAuthority = await generateKeyPairSigner();
+        const mint = await generateKeyPairSigner();
+        const tx = await build(createMockRpc(), mintAuthority, mint, createNoopSigner(mintAuthority.address));
+        const signed = await signTransactionMessageWithSigners(tx as never);
+        expect(signed.signatures[mintAuthority.address]).toBeTruthy();
+    });
+
     // A bare address that is not the fee payer has no signer to initialize the
     // metadata with. It must fail here, with the targeted error, rather than build
     // a transaction that later fails to sign with a generic missing-signature error.

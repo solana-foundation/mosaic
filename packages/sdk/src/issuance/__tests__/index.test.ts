@@ -523,6 +523,36 @@ describe('Token', () => {
             expect(signersForFeePayer).toEqual(new Set([feePayer]));
         });
 
+        it("uses the mint authority's signer when the fee payer is a no-op for the same key", async () => {
+            const mintAuthority = await generateKeyPairSigner();
+            token.withMetadata({
+                mintAddress: mockMint.address,
+                authority: mintAuthority.address,
+                metadata: TEST_METADATA,
+                additionalMetadata: new Map(),
+            });
+
+            const instructions = await token.buildInstructions({
+                rpc: mockRpc,
+                decimals: 6,
+                mintAuthority,
+                mint: mockMint,
+                feePayer: createNoopSigner(mintAuthority.address),
+            });
+
+            const signersForKey = new Set(
+                instructions.flatMap(ix =>
+                    (ix.accounts ?? [])
+                        .filter(
+                            (meta): meta is AccountSignerMeta =>
+                                meta.address === mintAuthority.address && 'signer' in meta,
+                        )
+                        .map(meta => meta.signer),
+                ),
+            );
+            expect(signersForKey).toEqual(new Set([mintAuthority]));
+        });
+
         it('should build instructions for token without extensions', async () => {
             const instructions = await token.buildInstructions({
                 rpc: mockRpc,

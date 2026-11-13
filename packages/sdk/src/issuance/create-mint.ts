@@ -384,7 +384,7 @@ export class Token {
         mintAuthority: mintAuthorityInput,
         freezeAuthority,
         mint,
-        feePayer,
+        feePayer: feePayerInput,
     }: {
         rpc: Rpc<SolanaRpcApiMainnet>;
         decimals: number;
@@ -395,14 +395,15 @@ export class Token {
     }): Promise<Instruction[]> {
         assertValidExtensionCombination(this.extensions);
         // A mint authority with the fee payer's address is the fee payer, whether given as
-        // a bare address or as a different signer object for the same key. Use the fee
-        // payer's signer for both, so the metadata init can sign with it and the
-        // transaction never holds two signer objects for one address. A distinct bare
-        // address stays an address, so the TokenMetadata guard below still rejects it.
-        const mintAuthority =
-            mintAuthorityInput === undefined
-                ? undefined
-                : (getSharedFeePayerSigner(feePayer, mintAuthorityInput) ?? mintAuthorityInput);
+        // a bare address or as a different signer object for the same key. Both roles use
+        // one shared signer (the real one when the other is a no-op), so the metadata init
+        // can sign with it and the transaction never holds two signer objects for one
+        // address. A distinct bare address stays an address, so the TokenMetadata guard
+        // below still rejects it.
+        const shared =
+            mintAuthorityInput === undefined ? undefined : getSharedFeePayerSigner(feePayerInput, mintAuthorityInput);
+        const feePayer = shared ?? feePayerInput;
+        const mintAuthority = shared ?? mintAuthorityInput;
         // Get instructions for creating and initializing the mint account
         const mintAuthorityAddress = mintAuthority ? addressOf(mintAuthority) : feePayer.address;
         const [createMintAccountInstruction, initMintInstruction] = await getCreateMintInstructions({
