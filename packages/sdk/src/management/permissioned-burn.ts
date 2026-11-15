@@ -65,7 +65,7 @@ export async function getPermissionedBurnAuthority(
  * @param fromAccount - The account to burn from (wallet or ATA). When `owner` is
  *   omitted, this must be a wallet address — the owner defaults to it, which is
  *   only correct for wallet inputs.
- * @param decimalAmount - The decimal amount to burn (e.g., 1.5)
+ * @param decimalAmount - The decimal amount to burn (e.g., 1.5), optionally as a string to preserve precision
  * @param permissionedBurnAuthority - The burn authority signer configured on the mint
  * @param feePayer - The fee payer signer
  * @param owner - The token account owner/delegate. Required when `fromAccount` is
@@ -76,7 +76,7 @@ export const createPermissionedBurnTransaction = async (
     rpc: Rpc<SolanaRpcApi>,
     mint: Address,
     fromAccount: Address,
-    decimalAmount: number,
+    decimalAmount: number | string,
     permissionedBurnAuthority: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
     owner?: Address | TransactionSigner<string>,
