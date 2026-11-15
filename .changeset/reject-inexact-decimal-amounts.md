@@ -11,6 +11,8 @@
 
 A `number` amount is now stringified without exponent notation, so small values such as `1e-7` on a high-decimal mint are scaled correctly instead of being rejected as malformed. It is then rounded half-up to the mint's decimals rather than truncated: a computed value such as `0.1 + 0.2` (`0.30000000000000004`) gives `300000n` at 6 decimals, and `0.7 - 0.4` (`0.29999999999999993`) now gives `300000n` instead of `299999n`. A number that rounds to zero, such as `1e-21` on a 9-decimal mint, throws instead of becoming `0n`. Only string amounts must fit the mint's decimals exactly.
 
+`createTransferInstructions` and `createTransferTransaction` pass a plain decimal `amount` string through as a string instead of parsing it with `parseFloat`, so `'1.23456789'` on a 6-decimal mint throws `Amount cannot have more than 6 decimal places` rather than being rounded to `1.234568`, and leading-numeric junk such as `'1,000.5'` throws `Invalid amount format` instead of transferring `1`. Exponent (`'7e-9'`) and `+` spellings, which the app's amount input produces for tiny values, are still parsed as a number and rounded to the mint's decimals.
+
 CLI `force-transfer` now passes the authority and fee payer as signers rather than bare addresses, so the built transaction carries its signers.
 
 New export `validateDecimalAmount(amount: string)` checks a user-supplied amount string with the same checks as `decimalAmountToRaw`, in the same order, so it throws `Amount must be a positive number` for a negative or zero amount and `Invalid amount format` for anything else that isn't a plain decimal. The CLI uses it to validate amounts before building a transaction.

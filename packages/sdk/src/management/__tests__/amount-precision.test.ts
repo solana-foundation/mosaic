@@ -103,3 +103,52 @@ describe('management amount precision', () => {
         await expect(signTransactionMessageWithSigners(tx)).resolves.toBeDefined();
     });
 });
+
+describe('transfer amount precision', () => {
+    let rpc: Rpc<SolanaRpcApi>;
+    const feePayer = createMockSigner('Fee777777777777777777777777777777777777');
+    const authority = createMockSigner('Auth7777777777777777777777777777777777777');
+
+    beforeEach(() => {
+        jest.resetModules();
+        rpc = createMockRpc();
+        mockTransactionUtilWithRealAmounts(6, 10_000_000_000n);
+    });
+
+    async function transferRaw(amount: string): Promise<bigint> {
+        const { createTransferInstructions } = await import('../../transfer/index.js');
+        const instructions = await createTransferInstructions({
+            rpc,
+            mint,
+            from: account,
+            to: account,
+            feePayer,
+            authority,
+            amount,
+        });
+        const data = instructions[instructions.length - 1].data;
+        if (!data) throw new Error('expected the transfer instruction to carry data');
+        return getTransferCheckedInstructionDataDecoder().decode(data).amount;
+    }
+
+    test('rejects a decimal string with more digits than the mint instead of rounding it', async () => {
+        // Parsed into a number, this would round half-up to 1.234568 and
+        // transfer more than was typed.
+        await expect(transferRaw('1.23456789')).rejects.toThrow('Amount cannot have more than 6 decimal places');
+    });
+
+    test('scales a decimal string exactly', async () => {
+        await expect(transferRaw(' 1.5000000 ')).resolves.toBe(1_500_000n);
+    });
+
+    test('still accepts the exponent spelling the app produces for tiny values', async () => {
+        await expect(transferRaw('5e-6')).resolves.toBe(5n);
+    });
+
+    test('rejects malformed and non-positive amounts', async () => {
+        await expect(transferRaw('1,000.5')).rejects.toThrow('Invalid amount format');
+        await expect(transferRaw('0')).rejects.toThrow('Amount must be a positive number');
+        await expect(transferRaw('-1e3')).rejects.toThrow('Amount must be a positive number');
+        await expect(transferRaw('1e5abc')).rejects.toThrow('Amount must be a positive number');
+    });
+});
