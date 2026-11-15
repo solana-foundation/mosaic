@@ -203,8 +203,9 @@ export function seedAccountOwner(rpc: Rpc<any>, account: Address, owner: Address
  * @param balance - The raw balance `resolveTokenAccount` reports for the token account
  */
 export function mockTransactionUtilWithRealAmounts(decimals: number, balance = 0n): void {
-    const { decimalAmountToRaw } = jest.requireActual('../transaction-util.js');
+    const { decimalAmountToRaw, validateDecimalAmount } = jest.requireActual('../transaction-util.js');
     jest.doMock('../transaction-util.js', () => ({
+        validateDecimalAmount,
         resolveTokenAccount: jest.fn().mockResolvedValue({
             // A valid address, so a test can compile and sign the built transaction.
             tokenAccount: 'FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT',

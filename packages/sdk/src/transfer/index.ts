@@ -16,6 +16,7 @@ import {
     resolveTokenAccount,
     getMintDetails,
     isDefaultAccountStateSetFrozen,
+    validateDecimalAmount,
 } from '../transaction-util.js';
 import {
     getCreateAssociatedTokenIdempotentInstruction,
@@ -58,10 +59,22 @@ export const createTransferInstructions = async (input: {
     memo?: string;
 }) => {
     const { rpc, mint, from, to, amount, feePayer, authority, memo } = input;
-    // Parse and validate amount
-    const decimalAmount = parseFloat(amount);
-    if (isNaN(decimalAmount) || decimalAmount <= 0) {
-        throw new Error('Amount must be a positive number');
+    // A plain decimal string is passed through as a string, so it is scaled
+    // exactly and more fractional digits than the mint has throw. Parsing it
+    // into a number first would let decimalAmountToRaw round `1.23456789` to
+    // `1.234568` on a 6-decimal mint and transfer more than was typed.
+    // Exponent notation and a leading `+` are still parsed as a number: the
+    // app's amount input produces them for tiny values (`7e-9`), and rounding
+    // there only removes float noise.
+    const trimmedAmount = amount.trim();
+    let decimalAmount: number | string = trimmedAmount;
+    if (/[eE+]/.test(trimmedAmount)) {
+        decimalAmount = Number(trimmedAmount);
+        if (!Number.isFinite(decimalAmount) || decimalAmount <= 0) {
+            throw new Error('Amount must be a positive number');
+        }
+    } else {
+        validateDecimalAmount(trimmedAmount);
     }
 
     // Get mint info to determine decimals
