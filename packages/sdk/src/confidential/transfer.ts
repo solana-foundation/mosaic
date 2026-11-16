@@ -5,8 +5,10 @@ import {
     getConfidentialTransferWithFeeInstructionPlan,
     getConfidentialTransferWithRecordInstructionPlan,
 } from '@solana-program/token-2022/confidential';
-import { toSigner } from '../signers.js';
+import { addressOf, toSigner } from '../signers.js';
 import {
+    assertTokenAccountMint,
+    assertTokenAccountOwner,
     type DecodedMint,
     getMintTransferFeeConfig,
     isConfidentialTransferAccount,
@@ -131,7 +133,14 @@ export async function createConfidentialTransferInstructionPlan(input: {
                 `Configure it first with createConfigureConfidentialAccountInstructionPlan.`,
         );
     }
-    assertConfidentialKeysMatchTokenAccount(input.keys, sourceDecoded, `source token account ${input.sourceToken}`);
+    // Both accounts must hold this mint and the authority must own the source:
+    // the program checks this only in the transfer instruction, after the plan's
+    // first transactions have paid rent for proof accounts that are then stranded.
+    const sourceContext = `source token account ${input.sourceToken}`;
+    assertTokenAccountMint(sourceDecoded, input.mint, sourceContext);
+    assertTokenAccountOwner(sourceDecoded, addressOf(input.authority), sourceContext);
+    assertTokenAccountMint(destinationDecoded, input.mint, `destination token account ${input.destinationToken}`);
+    assertConfidentialKeysMatchTokenAccount(input.keys, sourceDecoded, sourceContext);
 
     // Single mint fetch above feeds both the amount scaling and the auditor: the
     // decoded mint is forwarded as `mintAccount` so the upstream helper resolves

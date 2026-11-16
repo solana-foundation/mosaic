@@ -4,7 +4,8 @@ import {
     getConfidentialWithdrawInstructionPlan,
     getConfidentialWithdrawWithRecordInstructionPlan,
 } from '@solana-program/token-2022/confidential';
-import { toSigner } from '../signers.js';
+import { addressOf, toSigner } from '../signers.js';
+import { assertTokenAccountMint, assertTokenAccountOwner } from './extensions.js';
 import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
 import { type RecordBackedProof, type TokenAmount, resolveRawAmount } from './util.js';
 
@@ -15,7 +16,10 @@ import { type RecordBackedProof, type TokenAmount, resolveRawAmount } from './ut
  * required equality + batched-range proofs via context-state accounts and emits
  * the multi-transaction plan (setup → withdraw → cleanup).
  *
- * Fetches and decodes the token account to read the current available balance.
+ * Fetches and decodes the token account to read the current available balance,
+ * and rejects an account that does not hold `mint` or is not owned by
+ * `authority` before planning: the plan's first transactions pay rent for proof
+ * accounts that would be stranded when the withdraw instruction fails.
  */
 export async function createConfidentialWithdrawInstructionPlan(input: {
     rpc: Rpc<SolanaRpcApi>;
@@ -44,7 +48,10 @@ export async function createConfidentialWithdrawInstructionPlan(input: {
         fetchToken(input.rpc, input.tokenAccount),
     ]);
 
-    assertConfidentialKeysMatchTokenAccount(input.keys, decoded, `token account ${input.tokenAccount}`);
+    const context = `token account ${input.tokenAccount}`;
+    assertTokenAccountMint(decoded, input.mint, context);
+    assertTokenAccountOwner(decoded, addressOf(input.authority), context);
+    assertConfidentialKeysMatchTokenAccount(input.keys, decoded, context);
 
     const args = {
         rpc: input.rpc,

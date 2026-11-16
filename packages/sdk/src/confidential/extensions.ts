@@ -76,3 +76,40 @@ export function mintHasTransferFeeConfig(mint: DecodedMint): boolean {
 export function getMintTransferFeeConfig(mint: DecodedMint): ExtensionOfKind<'TransferFeeConfig'> | undefined {
     return findExtension(mint, 'TransferFeeConfig');
 }
+
+/**
+ * Throws unless a decoded token account holds `mint`. The confidential withdraw
+ * and transfer plans create rent-paying proof accounts in their first
+ * transactions, before the instruction that would reject a wrong-mint account,
+ * and their cleanup never runs after that failure, so the builders check this up
+ * front instead of stranding the rent.
+ *
+ * @param context - The account being checked, for the error message (e.g. `source token account <address>`).
+ */
+export function assertTokenAccountMint(token: DecodedToken, mint: Address, context: string): void {
+    if (token.data.mint !== mint) {
+        throw new Error(
+            `The ${context} holds mint ${token.data.mint}, not the requested mint ${mint}. ` +
+                `Pass a token account of mint ${mint}, or pass ${token.data.mint} as the mint.`,
+        );
+    }
+}
+
+/**
+ * Throws unless a decoded token account is owned by `authority`. Token-2022 only
+ * accepts the account owner (a multisig owner signs as the multisig account's
+ * address) as the authority of a confidential withdraw or transfer, never a
+ * delegate; checked up front for the same stranded-rent reason as
+ * {@link assertTokenAccountMint}.
+ *
+ * @param context - The account being checked, for the error message (e.g. `source token account <address>`).
+ */
+export function assertTokenAccountOwner(token: DecodedToken, authority: Address, context: string): void {
+    if (token.data.owner !== authority) {
+        throw new Error(
+            `The ${context} is owned by ${token.data.owner}, not the authority ${authority}. ` +
+                `Token-2022 accepts only the account owner as the authority here, not a delegate: ` +
+                `pass ${token.data.owner} as the authority, or a token account that ${authority} owns.`,
+        );
+    }
+}

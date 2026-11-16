@@ -41,12 +41,23 @@ const mockTransferWithRecordPlan = { kind: 'transferWithRecordPlan' } as const;
 // The fee-aware transfer has no separate `…WithRecord` twin upstream — it takes
 // the record fields inline — so one identity covers both dispatch paths.
 const mockTransferWithFeePlan = { kind: 'transferWithFeePlan' } as const;
+
+const MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Address;
+const SOURCE_TOKEN = 'sAPDrViGV3C6PaT4xD7uRDDvB4xCURfZzDkGEd8Yv4v' as Address;
+const DEST_TOKEN = 'HA3KcFsXNjRJsRZq1P1Y8qPAeSZnZsFyauCDEsSSGqTj' as Address;
+const AUTHORITY = 'FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT' as Address;
+const AUDITOR = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' as Address;
+const OTHER_MINT = '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo' as Address;
+const DEST_OWNER = '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM' as Address;
+
 // Matches `fakeKeys.elgamal.pubkey()` below, so builders' new
 // `assertConfidentialKeysMatchAccount` check passes for the source account.
 const SOURCE_ELGAMAL_PUBKEY = 'DsT1111111111111111111111111111111111111111' as Address;
 const mockSourceToken = {
     data: {
         kind: 'sourceTokenData',
+        mint: MINT,
+        owner: AUTHORITY,
         extensions: {
             __option: 'Some',
             value: [{ __kind: 'ConfidentialTransferAccount', elgamalPubkey: SOURCE_ELGAMAL_PUBKEY }],
@@ -56,6 +67,8 @@ const mockSourceToken = {
 const mockDestToken = {
     data: {
         kind: 'destTokenData',
+        mint: MINT,
+        owner: DEST_OWNER,
         // Destination must carry the ConfidentialTransferAccount extension or the
         // transfer builder fails fast.
         extensions: { __option: 'Some', value: [{ __kind: 'ConfidentialTransferAccount' }] },
@@ -115,12 +128,6 @@ import {
     estimateAndSetConfidentialResourceLimits,
     planConfidentialInstructions,
 } from '../index.js';
-
-const MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Address;
-const SOURCE_TOKEN = 'sAPDrViGV3C6PaT4xD7uRDDvB4xCURfZzDkGEd8Yv4v' as Address;
-const DEST_TOKEN = 'HA3KcFsXNjRJsRZq1P1Y8qPAeSZnZsFyauCDEsSSGqTj' as Address;
-const AUTHORITY = 'FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT' as Address;
-const AUDITOR = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' as Address;
 
 // A structural stand-in for ConfidentialKeys (the helpers are mocked, so the
 // real WASM objects are never used — apply just needs `elgamal.secret()`).
@@ -364,6 +371,58 @@ describe('confidential operation builders', () => {
                 }),
             );
         });
+
+        // The upstream plan pays rent for proof accounts before the withdraw
+        // instruction runs, so an account the program would reject must be caught
+        // before the plan is built, not after its first transactions land.
+        const withdrawArgs = {
+            mint: MINT,
+            tokenAccount: SOURCE_TOKEN,
+            authority: AUTHORITY,
+            amount: '2',
+        };
+
+        it('rejects a token account of a different mint before planning', async () => {
+            mockTokenByAddr[SOURCE_TOKEN] = { data: { ...mockSourceToken.data, mint: OTHER_MINT } };
+            await expect(
+                createConfidentialWithdrawInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...withdrawArgs,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(
+                `The token account ${SOURCE_TOKEN} holds mint ${OTHER_MINT}, not the requested mint ${MINT}.`,
+            );
+            expect(getConfidentialWithdrawInstructionPlan).not.toHaveBeenCalled();
+            expect(getConfidentialWithdrawWithRecordInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('rejects an authority that does not own the token account before planning', async () => {
+            await expect(
+                createConfidentialWithdrawInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...withdrawArgs,
+                    authority: DEST_OWNER,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(
+                `The token account ${SOURCE_TOKEN} is owned by ${AUTHORITY}, not the authority ${DEST_OWNER}.`,
+            );
+            expect(getConfidentialWithdrawInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('accepts the owner given as a signer', async () => {
+            const plan = await createConfidentialWithdrawInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                ...withdrawArgs,
+                authority: createMockSigner(AUTHORITY),
+                keys: fakeKeys,
+            });
+            expect(plan).toBe(mockWithdrawPlan);
+        });
     });
 
     describe('transfer', () => {
@@ -451,6 +510,99 @@ describe('confidential operation builders', () => {
                 }),
             ).rejects.toThrow(/not configured for confidential transfers/);
             expect(getConfidentialTransferInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        // As with withdraw, the plan's first transactions pay proof-account rent
+        // that a later on-chain rejection would strand, so these fail at planning.
+        const transferArgs = {
+            mint: MINT,
+            sourceToken: SOURCE_TOKEN,
+            destinationToken: DEST_TOKEN,
+            authority: AUTHORITY,
+            amount: '3',
+        };
+
+        it('rejects a source account of a different mint before planning', async () => {
+            mockTokenByAddr[SOURCE_TOKEN] = { data: { ...mockSourceToken.data, mint: OTHER_MINT } };
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(
+                `The source token account ${SOURCE_TOKEN} holds mint ${OTHER_MINT}, not the requested mint ${MINT}.`,
+            );
+            expect(getConfidentialTransferInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('rejects a destination account of a different mint before planning', async () => {
+            mockTokenByAddr[DEST_TOKEN] = { data: { ...mockDestToken.data, mint: OTHER_MINT } };
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(
+                `The destination token account ${DEST_TOKEN} holds mint ${OTHER_MINT}, not the requested mint ${MINT}.`,
+            );
+            expect(getConfidentialTransferInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('rejects an authority that does not own the source account before planning', async () => {
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    authority: DEST_OWNER,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(
+                `The source token account ${SOURCE_TOKEN} is owned by ${AUTHORITY}, not the authority ${DEST_OWNER}.`,
+            );
+            expect(getConfidentialTransferInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('rejects a mismatched account on a fee-bearing mint before the fee-aware helper', async () => {
+            mockMintExtensions = {
+                __option: 'Some',
+                value: [
+                    { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
+                    {
+                        __kind: 'TransferFeeConfig',
+                        olderTransferFee: { epoch: 0n, transferFeeBasisPoints: 50, maximumFee: 1_000n },
+                        newerTransferFee: { epoch: 0n, transferFeeBasisPoints: 50, maximumFee: 1_000n },
+                    },
+                    { __kind: 'ConfidentialTransferFee' },
+                ],
+            };
+            mockTokenByAddr[DEST_TOKEN] = { data: { ...mockDestToken.data, mint: OTHER_MINT } };
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    currentEpoch: MOCK_EPOCH,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(/holds mint/);
+            expect(getConfidentialTransferWithFeeInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('does not require the authority to own the destination account', async () => {
+            // The default destination is owned by DEST_OWNER, not the authority.
+            const plan = await createConfidentialTransferInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                ...transferArgs,
+                authority: createMockSigner(AUTHORITY),
+                keys: fakeKeys,
+            });
+            expect(plan).toBe(mockTransferPlan);
         });
     });
 
