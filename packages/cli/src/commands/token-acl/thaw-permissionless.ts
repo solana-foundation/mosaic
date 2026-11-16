@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getThawPermissionlessTransaction } from '@solana/mosaic-sdk';
-import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions, resolveRpcUrl } from '../../utils/rpc.js';
 import { resolveSigners } from '../../utils/solana.js';
 import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
@@ -17,7 +17,7 @@ export const thawPermissionless = new Command('thaw-permissionless')
     .showHelpAfterError()
     .action(async (options: ThawPermissionlessOptions, command) => {
         const parentOpts = getGlobalOpts(command);
-        const rpcUrl = parentOpts.rpcUrl;
+        const rpcUrl = resolveRpcUrl(parentOpts.rpcUrl);
         const rawTx: string | undefined = parentOpts.rawTx;
         const spinner = createSpinner('Thawing permissionless...', rawTx);
 

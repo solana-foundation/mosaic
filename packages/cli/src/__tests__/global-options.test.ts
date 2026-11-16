@@ -48,9 +48,17 @@ describe('global options', () => {
         expect(seen[key]).toMatchObject({ rawTx: 'b58', authority: 'A', feePayer: 'F' });
     });
 
-    it('still defaults --rpc-url to devnet', () => {
+    it('leaves --rpc-url unset when it is not passed, so the Solana CLI config can apply', () => {
         const { program, seen } = buildProgram();
+        const rpcUrl = program.options.find(option => option.long === '--rpc-url');
+        expect(rpcUrl?.defaultValue).toBeUndefined();
         program.parse(['node', 'mosaic', 'mint']);
-        expect(seen.mint?.rpcUrl).toBe('https://api.devnet.solana.com');
+        expect(seen.mint?.rpcUrl).toBeUndefined();
+    });
+
+    it('passes --rpc-url through when it is given', () => {
+        const { program, seen } = buildProgram();
+        program.parse(['node', 'mosaic', 'mint', '--rpc-url', 'http://127.0.0.1:8899']);
+        expect(seen.mint?.rpcUrl).toBe('http://127.0.0.1:8899');
     });
 });

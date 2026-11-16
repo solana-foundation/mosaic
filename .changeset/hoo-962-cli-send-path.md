@@ -22,6 +22,7 @@ The CLI can now sign and send every transaction with `--keypair`, and `--raw-tx 
 - `token-acl enable-permissionless-thaw --raw-tx` cast bare addresses to signers, and `control pause` passed a bare `--fee-payer` string where the SDK needs a signer.
 - `control resume` ignored `--fee-payer`.
 - `mint` printed the mint authority as `[object Object]`.
+- Without `--rpc-url`, commands now use the Solana CLI config's `json_rpc_url` before falling back to devnet. `--rpc-url` carried a devnet default that hid the config, so after `solana config set --url <mainnet or localhost>` every command still went to devnet while the keypair came from the config.
 - An invalid `--authority`/`--fee-payer` address is now reported by name, and raw mode with neither `--authority` nor a keypair says which flag to pass.
 
 All signer resolution now goes through one helper (`resolveSigner`/`resolveSigners` in `packages/cli/src/utils/solana.ts`). The CLI package also gains its first unit tests (`pnpm --filter @solana/mosaic-cli test`).

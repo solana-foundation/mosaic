@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getThawTransaction } from '@solana/mosaic-sdk';
-import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions, resolveRpcUrl } from '../../utils/rpc.js';
 import { resolveSigners } from '../../utils/solana.js';
 import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
@@ -16,7 +16,7 @@ export const thaw = new Command('thaw')
     .showHelpAfterError()
     .action(async (options: CreateConfigOptions, command) => {
         const parentOpts = getGlobalOpts(command);
-        const rpcUrl = parentOpts.rpcUrl;
+        const rpcUrl = resolveRpcUrl(parentOpts.rpcUrl);
         const rawTx: string | undefined = parentOpts.rawTx;
         const spinner = createSpinner('Thawing token account...', rawTx);
 

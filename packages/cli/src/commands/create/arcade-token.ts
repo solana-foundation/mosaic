@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ABL_PROGRAM_ID, createArcadeTokenInitTransaction, TOKEN_ACL_PROGRAM_ID } from '@solana/mosaic-sdk';
-import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions, resolveRpcUrl } from '../../utils/rpc.js';
 import { loadKeypair, resolveSigners } from '../../utils/solana.js';
 import {
     generateKeyPairSigner,
@@ -48,7 +48,7 @@ export const createArcadeTokenCommand = new Command('arcade-token')
     })
     .action(async (options: ArcadeTokenOptions, command) => {
         const parentOpts = getGlobalOpts(command);
-        const rpcUrl = parentOpts.rpcUrl;
+        const rpcUrl = resolveRpcUrl(parentOpts.rpcUrl);
         const rawTx: string | undefined = parentOpts.rawTx;
         const spinner = createSpinner('Creating arcade token...', rawTx);
 

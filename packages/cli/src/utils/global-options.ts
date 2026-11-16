@@ -14,10 +14,13 @@ export interface GlobalOptions {
  *
  * `--raw-tx` must have no default. Commands branch on its truthiness, so a default value would
  * put every command in raw mode permanently and make `--keypair` dead weight (HOO-962).
+ *
+ * `--rpc-url` must have no default either: `resolveRpcUrl` falls back to the Solana CLI config,
+ * then devnet, and a commander default would hide the config.
  */
 export function addGlobalOptions(program: Command): Command {
     return program
-        .option('--rpc-url <url>', 'Solana RPC URL', 'https://api.devnet.solana.com')
+        .option('--rpc-url <url>', 'Solana RPC URL (defaults to the Solana CLI config, then devnet)')
         .option('--keypair <path>', 'Path to keypair file (defaults to Solana CLI default)')
         .option(
             '--authority <address>',

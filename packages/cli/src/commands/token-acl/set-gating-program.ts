@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { getSetGatingProgramTransaction } from '@solana/mosaic-sdk';
-import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
+import { createRpcClient, createRpcSubscriptions, resolveRpcUrl } from '../../utils/rpc.js';
 import { resolveSigners } from '../../utils/solana.js';
 import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { findMintConfigPda } from '@solana/token-acl-sdk';
@@ -20,7 +20,7 @@ export const setGatingProgram = new Command('set-gating-program')
     .showHelpAfterError()
     .action(async (options: SetGatingProgramOptions, command) => {
         const parentOpts = getGlobalOpts(command);
-        const rpcUrl = parentOpts.rpcUrl;
+        const rpcUrl = resolveRpcUrl(parentOpts.rpcUrl);
         const rawTx: string | undefined = parentOpts.rawTx;
         const spinner = createSpinner('Setting gating program...', rawTx);
 
