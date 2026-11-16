@@ -21,6 +21,8 @@ export default {
     moduleNameMapper: {
         // Sources use explicit `.js` extensions on relative imports (Node ESM); resolve them to the `.ts` sources
         '^(\\.{1,2}/.*)\\.js$': '$1',
+        // The SDK only exports an ESM `import` condition, which CommonJS jest can't resolve; test against its sources
+        '^@solana/mosaic-sdk$': '<rootDir>/../sdk/src/index.ts',
     },
     moduleFileExtensions: ['ts', 'js', 'json'],
 };

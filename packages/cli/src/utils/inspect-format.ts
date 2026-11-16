@@ -1,4 +1,4 @@
-import type { TokenInspectionResult, TransferFeeEntry } from '@solana/mosaic-sdk';
+import { resolveScaledUiMultiplier, type TokenInspectionResult, type TransferFeeEntry } from '@solana/mosaic-sdk';
 
 export function formatLabel(key: string): string {
     return key.replace(/([A-Z])/g, ' $1').replace(/^./, c => c.toUpperCase());
@@ -90,24 +90,14 @@ export function formatRateSummaryLines(
     const { scaledUiAmount, transferFee, interestBearing, supplyInfo } = inspection;
     const symbol = inspection.metadata?.symbol ? ` ${inspection.metadata.symbol}` : '';
     const lines: [string, string][] = [];
-    if (scaledUiAmount?.multiplier !== undefined) {
-        // The stored fields don't change when a scheduled multiplier takes effect, so compare against now
-        const { multiplier, newMultiplier, newMultiplierEffectiveTimestamp: effectiveAt } = scaledUiAmount;
-        const scheduled =
-            newMultiplier !== undefined &&
-            newMultiplier !== multiplier &&
-            effectiveAt !== undefined &&
-            effectiveAt > 0n;
-        if (!scheduled) {
-            lines.push(['Scaled UI Multiplier', String(multiplier)]);
-        } else {
-            const when = toIsoDate(effectiveAt) ?? String(effectiveAt);
-            if (effectiveAt <= BigInt(nowSeconds)) {
-                lines.push(['Scaled UI Multiplier', `${newMultiplier} (since ${when})`]);
-            } else {
-                lines.push(['Scaled UI Multiplier', String(multiplier)]);
-                lines.push(['Scheduled Multiplier', `${newMultiplier} at ${when}`]);
-            }
+    // The SDK resolves the multiplier in effect now: the stored fields don't change when a scheduled one applies
+    const scaledUi = scaledUiAmount && resolveScaledUiMultiplier(scaledUiAmount, nowSeconds);
+    if (scaledUi) {
+        const { multiplier, scheduled } = scaledUi;
+        const when = scheduled && (toIsoDate(scheduled.effectiveAt) ?? String(scheduled.effectiveAt));
+        lines.push(['Scaled UI Multiplier', scheduled?.active ? `${multiplier} (since ${when})` : String(multiplier)]);
+        if (scheduled && !scheduled.active) {
+            lines.push(['Scheduled Multiplier', `${scheduled.multiplier} at ${when}`]);
         }
     }
     if (transferFee) {
