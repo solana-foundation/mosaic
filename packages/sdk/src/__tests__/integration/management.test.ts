@@ -241,59 +241,59 @@ describeSkipIf()('Management Integration Tests', () => {
                 const testCases = [0, 6, 9];
                 const amount = 1_000;
 
-                // Given/When/Then: Create and mint tokens with different decimal places
-                await Promise.all(
-                    testCases.map(async decimals => {
-                        const newMint = await generateKeyPairSigner();
+                // Given/When/Then: Create and mint tokens with different decimal places. One at a time:
+                // on surfpool each case fetches a new ATA from the remote datasource, and parallel
+                // fetches against public devnet stall or fail.
+                for (const decimals of testCases) {
+                    const newMint = await generateKeyPairSigner();
 
-                        // Create token with specific decimals
-                        const tokenBuilder = new Token().withMetadata({
-                            mintAddress: newMint.address,
-                            authority: mintAuthority.address,
-                            metadata: {
-                                name: `${decimals} Decimal Token`,
-                                symbol: `TEST${decimals}DT`,
-                                uri: `https://example.com/test${decimals}.json`,
-                            },
-                            additionalMetadata: new Map(),
-                        });
+                    // Create token with specific decimals
+                    const tokenBuilder = new Token().withMetadata({
+                        mintAddress: newMint.address,
+                        authority: mintAuthority.address,
+                        metadata: {
+                            name: `${decimals} Decimal Token`,
+                            symbol: `TEST${decimals}DT`,
+                            uri: `https://example.com/test${decimals}.json`,
+                        },
+                        additionalMetadata: new Map(),
+                    });
 
-                        const createTx = await tokenBuilder.buildTransaction({
-                            rpc: client.rpc,
-                            decimals,
-                            mintAuthority,
-                            freezeAuthority: freezeAuthority.address,
-                            mint: newMint,
-                            feePayer: payer,
-                        });
+                    const createTx = await tokenBuilder.buildTransaction({
+                        rpc: client.rpc,
+                        decimals,
+                        mintAuthority,
+                        freezeAuthority: freezeAuthority.address,
+                        mint: newMint,
+                        feePayer: payer,
+                    });
 
-                        await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+                    await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
 
-                        // Verify mint exists before proceeding
-                        await assertBalance(client.rpc, recipient.address, newMint.address, 0n, DEFAULT_COMMITMENT);
+                    // Verify mint exists before proceeding
+                    await assertBalance(client.rpc, recipient.address, newMint.address, 0n, DEFAULT_COMMITMENT);
 
-                        // Mint tokens
-                        const mintTx = await createMintToTransaction(
-                            client.rpc,
-                            newMint.address,
-                            recipient.address,
-                            amount,
-                            mintAuthority,
-                            payer,
-                        );
+                    // Mint tokens
+                    const mintTx = await createMintToTransaction(
+                        client.rpc,
+                        newMint.address,
+                        recipient.address,
+                        amount,
+                        mintAuthority,
+                        payer,
+                    );
 
-                        await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
+                    await sendAndConfirmTransaction(client, mintTx, DEFAULT_COMMITMENT);
 
-                        // Verify balance reflects correct decimals
-                        await assertBalance(
-                            client.rpc,
-                            recipient.address,
-                            newMint.address,
-                            decimalAmountToRaw(amount, decimals),
-                            DEFAULT_COMMITMENT,
-                        );
-                    }),
-                );
+                    // Verify balance reflects correct decimals
+                    await assertBalance(
+                        client.rpc,
+                        recipient.address,
+                        newMint.address,
+                        decimalAmountToRaw(amount, decimals),
+                        DEFAULT_COMMITMENT,
+                    );
+                }
             },
             DEFAULT_TIMEOUT,
         );
