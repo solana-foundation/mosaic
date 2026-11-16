@@ -1,7 +1,7 @@
 import {
     pipe,
     createTransactionMessage,
-    setTransactionMessageFeePayer,
+    setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
     type Address,
@@ -73,7 +73,7 @@ export const getSetGatingProgramTransaction = async (input: {
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
     return pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(input.payer.address, m),
+        m => setTransactionMessageFeePayerSigner(input.payer, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;

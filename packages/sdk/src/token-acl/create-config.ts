@@ -1,7 +1,7 @@
 import {
     pipe,
     createTransactionMessage,
-    setTransactionMessageFeePayer,
+    setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
     type Address,
@@ -36,6 +36,8 @@ export const getCreateConfigInstructions = async (input: {
 }): Promise<{ instructions: Instruction<string>[]; mintConfig: Address }> => {
     const mintConfigPda = await findMintConfigPda({ mint: input.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
 
+    // The generated instruction takes `payer` as a writable non-signer address, so it never carries
+    // the payer's signer: whoever builds the message must set the payer as its fee payer signer.
     const payer = input.payer?.address ?? input.authority.address;
 
     const createConfigInstruction = getCreateConfigInstruction(
@@ -84,7 +86,7 @@ export const getCreateConfigTransaction = async (input: {
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
     const transaction = pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(input.payer.address, m),
+        m => setTransactionMessageFeePayerSigner(input.payer, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;

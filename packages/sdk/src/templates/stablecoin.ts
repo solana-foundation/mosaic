@@ -6,7 +6,7 @@ import {
     createNoopSigner,
     pipe,
     createTransactionMessage,
-    setTransactionMessageFeePayer,
+    setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
 } from '@solana/kit';
@@ -112,7 +112,7 @@ export const createStablecoinInitTransaction = async (
 
         return pipe(
             createTransactionMessage({ version: 0 }),
-            m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
+            m => setTransactionMessageFeePayerSigner(feePayerSigner, m),
             m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
             m => appendTransactionMessageInstructions(instructions, m),
         ) as FullTransaction;
@@ -167,7 +167,7 @@ export const createStablecoinInitTransaction = async (
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
     return pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
+        m => setTransactionMessageFeePayerSigner(feePayerSigner, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;
