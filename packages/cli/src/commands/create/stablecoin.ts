@@ -7,6 +7,7 @@ import { generateKeyPairSigner, type Address, sendAndConfirmTransactionFactory }
 import { findListConfigPda } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda } from '@solana/token-acl-sdk';
 import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
+import { accountsStartFrozen, defaultAccountStateLabel } from '../../utils/default-account-state.js';
 
 interface StablecoinOptions {
     name: string;
@@ -154,10 +155,19 @@ export const createStablecoinCommand = new Command('stablecoin')
             console.log(`   ${chalk.bold('Confidential Balances Authority:')} ${confidentialBalancesAuthority}`);
             console.log(`   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`);
 
+            const frozen = accountsStartFrozen(options.aclMode, options.enableSrfc37);
+
             console.log(chalk.cyan('🛡️ Token Extensions:'));
             console.log(`   ${chalk.green('✓')} Metadata`);
             console.log(`   ${chalk.green('✓')} Pausable`);
-            console.log(`   ${chalk.green('✓')} Default Account State (Blocklist)`);
+            console.log(`   ${chalk.green('✓')} ${defaultAccountStateLabel(frozen)}`);
+            if (frozen) {
+                console.log(
+                    chalk.yellow(
+                        '     ⚠️  You must add addresses to the allowlist for your token to be usable by end users.',
+                    ),
+                );
+            }
             console.log(`   ${chalk.green('✓')} Confidential Balances`);
             console.log(`   ${chalk.green('✓')} Permanent Delegate`);
 
@@ -174,13 +184,18 @@ export const createStablecoinCommand = new Command('stablecoin')
                 console.log(
                     `   ${chalk.green('✓')} SRFC-37 ${mode.toLowerCase()} mint config Address: ${mintConfigPda[0]}`,
                 );
+            } else if (isAllowlist) {
+                // Without sRFC-37 the template starts accounts Initialized, so nothing is allowlisted
+                console.log(chalk.cyan(`🔑 Access Control:`));
+                console.log('New accounts start active and can be frozen individually');
+                console.log(
+                    chalk.yellow(
+                        '   ⚠️  The allowlist is not enforced without SRFC-37. Pass --enable-srfc37 true to start accounts frozen.',
+                    ),
+                );
             } else {
                 console.log(chalk.cyan(`🔑 ${mode} Initialized:`));
-                console.log(
-                    isAllowlist
-                        ? 'Allowlist managed via manual thawing of addresses'
-                        : 'Blocklist managed via manual feezing of addresses',
-                );
+                console.log('Blocklist managed via manual freezing of addresses');
             }
         } catch (error) {
             spinner.fail('Failed to create stablecoin');

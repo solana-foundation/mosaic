@@ -12,6 +12,7 @@ import {
 import { findListConfigPda } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda } from '@solana/token-acl-sdk';
 import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
+import { accountsStartFrozen, defaultAccountStateLabel } from '../../utils/default-account-state.js';
 
 interface ArcadeTokenOptions {
     name: string;
@@ -145,15 +146,20 @@ export const createArcadeTokenCommand = new Command('arcade-token')
             console.log(`   ${chalk.bold('Pausable Authority:')} ${pausableAuthority}`);
             console.log(`   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`);
 
+            // Arcade tokens are allowlist mints, but accounts only start Frozen with sRFC-37 on
+            const frozen = accountsStartFrozen('allowlist', options.enableSrfc37);
+
             console.log(chalk.cyan('🎮 Token Extensions:'));
             console.log(`   ${chalk.green('✓')} Metadata (Rich Gaming Metadata)`);
             console.log(`   ${chalk.green('✓')} Pausable`);
-            console.log(`   ${chalk.green('✓')} Default Account State (Allowlist)`);
-            console.log(
-                chalk.yellow(
-                    '     ⚠️  You must add addresses to the allowlist for your arcade token to be usable by end users.',
-                ),
-            );
+            console.log(`   ${chalk.green('✓')} ${defaultAccountStateLabel(frozen)}`);
+            if (frozen) {
+                console.log(
+                    chalk.yellow(
+                        '     ⚠️  You must add addresses to the allowlist for your arcade token to be usable by end users.',
+                    ),
+                );
+            }
             console.log(`   ${chalk.green('✓')} Permanent Delegate`);
 
             if (options.uri) {
@@ -165,8 +171,8 @@ export const createArcadeTokenCommand = new Command('arcade-token')
                 console.log(`   ${chalk.green('✓')} Allowlist Address: ${listConfigPda[0]}`);
                 console.log(`   ${chalk.green('✓')} SRFC-37 Allowlist mint config Address: ${mintConfigPda[0]}`);
             } else {
-                console.log(chalk.cyan(`🔑 Allowlist Initialized:`));
-                console.log('Allowlist managed via manual thawing of addresses');
+                console.log(chalk.cyan(`🔑 Access Control:`));
+                console.log('New accounts start active and can be frozen individually');
             }
         } catch (error) {
             if (!rawTx) {

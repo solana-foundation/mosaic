@@ -22,6 +22,7 @@ The CLI can now sign and send every transaction with `--keypair`, and `--raw-tx 
 - `token-acl enable-permissionless-thaw --raw-tx` cast bare addresses to signers, and `control pause` passed a bare `--fee-payer` string where the SDK needs a signer.
 - `control resume` ignored `--fee-payer`.
 - `mint` printed the mint authority as `[object Object]`.
+- `create arcade-token|stablecoin|tokenized-security` now report the Default Account State the template actually set: `Frozen` only for an allowlist mint with sRFC-37 enabled, `Initialized` otherwise. Arcade tokens always printed `(Allowlist)` with an "add addresses to the allowlist" warning, and stablecoins and tokenized securities always printed `(Blocklist)`, whatever was created. The allowlist warning now appears only when accounts really start frozen, and an allowlist mint without sRFC-37 warns that the allowlist is not enforced.
 - Without `--rpc-url`, commands now use the Solana CLI config's `json_rpc_url` before falling back to devnet. `--rpc-url` carried a devnet default that hid the config, so after `solana config set --url <mainnet or localhost>` every command still went to devnet while the keypair came from the config.
 - An invalid `--authority`/`--fee-payer` address is now reported by name, and raw mode with neither `--authority` nor a keypair says which flag to pass.
 
