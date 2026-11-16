@@ -32,7 +32,8 @@ function redact(url) {
  * The app attaches the env RPC to the configured network's cluster, so a URL
  * that serves another public cluster would put e.g. mainnet behind the Devnet
  * label. Refuse that. An unknown genesis hash (a local validator, surfpool) is
- * allowed, and an unreachable endpoint only warns so offline builds still work.
+ * allowed, and an endpoint that is unreachable or replies with an error only
+ * warns, so offline builds still work.
  */
 async function assertRpcServesNetwork(url, network) {
     let genesisHash;
@@ -43,7 +44,13 @@ async function assertRpcServesNetwork(url, network) {
             body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getGenesisHash' }),
             signal: AbortSignal.timeout(10_000),
         });
-        genesisHash = (await response.json()).result;
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const reply = await response.json();
+        if (reply.error) throw new Error(`RPC error ${reply.error.code}: ${reply.error.message}`);
+        if (typeof reply.result !== 'string' || reply.result === '') {
+            throw new Error('no genesis hash in the reply');
+        }
+        genesisHash = reply.result;
     } catch (error) {
         console.warn(`Could not check which cluster ${redact(url)} serves: ${error.message}`);
         return;
