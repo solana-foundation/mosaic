@@ -28,7 +28,7 @@ import {
  * @param rpc - The Solana RPC client instance
  * @param mint - The mint address
  * @param recipient - The recipient's wallet address (owner of the ATA)
- * @param amount - The raw token amount (already adjusted for decimals)
+ * @param amount - The decimal amount to mint (e.g., 1.5), scaled to a raw amount by the mint's decimals
  * @param mintAuthority - The mint authority signer
  * @param feePayer - The fee payer signer
  * @returns A promise that resolves to a FullTransaction object for minting tokens
