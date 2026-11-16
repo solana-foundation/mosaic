@@ -3,7 +3,7 @@ import {
     createNoopSigner,
     pipe,
     createTransactionMessage,
-    setTransactionMessageFeePayer,
+    setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
     type Instruction,
@@ -105,7 +105,7 @@ export const createAddToAllowlistTransaction = async (
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
     return pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(authoritySigner.address, m),
+        m => setTransactionMessageFeePayerSigner(authoritySigner, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;
@@ -177,7 +177,7 @@ export const createRemoveFromAllowlistTransaction = async (
     const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
     return pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(authoritySigner.address, m),
+        m => setTransactionMessageFeePayerSigner(authoritySigner, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;

@@ -3,7 +3,7 @@ import { assertValidDecimals, type FullTransaction } from '../transaction-util.j
 import {
     pipe,
     createTransactionMessage,
-    setTransactionMessageFeePayer,
+    setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
     appendTransactionMessageInstructions,
     createNoopSigner,
@@ -516,7 +516,7 @@ export class Token {
 
         return pipe(
             createTransactionMessage({ version: 0 }),
-            m => setTransactionMessageFeePayer(feePayer.address, m),
+            m => setTransactionMessageFeePayerSigner(feePayer, m),
             m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
             m => appendTransactionMessageInstructions(instructions, m),
         ) as FullTransaction;
