@@ -11,6 +11,7 @@ import { ArcadeTokenCreateForm } from './arcade-token/arcade-token-create-form';
 import { TokenizedSecurityCreateForm } from './tokenized-security/tokenized-security-create-form';
 import { CustomTokenCreateForm } from './custom-token/custom-token-create-form';
 import { cn } from '@/lib/utils';
+import { getRpcUrl } from '@/lib/solana/rpc';
 // import { IconAppGiftFill } from 'symbols-react';
 
 interface CreateTokenModalProps {
@@ -25,7 +26,7 @@ export function CreateTokenModal({ isOpen, onOpenChange, onTokenCreated }: Creat
     const { cluster } = useConnector();
 
     // Get RPC URL from the current cluster
-    const rpcUrl = cluster?.url || process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.devnet.solana.com';
+    const rpcUrl = getRpcUrl(cluster?.url);
 
     const handleTemplateSelect = (template: Template) => {
         setSelectedTemplate(template);

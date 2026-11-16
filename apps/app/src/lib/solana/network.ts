@@ -74,6 +74,13 @@ export function getConfiguredNetwork(): NetworkName {
     return getEnvNetwork() ?? DEFAULT_NETWORK;
 }
 
+/** The public endpoint of a built-in cluster. */
+export function getBuiltinClusterUrl(network: NetworkName): string {
+    const cluster = BUILTIN_CLUSTERS.find(c => c.name === network);
+    if (!cluster) throw new Error(`No built-in cluster for network ${network}`);
+    return cluster.url;
+}
+
 /** The cluster id the app defaults to when the user has made no explicit choice. */
 export function getDefaultClusterId(): `solana:${string}` {
     return CLUSTER_ID_BY_NETWORK[getConfiguredNetwork()];
