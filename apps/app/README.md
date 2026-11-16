@@ -17,9 +17,7 @@ pnpm dev
 # open http://localhost:3000
 ```
 
-By default the app uses Devnet. The cluster list and default network are configured in
-`src/app/providers.tsx`; the network is selectable in-app via the wallet menu → Network
-Settings, and your choice is persisted across reloads.
+By default the app uses Devnet. The cluster list and default network are configured in `src/lib/solana/network.ts`, and `src/app/providers.tsx` passes them to the wallet connector; the network is selectable in-app via the wallet menu → Network Settings, and your choice is persisted across reloads.
 
 ## User guide
 
@@ -58,7 +56,7 @@ src/
 │  │  │  └─ tokenized-security/*  # Security create form
 │  │  └─ manage/[address]/*       # Token management views
 │  ├─ layout.tsx                  # Providers and layout
-│  └─ providers.tsx               # Connector config: cluster list + default network
+│  └─ providers.tsx               # Connector config: applies the env RPC to the clusters
 ├─ components/
 │  ├─ layout/*                    # Header/Footer
 │  ├─ ui/*                        # Reusable UI
@@ -72,14 +70,14 @@ src/
 │  ├─ management/*                # Mint/transfer/freeze/thaw helpers
 │  ├─ management/accessList.ts    # Allowlist/blocklist helpers
 │  ├─ token/*                     # Local storage + token data
-│  ├─ solana/rpc.ts               # RPC utils
-│  └─ solana/network.ts           # Default network resolution
+│  ├─ solana/rpc.ts               # RPC utils, getRpcUrl() fallback chain
+│  └─ solana/network.ts           # Cluster list + default network resolution
 └─ types/*                        # App types
 ```
 
 ## Configuration
 
-- Wallets and clusters: configured in `app/providers.tsx` via `@solana/connector` (Devnet by default)
+- Clusters and default network: `lib/solana/network.ts` (Devnet by default); `app/providers.tsx` hands them to `@solana/connector`
 - Network switching: `features/wallet/components/wallet-dropdown-content.tsx`; user-defined RPCs live in `stores/rpc-store.ts`
 - SDK: all blockchain operations use `@solana/mosaic-sdk`
 
@@ -88,7 +86,7 @@ src/
 Both are inlined at build time, so changing either requires a rebuild/redeploy.
 
 - `NEXT_PUBLIC_SOLANA_NETWORK`: The network the app boots into when the user has never picked one. Accepts `devnet`, `testnet`, or `mainnet-beta` (`mainnet` is an alias). Defaults to `devnet`. This sets the **default**, not a hard override: a user's explicit in-app network choice is persisted and wins on their next visit.
-- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom Solana RPC endpoint URL for the network in `NEXT_PUBLIC_SOLANA_NETWORK` (Devnet by default). A paid mainnet endpoint therefore also needs `NEXT_PUBLIC_SOLANA_NETWORK=mainnet-beta`. `next build` and `next dev` ask the endpoint for its genesis hash and fail when it serves a different public cluster than the configured network. The URL is inlined into the client bundle, so an API key in it is public: use a key restricted to your domains for deployments. See `.env.example` for more details.
+- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom Solana RPC endpoint URL for the network in `NEXT_PUBLIC_SOLANA_NETWORK` (Devnet by default). A paid mainnet endpoint therefore also needs `NEXT_PUBLIC_SOLANA_NETWORK=mainnet-beta`. `next build` and `next dev` ask the endpoint for its genesis hash and fail when it serves a different public cluster than the configured network. The URL is inlined into the client bundle, so an API key in it is public: use a key restricted to your domains for deployments. If not set, the configured network uses its public endpoint. App code resolves an RPC URL through `getRpcUrl()` in `src/lib/solana/rpc.ts`: the selected cluster's URL first, then this variable, then the configured network's public endpoint. See `.env.example` for more details.
 
 ## Development
 
