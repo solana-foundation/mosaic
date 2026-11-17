@@ -28,7 +28,7 @@ node packages/cli/bin/mosaic.mjs --help
 Note that all commands expect the fee payer to be the authority for the action executed. All commands accept:
 
 ```bash
---rpc-url <url>    # RPC endpoint (default: https://api.devnet.solana.com or Solana CLI config)
+--rpc-url <url>    # RPC endpoint (default: Solana CLI config json_rpc_url, then https://api.devnet.solana.com)
 --keypair <path>   # Path to keypair JSON (default: Solana CLI keypair path)
 ```
 
