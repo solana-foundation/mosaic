@@ -281,7 +281,12 @@ describe('test wallet', () => {
 const SANDBOX_ROOT = join(APP_ROOT, '.agent-browser', 'selftest');
 const SANDBOX = join(SANDBOX_ROOT, 'e2e', 'agent-browser');
 const BIN = join(TMP, 'bin');
-const HAS_SHELL_TOOLS = ['bash', 'jq', 'curl', 'awk'].every(tool => spawnSync(tool, ['--version']).status === 0);
+/** Whether `tool` is on PATH. Not a `--version` probe: BusyBox awk and older BSD awk reject the flag. */
+function hasCommand(tool, env = process.env) {
+    return spawnSync('sh', ['-c', 'command -v "$1"', 'sh', tool], { env }).status === 0;
+}
+const HAS_BASH = hasCommand('bash');
+const HAS_SHELL_TOOLS = ['bash', 'jq', 'curl', 'awk'].every(tool => hasCommand(tool));
 
 // Logs every call, fails the ones whose arguments match $STUB_FAIL, and answers
 // `eval` from $STUB_EVAL: lines of "<regex><TAB><answer>", first match wins,
@@ -516,7 +521,15 @@ describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' },
 // Shell scripts: prettier and eslint do not read them
 // ---------------------------------------------------------------------------
 
-test('every harness shell script parses', { skip: !HAS_SHELL_TOOLS && 'needs bash' }, () => {
+test('a tool that rejects --version still counts as installed', () => {
+    const bin = join(TMP, 'version-bin');
+    mkdirSync(bin, { recursive: true });
+    writeFileSync(join(bin, 'no-version-flag'), '#!/bin/sh\n[ "$1" = --version ] && exit 2\nexit 0\n', { mode: 0o755 });
+    assert.ok(hasCommand('no-version-flag', { ...process.env, PATH: `${bin}:${process.env.PATH}` }));
+    assert.ok(!hasCommand('mosaic-selftest-no-such-tool'));
+});
+
+test('every harness shell script parses', { skip: !HAS_BASH && 'needs bash' }, () => {
     const scripts = [
         ...readdirSync(HERE).filter(name => name.endsWith('.sh')),
         ...readdirSync(join(HERE, 'flows')).map(name => join('flows', name)),
