@@ -23,7 +23,7 @@ There are two ways in:
     - `diff snapshot` and `diff screenshot --baseline` for structural and visual diffs
     - `react tree|renders` (with `--enable react-devtools`) and `vitals`
 
-**Where it stops:** it has no test runner, fixtures, retries, parallel sharding or reports. It suits agent verification and scripted end-to-end flows. A deterministic CI regression suite would be better built on Playwright Test (already a devDependency, used by `scripts/smoke-test.mjs`). That suite can reuse the test wallet as-is with `page.addInitScript({ path: '.agent-browser/test-wallet-a.js' })`.
+**Where it stops:** it has no test runner, fixtures, retries, parallel sharding or reports. It suits agent verification and scripted end-to-end flows. A deterministic CI regression suite would be better built on Playwright Test (already a devDependency, used by `scripts/smoke-test.mjs`). That suite can reuse the test wallet as-is: build a bundle with `node e2e/agent-browser/build-test-wallet.mjs` and load it with `page.addInitScript({ path: '.agent-browser/test-wallet.js' })`.
 
 ## Running
 
@@ -92,7 +92,7 @@ finish_flow
 
 `@solana/connector` lists any registered wallet that advertises a `solana:*` chain. Its authenticity checks apply only to wallets found on `window` (`window.phantom`-style), so the test wallet appears in the connect modal like an installed extension.
 
-`build-test-wallet.mjs` bundles it with esbuild into an IIFE and embeds the keypair. `run.sh` builds the bundles the flows ask for into the gitignored `apps/app/.agent-browser/`:
+`build-test-wallet.mjs` bundles it with esbuild into an IIFE and embeds the keypair. `run.sh` builds the bundles the flows ask for into the run's own directory, `apps/app/.agent-browser/runs/<run id>/` (gitignored), so overlapping runs never load each other's wallets:
 
 | bundle                    | keypair                         | used as                                                                                      |
 | ------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------- |
@@ -100,7 +100,7 @@ finish_flow
 | `test-wallet-b.js`        | B                               | wallet B, the `-b` session: a second user (recipient, non-creator, non-authority)            |
 | `test-wallet-a-nosign.js` | A, without `solana:signMessage` | a wallet that cannot sign messages at all, the `-nosign` session                             |
 
-Build options: `--role a|b` or `--keypair <path>`, `--alt-role b` or `--alt <path>`, `--no-sign-message`, `--out`. The build prints the address it embedded. Keypairs resolve through `keypairs.mjs`, exactly as `chain.mjs` resolves them: `MOSAIC_TEST_KEYPAIR_A` (else `MOSAIC_TEST_KEYPAIR`), `MOSAIC_TEST_KEYPAIR_B` and `MOSAIC_TEST_KEYPAIR_MASTER`, defaulting to `~/.config/solana/mosaic-e2e-{a,b,master}.json`.
+Build options: `--role a|b` or `--keypair <path>`, `--alt-role b` or `--alt <path>`, `--no-sign-message`, `--out <path>` (relative to `.agent-browser/`; a path outside it is refused). The build prints the address it embedded. Keypairs resolve through `keypairs.mjs`, exactly as `chain.mjs` resolves them: `MOSAIC_TEST_KEYPAIR_A` (else `MOSAIC_TEST_KEYPAIR`), `MOSAIC_TEST_KEYPAIR_B` and `MOSAIC_TEST_KEYPAIR_MASTER`, defaulting to `~/.config/solana/mosaic-e2e-{a,b,master}.json`.
 
 **Failure modes.** The page gets `window.__mosaicTestWallet` (`TestWalletControl` in `test-wallet.ts`), which flows drive through `agent-browser eval` (`wallet_ctl` in `lib.sh`):
 

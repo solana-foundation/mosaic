@@ -125,6 +125,17 @@ describe('keypairs', () => {
         assert.equal(buildWallet(['--role', 'b'], { MOSAIC_TEST_KEYPAIR_B: KEY_A.path }, KEYS_BUNDLE), KEY_A.address);
     });
 
+    test('a bundle cannot be written outside .agent-browser/', () => {
+        const { status, stderr } = runNode(join(HERE, 'build-test-wallet.mjs'), ['--out', '../selftest-escape.js'], {
+            MOSAIC_TEST_KEYPAIR_A: KEY_A.path,
+        });
+        assert.equal(status, 1);
+        assert.match(stderr, /outside/);
+        assert.ok(!existsSync(join(APP_ROOT, 'selftest-escape.js')));
+        // What the build wrote before it refused paths: the basename, inside .agent-browser/.
+        rmSync(join(APP_ROOT, '.agent-browser', 'selftest-escape.js'), { force: true });
+    });
+
     test('a missing keypair fails the build and names the file', () => {
         const { status, stderr } = runNode(join(HERE, 'build-test-wallet.mjs'), ['--out', KEYS_BUNDLE]);
         assert.equal(status, 1);
@@ -388,11 +399,15 @@ function runHarness(args, env = {}, stubEval = []) {
     );
 }
 
+/** The directory of the most recent run in the sandbox. */
+function lastRunDir() {
+    const runs = join(SANDBOX_ROOT, '.agent-browser', 'runs');
+    return join(runs, readdirSync(runs).sort().pop());
+}
+
 /** The results.tsv of the most recent run in the sandbox. */
 function lastResults() {
-    const runs = join(SANDBOX_ROOT, '.agent-browser', 'runs');
-    const latest = readdirSync(runs).sort().pop();
-    const file = join(runs, latest, 'results.tsv');
+    const file = join(lastRunDir(), 'results.tsv');
     return existsSync(file) ? readFileSync(file, 'utf8') : '';
 }
 
@@ -424,6 +439,18 @@ describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' },
         assert.equal(run.status, 0, run.stdout + run.stderr);
         assert.match(run.stdout, /no wallet B keypair/);
         assert.match(run.stdout, /all flows passed/);
+    });
+
+    test("each session loads a wallet bundle from its own run's directory", async () => {
+        const run = await runHarness(['two-sessions']);
+        assert.equal(run.status, 0, run.stdout + run.stderr);
+        const bundles = run.calls.map(call => / --init-script (\S+) /.exec(call)?.[1]).filter(Boolean);
+        assert.equal(bundles.length, 3, run.calls.join('\n'));
+        const runDir = lastRunDir();
+        for (const bundle of bundles) {
+            assert.ok(bundle.startsWith(`${runDir}/`), `${bundle} is outside the run's directory ${runDir}`);
+            assert.ok(existsSync(bundle), `${bundle} was not built`);
+        }
     });
 
     test('a failed launch closes the sessions already started', async () => {
