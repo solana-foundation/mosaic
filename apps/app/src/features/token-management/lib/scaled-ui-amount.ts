@@ -1,23 +1,6 @@
-import {
-    createSolanaRpc,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-    pipe,
-    type Address,
-    type Rpc,
-    type SolanaRpcApi,
-    signTransactionMessageWithSigners,
-    sendAndConfirmTransactionFactory,
-    getSignatureFromTransaction,
-    createSolanaRpcSubscriptions,
-    TransactionModifyingSigner,
-    assertIsTransactionWithBlockhashLifetime,
-} from '@solana/kit';
-import { getUpdateMultiplierScaledUiMintInstruction } from '@solana-program/token-2022';
-import { getRpcUrl, getWsUrl, getCommitment } from '@/lib/solana/rpc';
-import { getMintDetails } from '@solana/mosaic-sdk';
+import { type Address, type TransactionModifyingSigner, isAddress } from '@solana/kit';
+import { createUpdateScaledUiMultiplierTransaction } from '@solana/mosaic-sdk';
+import { executeTokenAction } from './token-action';
 
 export interface UpdateScaledUiMultiplierOptions {
     mint: string;
@@ -32,55 +15,38 @@ export interface UpdateScaledUiMultiplierResult {
     multiplier?: number;
 }
 
-export const updateScaledUiMultiplier = async (
+function validateUpdateScaledUiMultiplierOptions(options: UpdateScaledUiMultiplierOptions): void {
+    if (!options.mint) {
+        throw new Error('Mint address is required');
+    }
+    if (!isAddress(options.mint)) {
+        throw new Error('Invalid mint address format');
+    }
+    if (!Number.isFinite(options.multiplier) || options.multiplier <= 0) {
+        throw new Error('Multiplier must be a positive number');
+    }
+}
+
+/**
+ * Updates a mint's Scaled UI Amount multiplier, effective immediately. The connected wallet
+ * signs as both the scaled UI amount authority and the fee payer.
+ */
+export const updateScaledUiMultiplier = (
     options: UpdateScaledUiMultiplierOptions,
     signer: TransactionModifyingSigner,
-): Promise<UpdateScaledUiMultiplierResult> => {
-    try {
-        if (!options.mint) throw new Error('Mint address is required');
-        if (!Number.isFinite(options.multiplier) || options.multiplier <= 0) {
-            throw new Error('Multiplier must be a positive number');
-        }
-
-        const rpcUrl = getRpcUrl(options.rpcUrl);
-        const rpc: Rpc<SolanaRpcApi> = createSolanaRpc(rpcUrl);
-        const rpcSubscriptions = createSolanaRpcSubscriptions(getWsUrl(rpcUrl));
-
-        // Get mint details for program address
-        const { programAddress } = await getMintDetails(rpc, options.mint as Address);
-
-        const ix = getUpdateMultiplierScaledUiMintInstruction(
-            {
+): Promise<UpdateScaledUiMultiplierResult> =>
+    executeTokenAction<UpdateScaledUiMultiplierOptions, UpdateScaledUiMultiplierResult>({
+        options,
+        signer,
+        validate: validateUpdateScaledUiMultiplierOptions,
+        buildTransaction: async ({ rpc, signer, options }) =>
+            createUpdateScaledUiMultiplierTransaction(rpc, {
                 mint: options.mint as Address,
-                authority: signer.address,
-                effectiveTimestamp: 0,
+                authority: signer,
                 multiplier: options.multiplier,
-            },
-            { programAddress },
-        );
-
-        const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-        const tx = pipe(
-            createTransactionMessage({ version: 0 }),
-            m => setTransactionMessageFeePayer(signer.address, m),
-            m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-            m => appendTransactionMessageInstructions([ix], m),
-        );
-
-        const signedTransaction = await signTransactionMessageWithSigners(tx);
-        assertIsTransactionWithBlockhashLifetime(signedTransaction);
-        await sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions })(signedTransaction, {
-            commitment: getCommitment(),
-        });
-        return {
-            success: true,
-            transactionSignature: getSignatureFromTransaction(signedTransaction),
+                feePayer: signer,
+            }),
+        buildSuccessResult: (_, options) => ({
             multiplier: options.multiplier,
-        };
-    } catch (error) {
-        return {
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-        };
-    }
-};
+        }),
+    });

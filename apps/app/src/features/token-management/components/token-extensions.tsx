@@ -445,7 +445,7 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
                                                     label="Multiplier"
                                                     value={newMultiplier}
                                                     onChange={setNewMultiplier}
-                                                    placeholder="0.005"
+                                                    placeholder="e.g. 1.5"
                                                     disabled={isScaledUiUpdating}
                                                     showValidation={false}
                                                 />
