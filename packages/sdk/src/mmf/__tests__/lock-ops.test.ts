@@ -1,5 +1,5 @@
 import type { Rpc, SolanaRpcApi, Instruction } from '@solana/kit';
-import { address } from '@solana/kit';
+import { AccountRole, address } from '@solana/kit';
 import { createMockRpc, createMockSigner, seedMintDetails, seedTokenAccount } from '../../__tests__/test-utils.js';
 import { Token2022Instruction, identifyToken2022Instruction } from '@solana-program/token-2022';
 import {
@@ -11,6 +11,7 @@ import {
     createSettleMintLockTransaction,
 } from '../lock-ops.js';
 import { deriveLockAccountAddress } from '../lock-address.js';
+import { EXECUTE_INSTRUCTION_DISCRIMINATOR, findExtraAccountMetaListPda } from '../../transfer/transfer-hook.js';
 
 const MINT = address('HA3KcFsXNjRJsRZq1P1Y8qPAeSZnZsFyauCDEsSSGqTj');
 const HOLDER = address('FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT');
@@ -76,6 +77,38 @@ describe('mmf lock ops', () => {
             Token2022Instruction.ThawAccount,
             Token2022Instruction.TransferChecked,
             Token2022Instruction.FreezeAccount,
+        ]);
+    });
+
+    test('createBurnLockTransaction: appends the transfer hook accounts when the mint has an active hook', async () => {
+        const hookProgram = address('FpkgZNfydbXDX7mXAjZCHwKngPnkSJkJAkkSd7Ffmw3t');
+        seedMintDetails(rpc, {
+            address: MINT,
+            decimals: 6,
+            extensions: [{ extension: 'transferHook', state: { authority: pd.address, programId: hookProgram } }],
+        });
+        // A validation account declaring no extra accounts: Execute TLV entry with a zero count.
+        const [validation] = await findExtraAccountMetaListPda({ mint: MINT }, { programAddress: hookProgram });
+        const data = new Uint8Array(16);
+        data.set(EXECUTE_INSTRUCTION_DISCRIMINATOR, 0);
+        data[8] = 4;
+        (rpc as any).__registry.accountInfoRegistry.set(validation, {
+            owner: hookProgram,
+            base64: Buffer.from(data).toString('base64'),
+        });
+
+        const tx = await createBurnLockTransaction(rpc, {
+            mint: MINT,
+            holder: HOLDER,
+            decimalAmount: 1.5,
+            permanentDelegate: pd,
+            freezeAuthority: freezeAuth,
+            feePayer,
+        });
+        const transfer = tx.instructions[1];
+        expect(transfer.accounts?.slice(4)).toEqual([
+            { address: hookProgram, role: AccountRole.READONLY },
+            { address: validation, role: AccountRole.READONLY },
         ]);
     });
 
