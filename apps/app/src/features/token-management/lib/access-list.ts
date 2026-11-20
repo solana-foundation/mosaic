@@ -9,14 +9,68 @@ import {
     TransactionModifyingSigner,
     isAddress,
     assertIsTransactionWithBlockhashLifetime,
+    fetchEncodedAccount,
+    getAddressEncoder,
+    getProgramDerivedAddress,
+    getUtf8Encoder,
 } from '@solana/kit';
 import {
+    ABL_PROGRAM_ID,
     createAddToBlocklistTransaction,
     createRemoveFromBlocklistTransaction,
     createAddToAllowlistTransaction,
     createRemoveFromAllowlistTransaction,
+    getList,
+    getListConfigPda,
 } from '@solana/mosaic-sdk';
+import { fetchMaybeListConfig } from '@solana/token-acl-gate-sdk';
 import { getCommitment } from '@/lib/solana/rpc';
+import { humanizeError } from '@/lib/errors';
+import { type AccessListState, attachedListConfig, resolveAccessListState } from './access-list-state';
+
+/**
+ * Reads a mint's sRFC-37 access list from chain: the list attached to the mint
+ * (through the ABL program's thaw extra-account-metas), its mode and members,
+ * and whether the connected wallet is the authority that can change it.
+ *
+ * Missing accounts are part of the returned state; only a failed RPC call
+ * becomes `status: 'error'`.
+ */
+export async function readAccessListState(
+    rpc: Rpc<SolanaRpcApi>,
+    mint: Address,
+    connectedWallet: Address | null,
+): Promise<AccessListState> {
+    try {
+        const [extraMetasAddress] = await getProgramDerivedAddress({
+            programAddress: ABL_PROGRAM_ID,
+            seeds: [getUtf8Encoder().encode('thaw_extra_account_metas'), getAddressEncoder().encode(mint)],
+        });
+        const extraMetasAccount = await fetchEncodedAccount(rpc, extraMetasAddress);
+        const extraMetas = extraMetasAccount.exists ? new Uint8Array(extraMetasAccount.data) : null;
+
+        const listConfig = attachedListConfig(extraMetas);
+        const listConfigAccount = listConfig ? await fetchMaybeListConfig(rpc, listConfig) : null;
+        const wallets = listConfig && listConfigAccount?.exists ? (await getList({ rpc, listConfig })).wallets : [];
+        const derivedListConfigForWallet = connectedWallet
+            ? await getListConfigPda({ authority: connectedWallet, mint })
+            : null;
+
+        return resolveAccessListState({
+            extraMetas,
+            listConfigAccount,
+            wallets,
+            connectedWallet,
+            derivedListConfigForWallet,
+            ablProgramId: ABL_PROGRAM_ID,
+        });
+    } catch (error) {
+        return {
+            status: 'error',
+            message: humanizeError(error, 'Could not read the access list') || 'Could not read the access list',
+        };
+    }
+}
 
 export interface BlocklistOptions {
     mintAddress: string;
