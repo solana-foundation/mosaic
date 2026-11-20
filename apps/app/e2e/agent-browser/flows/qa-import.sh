@@ -23,7 +23,7 @@ check "Import Token is disabled with no address" btn_disabled "Import Token"
 ab find label "Token Address" fill "not-an-address" >/dev/null
 ab find role button click --name "Import Token" >/dev/null
 check "an invalid address is rejected" eventually 5 eval 'contains "$(dialog_text)" "Invalid Solana address format"'
-known_defect unfiled:import-error-prefix "a format error is not announced as a failed import" \
+known_defect HOO-2942 "a format error is not announced as a failed import" \
     not_contains "$(dialog_text)" "Failed to import token."
 escape_all
 
@@ -35,7 +35,7 @@ name="$(stored_tokens | jq -r --arg m "$CONFIDENTIAL" '.[] | select(.address == 
 check "the dashboard shows a card for it ($name)" eventually 5 eval 'contains "$(main_text)" "$name"'
 card_type="$(js "[...document.querySelectorAll('main *')].find(e => e.children.length === 0 && e.innerText === 'Type')?.parentElement?.innerText ?? ''" | tr '\n' ' ')"
 note "card type for an undetected mint imported as Stablecoin: '$card_type'"
-known_defect unfiled:import-type-merge "the chosen Token Type is what the card shows" not_contains "$card_type" "Unknown +1"
+known_defect HOO-2949 "the chosen Token Type is what the card shows" not_contains "$card_type" "Unknown +1"
 
 step "a mint created by another wallet is listed under this one"
 creator="$(stored_tokens | jq -r --arg m "$CONFIDENTIAL" '.[] | select(.address == $m) | .creatorWallet')"

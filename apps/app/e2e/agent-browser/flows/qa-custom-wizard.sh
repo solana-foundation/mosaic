@@ -59,7 +59,7 @@ submit_layer() {
 }
 
 # Records how an invalid value was caught: never at the wallet (a hard check),
-# and ideally at the form (§10 row 5, unfiled, says numeric rules only fire on submit).
+# and ideally at the form (§10 row 5, HOO-2943, says numeric rules only fire on submit).
 expect_rejected() {
     local what="$1" layer="$2" want_msg="$3"
     note "$what → $layer"
@@ -68,7 +68,7 @@ expect_rejected() {
     if [[ "$layer" == create:* ]]; then
         check "$what: the error names the rule ('$want_msg')" contains "$layer" "$want_msg"
     fi
-    known_defect unfiled:row5-inline-validation "$what is caught by the form, before submit" equals "$layer" form
+    known_defect HOO-2943 "$what is caught by the form, before submit" equals "$layer" form
 }
 
 step "§3a: which extensions open the Configuration step"

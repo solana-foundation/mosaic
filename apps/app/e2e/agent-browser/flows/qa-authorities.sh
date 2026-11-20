@@ -93,11 +93,11 @@ wait_slow "Token Overview"
 # is null, so a revoked authority that was stored at creation stays in the menu.
 # (Pause only disappeared above because Custom tokens never store it.)
 eventually 20 eval 'not_contains "$(admin_menu_items)" "Mint Tokens"' || true
-known_defect unfiled:revoked-authority-stale "Admin Actions no longer offers Mint Tokens after the revoke" not_contains "$(admin_menu_items)" "Mint Tokens"
+known_defect HOO-2940 "Admin Actions no longer offers Mint Tokens after the revoke" not_contains "$(admin_menu_items)" "Mint Tokens"
 open_tab Permissions
 eventually 20 eval 'contains "$(tab_card "Mint Authority")" "None"' || true
 note "mint row after the revoke and a reload: $(tab_card "Mint Authority")"
-known_defect unfiled:revoked-authority-stale "the Permissions row reads None after a reload" contains "$(tab_card "Mint Authority")" "None"
+known_defect HOO-2940 "the Permissions row reads None after a reload" contains "$(tab_card "Mint Authority")" "None"
 
 assert_no_page_errors
 finish_flow

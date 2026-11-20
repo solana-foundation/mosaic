@@ -54,7 +54,7 @@ expect_pause_refused() {
     seen="$(dialog_text) $(toasts)"
     note "$key: after Confirm $action as a non-authority the user sees: '$seen'"
     check "$key: confirming $action as a non-authority never reaches the wallet" no_sign_requests
-    known_defect unfiled:pause-refusal-hidden "$key: confirming $action as a non-authority explains why it was refused" \
+    known_defect HOO-2940 "$key: confirming $action as a non-authority explains why it was refused" \
         contains "$seen" "pause authority"
     escape_all
     eventually 5 eval 'equals "$(dialog_text)" ""' || escape_all
@@ -85,7 +85,7 @@ for key in stablecoin security arcade confidential paused scaled blocklist allow
     check "$key: Admin Actions items match the mint's authorities" equals "$(strip_pause "$got")" "$(strip_pause "$QA_WANT_MENU")"
     if [[ "$got" != "$QA_WANT_MENU" ]]; then
         # Only reachable when the pause read kept failing, so it can never XPASS.
-        known_defect unfiled:pause-state-read-error "$key: the pause item reflects the on-chain paused state (getTokenPauseState hides RPC errors as 'not paused')" false
+        known_defect HOO-2941 "$key: the pause item reflects the on-chain paused state (getTokenPauseState hides RPC errors as 'not paused')" false
         note "$key: menu '$got', expected '$QA_WANT_MENU'"
     fi
 done
@@ -103,7 +103,7 @@ expect_pause_refused stablecoin "Pause"
 # that only the metadata authority can update. Probe how far a change gets.
 admin_action "Update Metadata"
 text="$(dialog_text)"
-known_defect unfiled:metadata-no-unauthorized-view "stablecoin: Update Metadata shows 'Metadata Authority Required' to a non-authority" \
+known_defect HOO-2940 "stablecoin: Update Metadata shows 'Metadata Authority Required' to a non-authority" \
     contains "$text" "Metadata Authority Required"
 check "stablecoin: Update Metadata at least says only the metadata authority can update" contains "$text" "Only the metadata authority"
 symbol="$(js 'document.querySelectorAll("[role=dialog] input, [role=alertdialog] input")[1]?.value ?? ""')"

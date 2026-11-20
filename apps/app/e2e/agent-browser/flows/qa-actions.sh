@@ -103,7 +103,7 @@ check "the menu now offers Unpause Token" eventually 20 eval 'contains "$(admin_
 arm_reject
 check "Transfer Tokens on a paused token fails" not action "Transfer Tokens" fill_transfer "Send Tokens" "Transfer Successful"
 note "transfer while paused says: $(grep -iE 'error|fail|paus' <<<"$LAST_ACTION_TEXT" | head -2 | tr '\n' ' ')"
-known_defect unfiled:row1-paused-actions "a transfer on a paused token says the token is paused" contains "$LAST_ACTION_TEXT" "paused"
+known_defect HOO-2942 "a transfer on a paused token says the token is paused" contains "$LAST_ACTION_TEXT" "paused"
 wallet_ctl 'reset()' >/dev/null
 admin_action "Unpause Token"
 dialog_click "Confirm Unpause"
@@ -129,7 +129,7 @@ ui_action "Burn with Max succeeds" "Burn Tokens" fill_burn_max "Burn Tokens" "bu
 # Max still burns the old 85, leaving 3 behind.
 await_value 60 0 bal "$A" 2>/dev/null || true
 left="$(bal "$A")"
-known_defect unfiled:burn-max-stale "Max burns the whole current balance (left: $left raw)" equals "$left" 0
+known_defect HOO-2945 "Max burns the whole current balance (left: $left raw)" equals "$left" 0
 if [[ "$left" != 0 ]]; then
     fill_burn_left() { ab find placeholder "Enter amount to burn..." fill "$(awk -v r="$left" 'BEGIN { printf "%g", r / 1e6 }')" >/dev/null; }
     ui_action "Burn the remainder succeeds" "Burn Tokens" fill_burn_left "Burn Tokens" "burned successfully"

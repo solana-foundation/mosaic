@@ -25,7 +25,7 @@ error="$(grep -A1 'Error:' <<<"$text" | tr '\n' ' ' | sed 's/Error: *//; s/  */ 
 note "insufficient-SOL copy: $error"
 note "sign requests: $(sign_count signTransaction)"
 # Today: "Solana error #-32002; Decode this error by running `npx @solana/errors decode …`".
-known_defect unfiled:insufficient-sol-copy "the error says the wallet needs SOL" eval 'grep -qiE "insufficient|not enough|SOL balance|fund" <<<"$error"'
+known_defect HOO-2942 "the error says the wallet needs SOL" eval 'grep -qiE "insufficient|not enough|SOL balance|fund" <<<"$error"'
 
 escape_all
 assert_no_page_errors

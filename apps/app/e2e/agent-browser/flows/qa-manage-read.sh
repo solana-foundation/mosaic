@@ -45,11 +45,11 @@ for key in stablecoin security arcade confidential paused scaled blocklist allow
     if [[ "$template" != Custom ]]; then
         check "$key: Template reads $template" equals "$(overview_value Template)" "$template"
     fi
-    known_defect unfiled:row23-created-date "$key: Created is the mint's creation date, not the import date" \
+    known_defect HOO-2946 "$key: Created is the mint's creation date, not the import date" \
         not equals "$(overview_value Created)" "$TODAY"
     creator="$(jq -r .creator "$FIXTURES")"
     if [[ "$(jq -r .mintAuthority <<<"$state")" != "$creator" ]]; then
-        known_defect unfiled:row24-creation-address "$key: Creation Address is the creator, not the current mint authority" \
+        known_defect HOO-2946 "$key: Creation Address is the creator, not the current mint authority" \
             equals "$(overview_value "Creation Address")" "${creator:0:6}...${creator: -4}"
     fi
 
@@ -79,7 +79,7 @@ for key in stablecoin security arcade confidential paused scaled blocklist allow
     rows="$(tab_headings h4)"
     for kind in $(jq -r '.extensions[]' <<<"$state"); do
         if [[ "$kind" == PermissionedBurn ]]; then
-            known_defect unfiled:s8.8-permissioned-burn-row "$key: PermissionedBurn has an Extensions row" grep -qx "Permissioned Burn" <<<"$rows"
+            known_defect HOO-2948 "$key: PermissionedBurn has an Extensions row" grep -qx "Permissioned Burn" <<<"$rows"
             continue
         fi
         name="$(ext_display_name "$kind")"
@@ -110,7 +110,7 @@ for key in stablecoin security arcade confidential paused scaled blocklist allow
         fi
     done <<<"$cards"
     # None of these authorities is the connected wallet's, yet each row offers Edit.
-    known_defect unfiled:edit-without-authority "$key: no Edit on authority rows the wallet does not hold ($edits offered)" equals "$edits" 0
+    known_defect HOO-2940 "$key: no Edit on authority rows the wallet does not hold ($edits offered)" equals "$edits" 0
     sleep 1 # public devnet rate limit
 done
 

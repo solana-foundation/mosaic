@@ -117,13 +117,13 @@ CONFIGURE=ib_scaled
 outcome="$(combo_retry ibsc "Interest Bearing" "Scaled UI Amount")"
 record "interest bearing + scaled UI" "$outcome"
 # Token-2022 rejects the pair (0x33, InvalidExtensionCombination) and the app shows a raw -32002.
-known_defect unfiled:s3c-invalid-combos "interest bearing + scaled UI is blocked in the wizard, not by the chain" equals "$outcome" form
+known_defect HOO-2943 "interest bearing + scaled UI is blocked in the wizard, not by the chain" equals "$outcome" form
 
 step "§3c 7: Non-Transferable + Confidential Balances"
 CONFIGURE=""
 outcome="$(combo_retry ntcb "Non-Transferable" "Confidential Balances")"
 record "non-transferable + confidential" "$outcome"
-known_defect unfiled:s3c-invalid-combos "non-transferable + confidential is blocked in the wizard, not by the chain" equals "$outcome" form
+known_defect HOO-2865 "non-transferable + confidential is blocked in the wizard, not by the chain" equals "$outcome" form
 
 step "§3c 8: Confidential Balances + Transfer Hook"
 hook() { ab fill "#transferHookProgramId" "$SYSTEM_PROGRAM" >/dev/null; }
@@ -138,7 +138,7 @@ CONFIGURE=fee_only
 outcome="$(combo_retry cbtf "Confidential Balances" "Transfer Fee")"
 record "confidential + transfer fee" "$outcome"
 # Token-2022 needs a confidential-transfer-fee config for this pair; the app sets none.
-known_defect unfiled:s3c-invalid-combos "confidential + transfer fee is created, or blocked in the wizard" \
+known_defect HOO-2943 "confidential + transfer fee is created, or blocked in the wizard" \
     eval 'contains "$outcome" "ok " || equals "$outcome" form'
 
 step "§3c 9: Transfer Fee + Interest Bearing + Pausable + Permanent Delegate"

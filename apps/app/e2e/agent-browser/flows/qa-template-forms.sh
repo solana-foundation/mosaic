@@ -47,7 +47,7 @@ check "stablecoin features: confidential policy (Approval required / Opt-in)" \
     eval 'contains "$features" "Approval required" && contains "$features" "Opt-in"'
 # §8.2: enableSrfc37 is hard-coded false (stablecoin-create-form.tsx), so the
 # Access Control Mode choice never reaches the chain (lib/stablecoin.ts says as much).
-known_defect unfiled:srfc37-templates "stablecoin offers a way to turn sRFC-37 on" contains "$features" "SRFC-37"
+known_defect HOO-2947 "stablecoin offers a way to turn sRFC-37 on" contains "$features" "SRFC-37"
 dialog_click "Continue"
 sleep 0.5
 authority_gate "Create Stablecoin" 5 "Pausable Authority"
@@ -60,7 +60,7 @@ identity_gate "Tokenized Security"
 check "default multiplier preview is 1,000 × 1" contains "$(dialog_text)" "1,000 tokens × 1 = 1,000 displayed"
 ab find label "Display Multiplier" fill "2.5" >/dev/null
 check "preview follows the multiplier (× 2.5)" eventually 3 eval 'contains "$(dialog_text)" "1,000 tokens × 2.5 = 2,500 displayed"'
-known_defect unfiled:srfc37-templates "tokenized security offers a way to turn sRFC-37 on" contains "$(dialog_text)" "SRFC-37"
+known_defect HOO-2947 "tokenized security offers a way to turn sRFC-37 on" contains "$(dialog_text)" "SRFC-37"
 dialog_click "Continue"
 sleep 0.5
 authority_gate "Create Tokenized Security" 7 "Permissioned Burn Authority"

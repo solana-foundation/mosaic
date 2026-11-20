@@ -34,7 +34,7 @@ text="$(dialog_text)"
 note "rejection copy: $(grep -A1 'Error:' <<<"$text" | tr '\n' ' ' | sed 's/ *Close *$//')"
 check "no spinner is left running" not_contains "$text" "Creating..."
 # §10 row 20: a user's own cancellation is reported as a failure.
-known_defect unfiled:row20-rejection-copy "a rejection reads as a cancellation, not a failure" not_contains "$text" "Creation Failed"
+known_defect HOO-2942 "a rejection reads as a cancellation, not a failure" not_contains "$text" "Creation Failed"
 escape_all
 
 step "persistence across a reload"
@@ -88,7 +88,7 @@ open_manage "$ARCADE"
 sleep 1
 # The title row (name + Explorer + Admin Actions) does not wrap, so Admin
 # Actions runs off the right edge on a phone.
-known_defect unfiled:manage-header-phone-overflow "manage page: no horizontal scroll at 390px" not has_horizontal_overflow
+known_defect HOO-2950 "manage page: no horizontal scroll at 390px" not has_horizontal_overflow
 ab screenshot "$OUT/qa-errors-manage-390.png" >/dev/null
 note "phone-width screenshot for a human look: $OUT/qa-errors-manage-390.png"
 ab set viewport 1440 1600 >/dev/null

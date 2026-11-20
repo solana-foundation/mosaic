@@ -53,7 +53,7 @@ check "the new RPC carries a Custom chip" contains "$(popper_text)" "Custom"
 check "the RPC is stored in mosaic_rpc_settings" contains "$(ls_get mosaic_rpc_settings)" '"label":"QA RPC"'
 js '[...document.querySelectorAll("[data-radix-popper-content-wrapper] [role=button]")].find(e => e.innerText.includes("QA RPC"))?.click() ?? null' >/dev/null
 sleep 1.5
-known_defect unfiled:custom-rpc "selecting a custom RPC switches to it" not_contains "$(toasts)" "Failed to switch"
+known_defect HOO-2944 "selecting a custom RPC switches to it" not_contains "$(toasts)" "Failed to switch"
 note "custom RPC switch toast: $(toasts)"
 js 'document.querySelector("button[title=\"Remove custom RPC\"]")?.click() ?? null' >/dev/null
 check "removing the RPC clears it from storage" eventually 5 eval 'not_contains "$(ls_get mosaic_rpc_settings)" "QA RPC"'

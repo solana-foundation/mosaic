@@ -75,7 +75,7 @@ printf '%s\n' "$mint" >"$OUT/mint-stablecoin-allowlist.txt"
 freeze="$(mint_field "$mint" .freezeAuthority)"
 owner="$(CHAIN account-owner --address "$freeze")"
 note "stablecoin with Allowlist: freeze authority $freeze, owned by $owner"
-known_defect unfiled:srfc37-templates "a stablecoin created with Allowlist is put under Token ACL" equals "$owner" "$TOKEN_ACL_PROGRAM"
+known_defect HOO-2947 "a stablecoin created with Allowlist is put under Token ACL" equals "$owner" "$TOKEN_ACL_PROGRAM"
 
 assert_no_page_errors
 finish_flow

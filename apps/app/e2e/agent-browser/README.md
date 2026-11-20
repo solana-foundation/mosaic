@@ -146,7 +146,7 @@ The `qa-*` flows automate the manual UI QA matrix (the Mosaic workspace's `plans
 
 **Fixtures.** `fixtures/qa-devnet.json` lists devnet mints made by hand during the manual QA pass. Their authorities belong to a wallet the test wallets do not hold, so they are also the "connected wallet is not the authority" case, which is how `qa-free` covers unauthorized paths without spending anything. `qa-fixtures` runs first, blocks the run if one has changed, and caches each fixture's chain state for the flows after it.
 
-**Known defects.** A failing expectation with a ticket uses that ticket (`HOO-953`, `HOO-954`, `HOO-955`). One found by these flows and not yet filed uses `unfiled:<slug>`; give it the ticket id once it is filed.
+**Known defects.** A failing expectation with a ticket uses that ticket (`HOO-953`, `HOO-954`, `HOO-955`, `HOO-2865`, and `HOO-2940` to `HOO-2950` for the defects these flows found). One found by these flows and not yet filed uses `unfiled:<slug>`; give it the ticket id once it is filed.
 
 **The chain is the source of truth.** Under public-devnet rate limits the app can report a failure for a transaction that landed, and reads that fail are often swallowed into a plausible default (not paused, no token account). So funded flows assert on chain state and record the UI's verdict as a note (`ui_action`); rate-limited steps are retried only when nothing was signed yet, and UI reads that depend on a swallowed RPC call get a reload before they are judged.
 
