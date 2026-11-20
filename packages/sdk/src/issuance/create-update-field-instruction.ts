@@ -110,8 +110,12 @@ export interface ReallocateInstruction {
 }
 
 /**
- * Creates a Reallocate instruction for Token-2022 to extend account space for metadata updates.
- * This must be called before updating metadata fields to longer values.
+ * Creates a Token-2022 `Reallocate` instruction.
+ *
+ * @deprecated `Reallocate` only works on token accounts: on a mint it fails with
+ * `InvalidAccountData`. Metadata updates don't need it, because `UpdateTokenMetadataField`
+ * resizes the mint itself. Use `createUpdateMetadataTransaction`, which also tops up the
+ * mint's rent when the metadata grows.
  */
 export function createReallocateInstruction(args: ReallocateInstruction): Instruction {
     const { programAddress, mint, payer, owner, systemProgram } = args;
