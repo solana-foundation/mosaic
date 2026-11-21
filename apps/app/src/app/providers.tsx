@@ -11,15 +11,17 @@ export function Providers({ children }: { children: ReactNode }) {
     const customRpcs = useRpcStore(state => state.customRpcs);
 
     const connectorConfig = useMemo(() => {
-        // Get custom RPC URL from environment variable
+        // Custom RPC URL from the environment. It serves the configured network;
+        // next.config.js refuses a URL that serves another public cluster.
         const envRpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
+        const network = getConfiguredNetwork();
 
         // Base clusters - always available. The list itself lives in
         // lib/solana/network.ts so the network picker sees the same one; only the
         // env RPC override is applied here.
         const baseClusters = BUILTIN_CLUSTERS.map(cluster =>
-            cluster.name === 'mainnet-beta' && envRpcUrl
-                ? { ...cluster, label: 'Mainnet (Env RPC)', url: envRpcUrl }
+            cluster.name === network && envRpcUrl
+                ? { ...cluster, label: `${cluster.label} (Env RPC)`, url: envRpcUrl }
                 : cluster,
         );
 
@@ -41,7 +43,7 @@ export function Providers({ children }: { children: ReactNode }) {
             // Cluster the app boots into when the user has never picked one.
             // This is what makes a first visit land on Devnet: it becomes the
             // `initial` value of the connector's cluster storage.
-            network: getConfiguredNetwork(),
+            network,
             // Default, but stated explicitly: it is what persists an explicit
             // user choice across reloads.
             persistClusterSelection: true,
