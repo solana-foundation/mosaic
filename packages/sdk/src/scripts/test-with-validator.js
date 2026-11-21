@@ -1,6 +1,7 @@
 import { spawn } from 'child_process';
 import { setTimeout } from 'timers/promises';
 import { platform } from 'os';
+import { fileURLToPath } from 'url';
 
 const config = {
     // How long to wait for the validator's RPC to answer. A cold `solana-test-validator -r` on a
@@ -9,7 +10,24 @@ const config = {
     // Short epochs so the rate-extension tests can check that the on-chain transfer fee epoch
     // comes from the cluster clock; with the default 432000 slots the cluster stays at epoch 0,
     // which is indistinguishable from the client-side `0n` placeholder (HOO-1684, HOO-1714).
-    validatorArgs: (process.env.SOLANA_VALIDATOR_ARGS || '-r --slots-per-epoch 32').split(' '),
+    validatorArgs: [
+        ...(process.env.SOLANA_VALIDATOR_ARGS || '-r --slots-per-epoch 32').split(' '),
+        // The SPL example transfer hook, for the hooked-transfer tests (HOO-1959). The binary is
+        // `spl_transfer_hook_example_no_default_features.so` copied unchanged from
+        // solana-program/token-2022 `clients/rust-legacy/tests/fixtures/` (commit 7644591, #56;
+        // sha256 b82d95a35b0460721c253c39874d3d4932bcb5c75bbb975966025586bab4ced2). It is
+        // `spl-transfer-hook-example` from solana-program/transfer-hook built without the default
+        // `forbid-additional-mints` feature, so it accepts any mint. The address must match
+        // TRANSFER_HOOK_EXAMPLE_PROGRAM_ID in `__tests__/integration/transfer-hook-fixture.ts`.
+        '--bpf-program',
+        'FpkgZNfydbXDX7mXAjZCHwKngPnkSJkJAkkSd7Ffmw3t',
+        fileURLToPath(
+            new URL(
+                '../__tests__/integration/fixtures/spl_transfer_hook_example_no_default_features.so',
+                import.meta.url,
+            ),
+        ),
+    ],
     rpcUrl: 'http://127.0.0.1:8899',
 };
 

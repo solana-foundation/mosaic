@@ -20,6 +20,7 @@ import {
     isDefaultAccountStateSetFrozen,
 } from '../transaction-util.js';
 import { getThawPermissionlessInstructions } from '../token-acl/index.js';
+import { getTransferHookProgramId, withTransferHookAccounts } from '../transfer/transfer-hook.js';
 
 /**
  * Creates a transaction to force transfer tokens using the permanent delegate extension.
@@ -89,21 +90,31 @@ export const createForceTransferTransaction = async (
     }
 
     // Add force transfer instruction using permanent delegate authority
-    // The permanent delegate can transfer tokens without approval from the owner
+    // The permanent delegate can transfer tokens without approval from the owner.
+    // An active transfer hook needs its extra accounts appended.
+    const transferInstruction = getTransferCheckedInstruction(
+        {
+            source: sourceTokenAccount,
+            mint,
+            destination: destTokenAccount,
+            authority: permanentDelegateSigner,
+            amount: rawAmount,
+            decimals,
+        },
+        {
+            programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+        },
+    );
     instructions.push(
-        getTransferCheckedInstruction(
-            {
-                source: sourceTokenAccount,
-                mint,
-                destination: destTokenAccount,
-                authority: permanentDelegateSigner,
-                amount: rawAmount,
-                decimals,
-            },
-            {
-                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-            },
-        ),
+        await withTransferHookAccounts(transferInstruction, {
+            rpc,
+            transferHookProgramAddress: getTransferHookProgramId(extensions),
+            source: sourceTokenAccount,
+            mint,
+            destination: destTokenAccount,
+            owner: permanentDelegateSigner.address,
+            amount: rawAmount,
+        }),
     );
 
     // Get latest blockhash for transaction
