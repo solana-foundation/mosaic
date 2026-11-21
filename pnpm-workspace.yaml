@@ -1,3 +1,23 @@
 packages:
   - 'packages/*'
   - 'apps/*'
+
+# Supply-chain hardening (HOO-881)
+# 14-day soak for newly published versions. A security fix younger than that
+# goes in minimumReleaseAgeExclude as an exact 'name@version' entry.
+minimumReleaseAge: 20160
+minimumReleaseAgeExclude: []
+# No dependency may run install/build scripts unless named here after review.
+onlyBuiltDependencies: []
+# Reviewed and kept unbuilt (pnpm 10 already skipped their scripts). Each install
+# script is only a fallback: esbuild (via tsx) and unrs-resolver (via
+# eslint-config-next) load their native binary from a platform optional dependency;
+# bufferutil and utf-8-validate (via rpc-websockets) load bundled prebuilds, and
+# ws falls back to plain JS without them.
+ignoredBuiltDependencies:
+  - bufferutil
+  - esbuild
+  - unrs-resolver
+  - utf-8-validate
+# Fail the install if any other dependency ships a build script.
+strictDepBuilds: true
