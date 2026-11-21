@@ -24,7 +24,7 @@
         "dev": "tsc --watch",
         "dev:run": "tsx --import ./bin/register-zk-node.mjs src/index.ts",
         "start": "node bin/mosaic.mjs",
-        "test": "echo 'Tests will be implemented'",
+        "test": "jest",
         "lint": "eslint src --ext .ts",
         "lint:fix": "eslint src --ext .ts --fix",
         "type-check": "tsc --noEmit",
@@ -43,10 +43,13 @@
         "ora": "^8.0.1"
     },
     "devDependencies": {
+        "@types/jest": "^29.5.14",
         "@types/node": "^20.0.0",
         "@typescript-eslint/eslint-plugin": "^8.61.1",
         "@typescript-eslint/parser": "^8.61.1",
         "eslint": "^9.39.1",
+        "jest": "^29.7.0",
+        "ts-jest": "^29.4.11",
         "tsx": "^4.22.4",
         "typescript": "^5.9.3"
     },
