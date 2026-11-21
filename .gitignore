@@ -87,3 +87,6 @@ yarn.lock
 #agent skills (see skills/README.md)
 .claude/skills/
 .claude/settings.local.json
+
+# agent-browser test wallet bundle (embeds the devnet test secret key)
+.agent-browser/

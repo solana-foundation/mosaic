@@ -1,0 +1,3 @@
+# The UI QA matrix, sRFC-37 access lists on devnet (spends SOL, 2 mints plus
+# list operations): add, remove, duplicates and transfers in both modes.
+qa-acl
