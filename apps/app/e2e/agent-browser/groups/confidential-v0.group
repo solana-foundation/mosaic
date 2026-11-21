@@ -1,0 +1,4 @@
+# Confidential wizard (HOO-891), the funded flows, with confidential operations sent as
+# version-0 transactions: what every real wallet gets today.
+tx-version: 0
+@confidential-funded
