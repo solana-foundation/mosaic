@@ -1,7 +1,7 @@
 import setupTestSuite from './setup.js';
 import type { Client } from './setup.js';
 import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
-import { generateKeyPairSigner } from '@solana/kit';
+import { generateKeyPairSigner, lamports } from '@solana/kit';
 import { AuthorityType } from '@solana-program/token-2022';
 import {
     sendAndConfirmTransaction,
@@ -14,7 +14,11 @@ import {
 } from './helpers.js';
 import { Token } from '../../issuance/index.js';
 import { createMintToTransaction } from '../../management/index.js';
-import { getUpdateAuthorityTransaction, getRemoveAuthorityTransaction } from '../../administration/index.js';
+import {
+    getUpdateAuthorityTransaction,
+    getRemoveAuthorityTransaction,
+    createUpdateMetadataTransaction,
+} from '../../administration/index.js';
 
 describeSkipIf()('Administration Integration Tests', () => {
     let client: Client;
@@ -479,6 +483,101 @@ describeSkipIf()('Administration Integration Tests', () => {
                 );
 
                 await assertTxFailure(client, mintTx);
+            },
+            DEFAULT_TIMEOUT,
+        );
+    });
+
+    describe('Update Metadata', () => {
+        const ORIGINAL = { name: 'Test Token', symbol: 'TEST', uri: 'https://example.com/test.json' };
+
+        const createTokenWithMetadata = async () => {
+            const createTx = await new Token()
+                .withMetadata({
+                    mintAddress: mint.address,
+                    authority: mintAuthority.address,
+                    metadata: ORIGINAL,
+                    additionalMetadata: new Map(),
+                })
+                .buildTransaction({ rpc: client.rpc, decimals: 6, mintAuthority, mint, feePayer: payer });
+            await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+        };
+
+        const getMintAccount = async () => {
+            const { value } = await client.rpc
+                .getAccountInfo(mint.address, { encoding: 'base64', commitment: DEFAULT_COMMITMENT })
+                .send();
+            expect(value).not.toBeNull();
+            return { space: BigInt(value!.space), lamports: value!.lamports };
+        };
+
+        it(
+            'grows the URI by 200 bytes, topping up the mint rent from the fee payer (HOO-955)',
+            async () => {
+                await createTokenWithMetadata();
+                const before = await getMintAccount();
+                const uri = ORIGINAL.uri + '?' + 'x'.repeat(199);
+
+                const updateTx = await createUpdateMetadataTransaction(client.rpc, {
+                    mint: mint.address,
+                    updateAuthority: mintAuthority,
+                    feePayer: payer,
+                    updates: [{ field: 'uri', value: uri }],
+                });
+                // The freshly created mint holds exactly its rent, so the builder must add a top-up
+                expect(updateTx.instructions).toHaveLength(2);
+                assertTxSuccess(await sendAndConfirmTransaction(client, updateTx, DEFAULT_COMMITMENT));
+
+                await assertToken(client.rpc, mint.address, {
+                    metadata: { ...ORIGINAL, uri, updateAuthority: mintAuthority.address },
+                });
+                const after = await getMintAccount();
+                expect(after.space).toBe(before.space + 200n);
+                const rent = await client.rpc.getMinimumBalanceForRentExemption(after.space).send();
+                expect(after.lamports).toBe(lamports(rent));
+            },
+            DEFAULT_TIMEOUT,
+        );
+
+        it(
+            'updates name, symbol and URI in one transaction, shrinking without a top-up',
+            async () => {
+                await createTokenWithMetadata();
+                const updates = [
+                    { field: 'name', value: 'Renamed' },
+                    { field: 'symbol', value: 'RN' },
+                    { field: 'uri', value: 'https://e.co/r.json' },
+                ] as const;
+
+                const updateTx = await createUpdateMetadataTransaction(client.rpc, {
+                    mint: mint.address,
+                    updateAuthority: mintAuthority,
+                    feePayer: payer,
+                    updates,
+                });
+                expect(updateTx.instructions).toHaveLength(3);
+                assertTxSuccess(await sendAndConfirmTransaction(client, updateTx, DEFAULT_COMMITMENT));
+
+                await assertToken(client.rpc, mint.address, {
+                    metadata: { name: 'Renamed', symbol: 'RN', uri: 'https://e.co/r.json' },
+                });
+            },
+            DEFAULT_TIMEOUT,
+        );
+
+        it(
+            'refuses to build when the signer is not the metadata update authority',
+            async () => {
+                await createTokenWithMetadata();
+
+                await expect(
+                    createUpdateMetadataTransaction(client.rpc, {
+                        mint: mint.address,
+                        updateAuthority: newAuthority,
+                        feePayer: payer,
+                        updates: [{ field: 'symbol', value: 'NOPE' }],
+                    }),
+                ).rejects.toThrow('is not the metadata update authority');
             },
             DEFAULT_TIMEOUT,
         );

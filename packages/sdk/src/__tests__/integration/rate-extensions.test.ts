@@ -13,6 +13,7 @@ import {
 import { Token } from '../../issuance/index.js';
 import { createCustomTokenInitTransaction } from '../../templates/index.js';
 import { inspectToken } from '../../inspection/index.js';
+import { createUpdateScaledUiMultiplierTransaction } from '../../management/index.js';
 import type { FullTransaction } from '../../transaction-util.js';
 
 // How far the rate-bearing timestamps may drift from the confirming block's time
@@ -165,6 +166,60 @@ describe('Rate extension integration tests', () => {
                 newMultiplier: 3,
                 newMultiplierEffectiveTimestamp: 0n,
             });
+        },
+        DEFAULT_TIMEOUT,
+    );
+
+    const updateMultiplier = async (multiplier: number, effectiveTimestamp?: bigint) => {
+        const tx = await createUpdateScaledUiMultiplierTransaction(client.rpc, {
+            mint: mint.address,
+            authority: mintAuthority,
+            multiplier,
+            effectiveTimestamp,
+            feePayer: payer,
+        });
+        return sendAndConfirmTransaction(client, tx, DEFAULT_COMMITMENT);
+    };
+
+    it(
+        'scaled UI multiplier update takes effect immediately (HOO-955)',
+        async () => {
+            const tx = await customToken({ enableScaledUiAmount: true, scaledUiAmountMultiplier: 3 });
+            await sendAndConfirmTransaction(client, tx, DEFAULT_COMMITMENT);
+
+            await updateMultiplier(7);
+
+            const { scaledUiAmount } = await inspectToken(client.rpc, mint.address, DEFAULT_COMMITMENT);
+            expect(scaledUiAmount).toMatchObject({
+                enabled: true,
+                multiplier: 7,
+                newMultiplier: 7,
+                authority: mintAuthority.address,
+            });
+        },
+        DEFAULT_TIMEOUT,
+    );
+
+    it(
+        'scaled UI multiplier: an immediate update overwrites a pending scheduled change',
+        async () => {
+            const tx = await customToken({ enableScaledUiAmount: true, scaledUiAmountMultiplier: 3 });
+            await sendAndConfirmTransaction(client, tx, DEFAULT_COMMITMENT);
+
+            const effectiveTimestamp = BigInt(Math.floor(Date.now() / 1000) + 3600);
+            await updateMultiplier(5, effectiveTimestamp);
+            const scheduled = await inspectToken(client.rpc, mint.address, DEFAULT_COMMITMENT);
+            expect(scheduled.scaledUiAmount).toMatchObject({
+                multiplier: 3,
+                newMultiplier: 5,
+                newMultiplierEffectiveTimestamp: effectiveTimestamp,
+            });
+
+            await updateMultiplier(7);
+
+            const { scaledUiAmount } = await inspectToken(client.rpc, mint.address, DEFAULT_COMMITMENT);
+            expect(scaledUiAmount).toMatchObject({ multiplier: 7, newMultiplier: 7 });
+            expect(scaledUiAmount!.newMultiplierEffectiveTimestamp).not.toBe(effectiveTimestamp);
         },
         DEFAULT_TIMEOUT,
     );
