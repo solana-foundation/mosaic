@@ -1,38 +1,55 @@
 name: 'Setup Solana CLI'
-description: 'Install and cache Solana CLI'
+description: 'Install and cache the Solana CLI from the checksum-verified agave release tarball (Linux x86_64 only)'
+
+# Bump `version` and `sha256` together. The digest of a release's tarball comes from:
+#   gh api repos/anza-xyz/agave/releases/tags/<version> --jq '.assets[]
+#     | select(.name == "solana-release-x86_64-unknown-linux-gnu.tar.bz2") | .digest | ltrimstr("sha256:")'
+inputs:
+  version:
+    description: 'agave release tag to install'
+    required: false
+    default: 'v2.2.20'
+  sha256:
+    description: 'SHA-256 of solana-release-x86_64-unknown-linux-gnu.tar.bz2 for that release'
+    required: false
+    default: 'c9b57cc8a36b54c21b5de9f9065217499082446efffe22cb636c58b2858aceaa'
 
 runs:
   using: 'composite'
   steps:
-    - name: Get current week for cache key
-      id: week
-      shell: bash
-      run: echo "week=$(date +'%Y-W%U')" >> $GITHUB_OUTPUT
-
-    - name: Cache Solana CLI installation
+    # The key includes the digest, so a cache hit always holds the bytes the current pin verified.
+    - name: Cache Solana release
+      id: cache
       uses: actions/cache@v4
       with:
-        path: ~/.local/share/solana
-        key: solana-cli-stable-${{ runner.os }}-${{ steps.week.outputs.week }}
-        restore-keys: |
-          solana-cli-stable-${{ runner.os }}-
+        path: ~/.local/share/solana/install/releases/${{ inputs.version }}
+        key: solana-release-${{ runner.os }}-${{ inputs.version }}-${{ inputs.sha256 }}
 
-    - name: Install Solana CLI
+    - name: Download and verify Solana release
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+        SHA256: ${{ inputs.sha256 }}
+      run: |
+        set -euo pipefail
+        TARBALL="$RUNNER_TEMP/solana-release.tar.bz2"
+        DEST="$HOME/.local/share/solana/install/releases/$VERSION"
+        curl -sSfL --retry 3 -o "$TARBALL" \
+          "https://github.com/anza-xyz/agave/releases/download/$VERSION/solana-release-x86_64-unknown-linux-gnu.tar.bz2"
+        echo "$SHA256  $TARBALL" | sha256sum -c -
+        mkdir -p "$DEST"
+        tar -xjf "$TARBALL" -C "$DEST"
+        rm -f "$TARBALL"
+
+    - name: Add Solana to PATH
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: echo "$HOME/.local/share/solana/install/releases/$VERSION/solana-release/bin" >> "$GITHUB_PATH"
+
+    - name: Check Solana CLI
       shell: bash
       run: |
-        # Check if already installed
-        if command -v solana &> /dev/null; then
-          echo "Solana CLI already installed"
-          solana --version
-          exit 0
-        fi
-
-        # Install Solana CLI (stable version)
-        sh -c "$(curl -sSfL https://release.anza.xyz/v2.2.20/install)"
-        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-
-        # Verify installation
         solana --version
         solana-test-validator --version
-        cargo-build-sbf --version
