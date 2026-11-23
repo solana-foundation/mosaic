@@ -8,9 +8,9 @@ import {
 } from '@solana/kit';
 import { fetchMint } from '@solana-program/token-2022';
 import { getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply } from '@solana-program/token-2022/confidential';
+import { toSigner } from '../signers.js';
 import { getConfidentialMintBurnSupplyElgamalPubkey, isConfidentialMintBurn } from './extensions.js';
 import { assertConfidentialKeysMatchSupply, type ConfidentialKeys } from './keys.js';
-import { toAuthoritySigner } from './util.js';
 
 /**
  * Management for a `ConfidentialMintBurn` mint's supply-side state.
@@ -73,7 +73,7 @@ function buildUpdateDecryptableSupplyPlan(args: UpdateDecryptableSupplyArgs): In
     return singleInstructionPlan(
         getUpdateConfidentialMintBurnDecryptableSupplyInstructionFromSupply({
             mint: args.mint,
-            authority: toAuthoritySigner(args.authority),
+            authority: toSigner(args.authority),
             supplyAesKey: args.supplyKeys.aes,
             supply: args.rawSupply,
         }),

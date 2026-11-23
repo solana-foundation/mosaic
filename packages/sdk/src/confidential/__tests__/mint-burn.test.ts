@@ -305,13 +305,10 @@ describe('confidential mint (wrapper)', () => {
             expect(mockGetConfidentialMintInstructionPlan).not.toHaveBeenCalled();
             // An empty option object must not fabricate record args; upstream
             // defaults them (record payer -> payer, authority -> ephemeral signer).
-            expect(mockGetConfidentialMintWithRecordInstructionPlan).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    recordPayer: undefined,
-                    recordAuthority: undefined,
-                    recordRentReceiver: undefined,
-                }),
-            );
+            const recordArgs = mockGetConfidentialMintWithRecordInstructionPlan.mock.calls[0][0] as any;
+            expect(recordArgs.recordPayer).toBeUndefined();
+            expect(recordArgs.recordAuthority).toBeUndefined();
+            expect(recordArgs.recordRentReceiver).toBeUndefined();
         });
 
         it('forwards the record payer, authority and rent receiver', async () => {
@@ -325,7 +322,7 @@ describe('confidential mint (wrapper)', () => {
                 authority: AUTHORITY,
                 amount: '1',
                 supplyKeys: fakeSupplyKeys,
-                recordBackedProof: { payer: recordPayer, authority: recordAuthority, rentReceiver: AUTHORITY },
+                recordBackedProof: { recordPayer, recordAuthority, recordRentReceiver: AUTHORITY },
             });
             expect(mockGetConfidentialMintWithRecordInstructionPlan).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -620,7 +617,7 @@ describe('confidential burn (wrapper)', () => {
                 authority: AUTHORITY,
                 amount: '2',
                 keys: fakeKeys,
-                recordBackedProof: { authority: recordAuthority },
+                recordBackedProof: { recordAuthority },
             });
             expect(plan).toBe(burnWithRecordPlan);
             expect(mockGetConfidentialBurnInstructionPlan).not.toHaveBeenCalled();

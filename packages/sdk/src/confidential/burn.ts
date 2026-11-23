@@ -15,6 +15,7 @@ import {
     getPermissionedConfidentialBurnInstructionPlan,
     getPermissionedConfidentialBurnWithRecordInstructionPlan,
 } from '@solana-program/token-2022/confidential';
+import { toSigner } from '../signers.js';
 import { getPermissionedBurnAuthorityFromMint } from '../transaction-util.js';
 import {
     getConfidentialTransferAccountElgamalPubkey,
@@ -24,13 +25,7 @@ import {
 } from './extensions.js';
 import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
 import { assertConfidentialSupplyKeysForMint, buildUpdateDecryptableSupplyPlan } from './supply.js';
-import {
-    type RecordBackedProof,
-    type TokenAmount,
-    toRecordProofArgs,
-    tokenAmountToRaw,
-    toAuthoritySigner,
-} from './util.js';
+import { type RecordBackedProof, type TokenAmount, tokenAmountToRaw } from './util.js';
 
 /**
  * Confidentially **burns** tokens from an account's available confidential
@@ -130,7 +125,7 @@ export async function createConfidentialBurnInstructionPlan(input: {
 
     const amount = tokenAmountToRaw(input.amount, mintDecoded.data.decimals);
 
-    const authoritySigner = toAuthoritySigner(input.authority);
+    const authoritySigner = toSigner(input.authority);
 
     const commonArgs = {
         rpc: input.rpc,
@@ -148,8 +143,7 @@ export async function createConfidentialBurnInstructionPlan(input: {
 
     // Resolved once so the standard, permissioned and self-burn branches below all
     // opt into the record-backed range proof identically.
-    const recordProofArgs =
-        input.recordBackedProof === undefined ? undefined : toRecordProofArgs(input.recordBackedProof);
+    const recordProofArgs = input.recordBackedProof;
 
     // On a PermissionedBurn mint the token-2022 program rejects the standard
     // burn variant (TokenError::InvalidInstruction) and requires the
@@ -163,7 +157,7 @@ export async function createConfidentialBurnInstructionPlan(input: {
                     `(the burn-authority signer, or its address for a raw transaction).`,
             );
         }
-        const providedAuthority = toAuthoritySigner(input.permissionedBurnAuthority);
+        const providedAuthority = toSigner(input.permissionedBurnAuthority);
         if (providedAuthority.address !== permissionedBurnAuthority) {
             throw new Error(
                 `Mint ${input.mint}'s configured permissioned burn authority is ${permissionedBurnAuthority}, ` +
@@ -275,7 +269,7 @@ export async function createApplyConfidentialPendingBurnInstructionPlan(input: {
     // Normalized once: both instructions land in one transaction, and Kit rejects
     // two distinct signers for the same address, so a bare address must not
     // become two separate no-op signers.
-    const authority = toAuthoritySigner(input.authority);
+    const authority = toSigner(input.authority);
     const applyPlan = singleInstructionPlan(
         getApplyConfidentialPendingBurnInstruction({
             mint: input.mint,

@@ -11,6 +11,7 @@ import {
     getConfidentialMintInstructionPlan,
     getConfidentialMintWithRecordInstructionPlan,
 } from '@solana-program/token-2022/confidential';
+import { toSigner } from '../signers.js';
 import {
     getConfidentialMintBurnSupplyElgamalPubkey,
     isConfidentialMintBurn,
@@ -18,13 +19,7 @@ import {
     isConfidentialTransferMint,
 } from './extensions.js';
 import { assertConfidentialKeysMatchSupply, type ConfidentialKeys } from './keys.js';
-import {
-    type RecordBackedProof,
-    type TokenAmount,
-    toRecordProofArgs,
-    tokenAmountToRaw,
-    toAuthoritySigner,
-} from './util.js';
+import { type RecordBackedProof, type TokenAmount, tokenAmountToRaw } from './util.js';
 
 /**
  * Confidentially **mints** tokens directly into a confidential balance,
@@ -126,7 +121,7 @@ export async function createConfidentialMintInstructionPlan(input: {
         mint: input.mint,
         mintAccount: mintDecoded.data,
         destinationTokenAccount: destinationDecoded.data,
-        authority: toAuthoritySigner(input.authority),
+        authority: toSigner(input.authority),
         amount,
         supplyElgamalKeypair: input.supplyKeys.elgamal,
         supplyAesKey: input.supplyKeys.aes,
@@ -136,7 +131,7 @@ export async function createConfidentialMintInstructionPlan(input: {
     if (input.recordBackedProof !== undefined) {
         return getConfidentialMintWithRecordInstructionPlan({
             ...args,
-            ...toRecordProofArgs(input.recordBackedProof),
+            ...input.recordBackedProof,
         });
     }
     return getConfidentialMintInstructionPlan(args);
