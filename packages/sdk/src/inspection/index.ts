@@ -10,6 +10,12 @@ export {
     satisfiesSecurityTokenPattern,
     TOKEN_TYPE_LABELS,
 } from './inspect-token.js';
+export { resolveScaledUiMultiplier } from './scaled-ui-multiplier.js';
+export type {
+    ScaledUiMultiplierSchedule,
+    ScaledUiMultiplierStatus,
+    ScheduledScaledUiMultiplier,
+} from './scaled-ui-multiplier.js';
 export type {
     TokenMetadata,
     TokenAuthorities,

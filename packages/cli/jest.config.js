@@ -10,8 +10,7 @@ export default {
             'ts-jest',
             {
                 useESM: true,
-                // Same reason as packages/sdk/jest.config.js: under `module: nodenext` ts-jest
-                // falls back to CJS emit and breaks ESM-mode jest, so pin classic ESM emit.
+                // Same override as packages/sdk/jest.config.js: ts-jest can't pick ESM output under nodenext
                 tsconfig: {
                     module: 'esnext',
                     moduleResolution: 'bundler',
@@ -20,9 +19,10 @@ export default {
         ],
     },
     moduleNameMapper: {
-        // Sources use explicit `.js` extensions on relative imports (Node ESM);
-        // strip them so jest resolves back to the `.ts` sources.
+        // Sources use explicit `.js` extensions on relative imports (Node ESM); resolve them to the `.ts` sources
         '^(\\.{1,2}/.*)\\.js$': '$1',
+        // The SDK only exports an ESM `import` condition, which CommonJS jest can't resolve; test against its sources
+        '^@solana/mosaic-sdk$': '<rootDir>/../sdk/src/index.ts',
     },
     moduleFileExtensions: ['ts', 'js', 'json'],
 };

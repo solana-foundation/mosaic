@@ -17,6 +17,7 @@ import {
     useTransferHookState,
 } from '@/stores/token-extension-store';
 import { isAddress } from '@solana/kit';
+import { resolveScaledUiMultiplier } from '@solana/mosaic-sdk';
 import { formatInterestRate, formatScaledUiMultiplier, formatTransferFee } from '@/lib/token/extension-rates';
 
 interface TokenExtensionsProps {
@@ -182,16 +183,22 @@ function ManageTokenExtensionsWithWallet({ token }: { token: TokenDisplay }) {
 
     // Re-render when a scheduled multiplier change takes effect, so an idle page stops showing it as pending
     const [, setScaledUiTick] = useState(0);
-    const scheduledMultiplierAt = token.scaledUiNewMultiplierEffectiveTimestamp;
+    const { scaledUiMultiplier, scaledUiNewMultiplier, scaledUiNewMultiplierEffectiveTimestamp } = token;
     useEffect(() => {
-        if (!scheduledMultiplierAt || !/^\d+$/.test(scheduledMultiplierAt)) return;
-        const delayMs = Number(scheduledMultiplierAt) * 1000 - Date.now();
-        // Past changes already render as applied; skip delays beyond setTimeout's 32-bit limit (~24.8 days)
-        if (delayMs <= 0 || delayMs > 2 ** 31 - 1 - 1000) return;
+        const scheduled = resolveScaledUiMultiplier({
+            multiplier: scaledUiMultiplier,
+            newMultiplier: scaledUiNewMultiplier,
+            newMultiplierEffectiveTimestamp: scaledUiNewMultiplierEffectiveTimestamp,
+        })?.scheduled;
+        // Nothing pending: no change scheduled, or it already renders as applied
+        if (!scheduled || scheduled.active) return;
+        const delayMs = Number(scheduled.effectiveAt) * 1000 - Date.now();
+        // Skip delays beyond setTimeout's 32-bit limit (~24.8 days)
+        if (delayMs > 2 ** 31 - 1 - 1000) return;
         // 1s of slack so the render lands strictly after the effective second
         const timer = setTimeout(() => setScaledUiTick(tick => tick + 1), delayMs + 1000);
         return () => clearTimeout(timer);
-    }, [scheduledMultiplierAt]);
+    }, [scaledUiMultiplier, scaledUiNewMultiplier, scaledUiNewMultiplierEffectiveTimestamp]);
 
     // Get transfer hook state from centralized store
     const {
