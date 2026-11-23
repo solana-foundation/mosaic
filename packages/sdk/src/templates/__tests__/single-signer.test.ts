@@ -1,5 +1,5 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
-import { generateKeyPairSigner, signTransactionMessageWithSigners } from '@solana/kit';
+import { createNoopSigner, generateKeyPairSigner, signTransactionMessageWithSigners } from '@solana/kit';
 import { createMockRpc } from '../../__tests__/test-utils.js';
 import type { FullTransaction } from '../../transaction-util.js';
 import { createArcadeTokenInitTransaction } from '../arcade-token.js';
@@ -52,5 +52,35 @@ describe.each(templates)('%s template, single signer', (_name, build) => {
         const mint = await generateKeyPairSigner();
         const tx = await build(createMockRpc(), mintAuthority, mint, mintAuthority.address);
         await expect(signTransactionMessageWithSigners(tx as never)).resolves.toBeDefined();
+    });
+
+    // e.g. a wallet adapter's signer as fee payer, plus a no-op signer for the same key.
+    it('signs when the mint authority is a different signer object for the fee payer address', async () => {
+        const feePayer = await generateKeyPairSigner();
+        const mint = await generateKeyPairSigner();
+        const tx = await build(createMockRpc(), createNoopSigner(feePayer.address), mint, feePayer);
+        await expect(signTransactionMessageWithSigners(tx as never)).resolves.toBeDefined();
+    });
+
+    // The reverse: a no-op fee payer must not replace the real mint authority, or the
+    // key would carry an empty signature.
+    it('signs with the real mint authority when the fee payer is a no-op for the same key', async () => {
+        const mintAuthority = await generateKeyPairSigner();
+        const mint = await generateKeyPairSigner();
+        const tx = await build(createMockRpc(), mintAuthority, mint, createNoopSigner(mintAuthority.address));
+        const signed = await signTransactionMessageWithSigners(tx as never);
+        expect(signed.signatures[mintAuthority.address]).toBeTruthy();
+    });
+
+    // A bare address that is not the fee payer has no signer to initialize the
+    // metadata with. It must fail here, with the targeted error, rather than build
+    // a transaction that later fails to sign with a generic missing-signature error.
+    it('rejects a different bare-address mint authority up front', async () => {
+        const feePayer = await generateKeyPairSigner();
+        const mint = await generateKeyPairSigner();
+        const otherAuthority = (await generateKeyPairSigner()).address;
+        await expect(build(createMockRpc(), otherAuthority, mint, feePayer)).rejects.toThrow(
+            /mintAuthority must be a TransactionSigner/,
+        );
     });
 });

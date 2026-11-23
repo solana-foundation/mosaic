@@ -12,7 +12,6 @@ import {
     createSolanaRpc,
     generateKeyPairSigner,
     flattenTransactionPlan,
-    getAddressDecoder,
     getBase58Encoder,
     getBase64EncodedWireTransaction,
     getSignatureFromTransaction,
@@ -45,6 +44,7 @@ import {
     deriveConfidentialKeys,
     estimateAndSetConfidentialResourceLimits,
     freeConfidentialKeys,
+    getConfidentialKeysElgamalAddress,
     inspectConfidentialAccount,
     planConfidentialInstructions,
     type ConfidentialKeys,
@@ -365,16 +365,6 @@ function trackSteps(client: Client) {
     return { txLog, record, step };
 }
 
-/** The ElGamal public key of a key pair, as the `Address` a mint extension stores. */
-function elgamalPubkeyAddress(keys: ConfidentialKeys): Address {
-    const pubkey = keys.elgamal.pubkey();
-    try {
-        return getAddressDecoder().decode(pubkey.toBytes());
-    } finally {
-        pubkey.free();
-    }
-}
-
 describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
     let client: Client;
     let payer: KeyPairSigner<string>;
@@ -674,7 +664,7 @@ describeSkipIf(!RUN)('confidential transfer (devnet e2e)', () => {
                 })
                 .withConfidentialTransferFee({
                     authority: payer.address,
-                    withdrawWithheldAuthorityElGamalPubkey: elgamalPubkeyAddress(withheldKeys),
+                    withdrawWithheldAuthorityElGamalPubkey: getConfidentialKeysElgamalAddress(withheldKeys),
                 })
                 .buildTransaction({
                     rpc: rpc as Rpc<SolanaRpcApiMainnet>,

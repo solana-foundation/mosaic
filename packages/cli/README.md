@@ -11,7 +11,7 @@ CLI for building and operating Token-2022 mints with modern extensions on Solana
 
 ## Installation
 
-Requires Node.js 20.6+.
+Requires Node.js 20.19+.
 
 ```bash
 # from npm

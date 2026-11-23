@@ -1,6 +1,5 @@
 import {
     type Address,
-    type GetMinimumBalanceForRentExemptionApi,
     type InstructionPlan,
     type Rpc,
     type SolanaRpcApi,
@@ -31,7 +30,7 @@ import type { ConfidentialKeys } from './keys.js';
  * {@link createApproveConfidentialAccountInstructionPlan}.
  */
 export async function createConfigureConfidentialAccountInstructionPlan(input: {
-    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
+    rpc: Rpc<SolanaRpcApi>;
     /** Pays for account creation / rent. */
     payer: TransactionSigner;
     /** The token account owner. */
