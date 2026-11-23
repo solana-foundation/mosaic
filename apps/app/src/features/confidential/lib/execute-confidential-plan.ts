@@ -39,7 +39,11 @@ import type { ConfidentialTxVersion } from './transaction-version';
  * with none of the 200k-compute-units-per-instruction fallback legacy and
  * version-0 transactions get. A version-1 message sent without them fails, so
  * the send loop below simulates and sets them per transaction. See
- * `useConfidentialTxVersion` for how the version is chosen.
+ * `useConfidentialTxVersion` for how the version is chosen. A version-1 plan
+ * needs a version-1-capable signer: `@solana/connector` ≥ 0.3.0, whose
+ * `useKitTransactionSigner` is built on `@solana/wallet-account-signer`. Before
+ * 0.3.0 its hand-rolled Kit bridge capped transactions at 1232 bytes and wrote
+ * version-1 wire bytes signatures-first.
  */
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -53,11 +57,16 @@ const TRANSIENT =
 // A wallet or node that cannot handle a version-1 transaction at all: an
 // unknown message version, a wire transaction it fails to deserialize, or an
 // RPC whose simulation result omits `loadedAccountsDataSize` (which version 1
-// cannot be sent without, so the SDK's estimator throws on it). Kept narrow and
-// separate from TRANSIENT on purpose — it triggers a re-plan at version 0, and
-// must never swallow a genuine failure of the operation itself.
+// cannot be sent without, so the SDK's estimator throws on it). Also covers a
+// version-1-unaware signing path: `@solana/connector`'s legacy 1232-byte size
+// check, which rejects before the wallet is asked, and web3.js-based wallets'
+// `VersionedTransaction.deserialize` ("Transaction message version 1
+// deserialization is not supported", "…with version 0 but found version 1").
+// Kept narrow and separate from TRANSIENT on purpose — it triggers a re-plan at
+// version 0, and must never swallow a genuine failure of the operation itself
+// (a user rejection, in particular, must not silently re-prompt at version 0).
 const V1_UNSUPPORTED =
-    /unsupported (transaction|message) version|unknown (transaction|message) version|transaction version .* not supported|failed to deserialize|loadedAccountsDataSize/i;
+    /unsupported (transaction|message) version|unknown (transaction|message) version|transaction version .* not supported|message version \d+ deserialization is not supported|with version 0 but found version|failed to deserialize|loadedAccountsDataSize|Transaction too large: \d+ bytes \(max 1232/i;
 
 /**
  * Every message in an error's `cause` chain, joined.
@@ -68,6 +77,11 @@ const V1_UNSUPPORTED =
  * `cause`. Matching the outer message alone therefore misses both the rate
  * limits that should be retried and the format rejections that should fall back
  * to version 0 — so every classifier below reads the whole chain.
+ *
+ * `@solana/connector` wraps differently: its `ConnectorError` keeps the wrapped
+ * error on `originalError` and leaves `cause` unset, so a wallet failure surfaces
+ * as the bare "Failed to sign transaction 1 of 1". Each link therefore follows
+ * `cause` first and `originalError` second.
  */
 function messageChain(err: unknown): string {
     const parts: string[] = [];
@@ -75,7 +89,7 @@ function messageChain(err: unknown): string {
     // Bounded: a malformed `cause` graph could otherwise cycle forever.
     for (let depth = 0; current instanceof Error && depth < 8; depth++) {
         parts.push(current.message);
-        current = current.cause;
+        current = current.cause ?? (current as { originalError?: unknown }).originalError;
     }
     return parts.join(' | ');
 }
