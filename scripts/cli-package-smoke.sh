@@ -31,6 +31,8 @@ npx mosaic --version
 npx mosaic --help
 npx mosaic inspect-mint --help
 npx mosaic create stablecoin --help
+npx mosaic confidential --help
+npx mosaic confidential transfer --help
 
 # The published SDK must be importable in plain Node too, with no resolve hook:
 # upstream token-2022 statically imports `@solana/zk-sdk/bundler`, whose wasm

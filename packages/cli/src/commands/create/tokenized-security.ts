@@ -13,8 +13,15 @@ import { findListConfigPda } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda } from '@solana/token-acl-sdk';
 import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
 import { accountsStartFrozen, defaultAccountStateLabel } from '../../utils/default-account-state.js';
+import {
+    addConfidentialCreateOptions,
+    describeConfidentialExtensions,
+    getConfidentialBalancesConfig,
+    getConfidentialMintBurnInitFromFlags,
+    type ConfidentialCreateFlags,
+} from '../../utils/confidential-create.js';
 
-interface TokenizedSecuritiesOptions {
+interface TokenizedSecuritiesOptions extends ConfidentialCreateFlags {
     name: string;
     symbol: string;
     decimals: string;
@@ -32,7 +39,7 @@ interface TokenizedSecuritiesOptions {
     mintKeypair?: string;
 }
 
-export const createTokenizedSecurityCommand = new Command('tokenized-security')
+export const createTokenizedSecurityCommand = addConfidentialCreateOptions(new Command('tokenized-security'))
     .description('Create a new tokenized security with Token-2022 extensions (stablecoin set + Scaled UI Amount)')
     .requiredOption('-n, --name <name>', 'Token name')
     .requiredOption('-s, --symbol <symbol>', 'Token symbol')
@@ -110,6 +117,8 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
             const permissionedBurnAuthority = (options.permissionedBurnAuthority || mintAuthority) as Address;
             const scaledUiAmountAuthority = (options.scaledUiAmountAuthority || mintAuthority) as Address;
+            const confidentialBalances = getConfidentialBalancesConfig(options);
+            const confidentialMintBurn = await getConfidentialMintBurnInitFromFlags(options);
             spinner.text = 'Building transaction...';
 
             const transaction = await createTokenizedSecurityInitTransaction(
@@ -134,6 +143,8 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
                         multiplier,
                     },
                     enableSrfc37: options.enableSrfc37,
+                    confidentialBalances,
+                    confidentialMintBurn,
                 },
             );
 
@@ -189,7 +200,9 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
                     ),
                 );
             }
-            console.log(`   ${chalk.green('✓')} Confidential Balances`);
+            for (const line of describeConfidentialExtensions(confidentialBalances, confidentialMintBurn)) {
+                console.log(`   ${chalk.green('✓')} ${line}`);
+            }
             console.log(`   ${chalk.green('✓')} Permanent Delegate`);
             console.log(`   ${chalk.green('✓')} Permissioned Burn`);
             console.log(`   ${chalk.green('✓')} Scaled UI Amount (multiplier=${multiplier})`);

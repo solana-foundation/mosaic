@@ -8,8 +8,15 @@ import { findListConfigPda } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda } from '@solana/token-acl-sdk';
 import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
 import { accountsStartFrozen, defaultAccountStateLabel } from '../../utils/default-account-state.js';
+import {
+    addConfidentialCreateOptions,
+    describeConfidentialExtensions,
+    getConfidentialBalancesConfig,
+    getConfidentialMintBurnInitFromFlags,
+    type ConfidentialCreateFlags,
+} from '../../utils/confidential-create.js';
 
-interface StablecoinOptions {
+interface StablecoinOptions extends ConfidentialCreateFlags {
     name: string;
     symbol: string;
     decimals: string;
@@ -24,7 +31,7 @@ interface StablecoinOptions {
     mintKeypair?: string;
 }
 
-export const createStablecoinCommand = new Command('stablecoin')
+export const createStablecoinCommand = addConfidentialCreateOptions(new Command('stablecoin'))
     .description('Create a new stablecoin with Token-2022 extensions')
     .requiredOption('-n, --name <name>', 'Token name')
     .requiredOption('-s, --symbol <symbol>', 'Token symbol')
@@ -94,6 +101,8 @@ export const createStablecoinCommand = new Command('stablecoin')
             const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
             const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
             const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
+            const confidentialBalances = getConfidentialBalancesConfig(options);
+            const confidentialMintBurn = await getConfidentialMintBurnInitFromFlags(options);
 
             spinner.text = 'Building transaction...';
 
@@ -113,6 +122,9 @@ export const createStablecoinCommand = new Command('stablecoin')
                 confidentialBalancesAuthority,
                 permanentDelegateAuthority,
                 options.enableSrfc37,
+                undefined, // freezeAuthority: the template's default
+                confidentialBalances,
+                confidentialMintBurn,
             );
 
             if (rawTx) {
@@ -168,7 +180,9 @@ export const createStablecoinCommand = new Command('stablecoin')
                     ),
                 );
             }
-            console.log(`   ${chalk.green('✓')} Confidential Balances`);
+            for (const line of describeConfidentialExtensions(confidentialBalances, confidentialMintBurn)) {
+                console.log(`   ${chalk.green('✓')} ${line}`);
+            }
             console.log(`   ${chalk.green('✓')} Permanent Delegate`);
 
             if (options.uri) {
