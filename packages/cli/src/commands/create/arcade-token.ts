@@ -1,20 +1,18 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ABL_PROGRAM_ID, createArcadeTokenInitTransaction, TOKEN_ACL_PROGRAM_ID } from '@solana/mosaic-sdk';
-import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
+import { createRpcClient, createRpcSubscriptions, resolveRpcUrl } from '../../utils/rpc.js';
+import { loadKeypair, resolveSigners } from '../../utils/solana.js';
 import {
     generateKeyPairSigner,
-    signTransactionMessageWithSigners,
     type Address,
     type TransactionSigner,
     sendAndConfirmTransactionFactory,
-    assertIsTransactionWithBlockhashLifetime,
-    getSignatureFromTransaction,
 } from '@solana/kit';
 import { findListConfigPda } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda } from '@solana/token-acl-sdk';
-import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
+import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
+import { accountsStartFrozen, defaultAccountStateLabel } from '../../utils/default-account-state.js';
 
 interface ArcadeTokenOptions {
     name: string;
@@ -51,7 +49,7 @@ export const createArcadeTokenCommand = new Command('arcade-token')
     })
     .action(async (options: ArcadeTokenOptions, command) => {
         const parentOpts = getGlobalOpts(command);
-        const rpcUrl = parentOpts.rpcUrl;
+        const rpcUrl = resolveRpcUrl(parentOpts.rpcUrl);
         const rawTx: string | undefined = parentOpts.rawTx;
         const spinner = createSpinner('Creating arcade token...', rawTx);
 
@@ -62,11 +60,7 @@ export const createArcadeTokenCommand = new Command('arcade-token')
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-            // Load signer and payer keypairs
-            const signerKeypair = rawTx ? null : await loadKeypair(parentOpts.keypair);
-            const signerAddress = rawTx ? (options.mintAuthority as Address) : (signerKeypair!.address as Address);
-
-            // Generate or load mint keypair (must be a signer if not raw)
+            // Generate or load the mint keypair; it always signs, in raw mode too
             let mintKeypair: TransactionSigner<string>;
             if (options.mintKeypair) {
                 mintKeypair = await loadKeypair(options.mintKeypair);
@@ -74,14 +68,24 @@ export const createArcadeTokenCommand = new Command('arcade-token')
                 mintKeypair = await generateKeyPairSigner();
             }
 
+            // The mint authority signs (metadata init requires it), so it is resolved as a signer:
+            // --mint-authority, else --authority, else the --keypair signer. A role at the mint's
+            // address reuses the mint keypair's signer.
+            const { authority: mintAuthoritySigner, feePayer } = await resolveSigners(
+                parentOpts,
+                options.mintAuthority ?? parentOpts.authority,
+                options.mintAuthority ? '--mint-authority' : '--authority',
+                [mintKeypair],
+            );
+
             // Parse decimals
             const decimals = parseInt(options.decimals, 10);
             if (isNaN(decimals) || decimals < 0 || decimals > 9) {
                 throw new Error('Decimals must be a number between 0 and 9');
             }
 
-            // Set authorities (default to signer if not provided)
-            const mintAuthority = (options.mintAuthority || signerAddress) as Address;
+            // Set authorities (default to the mint authority if not provided)
+            const mintAuthority = mintAuthoritySigner.address;
             const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
             const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
             const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
@@ -95,9 +99,9 @@ export const createArcadeTokenCommand = new Command('arcade-token')
                 options.symbol,
                 decimals,
                 options.uri || '',
-                mintAuthority,
-                rawTx ? mintKeypair.address : mintKeypair,
-                rawTx ? signerAddress : signerKeypair!,
+                mintAuthoritySigner,
+                mintKeypair,
+                feePayer,
                 metadataAuthority,
                 pausableAuthority,
                 permanentDelegateAuthority,
@@ -105,26 +109,16 @@ export const createArcadeTokenCommand = new Command('arcade-token')
             );
 
             if (rawTx) {
-                const { maybeOutputRawTx } = await import('../../utils/raw-tx.js');
-                if (maybeOutputRawTx(rawTx, transaction)) {
-                    return;
-                }
+                // stdout carries only the transaction; the new mint's address goes to stderr
+                console.error(`Mint Address: ${mintKeypair.address}`);
             }
-
-            spinner.text = 'Signing transaction...';
-
-            // Sign the transaction
-            const signedTransaction = await signTransactionMessageWithSigners(transaction);
-
-            spinner.text = 'Sending transaction...';
-
-            // Assert blockhash lifetime and send
-            assertIsTransactionWithBlockhashLifetime(signedTransaction);
-            await sendAndConfirmTransaction(signedTransaction, {
-                skipPreflight: true,
-                commitment: 'confirmed',
-            });
-            const signature = getSignatureFromTransaction(signedTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
+            if (raw) return;
 
             spinner.succeed('Arcade token created successfully!');
 
@@ -152,15 +146,20 @@ export const createArcadeTokenCommand = new Command('arcade-token')
             console.log(`   ${chalk.bold('Pausable Authority:')} ${pausableAuthority}`);
             console.log(`   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`);
 
+            // Arcade tokens are allowlist mints, but accounts only start Frozen with sRFC-37 on
+            const frozen = accountsStartFrozen('allowlist', options.enableSrfc37);
+
             console.log(chalk.cyan('🎮 Token Extensions:'));
             console.log(`   ${chalk.green('✓')} Metadata (Rich Gaming Metadata)`);
             console.log(`   ${chalk.green('✓')} Pausable`);
-            console.log(`   ${chalk.green('✓')} Default Account State (Allowlist)`);
-            console.log(
-                chalk.yellow(
-                    '     ⚠️  You must add addresses to the allowlist for your arcade token to be usable by end users.',
-                ),
-            );
+            console.log(`   ${chalk.green('✓')} ${defaultAccountStateLabel(frozen)}`);
+            if (frozen) {
+                console.log(
+                    chalk.yellow(
+                        '     ⚠️  You must add addresses to the allowlist for your arcade token to be usable by end users.',
+                    ),
+                );
+            }
             console.log(`   ${chalk.green('✓')} Permanent Delegate`);
 
             if (options.uri) {
@@ -172,8 +171,8 @@ export const createArcadeTokenCommand = new Command('arcade-token')
                 console.log(`   ${chalk.green('✓')} Allowlist Address: ${listConfigPda[0]}`);
                 console.log(`   ${chalk.green('✓')} SRFC-37 Allowlist mint config Address: ${mintConfigPda[0]}`);
             } else {
-                console.log(chalk.cyan(`🔑 Allowlist Initialized:`));
-                console.log('Allowlist managed via manual thawing of addresses');
+                console.log(chalk.cyan(`🔑 Access Control:`));
+                console.log('New accounts start active and can be frozen individually');
             }
         } catch (error) {
             if (!rawTx) {

@@ -2,8 +2,8 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { createForceTransferTransaction, validatePermanentDelegate } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
-import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
-import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
+import { resolveSigners } from '../utils/solana.js';
+import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../utils/cli.js';
 
 interface ForceTransferOptions {
@@ -32,17 +32,7 @@ export const forceTransferCommand = new Command('force-transfer')
             const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
-            let authority: TransactionSigner<string>;
-            let payer: TransactionSigner<string>;
-            if (rawTx) {
-                const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
-                authority = createNoopSigner((parentOpts.authority as Address) || defaultAddr);
-                payer = createNoopSigner((parentOpts.feePayer as Address) || authority.address);
-            } else {
-                const kp = await loadKeypair(parentOpts.keypair);
-                authority = kp;
-                payer = kp;
-            }
+            const { authority, feePayer: payer } = await resolveSigners(parentOpts);
 
             // Parse and validate amount
             const decimalAmount = parseFloat(options.amount);
@@ -64,8 +54,10 @@ export const forceTransferCommand = new Command('force-transfer')
                 options.fromAccount as Address,
                 options.recipient as Address,
                 decimalAmount,
-                authority.address,
-                payer.address,
+                // Pass the signers, not their addresses: the SDK turns an address into a noop
+                // signer, which would leave the transaction unsigned on the send path.
+                authority,
+                payer,
             );
 
             const { raw, signature } = await sendOrOutputTransaction(
