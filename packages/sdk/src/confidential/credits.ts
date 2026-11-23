@@ -5,7 +5,7 @@ import {
     getEnableConfidentialCreditsInstruction,
     getEnableNonConfidentialCreditsInstruction,
 } from '@solana-program/token-2022';
-import { toAuthoritySigner } from './util.js';
+import { toSigner } from '../signers.js';
 
 /**
  * Enable/disable the credit flags on a confidential token account. These are
@@ -29,7 +29,7 @@ export function createEnableConfidentialCreditsInstructionPlan(input: CreditsInp
     return singleInstructionPlan(
         getEnableConfidentialCreditsInstruction({
             token: input.tokenAccount,
-            authority: toAuthoritySigner(input.authority),
+            authority: toSigner(input.authority),
         }),
     );
 }
@@ -38,7 +38,7 @@ export function createDisableConfidentialCreditsInstructionPlan(input: CreditsIn
     return singleInstructionPlan(
         getDisableConfidentialCreditsInstruction({
             token: input.tokenAccount,
-            authority: toAuthoritySigner(input.authority),
+            authority: toSigner(input.authority),
         }),
     );
 }
@@ -47,7 +47,7 @@ export function createEnableNonConfidentialCreditsInstructionPlan(input: Credits
     return singleInstructionPlan(
         getEnableNonConfidentialCreditsInstruction({
             token: input.tokenAccount,
-            authority: toAuthoritySigner(input.authority),
+            authority: toSigner(input.authority),
         }),
     );
 }
@@ -56,7 +56,7 @@ export function createDisableNonConfidentialCreditsInstructionPlan(input: Credit
     return singleInstructionPlan(
         getDisableNonConfidentialCreditsInstruction({
             token: input.tokenAccount,
-            authority: toAuthoritySigner(input.authority),
+            authority: toSigner(input.authority),
         }),
     );
 }

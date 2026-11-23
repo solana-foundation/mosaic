@@ -3,6 +3,7 @@ export {
     getConfidentialMintBurnInit,
     assertConfidentialKeysMatchAccount,
     assertConfidentialKeysMatchSupply,
+    getConfidentialKeysElgamalAddress,
     createKeyPairMessageSigner,
     freeConfidentialKeys,
     decryptAesBalance,
@@ -69,7 +70,7 @@ export { createApplyConfidentialPendingBalanceInstructionPlan } from './apply-pe
 
 export { createConfidentialWithdrawInstructionPlan } from './withdraw.js';
 
-export { createConfidentialTransferInstructionPlan } from './transfer.js';
+export { createConfidentialTransferInstructionPlan, FEE_SCHEDULE_CHANGE_GUARD_SLOTS } from './transfer.js';
 
 export { createEmptyConfidentialAccountInstructionPlan } from './empty-account.js';
 

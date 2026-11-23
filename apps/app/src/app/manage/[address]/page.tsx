@@ -50,7 +50,7 @@ import {
     removeAddressFromAllowlist,
 } from '@/features/token-management/lib/access-list';
 import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from '@solana/kit';
-import { getList, getListConfigPda, getTokenExtensions } from '@solana/mosaic-sdk';
+import { getList, getListConfigPda, getTokenDashboardData, getTokenExtensions } from '@solana/mosaic-sdk';
 import { Mode } from '@solana/token-acl-gate-sdk';
 import { buildAddressExplorerUrl } from '@/lib/solana/explorer';
 import { getTokenAuthorities } from '@/lib/solana/rpc';
@@ -130,7 +130,8 @@ function ManageTokenConnected({ address }: { address: string }) {
 
     // Use centralized extension store for pause state
     const { isPaused, isUpdating: isPauseUpdating, error: pauseError } = usePauseState(address);
-    const { fetchPauseState, togglePause, updateExtensionField, syncTransferHookProgramId } = useTokenExtensionStore();
+    const { fetchPauseState, togglePause, updateExtensionField, syncTransferHookProgramId, syncScaledUiMultiplier } =
+        useTokenExtensionStore();
 
     // Function to trigger supply refresh after mint/burn actions
     const refreshSupply = () => {
@@ -157,6 +158,24 @@ function ManageTokenConnected({ address }: { address: string }) {
     useEffect(() => {
         const addTokenExtensionsToFoundToken = async (foundToken: TokenDisplay): Promise<void> => {
             if (!rpc) return;
+
+            // Live on-chain extension rates, fetched in parallel; a failure keeps the persisted values
+            const dashboardReadStartedAt = Date.now();
+            const dashboardDataPromise = getTokenDashboardData(rpc, foundToken.address as Address).catch(() => null);
+            // Applied on both paths below, so a successful rate read isn't lost to a failed extension read
+            const applyDashboardData = async (): Promise<void> => {
+                const dashboardData = await dashboardDataPromise;
+                if (!dashboardData) return;
+                foundToken.transferFeeBasisPoints = dashboardData.transferFeeBasisPoints;
+                foundToken.transferFeeMaximum = dashboardData.transferFeeMaximum;
+                foundToken.interestRate = dashboardData.interestRate;
+                foundToken.scaledUiMultiplier = dashboardData.multiplier;
+                foundToken.scaledUiNewMultiplier = dashboardData.scaledUiNewMultiplier;
+                foundToken.scaledUiNewMultiplierEffectiveTimestamp =
+                    dashboardData.scaledUiNewMultiplierEffectiveTimestamp;
+                // The fresh chain read supersedes a multiplier saved earlier from the extensions panel
+                syncScaledUiMultiplier(foundToken.address as string, dashboardReadStartedAt);
+            };
 
             try {
                 const extensions = await getTokenExtensions(rpc, foundToken.address as Address);
@@ -194,7 +213,9 @@ function ManageTokenConnected({ address }: { address: string }) {
                     });
                 }
 
-                setToken(foundToken);
+                await applyDashboardData();
+                // A new object, since foundToken is already in state and was mutated in place
+                setToken({ ...foundToken });
 
                 // Fetch pause state using centralized store
                 if (foundToken.address) {
@@ -202,7 +223,8 @@ function ManageTokenConnected({ address }: { address: string }) {
                 }
             } catch {
                 // Token might not exist on this network - show the token with empty extensions
-                setToken(foundToken);
+                await applyDashboardData();
+                setToken({ ...foundToken });
             }
         };
 
@@ -225,6 +247,7 @@ function ManageTokenConnected({ address }: { address: string }) {
         findTokenByAddress,
         fetchPauseState,
         syncTransferHookProgramId,
+        syncScaledUiMultiplier,
         updateExtensionField,
         reloadKey,
     ]);

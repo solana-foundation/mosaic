@@ -7,8 +7,9 @@ import {
     singleInstructionPlan,
 } from '@solana/kit';
 import { getConfidentialDepositInstruction } from '@solana-program/token-2022';
+import { toSigner } from '../signers.js';
 import { confidentialMintBurnConversionError, mintHasConfidentialMintBurnExtension } from '../transaction-util.js';
-import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util.js';
+import { type TokenAmount, resolveRawAmount } from './util.js';
 
 /**
  * Deposits tokens from the account's **non-confidential** (plaintext) balance
@@ -47,7 +48,7 @@ export async function createConfidentialDepositInstructionPlan(input: {
         getConfidentialDepositInstruction({
             token: input.tokenAccount,
             mint: input.mint,
-            authority: toAuthoritySigner(input.authority),
+            authority: toSigner(input.authority),
             amount: rawAmount,
             decimals,
         }),

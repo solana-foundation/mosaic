@@ -8,9 +8,8 @@ import {
 } from '@solana/kit';
 import { fetchToken } from '@solana-program/token-2022';
 import { getApplyConfidentialPendingBalanceInstructionFromToken } from '@solana-program/token-2022/confidential';
-import { getConfidentialTransferAccountElgamalPubkey } from './extensions.js';
-import { assertConfidentialKeysMatchAccount, type ConfidentialKeys } from './keys.js';
-import { toAuthoritySigner } from './util.js';
+import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
+import { toSigner } from '../signers.js';
 
 /**
  * Applies the account's **pending** confidential balance into its **available**
@@ -33,17 +32,14 @@ export async function createApplyConfidentialPendingBalanceInstructionPlan(input
 }): Promise<InstructionPlan> {
     const decoded = await fetchToken(input.rpc, input.tokenAccount);
 
-    const registeredElgamalPubkey = getConfidentialTransferAccountElgamalPubkey(decoded);
-    if (registeredElgamalPubkey !== null) {
-        assertConfidentialKeysMatchAccount(input.keys, registeredElgamalPubkey, `token account ${input.tokenAccount}`);
-    }
+    assertConfidentialKeysMatchTokenAccount(input.keys, decoded, `token account ${input.tokenAccount}`);
 
     const elgamalSecretKey = input.keys.elgamal.secret();
     try {
         const instruction = getApplyConfidentialPendingBalanceInstructionFromToken({
             token: input.tokenAccount,
             tokenAccount: decoded.data,
-            authority: toAuthoritySigner(input.authority),
+            authority: toSigner(input.authority),
             elgamalSecretKey,
             aesKey: input.keys.aes,
         });

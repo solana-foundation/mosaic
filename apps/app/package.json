@@ -31,7 +31,7 @@
         "@radix-ui/react-tabs": "^1.1.15",
         "@radix-ui/react-tooltip": "^1.2.10",
         "@solana-program/system": "0.14.1",
-        "@solana-program/token-2022": "^0.18.0",
+        "@solana-program/token-2022": "0.18.0",
         "@solana/accounts": "^8.0.0",
         "@solana/connector": "0.1.4",
         "@solana/kit": "^8.0.0",

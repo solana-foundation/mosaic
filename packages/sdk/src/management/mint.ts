@@ -1,7 +1,6 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
 import {
-    createNoopSigner,
     pipe,
     createTransactionMessage,
     setTransactionMessageFeePayer,
@@ -14,6 +13,7 @@ import {
     getCreateAssociatedTokenIdempotentInstruction,
 } from '@solana-program/token-2022';
 import { getThawPermissionlessInstructions } from '../token-acl/index.js';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 import {
     confidentialMintBurnConversionError,
     decimalAmountToRaw,
@@ -30,7 +30,7 @@ import {
  * @param rpc - The Solana RPC client instance
  * @param mint - The mint address
  * @param recipient - The recipient's wallet address (owner of the ATA)
- * @param amount - The raw token amount (already adjusted for decimals)
+ * @param amount - The decimal amount to mint (e.g., 1.5), scaled to a raw amount by the mint's decimals
  * @param mintAuthority - The mint authority signer
  * @param feePayer - The fee payer signer
  * @returns A promise that resolves to a FullTransaction object for minting tokens
@@ -43,8 +43,13 @@ export const createMintToTransaction = async (
     mintAuthority: Address | TransactionSigner<string>,
     feePayer: Address | TransactionSigner<string>,
 ): Promise<FullTransaction> => {
-    const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-    const mintAuthoritySigner = typeof mintAuthority === 'string' ? createNoopSigner(mintAuthority) : mintAuthority;
+    // One signer object per address: a mint authority on the fee payer's key shares its signer,
+    // otherwise the SRFC-37 thaw path would carry two signers for one address and Kit would
+    // refuse to sign.
+    const { feePayerSigner, authoritySigner: mintAuthoritySigner } = resolveFeePayerAndAuthority(
+        feePayer,
+        mintAuthority,
+    );
 
     // Single mint read: decimals + extensions (incl. the ConfidentialMintBurn
     // fail-fast check below) + SRFC-37 detection all come from this one fetch.
@@ -84,7 +89,7 @@ export const createMintToTransaction = async (
         getMintToInstruction(
             {
                 mint: mint,
-                mintAuthority: mintAuthority,
+                mintAuthority: mintAuthoritySigner,
                 token: destinationAta,
                 amount: rawAmount,
             },

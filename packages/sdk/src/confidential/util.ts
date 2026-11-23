@@ -1,65 +1,42 @@
-import { type Address, type Rpc, type SolanaRpcApi, type TransactionSigner, createNoopSigner } from '@solana/kit';
+import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
+import type { GetConfidentialWithdrawWithRecordInstructionPlanInput } from '@solana-program/token-2022/confidential';
 import { U64_MAX, decimalAmountToRaw, getMintDetails } from '../transaction-util.js';
 
-/**
- * Normalizes an authority that may be given as a bare `Address` into a
- * `TransactionSigner`. A string becomes a no-op signer (the caller signs later,
- * mirroring `transfer/index.ts`); an existing signer is returned unchanged.
- */
-export function toAuthoritySigner(authority: Address | TransactionSigner): TransactionSigner {
-    return typeof authority === 'string' ? createNoopSigner(authority) : authority;
-}
+/** Upstream's record-backed-proof options: every `record*` field its `…WithRecord` helpers take. */
+type UpstreamRecordProofOptions = Pick<
+    GetConfidentialWithdrawWithRecordInstructionPlanInput,
+    Extract<keyof GetConfidentialWithdrawWithRecordInstructionPlanInput, `record${string}`>
+>;
 
 /**
  * Opt-in to staging a confidential operation's batched **range proof** in an SPL
  * Record account instead of passing it inline in the verify instruction's data.
  *
  * Why this exists: the inline form keeps the flow to a minimal number of
- * transactions, but leaves the range-proof transaction sitting so close to the
- * 1232-byte version-0 size limit that it cannot fit an extra compute-unit-limit
- * instruction. Callers that send with a transaction plan executor which
- * estimates and sets CU limits (kit's default does) therefore push that
- * transaction over the limit. Passing `recordBackedProof` shrinks it back below
- * the limit, at the cost of extra transactions to create, write and close the
- * record account.
+ * transactions, but a plain confidential transfer's inline range-proof
+ * transaction is 1207 bytes at version 0, too close to the 1232-byte limit to
+ * fit a compute-unit-limit instruction. Staging the proof in a record splits it
+ * across write transactions, at the cost of extra transactions to create, write
+ * and close the record account. Only needed when sending through an executor
+ * that sets compute-unit limits (kit's default does), and only together with the
+ * planner's `reserveComputeUnitLimit`: record writes fill each transaction to
+ * the limit, so without the reservation there is still no room.
  *
- * **This is a version-0 workaround.** Version-1 transactions carry the
- * compute-unit limit in a header field rather than an instruction, and give the
- * message 4096 bytes instead of 1232, so the inline proof fits with room to
- * spare. Plan with `version: 1` (see `createConfidentialTransactionPlanner`) and
- * leave this option off: it only adds transactions and rent churn there.
+ * **Only the plain version-0 transfer needs it.** An inline withdraw's
+ * range-proof transaction still fits a compute-unit-limit instruction, and
+ * version-1 transactions carry the limit in a header field with 4096 bytes to
+ * spare. In both cases this option only adds transactions and rent churn.
  *
- * Rule of thumb for version 0: omit it when you sign and send the plan's
- * transactions yourself; pass it (`{}` is enough) when an executor sets
- * compute-unit limits.
+ * Supported by the confidential mint, burn, transfer and withdraw builders. On a fee-bearing
+ * mint the transfer's range proof is always record-backed (upstream gives the
+ * fee-aware variant no inline form), so there this option only overrides the
+ * record's payer, authority and rent receiver.
  *
- * Supported by the confidential mint, burn, transfer and withdraw builders.
+ * The fields are upstream's own (`recordPayer`, `recordAuthority`,
+ * `recordRentReceiver`) and are passed through unchanged, so any `record*`
+ * option upstream adds is accepted here too.
  */
-export type RecordBackedProof = {
-    /** Funds the record account that stages the range proof. Defaults to the operation's `payer`. */
-    payer?: TransactionSigner;
-    /** Signs the record account's write and close. Defaults to an ephemeral signer. */
-    authority?: TransactionSigner;
-    /** Receives the record account's reclaimed rent on close. Defaults to the record payer. */
-    rentReceiver?: Address;
-};
-
-/**
- * Maps {@link RecordBackedProof} onto the `record*` fields the upstream
- * `get*WithRecordInstructionPlan` helpers take. Kept in one place so the four
- * builders that support it stay identical in behaviour.
- */
-export function toRecordProofArgs(options: RecordBackedProof): {
-    recordPayer?: TransactionSigner;
-    recordAuthority?: TransactionSigner;
-    recordRentReceiver?: Address;
-} {
-    return {
-        recordPayer: options.payer,
-        recordAuthority: options.authority,
-        recordRentReceiver: options.rentReceiver,
-    };
-}
+export type RecordBackedProof = UpstreamRecordProofOptions;
 
 /** An amount expressed either as a decimal string (e.g. `"1.5"`) or raw `bigint`. */
 export type TokenAmount = string | bigint;

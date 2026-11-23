@@ -12,7 +12,7 @@ Most implementations of standard token types follow similar patterns and usages 
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 20.19+
 - pnpm 10+
 - Solana CLI
 
