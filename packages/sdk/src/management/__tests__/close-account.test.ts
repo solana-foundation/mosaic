@@ -1,5 +1,10 @@
-import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
-import { assertIsFullySignedTransaction, generateKeyPairSigner, signTransactionMessageWithSigners } from '@solana/kit';
+import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
+import {
+    assertIsFullySignedTransaction,
+    createNoopSigner,
+    generateKeyPairSigner,
+    signTransactionMessageWithSigners,
+} from '@solana/kit';
 import { TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { createMockRpc } from '../../__tests__/test-utils.js';
 
@@ -47,5 +52,32 @@ describe('createCloseAccountTransaction', () => {
         const signed = await signTransactionMessageWithSigners(tx);
         assertIsFullySignedTransaction(signed);
         expect(Object.keys(signed.signatures).sort()).toEqual([feePayer.address, owner.address].sort());
+    });
+
+    // Kit refuses to sign a message that carries two distinct signer objects for one address.
+    test.each([
+        ['the owner address', (owner: TransactionSigner) => owner.address],
+        ['a no-op signer for the owner', (owner: TransactionSigner) => createNoopSigner(owner.address)],
+    ])('signs when the fee payer is %s', async (_name, toFeePayer) => {
+        mockTransactionUtil();
+        const owner = await generateKeyPairSigner();
+        const { createCloseAccountTransaction } = await import('../close-account.js');
+        const tx = await createCloseAccountTransaction(rpc, mint, owner, destination, toFeePayer(owner));
+
+        expect(tx.feePayer).toBe(owner);
+        const signed = await signTransactionMessageWithSigners(tx);
+        assertIsFullySignedTransaction(signed);
+        expect(Object.keys(signed.signatures)).toEqual([owner.address]);
+    });
+
+    test('signs when the owner is given as the fee payer address', async () => {
+        mockTransactionUtil();
+        const feePayer = await generateKeyPairSigner();
+        const { createCloseAccountTransaction } = await import('../close-account.js');
+        const tx = await createCloseAccountTransaction(rpc, mint, feePayer.address, destination, feePayer);
+
+        const signed = await signTransactionMessageWithSigners(tx);
+        assertIsFullySignedTransaction(signed);
+        expect(Object.keys(signed.signatures)).toEqual([feePayer.address]);
     });
 });

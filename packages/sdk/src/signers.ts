@@ -34,16 +34,44 @@ function isNoopSigner(signer: TransactionSigner<string>): boolean {
 }
 
 /**
- * The one signer object a fee payer and an authority must share when they have
- * the same address, or `undefined` when their addresses differ.
+ * Resolves accounts, each given as a bare address or as a signer, to signers with
+ * exactly one signer object per address, in the order given.
  *
  * Kit refuses to sign a transaction that carries two distinct signer objects for
- * one address. So when the authority is the fee payer's key, given as a bare
- * address or as a different signer object for it (e.g. a no-op signer next to a
- * wallet's), both resolve to the same object. A real signer wins over a no-op
- * one, whichever role it was given in, so the key never ends up with an empty
- * signature. Otherwise the fee payer's signer wins if it is one, else the
- * authority's, else one shared no-op signer.
+ * one address (two no-op signers for it count as one). So every role on one key
+ * gets the same object: the first real signer given for that address, else the
+ * first no-op signer given for it, else one no-op signer shared by every bare
+ * address for it. A real signer wins over a no-op one whichever role it was given
+ * in, so the key never ends up with an empty signature.
+ */
+export function resolveSigners<const T extends readonly AddressOrSigner[]>(
+    ...values: T
+): { [K in keyof T]: TransactionSigner<string> } {
+    const chosen = new Map<Address, TransactionSigner<string>>();
+    for (const value of values) {
+        if (typeof value === 'string') {
+            continue;
+        }
+        const current = chosen.get(value.address);
+        if (!current || (isNoopSigner(current) && !isNoopSigner(value))) {
+            chosen.set(value.address, value);
+        }
+    }
+    return values.map(value => {
+        const address = addressOf(value);
+        let signer = chosen.get(address);
+        if (!signer) {
+            signer = createNoopSigner(address);
+            chosen.set(address, signer);
+        }
+        return signer;
+    }) as { [K in keyof T]: TransactionSigner<string> };
+}
+
+/**
+ * The one signer object a fee payer and an authority must share when they have
+ * the same address, or `undefined` when their addresses differ. See
+ * {@link resolveSigners} for which object wins; on a tie the fee payer's does.
  */
 export function getSharedFeePayerSigner(
     feePayer: AddressOrSigner,
@@ -52,28 +80,17 @@ export function getSharedFeePayerSigner(
     if (addressOf(feePayer) !== addressOf(authority)) {
         return undefined;
     }
-    if (typeof feePayer === 'string') {
-        return toSigner(authority);
-    }
-    if (typeof authority !== 'string' && isNoopSigner(feePayer) && !isNoopSigner(authority)) {
-        return authority;
-    }
-    return feePayer;
+    return resolveSigners(feePayer, authority)[0];
 }
 
 /**
  * Resolves a fee payer and an authority, either of which may be a bare address,
- * to signers with exactly one signer object per address. When they share an
- * address both get the {@link getSharedFeePayerSigner} object; otherwise each
- * resolves on its own via {@link toSigner}.
+ * to signers with exactly one signer object per address (see {@link resolveSigners}).
  */
 export function resolveFeePayerAndAuthority(
     feePayer: AddressOrSigner,
     authority: AddressOrSigner,
 ): { feePayerSigner: TransactionSigner<string>; authoritySigner: TransactionSigner<string> } {
-    const shared = getSharedFeePayerSigner(feePayer, authority);
-    if (shared) {
-        return { feePayerSigner: shared, authoritySigner: shared };
-    }
-    return { feePayerSigner: toSigner(feePayer), authoritySigner: toSigner(authority) };
+    const [feePayerSigner, authoritySigner] = resolveSigners(feePayer, authority);
+    return { feePayerSigner, authoritySigner };
 }

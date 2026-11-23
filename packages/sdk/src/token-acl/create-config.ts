@@ -10,6 +10,7 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 import type { FullTransaction } from '../transaction-util.js';
 import { findMintConfigPda, getCreateConfigInstruction } from '@solana/token-acl-sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils.js';
@@ -82,11 +83,17 @@ export const getCreateConfigTransaction = async (input: {
     transaction: FullTransaction;
     mintConfig: Address;
 }> => {
-    const { instructions, mintConfig } = await getCreateConfigInstructions(input);
+    // One signer object per key: Kit refuses to sign a payer and an authority that are
+    // distinct signer objects for the same address.
+    const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
+        input.payer,
+        input.authority,
+    );
+    const { instructions, mintConfig } = await getCreateConfigInstructions({ ...input, payer, authority });
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
     const transaction = pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayerSigner(input.payer, m),
+        m => setTransactionMessageFeePayerSigner(payer, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;

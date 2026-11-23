@@ -10,6 +10,7 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 import type { FullTransaction } from '../transaction-util.js';
 import { ABL_PROGRAM_ID } from './utils.js';
 import { findWalletEntryPda, getAddWalletInstruction, getRemoveWalletInstruction } from '@solana/token-acl-gate-sdk';
@@ -74,11 +75,17 @@ export const getAddWalletTransaction = async (input: {
     wallet: Address;
     list: Address;
 }): Promise<FullTransaction> => {
-    const instructions = await getAddWalletInstructions(input);
+    // One signer object per key: Kit refuses to sign a payer and an authority that are
+    // distinct signer objects for the same address.
+    const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
+        input.payer,
+        input.authority,
+    );
+    const instructions = await getAddWalletInstructions({ ...input, payer, authority });
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
     return pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayerSigner(input.payer, m),
+        m => setTransactionMessageFeePayerSigner(payer, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;
@@ -141,11 +148,17 @@ export const getRemoveWalletTransaction = async (input: {
     wallet: Address;
     list: Address;
 }): Promise<FullTransaction> => {
-    const instructions = await getRemoveWalletInstructions(input);
+    // One signer object per key: Kit refuses to sign a payer and an authority that are
+    // distinct signer objects for the same address.
+    const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
+        input.payer,
+        input.authority,
+    );
+    const instructions = await getRemoveWalletInstructions({ ...input, authority });
     const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
     return pipe(
         createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayerSigner(input.payer, m),
+        m => setTransactionMessageFeePayerSigner(payer, m),
         m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;

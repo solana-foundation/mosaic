@@ -1,7 +1,6 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
 import {
-    createNoopSigner,
     pipe,
     createTransactionMessage,
     setTransactionMessageFeePayerSigner,
@@ -10,6 +9,7 @@ import {
 } from '@solana/kit';
 import { getCloseAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { resolveTokenAccount } from '../transaction-util.js';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 
 /**
  * Creates a transaction to close an empty token account and reclaim the rent.
@@ -29,9 +29,10 @@ export const createCloseAccountTransaction = async (
     destination: Address,
     feePayer: Address | TransactionSigner<string>,
 ): Promise<FullTransaction> => {
-    const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-    const ownerSigner = typeof owner === 'string' ? createNoopSigner(owner) : owner;
-    const ownerAddress = typeof owner === 'string' ? owner : owner.address;
+    // One signer object per key: Kit refuses to sign a fee payer and an owner that are distinct
+    // signer objects for the same address.
+    const { feePayerSigner, authoritySigner: ownerSigner } = resolveFeePayerAndAuthority(feePayer, owner);
+    const ownerAddress = ownerSigner.address;
 
     // Resolve owner's token account
     const { tokenAccount, isInitialized, balance } = await resolveTokenAccount(rpc, ownerAddress, mint);

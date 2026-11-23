@@ -545,13 +545,18 @@ export class Token {
         mint: TransactionSigner<string>;
         feePayer: TransactionSigner<string>;
     }): Promise<FullTransaction> {
+        // buildInstructions gives a mint authority on the fee payer's key the shared signer (the
+        // real one when the other is a no-op). The message's fee payer must be that same object,
+        // or Kit refuses to sign; passing it in keeps the two from drifting apart.
+        const feePayerSigner =
+            (mintAuthority === undefined ? undefined : getSharedFeePayerSigner(feePayer, mintAuthority)) ?? feePayer;
         const instructions = await this.buildInstructions({
             rpc,
             decimals,
             mintAuthority,
             freezeAuthority,
             mint,
-            feePayer,
+            feePayer: feePayerSigner,
         });
 
         // Get latest blockhash for transaction
@@ -559,7 +564,7 @@ export class Token {
 
         return pipe(
             createTransactionMessage({ version: 0 }),
-            m => setTransactionMessageFeePayerSigner(feePayer, m),
+            m => setTransactionMessageFeePayerSigner(feePayerSigner, m),
             m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
             m => appendTransactionMessageInstructions(instructions, m),
         ) as FullTransaction;
