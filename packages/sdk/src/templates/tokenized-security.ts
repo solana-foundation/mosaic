@@ -1,5 +1,5 @@
 import { Token } from '../issuance/index.js';
-import type { ConfidentialBalancesConfig } from '../issuance/create-mint.js';
+import type { ConfidentialBalancesConfig, ConfidentialMintBurnOptions } from '../issuance/create-mint.js';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
 import {
@@ -43,6 +43,12 @@ export const createTokenizedSecurityInitTransaction = async (
         enableSrfc37?: boolean;
         // Confidential Balances policy / auditor.
         confidentialBalances?: ConfidentialBalancesConfig;
+        // Confidential Mint/Burn init values. Passing them adds the ConfidentialMintBurn
+        // extension, so the supply only ever exists encrypted: plaintext mint, burn,
+        // confidential deposit and confidential withdraw all stop working on the mint.
+        // Both values come from the supply authority's own wallet keys — see
+        // `getConfidentialMintBurnInit` in `@solana/mosaic-sdk/confidential`.
+        confidentialMintBurn?: ConfidentialMintBurnOptions;
         // A scheduled change (timestamp in Unix seconds) is applied at creation, so
         // `authority` must then be left unset or equal the mint authority.
         scaledUiAmount?: {
@@ -90,6 +96,12 @@ export const createTokenizedSecurityInitTransaction = async (
         })
         .withPermanentDelegate(permanentDelegateAuthority)
         .withPermissionedBurn(permissionedBurnAuthority);
+
+    // Must follow `withConfidentialBalances` above: `withConfidentialMintBurn` refuses
+    // to run before `ConfidentialTransferMint` is on the builder.
+    if (options?.confidentialMintBurn) {
+        tokenBuilder = tokenBuilder.withConfidentialMintBurn(options.confidentialMintBurn);
+    }
 
     // Add Scaled UI Amount extension
     tokenBuilder = tokenBuilder.withScaledUiAmount(

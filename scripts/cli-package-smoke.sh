@@ -48,7 +48,7 @@ node --input-type=module \
 node --input-type=module -e "
 import { generateKeyPairSync, sign as edSign } from 'node:crypto';
 const c = await import('@solana/mosaic-sdk/confidential');
-for (const name of ['deriveConfidentialKeys', 'decryptAesBalance', 'freeConfidentialKeys']) {
+for (const name of ['deriveConfidentialKeys', 'getConfidentialMintBurnInit', 'freeConfidentialKeys']) {
     if (typeof c[name] !== 'function') throw new Error('confidential subpath missing ' + name);
 }
 const { privateKey } = generateKeyPairSync('ed25519');
@@ -60,12 +60,10 @@ const signer = {
 };
 const keys = await c.deriveConfidentialKeys({ signer });
 try {
-    const ciphertext = keys.aes.encrypt(7n);
-    const bytes = new Uint8Array(ciphertext.toBytes());
-    ciphertext.free?.();
-    if (bytes.length !== 36) throw new Error('AES ciphertext is not 36 bytes');
-    if (c.decryptAesBalance(keys.aes, bytes) !== 7n) throw new Error('AES round-trip mismatch');
-    console.log('confidential subpath OK: wasm derivation + AES round-trip');
+    const init = c.getConfidentialMintBurnInit(keys);
+    if (typeof init.supplyElgamalPubkey !== 'string') throw new Error('supplyElgamalPubkey is not an address');
+    if (init.decryptableSupply.length !== 36) throw new Error('decryptableSupply is not 36 bytes');
+    console.log('confidential subpath OK: wasm derivation + supply init');
 } finally {
     c.freeConfidentialKeys(keys);
 }

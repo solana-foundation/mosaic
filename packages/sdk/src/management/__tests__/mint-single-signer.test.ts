@@ -30,6 +30,7 @@ describe('createMintToTransaction: mint authority on the fee payer key', () => {
                 programAddress: TOKEN_2022_PROGRAM_ADDRESS,
             }),
             isDefaultAccountStateSetFrozen: jest.fn().mockReturnValue(true),
+            mintHasConfidentialMintBurnExtension: jest.fn().mockReturnValue(false),
         }));
         // Stand-in thaw that, like the real one, requires the authority's signature.
         jest.doMock('../../token-acl/index.js', () => ({

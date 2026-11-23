@@ -5,6 +5,7 @@ import {
     getConfidentialWithdrawWithRecordInstructionPlan,
 } from '@solana-program/token-2022/confidential';
 import { addressOf, toSigner } from '../signers.js';
+import { confidentialMintBurnConversionError, mintHasConfidentialMintBurnExtension } from '../transaction-util.js';
 import { assertTokenAccountMint, assertTokenAccountOwner } from './extensions.js';
 import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
 import { type RecordBackedProof, type TokenAmount, resolveRawAmount } from './util.js';
@@ -15,6 +16,12 @@ import { type RecordBackedProof, type TokenAmount, resolveRawAmount } from './ut
  * `getConfidentialWithdrawInstructionPlan`, which generates and verifies the
  * required equality + batched-range proofs via context-state accounts and emits
  * the multi-transaction plan (setup → withdraw → cleanup).
+ *
+ * Not available on a `ConfidentialMintBurn` mint: Token-2022 rejects
+ * `ConfidentialWithdraw` on such a mint with `IllegalMintBurnConversion`, because
+ * its supply is only ever encrypted and there is no plaintext side to withdraw
+ * to. Holders redeem via `createConfidentialBurnInstructionPlan` instead; this
+ * builder fails fast rather than emitting a transaction the chain would reject.
  *
  * Fetches and decodes the token account to read the current available balance,
  * and rejects an account that does not hold `mint` or is not owned by
@@ -43,11 +50,14 @@ export async function createConfidentialWithdrawInstructionPlan(input: {
      */
     recordBackedProof?: RecordBackedProof;
 }): Promise<InstructionPlan> {
-    const [{ rawAmount, decimals }, decoded] = await Promise.all([
+    const [{ rawAmount, decimals, extensions }, decoded] = await Promise.all([
         resolveRawAmount(input.rpc, input.mint, input.amount),
         fetchToken(input.rpc, input.tokenAccount),
     ]);
 
+    if (await mintHasConfidentialMintBurnExtension(input.rpc, input.mint, extensions)) {
+        throw confidentialMintBurnConversionError(input.mint, 'confidential withdrawal', null);
+    }
     const context = `token account ${input.tokenAccount}`;
     assertTokenAccountMint(decoded, input.mint, context);
     assertTokenAccountOwner(decoded, addressOf(input.authority), context);

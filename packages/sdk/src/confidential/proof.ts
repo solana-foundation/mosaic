@@ -21,7 +21,7 @@ import {
  * matching close instruction that reclaims the account's rent.
  *
  * No builder in this SDK uses this any more. Every confidential operation —
- * configure, deposit, withdraw, transfer and, as of the
+ * configure, deposit, withdraw, transfer, mint, burn and, as of the
  * token-2022 0.18.0 bump, empty-account — delegates its proofs to an upstream
  * `@solana-program/token-2022/confidential` InstructionPlan helper, which wires
  * the same proofs through context-state accounts (or, with `recordBackedProof`,

@@ -1,6 +1,8 @@
 import type { Address } from '@solana/kit';
 import {
+    getConfidentialMintBurnSupplyElgamalPubkey,
     getConfidentialTransferAccountElgamalPubkey,
+    isConfidentialMintBurn,
     isConfidentialTransferAccount,
     isConfidentialTransferMint,
     mintHasConfidentialTransferFee,
@@ -17,6 +19,7 @@ import {
 // does.
 
 const ELGAMAL = 'DsT1111111111111111111111111111111111111111' as Address;
+const SUPPLY_ELGAMAL = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' as Address;
 
 function mintWith(...extensions: unknown[]): DecodedMint {
     return { data: { extensions: { __option: 'Some', value: extensions } } } as unknown as DecodedMint;
@@ -31,6 +34,7 @@ const TOKEN_NO_EXTENSIONS = { data: { extensions: { __option: 'None' } } } as un
 
 describe('mint predicates', () => {
     const cases: Array<[string, (mint: DecodedMint) => boolean, string]> = [
+        ['isConfidentialMintBurn', isConfidentialMintBurn, 'ConfidentialMintBurn'],
         ['isConfidentialTransferMint', isConfidentialTransferMint, 'ConfidentialTransferMint'],
         ['mintHasConfidentialTransferFee', mintHasConfidentialTransferFee, 'ConfidentialTransferFee'],
         ['mintHasTransferFeeConfig', mintHasTransferFeeConfig, 'TransferFeeConfig'],
@@ -59,6 +63,12 @@ describe('mint predicates', () => {
         const plaintextOnly = mintWith({ __kind: 'TransferFeeConfig' });
         expect(mintHasConfidentialTransferFee(plaintextOnly)).toBe(false);
         expect(mintHasTransferFeeConfig(plaintextOnly)).toBe(true);
+    });
+
+    it('recognizes a mint carrying both confidential extensions', () => {
+        const mint = mintWith({ __kind: 'ConfidentialTransferMint' }, { __kind: 'ConfidentialMintBurn' });
+        expect(isConfidentialTransferMint(mint)).toBe(true);
+        expect(isConfidentialMintBurn(mint)).toBe(true);
     });
 });
 
@@ -91,5 +101,30 @@ describe('getConfidentialTransferAccountElgamalPubkey', () => {
             { __kind: 'ConfidentialTransferAccount', elgamalPubkey: ELGAMAL },
         );
         expect(getConfidentialTransferAccountElgamalPubkey(token)).toBe(ELGAMAL);
+    });
+});
+
+describe('getConfidentialMintBurnSupplyElgamalPubkey', () => {
+    it('returns null when the mint has no extensions', () => {
+        expect(getConfidentialMintBurnSupplyElgamalPubkey(MINT_NO_EXTENSIONS)).toBeNull();
+    });
+
+    it('returns null for a confidential-transfer mint without ConfidentialMintBurn', () => {
+        expect(getConfidentialMintBurnSupplyElgamalPubkey(mintWith({ __kind: 'ConfidentialTransferMint' }))).toBeNull();
+    });
+
+    it('returns the supply pubkey, picking it out of a mixed extension list', () => {
+        const mint = mintWith(
+            { __kind: 'ConfidentialTransferMint' },
+            { __kind: 'ConfidentialMintBurn', supplyElgamalPubkey: SUPPLY_ELGAMAL },
+        );
+        expect(getConfidentialMintBurnSupplyElgamalPubkey(mint)).toBe(SUPPLY_ELGAMAL);
+    });
+
+    it('does not confuse the account-side pubkey with the supply-side one', () => {
+        // Both readers search a list of `__kind`-tagged entries; a copy-paste slip
+        // between them would surface as a wrong-key proof rejection on-chain.
+        const mint = mintWith({ __kind: 'ConfidentialMintBurn', supplyElgamalPubkey: SUPPLY_ELGAMAL });
+        expect(getConfidentialTransferAccountElgamalPubkey(mint as unknown as DecodedToken)).toBeNull();
     });
 });

@@ -144,7 +144,7 @@ export async function createConfidentialTransferInstructionPlan(input: {
 
     // Single mint fetch above feeds both the amount scaling and the auditor: the
     // decoded mint is forwarded as `mintAccount` so the upstream helper resolves
-    // the configured auditor without a redundant fetch.
+    // the configured auditor without a redundant fetch (mirrors mint.ts/burn.ts).
     const rawAmount = tokenAmountToRaw(input.amount, mintDecoded.data.decimals);
 
     const args = {
