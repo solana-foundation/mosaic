@@ -1,20 +1,18 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ABL_PROGRAM_ID, TOKEN_ACL_PROGRAM_ID, createTokenizedSecurityInitTransaction } from '@solana/mosaic-sdk';
-import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
+import { createRpcClient, createRpcSubscriptions, resolveRpcUrl } from '../../utils/rpc.js';
+import { loadKeypair, resolveSigners } from '../../utils/solana.js';
 import {
     generateKeyPairSigner,
-    signTransactionMessageWithSigners,
     type Address,
     type TransactionSigner,
     sendAndConfirmTransactionFactory,
-    assertIsTransactionWithBlockhashLifetime,
-    getSignatureFromTransaction,
 } from '@solana/kit';
 import { findListConfigPda } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda } from '@solana/token-acl-sdk';
-import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
+import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
+import { accountsStartFrozen, defaultAccountStateLabel } from '../../utils/default-account-state.js';
 
 interface TokenizedSecuritiesOptions {
     name: string;
@@ -67,7 +65,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
     })
     .action(async (options: TokenizedSecuritiesOptions, command) => {
         const parentOpts = getGlobalOpts(command);
-        const rpcUrl = parentOpts.rpcUrl;
+        const rpcUrl = resolveRpcUrl(parentOpts.rpcUrl);
         const rawTx: string | undefined = parentOpts.rawTx;
         const spinner = createSpinner('Creating tokenized security...', rawTx);
 
@@ -77,15 +75,23 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-            const signerKeypair = rawTx ? null : await loadKeypair(parentOpts.keypair);
-            const signerAddress = rawTx ? (options.mintAuthority as Address) : (signerKeypair!.address as Address);
-
+            // Generate or load the mint keypair; it always signs, in raw mode too
             let mintKeypair: TransactionSigner<string>;
             if (options.mintKeypair) {
                 mintKeypair = await loadKeypair(options.mintKeypair);
             } else {
                 mintKeypair = await generateKeyPairSigner();
             }
+
+            // The mint authority signs (metadata init requires it), so it is resolved as a signer:
+            // --mint-authority, else --authority, else the --keypair signer. A role at the mint's
+            // address reuses the mint keypair's signer.
+            const { authority: mintAuthoritySigner, feePayer } = await resolveSigners(
+                parentOpts,
+                options.mintAuthority ?? parentOpts.authority,
+                options.mintAuthority ? '--mint-authority' : '--authority',
+                [mintKeypair],
+            );
 
             const decimals = parseInt(options.decimals, 10);
             if (isNaN(decimals) || decimals < 0 || decimals > 9) {
@@ -97,7 +103,7 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
                 throw new Error('Multiplier must be a positive number');
             }
 
-            const mintAuthority = (options.mintAuthority || signerAddress) as Address;
+            const mintAuthority = mintAuthoritySigner.address;
             const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
             const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
             const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
@@ -112,9 +118,9 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
                 options.symbol,
                 decimals,
                 options.uri || '',
-                mintAuthority,
-                rawTx ? (mintKeypair.address as Address) : mintKeypair,
-                rawTx ? (signerAddress as Address) : (signerKeypair as TransactionSigner<string>),
+                mintAuthoritySigner,
+                mintKeypair,
+                feePayer,
                 undefined, // freezeAuthority - TODO add argument for this
                 {
                     aclMode: options.aclMode,
@@ -132,19 +138,16 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             );
 
             if (rawTx) {
-                const { maybeOutputRawTx } = await import('../../utils/raw-tx.js');
-                if (maybeOutputRawTx(rawTx, transaction)) {
-                    return;
-                }
+                // stdout carries only the transaction; the new mint's address goes to stderr
+                console.error(`Mint Address: ${mintKeypair.address}`);
             }
-
-            spinner.text = 'Signing transaction...';
-            const signedTransaction = await signTransactionMessageWithSigners(transaction);
-
-            spinner.text = 'Sending transaction...';
-            assertIsTransactionWithBlockhashLifetime(signedTransaction);
-            await sendAndConfirmTransaction(signedTransaction, { commitment: 'confirmed' });
-            const signature = getSignatureFromTransaction(signedTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
+            if (raw) return;
 
             spinner.succeed('Tokenized security created successfully!');
 
@@ -173,10 +176,19 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
             console.log(`   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`);
             console.log(`   ${chalk.bold('Permissioned Burn Authority:')} ${permissionedBurnAuthority}`);
 
+            const frozen = accountsStartFrozen(options.aclMode, options.enableSrfc37);
+
             console.log(chalk.cyan('🧩 Token Extensions:'));
             console.log(`   ${chalk.green('✓')} Metadata`);
             console.log(`   ${chalk.green('✓')} Pausable`);
-            console.log(`   ${chalk.green('✓')} Default Account State (Blocklist)`);
+            console.log(`   ${chalk.green('✓')} ${defaultAccountStateLabel(frozen)}`);
+            if (frozen) {
+                console.log(
+                    chalk.yellow(
+                        '     ⚠️  You must add addresses to the allowlist for your token to be usable by end users.',
+                    ),
+                );
+            }
             console.log(`   ${chalk.green('✓')} Confidential Balances`);
             console.log(`   ${chalk.green('✓')} Permanent Delegate`);
             console.log(`   ${chalk.green('✓')} Permissioned Burn`);
@@ -195,22 +207,25 @@ export const createTokenizedSecurityCommand = new Command('tokenized-security')
                 console.log(
                     `   ${chalk.green('✓')} SRFC-37 ${mode.toLowerCase()} mint config Address: ${mintConfigPda[0]}`,
                 );
+            } else if (isAllowlist) {
+                // Without sRFC-37 the template starts accounts Initialized, so nothing is allowlisted
+                console.log(chalk.cyan(`🔑 Access Control:`));
+                console.log('New accounts start active and can be frozen individually');
+                console.log(
+                    chalk.yellow(
+                        '   ⚠️  The allowlist is not enforced without SRFC-37. Pass --enable-srfc37 true to start accounts frozen.',
+                    ),
+                );
             } else {
                 console.log(chalk.cyan(`🔑 ${mode} Initialized:`));
-                console.log(
-                    isAllowlist
-                        ? 'Allowlist managed via manual thawing of addresses'
-                        : 'Blocklist managed via manual feezing of addresses',
-                );
+                console.log('Blocklist managed via manual freezing of addresses');
             }
         } catch (error) {
             spinner.fail('Failed to create tokenized security');
-            if (error && typeof error === 'object' && 'context' in error) {
-                const typedError = error as { context: { logs: string[] } };
-                console.error(
-                    chalk.red(`❌ Transaction simulation failed:`),
-                    `\n\t${typedError.context.logs.join('\n\t')}`,
-                );
+            // Not every error with a `context` (e.g. a Kit SolanaError) carries simulation logs
+            const logs = (error as { context?: { logs?: unknown } } | undefined)?.context?.logs;
+            if (Array.isArray(logs)) {
+                console.error(chalk.red(`❌ Transaction simulation failed:`), `\n\t${logs.join('\n\t')}`);
             } else {
                 console.error(chalk.red('❌ Error:'), error instanceof Error ? error.message : 'Unknown error');
             }

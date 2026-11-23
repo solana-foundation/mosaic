@@ -1,5 +1,4 @@
 import ora, { type Ora } from 'ora';
-import type { Command, OptionValues } from 'commander';
 import type {
     Transaction,
     TransactionWithBlockhashLifetime,
@@ -12,8 +11,11 @@ import {
     getSignatureFromTransaction,
     assertIsTransactionWithBlockhashLifetime,
 } from '@solana/kit';
-import { maybeOutputRawTx } from './raw-tx.js';
+import { outputRawTransaction } from './raw-tx.js';
 import type { FullTransaction } from './types.js';
+
+// Lives in its own dependency-free module so it can be unit tested; re-exported for the commands.
+export { getGlobalOpts } from './global-options.js';
 
 type Tx = FullTransaction;
 
@@ -26,14 +28,6 @@ type SendAndConfirmFn = (
     config: { commitment: Commitment; skipPreflight?: boolean },
 ) => Promise<void>;
 
-export function getGlobalOpts(command: Command): OptionValues {
-    // Safely attempts parent->parent then parent; falls back to empty object
-    const parentParent = command.parent?.parent?.opts?.();
-    if (parentParent) return parentParent;
-    const parent = command.parent?.opts?.();
-    return parent || {};
-}
-
 export function createSpinner(text: string, rawTx?: string) {
     return ora({ text, isSilent: rawTx !== undefined }).start();
 }
@@ -44,7 +38,8 @@ export async function sendOrOutputTransaction(
     spinner: Ora,
     sendFn: SendAndConfirmFn,
 ): Promise<{ raw: boolean; signature?: string }> {
-    if (maybeOutputRawTx(rawTx, transaction)) {
+    if (rawTx) {
+        await outputRawTransaction(rawTx, transaction);
         return { raw: true };
     }
     spinner.text = 'Signing transaction...';

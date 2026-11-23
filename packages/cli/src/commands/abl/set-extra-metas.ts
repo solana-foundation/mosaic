@@ -2,8 +2,8 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { getSetExtraMetasTransaction } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
-import { getAddressFromKeypair, loadKeypair } from '../../utils/solana.js';
-import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
+import { resolveSigners } from '../../utils/solana.js';
+import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
 
 interface SetExtraMetasOptions {
@@ -26,17 +26,7 @@ export const setExtraMetas = new Command('set-extra-metas')
             const rpcSubscriptions = createRpcSubscriptions(rpcUrl);
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
 
-            let authority: TransactionSigner<string>;
-            let feePayer: TransactionSigner<string>;
-            if (rawTx) {
-                const defaultAddr = (await getAddressFromKeypair(parentOpts.keypair)) as Address;
-                authority = createNoopSigner((parentOpts.authority as Address) || defaultAddr);
-                feePayer = createNoopSigner((parentOpts.feePayer as Address) || authority.address);
-            } else {
-                const kp = await loadKeypair(parentOpts.keypair);
-                authority = kp;
-                feePayer = kp;
-            }
+            const { authority, feePayer } = await resolveSigners(parentOpts);
 
             const transaction = await getSetExtraMetasTransaction({
                 rpc,
