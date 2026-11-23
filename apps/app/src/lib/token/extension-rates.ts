@@ -1,3 +1,5 @@
+import { resolveScaledUiMultiplier } from '@solana/mosaic-sdk';
+
 /**
  * Pure display formatting for on-chain extension rates (transfer fee, interest, scaled UI).
  * Inputs are the string-safe values from `TokenDisplay`; nothing here touches bigints at rest.
@@ -60,15 +62,14 @@ export function formatScaledUiMultiplier(
     effectiveTimestamp: string | undefined,
     nowSeconds: number = Math.floor(Date.now() / 1000),
 ): string | undefined {
-    if (multiplier === undefined) return undefined;
-    const scheduled =
-        newMultiplier !== undefined &&
-        newMultiplier !== multiplier &&
-        effectiveTimestamp !== undefined &&
-        /^\d+$/.test(effectiveTimestamp) &&
-        effectiveTimestamp !== '0';
-    if (!scheduled) return String(multiplier);
-    const date = formatUnixTimestamp(effectiveTimestamp);
-    if (Number(effectiveTimestamp) <= nowSeconds) return `${newMultiplier} (since ${date})`;
-    return `${multiplier} → ${newMultiplier} on ${date}`;
+    const resolved = resolveScaledUiMultiplier(
+        { multiplier, newMultiplier, newMultiplierEffectiveTimestamp: effectiveTimestamp },
+        nowSeconds,
+    );
+    if (!resolved) return undefined;
+    const { scheduled } = resolved;
+    if (!scheduled) return String(resolved.multiplier);
+    const date = formatUnixTimestamp(scheduled.effectiveAt.toString());
+    if (scheduled.active) return `${scheduled.multiplier} (since ${date})`;
+    return `${resolved.multiplier} → ${scheduled.multiplier} on ${date}`;
 }

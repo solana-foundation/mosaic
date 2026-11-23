@@ -1,14 +1,13 @@
+import { type Address, type InstructionPlan, type Rpc, type SolanaRpcApi, type TransactionSigner } from '@solana/kit';
+import { fetchToken } from '@solana-program/token-2022';
 import {
-    type Address,
-    type GetMinimumBalanceForRentExemptionApi,
-    type InstructionPlan,
-    type Rpc,
-    type SolanaRpcApi,
-    type TransactionSigner,
-} from '@solana/kit';
-import { fetchToken, getConfidentialWithdrawInstructionPlan } from '@solana-program/token-2022';
-import type { ConfidentialKeys } from './keys.js';
-import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util.js';
+    getConfidentialWithdrawInstructionPlan,
+    getConfidentialWithdrawWithRecordInstructionPlan,
+} from '@solana-program/token-2022/confidential';
+import { addressOf, toSigner } from '../signers.js';
+import { assertTokenAccountMint, assertTokenAccountOwner } from './extensions.js';
+import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
+import { type RecordBackedProof, type TokenAmount, resolveRawAmount } from './util.js';
 
 /**
  * Withdraws tokens from the account's **available confidential** balance back to
@@ -17,10 +16,13 @@ import { type TokenAmount, resolveRawAmount, toAuthoritySigner } from './util.js
  * required equality + batched-range proofs via context-state accounts and emits
  * the multi-transaction plan (setup → withdraw → cleanup).
  *
- * Fetches and decodes the token account to read the current available balance.
+ * Fetches and decodes the token account to read the current available balance,
+ * and rejects an account that does not hold `mint` or is not owned by
+ * `authority` before planning: the plan's first transactions pay rent for proof
+ * accounts that would be stranded when the withdraw instruction fails.
  */
 export async function createConfidentialWithdrawInstructionPlan(input: {
-    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
+    rpc: Rpc<SolanaRpcApi>;
     /** Pays for the context-state account rent. */
     payer: TransactionSigner;
     /** The token mint (used to resolve decimals). */
@@ -33,23 +35,39 @@ export async function createConfidentialWithdrawInstructionPlan(input: {
     amount: TokenAmount;
     /** ElGamal keypair + AES key for this account. */
     keys: ConfidentialKeys;
+    /**
+     * Stage the batched range proof in an SPL Record account instead of inline in
+     * the verify instruction data. Not needed for compute-unit limits: the inline
+     * withdraw plan fits one when planned with `reserveComputeUnitLimit`, so this
+     * only adds transactions — see {@link RecordBackedProof}.
+     */
+    recordBackedProof?: RecordBackedProof;
 }): Promise<InstructionPlan> {
     const [{ rawAmount, decimals }, decoded] = await Promise.all([
         resolveRawAmount(input.rpc, input.mint, input.amount),
         fetchToken(input.rpc, input.tokenAccount),
     ]);
 
-    return getConfidentialWithdrawInstructionPlan({
+    const context = `token account ${input.tokenAccount}`;
+    assertTokenAccountMint(decoded, input.mint, context);
+    assertTokenAccountOwner(decoded, addressOf(input.authority), context);
+    assertConfidentialKeysMatchTokenAccount(input.keys, decoded, context);
+
+    const args = {
         rpc: input.rpc,
         payer: input.payer,
-        proofMode: 'context-state',
         token: input.tokenAccount,
         mint: input.mint,
         tokenAccount: decoded.data,
-        authority: toAuthoritySigner(input.authority),
+        authority: toSigner(input.authority),
         amount: rawAmount,
         decimals,
         elgamalKeypair: input.keys.elgamal,
         aesKey: input.keys.aes,
-    });
+    };
+
+    if (input.recordBackedProof !== undefined) {
+        return getConfidentialWithdrawWithRecordInstructionPlan({ ...args, ...input.recordBackedProof });
+    }
+    return getConfidentialWithdrawInstructionPlan(args);
 }

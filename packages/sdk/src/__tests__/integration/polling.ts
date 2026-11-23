@@ -94,7 +94,7 @@ export async function sendAndPollConfirm(
                 .getTransaction(signature, {
                     commitment: 'confirmed',
                     encoding: 'base64',
-                    maxSupportedTransactionVersion: 0,
+                    maxSupportedTransactionVersion: 1,
                 })
                 .send()
                 .catch(() => null);

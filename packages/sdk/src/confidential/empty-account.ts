@@ -6,31 +6,36 @@ import {
     type TransactionSigner,
     nonDivisibleSequentialInstructionPlan,
 } from '@solana/kit';
-import { getEmptyConfidentialTransferAccountInstruction } from '@solana-program/token-2022';
-import { SYSVAR_INSTRUCTIONS_ADDRESS } from '@solana/sysvars';
-import type { ConfidentialKeys } from './keys.js';
-import { fetchConfidentialAccountState } from './account-state.js';
-import { buildZeroCiphertextProofIxs } from './proof.js';
-import { toAuthoritySigner } from './util.js';
+import { fetchToken } from '@solana-program/token-2022';
+import { getEmptyConfidentialTransferAccountInstructionPlan } from '@solana-program/token-2022/confidential';
+import { toSigner } from '../signers.js';
+import { isConfidentialTransferAccount } from './extensions.js';
+import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
 
 /**
  * Empties a confidential token account's **available** balance so it can be
  * closed: it proves (via a `ZeroCiphertext` proof) that the available balance
  * ciphertext encrypts zero, then runs `EmptyConfidentialTransferAccount`.
  *
- * Unlike the other operations there is no upstream helper, so this uses the
- * bespoke proof plumbing in `proof.ts` in **sibling mode**: the `VerifyZero`
- * proof instruction sits immediately before the token instruction in the same
- * transaction (`proofInstructionOffset = -1`). The two are returned as a
- * `nonDivisibleSequentialInstructionPlan` so the planner keeps them in one
- * transaction.
+ * Wraps the official `getEmptyConfidentialTransferAccountInstructionPlan`, which
+ * generates the zero-ciphertext proof and wires it through a context-state
+ * account. The whole plan (create the context account, verify, empty, close it)
+ * packs into a single transaction, so it lands or fails atomically. Upstream
+ * returns a divisible plan, so it is wrapped as non-divisible here: composed
+ * after another plan, the planner could otherwise put the proof setup into the
+ * previous transaction's spare room and strand the context account's rent if
+ * the empty transaction then fails.
+ *
+ * Reads and decodes the token account, and adds the Mosaic value-adds: an
+ * account-configured fail-fast and a keys-match-account assertion, so a wrong
+ * wallet is caught here rather than as an opaque on-chain proof rejection.
  *
  * The available balance must already be zero (run `withdraw` first); otherwise
  * the proof fails on-chain.
  */
 export async function createEmptyConfidentialAccountInstructionPlan(input: {
     rpc: Rpc<SolanaRpcApi>;
-    /** Pays for the (sibling) proof verification instruction. */
+    /** Pays for the context-state account rent. */
     payer: TransactionSigner;
     /** The confidential token account (ATA) to empty. */
     tokenAccount: Address;
@@ -39,29 +44,26 @@ export async function createEmptyConfidentialAccountInstructionPlan(input: {
     /** ElGamal keypair + AES key for this account. */
     keys: ConfidentialKeys;
 }): Promise<InstructionPlan> {
-    const state = await fetchConfidentialAccountState(input.rpc, input.tokenAccount);
-    if (!state) {
-        throw new Error(`Account ${input.tokenAccount} has no ConfidentialTransferAccount extension.`);
-    }
+    const decoded = await fetchToken(input.rpc, input.tokenAccount);
 
-    // ZeroCiphertext proof over the available balance, verified as a sibling.
-    const proof = await buildZeroCiphertextProofIxs({
+    if (!isConfidentialTransferAccount(decoded)) {
+        throw new Error(
+            `Token account ${input.tokenAccount} is not configured for confidential transfers ` +
+                `(missing the ConfidentialTransferAccount extension). Configure it first with ` +
+                `createConfigureConfidentialAccountInstructionPlan.`,
+        );
+    }
+    // A key mismatch would only fail on-chain as an opaque proof rejection;
+    // catching it here names the actual cause.
+    assertConfidentialKeysMatchTokenAccount(input.keys, decoded, `token account ${input.tokenAccount}`);
+
+    const plan = await getEmptyConfidentialTransferAccountInstructionPlan({
         rpc: input.rpc,
         payer: input.payer,
-        elgamal: input.keys.elgamal,
-        ciphertext: new Uint8Array(state.ciphertexts.availableBalance),
-    });
-
-    const emptyIx = getEmptyConfidentialTransferAccountInstruction({
         token: input.tokenAccount,
-        instructionsSysvarOrContextState: SYSVAR_INSTRUCTIONS_ADDRESS,
-        authority: toAuthoritySigner(input.authority),
-        // -1 = read the proof from the immediately-preceding sibling instruction.
-        proofInstructionOffset: -1,
+        tokenAccount: decoded.data,
+        authority: toSigner(input.authority),
+        elgamalKeypair: input.keys.elgamal,
     });
-
-    // `cleanup` is empty in sibling mode (the path used here), but thread it
-    // through anyway so the context-account rent is never leaked if a
-    // context-state proof ever flows through `buildZeroCiphertextProofIxs`.
-    return nonDivisibleSequentialInstructionPlan([...proof.setup, emptyIx, ...proof.cleanup]);
+    return nonDivisibleSequentialInstructionPlan([plan]);
 }
