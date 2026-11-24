@@ -47,7 +47,11 @@ import {
     resolveAta,
     type ConfidentialMintConfig,
 } from '../lib/operations';
-import { ConfidentialActionCard, type ConfidentialActionValues } from './confidential-action-card';
+import {
+    ConfidentialActionCard,
+    type ConfidentialActionValues,
+    type ConfidentialRunContext,
+} from './confidential-action-card';
 import { ConfidentialBalancePanel } from './confidential-balance-panel';
 
 type RpcWithRent = Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
@@ -75,6 +79,16 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
 
     const owner = selectedAccount ? (String(selectedAccount) as Address) : undefined;
     const clusterName = getClusterName(cluster);
+
+    // Ties a plan that stopped part-way to this selection, so the cards resume it
+    // only on the network, wallet and mint it started on.
+    const runContext = useMemo<ConfidentialRunContext | undefined>(() => {
+        if (!cluster?.url || !owner) return undefined;
+        return {
+            key: `${cluster.url}|${owner}|${mint}`,
+            label: `${cluster.label ?? clusterName ?? cluster.url} · ${owner.slice(0, 4)}…${owner.slice(-4)}`,
+        };
+    }, [cluster?.url, cluster?.label, clusterName, owner, mint]);
 
     const rpc = useMemo<RpcWithRent | null>(() => {
         if (!cluster?.url) return null;
@@ -301,6 +315,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     actionLabel="Configure account"
                     disabledReason={configurePrereq}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleConfigure}
                 />
                 <ConfidentialActionCard
@@ -315,6 +330,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     addressOptional
                     disabledReason={approvePrereq}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleApprove}
                 />
                 <ConfidentialActionCard
@@ -325,6 +341,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     actionLabel="Enable confidential credits"
                     disabledReason={needsConfigured}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleEnableCredits}
                 />
                 <ConfidentialActionCard
@@ -338,6 +355,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     amountSymbol={symbol}
                     disabledReason={needsConfigured}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleDeposit}
                 />
                 <ConfidentialActionCard
@@ -348,6 +366,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     actionLabel="Apply pending → available"
                     disabledReason={needsConfigured}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleApply}
                 />
                 <ConfidentialActionCard
@@ -362,6 +381,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     amountSymbol={symbol}
                     disabledReason={needsConfigured}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleTransfer}
                 />
                 <ConfidentialActionCard
@@ -375,6 +395,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     amountSymbol={symbol}
                     disabledReason={needsConfigured}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleWithdraw}
                 />
                 <ConfidentialActionCard
@@ -385,6 +406,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     actionLabel="Empty confidential balance"
                     disabledReason={needsConfigured}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleEmpty}
                 />
             </div>

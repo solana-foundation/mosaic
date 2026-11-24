@@ -17,6 +17,18 @@ export interface ConfidentialActionValues {
     address?: string;
 }
 
+/**
+ * What an operation runs against: the network, wallet and mint. A plan that
+ * stopped part-way holds the RPC and signer it started with, so it may only
+ * resume while the same ones are selected.
+ */
+export interface ConfidentialRunContext {
+    /** Equal for two runs exactly when they target the same network, wallet and mint. */
+    key: string;
+    /** Shown when the selection no longer matches, e.g. `Devnet · 7xKX…gAsU`. */
+    label: string;
+}
+
 interface ConfidentialActionCardProps {
     stepNumber: number;
     title: string;
@@ -35,6 +47,8 @@ interface ConfidentialActionCardProps {
     disabledReason?: string;
     /** Explorer cluster name for signature links. */
     clusterName?: string;
+    /** The current selection. Undefined while there is none (no wallet, no network). */
+    runContext?: ConfidentialRunContext;
     /** Runs the operation; returns the transaction signatures. */
     onRun: (
         values: ConfidentialActionValues,
@@ -56,6 +70,7 @@ export function ConfidentialActionCard({
     addressOptional,
     disabledReason,
     clusterName,
+    runContext,
     onRun,
 }: ConfidentialActionCardProps) {
     const { validateSolanaAddress, validateAmount } = useInputValidation();
@@ -65,6 +80,9 @@ export function ConfidentialActionCard({
     const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [signatures, setSignatures] = useState<Signature[]>([]);
+    // The network the listed signatures were sent on, which the selection may
+    // have moved away from since.
+    const [signaturesCluster, setSignaturesCluster] = useState<string | undefined>();
     // Set when a multi-transaction plan stopped part-way: the confirmed
     // transactions stay listed, and this sends the rest of the same plan.
     const [partial, setPartial] = useState<{
@@ -72,6 +90,8 @@ export function ConfidentialActionCard({
         resume: ConfidentialPlanError['resume'];
         /** A sent transaction whose outcome is unknown; the resume settles it first. */
         unsettled?: Signature;
+        /** What the plan ran against; resuming needs the same selection. */
+        context?: ConfidentialRunContext;
     } | null>(null);
 
     const needsAmount = !!fields?.amount;
@@ -81,6 +101,9 @@ export function ConfidentialActionCard({
     const inputsValid = (!needsAmount || validateAmount(amount)) && (!needsAddress || addressValid);
 
     const execute = async (send: (onProgress: (current: number, total: number) => void) => Promise<Signature[]>) => {
+        // Captured before sending: the selection can change while it runs.
+        const context = runContext;
+        const sentOn = clusterName;
         setIsLoading(true);
         setError(null);
         setPartial(null);
@@ -88,12 +111,14 @@ export function ConfidentialActionCard({
         try {
             const sigs = await send((current, total) => setProgress({ current, total }));
             setSignatures(sigs);
+            setSignaturesCluster(sentOn);
             if (needsAmount) setAmount('');
             if (needsAddress) setAddress('');
         } catch (err) {
             if (err instanceof ConfidentialPlanError) {
                 setSignatures(err.signatures);
-                setPartial({ total: err.total, resume: err.resume, unsettled: err.unsettled });
+                setSignaturesCluster(sentOn);
+                setPartial({ total: err.total, resume: err.resume, unsettled: err.unsettled, context });
                 setError(humanizeError(err.cause));
             } else {
                 setSignatures([]);
@@ -121,8 +146,12 @@ export function ConfidentialActionCard({
         setError(null);
     };
 
+    // A resume sends the rest of the plan to the RPC and signer it started
+    // with, so it waits until the same network, wallet and mint are selected.
+    const resumeBlocked = !!partial && (!runContext || runContext.key !== partial.context?.key);
+
     const handleResume = () => {
-        if (partial) void execute(partial.resume);
+        if (partial && !resumeBlocked) void execute(partial.resume);
     };
 
     return (
@@ -190,7 +219,13 @@ export function ConfidentialActionCard({
                                 : `Stopped after ${signatures.length} of ${partial.total} transactions. The confirmed ones below are on chain; resume to send the remaining ${partial.total - signatures.length}, including the cleanup that reclaims proof account rent.`}
                         </p>
                         <div className="flex gap-2">
-                            <Button onClick={handleResume} variant="outline" size="sm" className="flex-1">
+                            <Button
+                                onClick={handleResume}
+                                disabled={resumeBlocked}
+                                variant="outline"
+                                size="sm"
+                                className="flex-1"
+                            >
                                 Resume ({signatures.length + 1}/{partial.total})
                             </Button>
                             {/* Running the step again builds a new plan; if its main
@@ -199,6 +234,13 @@ export function ConfidentialActionCard({
                                 Start over
                             </Button>
                         </div>
+                        {resumeBlocked && (
+                            <p className="text-xs text-muted-foreground">
+                                {partial.context
+                                    ? `This run used ${partial.context.label}. Switch back to it to resume.`
+                                    : 'Reconnect the wallet and network this run used to resume.'}
+                            </p>
+                        )}
                     </div>
                 )}
 
@@ -214,7 +256,7 @@ export function ConfidentialActionCard({
                         {signatures.map((sig, i) => (
                             <a
                                 key={sig}
-                                href={buildExplorerUrl(sig, clusterName)}
+                                href={buildExplorerUrl(sig, signaturesCluster)}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-primary"
