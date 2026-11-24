@@ -1,11 +1,6 @@
 import {
     type Address,
     createNoopSigner,
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayerSigner,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
     type Instruction,
     type Rpc,
     type SolanaRpcApi,
@@ -22,6 +17,7 @@ import {
     getThawAccountInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
+import { buildFullTransaction } from '../build-transaction.js';
 
 export const isAblAllowlist = async (rpc: Rpc<SolanaRpcApi>, listConfig: Address) => {
     const list = await getList({ rpc, listConfig });
@@ -102,13 +98,7 @@ export const createAddToAllowlistTransaction = async (
 ): Promise<FullTransaction> => {
     const instructions = await getAddToAllowlistInstructions(rpc, mint, account, authority);
     const authoritySigner = typeof authority === 'string' ? createNoopSigner(authority) : authority;
-    const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayerSigner(authoritySigner, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    return buildFullTransaction(rpc, authoritySigner, instructions);
 };
 
 export const getRemoveFromAllowlistInstructions = async (
@@ -174,11 +164,5 @@ export const createRemoveFromAllowlistTransaction = async (
 ): Promise<FullTransaction> => {
     const instructions = await getRemoveFromAllowlistInstructions(rpc, mint, account, authority);
     const authoritySigner = typeof authority === 'string' ? createNoopSigner(authority) : authority;
-    const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayerSigner(authoritySigner, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    return buildFullTransaction(rpc, authoritySigner, instructions);
 };

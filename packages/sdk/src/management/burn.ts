@@ -1,12 +1,6 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
-import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayerSigner,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-} from '@solana/kit';
+import {} from '@solana/kit';
 import {
     getBurnCheckedInstruction,
     getPermissionedBurnCheckedInstruction,
@@ -15,6 +9,7 @@ import {
 import { resolveTokenAccount, decimalAmountToRaw, getMintDetails } from '../transaction-util.js';
 import { getPermissionedBurnAuthority } from './permissioned-burn.js';
 import { addressOf, resolveSigners } from '../signers.js';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Creates a transaction to burn tokens from the owner's token account.
@@ -99,13 +94,5 @@ export const createBurnTransaction = async (
               },
           );
 
-    // Get latest blockhash for transaction
-    const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayerSigner(feePayerSigner, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions([burnInstruction], m),
-    ) as FullTransaction;
+    return buildFullTransaction(rpc, feePayerSigner, [burnInstruction]);
 };

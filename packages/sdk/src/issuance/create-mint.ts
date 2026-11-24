@@ -1,14 +1,6 @@
 import type { Address, Instruction, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import { assertValidDecimals, type FullTransaction } from '../transaction-util.js';
-import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayerSigner,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-    createNoopSigner,
-    some,
-} from '@solana/kit';
+import { createNoopSigner, some } from '@solana/kit';
 import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     AccountState,
@@ -24,6 +16,7 @@ import {
 } from '@solana-program/token-2022';
 import { createUpdateFieldInstruction } from './create-update-field-instruction.js';
 import { addressOf, getSharedFeePayerSigner } from '../signers.js';
+import { buildFullTransaction } from '../build-transaction.js';
 
 // Anything larger is almost certainly a millisecond timestamp (10^10 s is the year 2286).
 const MAX_UNIX_SECONDS_TIMESTAMP = 10_000_000_000n;
@@ -575,15 +568,7 @@ export class Token {
             feePayer,
         });
 
-        // Get latest blockhash for transaction
-        const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-
-        return pipe(
-            createTransactionMessage({ version: 0 }),
-            m => setTransactionMessageFeePayerSigner(feePayerSigner, m),
-            m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-            m => appendTransactionMessageInstructions(instructions, m),
-        ) as FullTransaction;
+        return buildFullTransaction(rpc, feePayerSigner, instructions);
     }
 }
 

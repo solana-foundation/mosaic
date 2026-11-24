@@ -1,9 +1,4 @@
 import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayerSigner,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
     fetchEncodedAccount,
     lamports,
     type Address,
@@ -17,6 +12,7 @@ import type { FullTransaction } from '../transaction-util.js';
 import { createThawPermissionlessInstructionWithExtraMetas } from '@solana/token-acl-sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils.js';
 import { getTokenEncoder, AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Generates instructions for performing a permissionless thaw operation on a token account.
@@ -102,18 +98,10 @@ export const getThawPermissionlessTransaction = async (input: {
     tokenAccount: Address;
     tokenAccountOwner: Address;
 }): Promise<FullTransaction> => {
-    // One signer object per key: Kit refuses to sign a payer and an authority that are
-    // distinct signer objects for the same address.
     const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
         input.payer,
         input.authority,
     );
     const instructions = await getThawPermissionlessInstructions({ ...input, authority });
-    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayerSigner(payer, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    return buildFullTransaction(input.rpc, payer, instructions);
 };

@@ -1,19 +1,9 @@
-import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayerSigner,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-    type Address,
-    type Instruction,
-    type Rpc,
-    type SolanaRpcApi,
-    type TransactionSigner,
-} from '@solana/kit';
+import { type Address, type Instruction, type Rpc, type SolanaRpcApi, type TransactionSigner } from '@solana/kit';
 import { resolveFeePayerAndAuthority } from '../signers.js';
 import type { FullTransaction } from '../transaction-util.js';
 import { findMintConfigPda, getTogglePermissionlessInstructionsInstruction } from '@solana/token-acl-sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils.js';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Generates instructions for enabling permissionless thaw operations on a mint.
@@ -67,18 +57,10 @@ export const getEnablePermissionlessThawTransaction = async (input: {
     authority: TransactionSigner<string>;
     mint: Address;
 }): Promise<FullTransaction> => {
-    // One signer object per key: Kit refuses to sign a payer and an authority that are
-    // distinct signer objects for the same address.
     const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
         input.payer,
         input.authority,
     );
     const instructions = await getEnablePermissionlessThawInstructions({ ...input, authority });
-    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayerSigner(payer, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    return buildFullTransaction(input.rpc, payer, instructions);
 };

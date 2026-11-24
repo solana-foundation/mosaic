@@ -1,9 +1,4 @@
 import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayerSigner,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
     type Address,
     type Base58EncodedBytes,
     type Instruction,
@@ -23,6 +18,7 @@ import {
     Mode,
     type WalletEntry,
 } from '@solana/token-acl-gate-sdk';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Generates instructions for creating a new allowlist/blocklist configuration.
@@ -85,8 +81,6 @@ export const getCreateListTransaction = async (input: {
     transaction: FullTransaction;
     listConfig: Address;
 }> => {
-    // One signer object per key: Kit refuses to sign a payer and an authority that are
-    // distinct signer objects for the same address.
     const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
         input.payer,
         input.authority,
@@ -96,13 +90,7 @@ export const getCreateListTransaction = async (input: {
         payer,
         mint: input.mint,
     });
-    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    const transaction = pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayerSigner(payer, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    const transaction = await buildFullTransaction(input.rpc, payer, instructions);
     return {
         transaction,
         listConfig,
