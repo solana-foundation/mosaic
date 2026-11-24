@@ -396,7 +396,23 @@ export class Token {
         return this;
     }
 
-    async buildInstructions({
+    async buildInstructions(args: {
+        rpc: Rpc<SolanaRpcApiMainnet>;
+        decimals: number;
+        mintAuthority?: Address | TransactionSigner<string>; // defaults to feePayer
+        freezeAuthority?: Address; // default to feePayer
+        mint: TransactionSigner<string>;
+        feePayer: TransactionSigner<string>;
+    }): Promise<Instruction[]> {
+        return (await this.buildInstructionsAndFeePayer(args)).instructions;
+    }
+
+    /**
+     * The mint's instructions together with the fee payer signer they were built for. Resolving
+     * the shared signer once, here, is what keeps a transaction's fee payer and the signer its
+     * instructions carry for that key the same object.
+     */
+    private async buildInstructionsAndFeePayer({
         rpc,
         decimals,
         mintAuthority: mintAuthorityInput,
@@ -410,7 +426,7 @@ export class Token {
         freezeAuthority?: Address; // default to feePayer
         mint: TransactionSigner<string>;
         feePayer: TransactionSigner<string>;
-    }): Promise<Instruction[]> {
+    }): Promise<{ instructions: Instruction[]; feePayer: TransactionSigner<string> }> {
         assertValidExtensionCombination(this.extensions);
         // A mint authority with the fee payer's address is the fee payer, whether given as
         // a bare address or as a different signer object for the same key. Both roles use
@@ -522,12 +538,15 @@ export class Token {
             );
         }
 
-        return [
-            createMintAccountInstruction,
-            ...preInitializeInstructions,
-            initMintInstruction,
-            ...postInitializeInstructions,
-        ];
+        return {
+            instructions: [
+                createMintAccountInstruction,
+                ...preInitializeInstructions,
+                initMintInstruction,
+                ...postInitializeInstructions,
+            ],
+            feePayer,
+        };
     }
 
     async buildTransaction({
@@ -545,18 +564,15 @@ export class Token {
         mint: TransactionSigner<string>;
         feePayer: TransactionSigner<string>;
     }): Promise<FullTransaction> {
-        // buildInstructions gives a mint authority on the fee payer's key the shared signer (the
-        // real one when the other is a no-op). The message's fee payer must be that same object,
-        // or Kit refuses to sign; passing it in keeps the two from drifting apart.
-        const feePayerSigner =
-            (mintAuthority === undefined ? undefined : getSharedFeePayerSigner(feePayer, mintAuthority)) ?? feePayer;
-        const instructions = await this.buildInstructions({
+        // The message's fee payer must be the signer object the instructions carry for that key, or
+        // Kit refuses to sign, so take it from the same call that built them.
+        const { instructions, feePayer: feePayerSigner } = await this.buildInstructionsAndFeePayer({
             rpc,
             decimals,
             mintAuthority,
             freezeAuthority,
             mint,
-            feePayer: feePayerSigner,
+            feePayer,
         });
 
         // Get latest blockhash for transaction
