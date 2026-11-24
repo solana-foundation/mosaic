@@ -1,6 +1,5 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
-import {} from '@solana/kit';
 import {
     TOKEN_2022_PROGRAM_ADDRESS,
     getMintToInstruction,

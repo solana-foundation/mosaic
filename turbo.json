@@ -18,7 +18,14 @@
         "test:integration": {
             "dependsOn": ["^build"],
             "cache": false,
-            "env": ["SOLANA_RPC_URL", "SOLANA_WS_URL", "SOLANA_RPC_PORT", "TEST_BACKEND", "SOLANA_VALIDATOR_ARGS"]
+            "env": [
+                "SOLANA_RPC_URL",
+                "SOLANA_WS_URL",
+                "SOLANA_RPC_PORT",
+                "TEST_BACKEND",
+                "SOLANA_VALIDATOR_ARGS",
+                "SOLANA_VALIDATOR_STARTUP_TIMEOUT_MS"
+            ]
         },
         "test:integration:surfpool": {
             "dependsOn": ["^build"],
