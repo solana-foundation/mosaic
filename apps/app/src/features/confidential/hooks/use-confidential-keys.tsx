@@ -20,12 +20,43 @@ import type { ConfidentialKeys, SignMessage } from '@solana/mosaic-sdk/confident
  * persisting — but deriving prompts the wallet, so we derive once per owner and
  * reuse the result for the session. They own WASM memory, so they are freed when
  * the wallet disconnects/switches or the provider unmounts.
+ *
+ * Freeing is deferred around work that is still using them. Keys are only
+ * handed out through {@link ConfidentialKeysContextValue.withKeys}, which holds
+ * a lease for the duration of the callback (proof generation, decryption); a
+ * wallet switch retires the keys, and retired keys are freed when their last
+ * lease ends. A derivation still waiting on its wallet signature when the
+ * wallet switches frees its result instead of caching it.
  */
 interface ConfidentialKeysContextValue {
     /** Whether a wallet capable of message signing is connected. */
     canDerive: boolean;
-    /** Derives (or returns the cached) confidential keys for the connected wallet. */
-    getKeys: () => Promise<ConfidentialKeys>;
+    /**
+     * Runs `run` with the connected wallet's confidential keys, deriving them
+     * first (one wallet prompt) if they are not cached. The keys stay valid
+     * until `run` settles; do not keep them beyond it.
+     */
+    withKeys: <T>(run: (keys: ConfidentialKeys) => Promise<T>) => Promise<T>;
+}
+
+/** Cached keys plus the bookkeeping that decides when they may be freed. */
+interface KeyEntry {
+    keys: ConfidentialKeys;
+    /** Callbacks currently running with these keys. */
+    leases: number;
+    /** Set when the wallet switched or the provider unmounted; free at zero leases. */
+    retired: boolean;
+}
+
+const WALLET_CHANGED = 'The wallet changed while confidential keys were in use. Try again.';
+
+async function freeKeys(keys: ConfidentialKeys): Promise<void> {
+    const { freeConfidentialKeys } = await import('@solana/mosaic-sdk/confidential');
+    try {
+        freeConfidentialKeys(keys);
+    } catch {
+        // Already freed or freeing failed — nothing actionable.
+    }
 }
 
 const ConfidentialKeysContext = createContext<ConfidentialKeysContextValue | null>(null);
@@ -84,31 +115,28 @@ export function ConfidentialKeysProvider({ children }: { children: React.ReactNo
     const walletStandardCanSign = useWalletStandardCanSignMessage(owner);
 
     // Cache + in-flight derivations, keyed by owner.
-    const cacheRef = useRef<Map<string, ConfidentialKeys>>(new Map());
-    const inflightRef = useRef<Map<string, Promise<ConfidentialKeys>>>(new Map());
+    const cacheRef = useRef<Map<string, KeyEntry>>(new Map());
+    const inflightRef = useRef<Map<string, Promise<KeyEntry>>>(new Map());
+    // Bumped on every retirement, so a derivation can tell that the wallet it
+    // started for is gone by the time its signature arrives.
+    const epochRef = useRef(0);
 
-    const freeAll = useCallback(async () => {
-        if (cacheRef.current.size === 0) return;
-        const { freeConfidentialKeys } = await import('@solana/mosaic-sdk/confidential');
-        for (const keys of cacheRef.current.values()) {
-            try {
-                freeConfidentialKeys(keys);
-            } catch {
-                // Already freed or freeing failed — nothing actionable.
-            }
+    const retireAll = useCallback(() => {
+        epochRef.current++;
+        for (const entry of cacheRef.current.values()) {
+            entry.retired = true;
+            if (entry.leases === 0) void freeKeys(entry.keys);
         }
         cacheRef.current.clear();
         inflightRef.current.clear();
     }, []);
 
-    // Free cached WASM keys whenever the wallet changes, and on unmount.
+    // Retire cached WASM keys whenever the wallet changes, and on unmount.
     useEffect(() => {
-        return () => {
-            void freeAll();
-        };
-    }, [owner, freeAll]);
+        return () => retireAll();
+    }, [owner, retireAll]);
 
-    const getKeys = useCallback(async (): Promise<ConfidentialKeys> => {
+    const acquire = useCallback(async (): Promise<KeyEntry> => {
         if (!owner) throw new Error('Connect a wallet to derive confidential keys.');
 
         const cached = cacheRef.current.get(owner);
@@ -117,7 +145,8 @@ export function ConfidentialKeysProvider({ children }: { children: React.ReactNo
         const existing = inflightRef.current.get(owner);
         if (existing) return existing;
 
-        const derivation = (async () => {
+        const epoch = epochRef.current;
+        const derivation: Promise<KeyEntry> = (async () => {
             // Both imports are deferred so the `@solana/zk-sdk` WASM stays off
             // the initial route bundle — the wallet-standard subpath pulls it at
             // module scope to precompute the canonical derivation message.
@@ -133,21 +162,44 @@ export function ConfidentialKeysProvider({ children }: { children: React.ReactNo
             }
 
             const keys = await deriveConfidentialKeys({ signer: createMessageSigner(owner, signMessage) });
-            cacheRef.current.set(owner, keys);
-            inflightRef.current.delete(owner);
-            return keys;
-        })().catch(err => {
-            inflightRef.current.delete(owner);
-            throw err;
+            if (epoch !== epochRef.current) {
+                // Retirement already ran while the signature was pending, so
+                // nothing would ever free these if they were cached.
+                await freeKeys(keys);
+                throw new Error(WALLET_CHANGED);
+            }
+            const entry: KeyEntry = { keys, leases: 0, retired: false };
+            cacheRef.current.set(owner, entry);
+            return entry;
+        })().finally(() => {
+            // Only our own slot: after a switch away and back, the map may
+            // already hold a newer derivation for the same owner.
+            if (inflightRef.current.get(owner) === derivation) inflightRef.current.delete(owner);
         });
 
         inflightRef.current.set(owner, derivation);
         return derivation;
     }, [owner, connectorSignMessage]);
 
+    const withKeys = useCallback(
+        async <T,>(run: (keys: ConfidentialKeys) => Promise<T>): Promise<T> => {
+            const entry = await acquire();
+            // Checked and leased in the same tick, so retirement cannot slip in between.
+            if (entry.retired) throw new Error(WALLET_CHANGED);
+            entry.leases++;
+            try {
+                return await run(entry.keys);
+            } finally {
+                entry.leases--;
+                if (entry.retired && entry.leases === 0) void freeKeys(entry.keys);
+            }
+        },
+        [acquire],
+    );
+
     const value = useMemo<ConfidentialKeysContextValue>(
-        () => ({ canDerive: !!owner && (walletStandardCanSign || !!connectorSignMessage), getKeys }),
-        [owner, walletStandardCanSign, connectorSignMessage, getKeys],
+        () => ({ canDerive: !!owner && (walletStandardCanSign || !!connectorSignMessage), withKeys }),
+        [owner, walletStandardCanSign, connectorSignMessage, withKeys],
     );
 
     return <ConfidentialKeysContext.Provider value={value}>{children}</ConfidentialKeysContext.Provider>;

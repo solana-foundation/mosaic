@@ -68,7 +68,7 @@ interface ConfidentialWizardProps {
 export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
     const { selectedAccount, cluster } = useConnector();
     const signer = useConnectorSigner();
-    const { getKeys } = useConfidentialKeys();
+    const { withKeys } = useConfidentialKeys();
     // Version 0 unless both the selected RPC and the connected wallet prove they
     // accept SIMD-0385 transactions; see `useConfidentialTxVersion`.
     const { version: txVersion } = useConfidentialTxVersion();
@@ -219,10 +219,10 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
               : undefined;
 
     const handleConfigure = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
-        runPlan(async () => {
-            const keys = await getKeys();
-            return buildConfigurePlan({ rpc: rpc!, payer: authority, owner: authority, mint, keys });
-        }, onProgress);
+        runPlan(
+            () => withKeys(keys => buildConfigurePlan({ rpc: rpc!, payer: authority, owner: authority, mint, keys })),
+            onProgress,
+        );
 
     const handleApprove = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
         runPlan(async () => {
@@ -241,46 +241,53 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
         );
 
     const handleApply = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
-        runPlan(async () => {
-            const keys = await getKeys();
-            return buildApplyPlan({ rpc: rpc!, tokenAccount: tokenAccount!, authority, keys });
-        }, onProgress);
+        runPlan(
+            () => withKeys(keys => buildApplyPlan({ rpc: rpc!, tokenAccount: tokenAccount!, authority, keys })),
+            onProgress,
+        );
 
     const handleTransfer = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
         runPlan(async () => {
-            const keys = await getKeys();
             const destinationToken = await resolveAta(v.address! as Address, mint);
-            return buildTransferPlan({
-                rpc: rpc!,
-                payer: authority,
-                mint,
-                sourceToken: tokenAccount!,
-                destinationToken,
-                authority,
-                amount: v.amount!,
-                keys,
-            });
+            return withKeys(keys =>
+                buildTransferPlan({
+                    rpc: rpc!,
+                    payer: authority,
+                    mint,
+                    sourceToken: tokenAccount!,
+                    destinationToken,
+                    authority,
+                    amount: v.amount!,
+                    keys,
+                }),
+            );
         }, onProgress);
 
     const handleWithdraw = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
-        runPlan(async () => {
-            const keys = await getKeys();
-            return buildWithdrawPlan({
-                rpc: rpc!,
-                payer: authority,
-                mint,
-                tokenAccount: tokenAccount!,
-                authority,
-                amount: v.amount!,
-                keys,
-            });
-        }, onProgress);
+        runPlan(
+            () =>
+                withKeys(keys =>
+                    buildWithdrawPlan({
+                        rpc: rpc!,
+                        payer: authority,
+                        mint,
+                        tokenAccount: tokenAccount!,
+                        authority,
+                        amount: v.amount!,
+                        keys,
+                    }),
+                ),
+            onProgress,
+        );
 
     const handleEmpty = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
-        runPlan(async () => {
-            const keys = await getKeys();
-            return buildEmptyPlan({ rpc: rpc!, payer: authority, tokenAccount: tokenAccount!, authority, keys });
-        }, onProgress);
+        runPlan(
+            () =>
+                withKeys(keys =>
+                    buildEmptyPlan({ rpc: rpc!, payer: authority, tokenAccount: tokenAccount!, authority, keys }),
+                ),
+            onProgress,
+        );
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">

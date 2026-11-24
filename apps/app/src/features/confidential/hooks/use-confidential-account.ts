@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
-import type { ConfidentialAccountState } from '@solana/mosaic-sdk/confidential';
+import type { ConfidentialAccountState, ConfidentialKeys } from '@solana/mosaic-sdk/confidential';
 import { humanizeError } from '@/lib/errors';
 import { useConfidentialKeys } from './use-confidential-keys';
 
@@ -37,7 +37,7 @@ export function useConfidentialAccount(input: {
     rpc: Rpc<SolanaRpcApi> | null;
 }): UseConfidentialAccountResult {
     const { tokenAccount, rpc } = input;
-    const { getKeys, canDerive } = useConfidentialKeys();
+    const { withKeys, canDerive } = useConfidentialKeys();
 
     const [state, setState] = useState<ConfidentialAccountState | null>(null);
     const [isConfigured, setIsConfigured] = useState(false);
@@ -52,12 +52,11 @@ export function useConfidentialAccount(input: {
             setError(null);
             try {
                 const { fetchConfidentialAccountState } = await import('@solana/mosaic-sdk/confidential');
-                const keys = withReveal ? await getKeys() : undefined;
-                const next = await fetchConfidentialAccountState(
-                    rpc,
-                    tokenAccount,
-                    keys ? { keys, decryptPendingBalance: true } : {},
-                );
+                const fetchState = (keys?: ConfidentialKeys) =>
+                    fetchConfidentialAccountState(rpc, tokenAccount, keys ? { keys, decryptPendingBalance: true } : {});
+                // Decryption runs inside the key lease, so a wallet switch
+                // cannot free the keys mid-decrypt.
+                const next = withReveal ? await withKeys(fetchState) : await fetchState();
                 setState(next);
                 setIsConfigured(next !== null);
                 if (withReveal) setIsRevealed(true);
@@ -67,7 +66,7 @@ export function useConfidentialAccount(input: {
                 setIsLoading(false);
             }
         },
-        [rpc, tokenAccount, getKeys],
+        [rpc, tokenAccount, withKeys],
     );
 
     const refresh = useCallback(() => void load(isRevealed), [load, isRevealed]);
