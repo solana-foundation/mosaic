@@ -70,6 +70,8 @@ export function ConfidentialActionCard({
     const [partial, setPartial] = useState<{
         total: number;
         resume: ConfidentialPlanError['resume'];
+        /** A sent transaction whose outcome is unknown; the resume settles it first. */
+        unsettled?: Signature;
     } | null>(null);
 
     const needsAmount = !!fields?.amount;
@@ -91,7 +93,7 @@ export function ConfidentialActionCard({
         } catch (err) {
             if (err instanceof ConfidentialPlanError) {
                 setSignatures(err.signatures);
-                setPartial({ total: err.total, resume: err.resume });
+                setPartial({ total: err.total, resume: err.resume, unsettled: err.unsettled });
                 setError(humanizeError(err.cause));
             } else {
                 setSignatures([]);
@@ -183,9 +185,9 @@ export function ConfidentialActionCard({
                 {partial && !isLoading && (
                     <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
                         <p className="text-sm text-amber-700 dark:text-amber-400">
-                            Stopped after {signatures.length} of {partial.total} transactions. The confirmed ones below
-                            are on chain; resume to send the remaining {partial.total - signatures.length}, including
-                            the cleanup that reclaims proof account rent.
+                            {partial.unsettled
+                                ? `Transaction ${signatures.length + 1} of ${partial.total} was sent, but whether it landed is unknown. Resume checks it before sending anything new; Start over could send it twice.`
+                                : `Stopped after ${signatures.length} of ${partial.total} transactions. The confirmed ones below are on chain; resume to send the remaining ${partial.total - signatures.length}, including the cleanup that reclaims proof account rent.`}
                         </p>
                         <div className="flex gap-2">
                             <Button onClick={handleResume} variant="outline" size="sm" className="flex-1">

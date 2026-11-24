@@ -39,6 +39,11 @@ import type { ConfidentialTxVersion } from './transaction-version';
  * retried only in the pre-sign simulation, which prompts nobody and executes
  * nothing.
  *
+ * The same rule holds across a resume. When the wait for a sent transaction
+ * ends without an outcome (a status read fails, or the settle timeout passes),
+ * the signed transaction travels with the error, and resuming settles it before
+ * anything is signed: if it landed, the plan moves on to the next transaction.
+ *
  * ## Transaction version
  *
  * `version` selects the format the SDK planner packs into. It defaults to `0`,
@@ -183,28 +188,65 @@ async function prepareMessage(
     }
 }
 
+/** A signed transaction a node has accepted, which may land until its blockhash expires. */
+interface InFlightTransaction {
+    wire: ReturnType<typeof getBase64EncodedWireTransaction>;
+    signature: Signature;
+    lastValidBlockHeight: bigint;
+}
+
+/** A transaction that landed and failed on chain. Final: it executed nothing, and it cannot land again. */
+class TransactionFailedError extends Error {
+    name = 'TransactionFailedError';
+}
+
 /**
- * Sends one signed transaction and waits for its outcome, rebroadcasting the
- * same bytes while it is unseen. Resolves `'confirmed'`, or `'expired'` once its
- * blockhash has expired and no node knows the signature, which is the only
- * state in which signing a replacement cannot double-execute. An on-chain
- * failure throws.
+ * The wait for a sent transaction ended without an outcome: a status read
+ * failed, or {@link SETTLE_TIMEOUT_MS} passed. The transaction may still land, so
+ * it must be settled, never replaced; it travels with the error so a resume can.
  */
-async function sendUntilSettled(
-    rpc: Rpc<SolanaRpcApi>,
-    wire: ReturnType<typeof getBase64EncodedWireTransaction>,
-    signature: Signature,
-    lastValidBlockHeight: bigint,
-): Promise<'confirmed' | 'expired'> {
-    const send = () => rpc.sendTransaction(wire, { encoding: 'base64', skipPreflight: true }).send();
-    // The first send's errors propagate: a node refusing the bytes outright
-    // (malformed, unsupported version) will refuse every rebroadcast too, and
-    // the version-1 fallback reads exactly those errors.
-    await withBackoff('sendTransaction', send);
+class UnsettledTransactionError extends Error {
+    name = 'UnsettledTransactionError';
+    constructor(
+        cause: unknown,
+        readonly transaction: InFlightTransaction,
+    ) {
+        super(
+            `Transaction ${transaction.signature} was sent, but confirming it failed (${messageChain(cause) || String(cause)}). ` +
+                'It may still land, so resuming checks it before sending anything new.',
+            { cause },
+        );
+    }
+}
+
+const broadcast = (rpc: Rpc<SolanaRpcApi>, tx: InFlightTransaction) =>
+    rpc.sendTransaction(tx.wire, { encoding: 'base64', skipPreflight: true }).send();
+
+/**
+ * Waits for a sent transaction's outcome, rebroadcasting the same bytes while
+ * it is unseen. Resolves `'confirmed'`, or `'expired'` once its blockhash has
+ * expired and no node knows the signature, which is the only state in which
+ * signing a replacement cannot double-execute. An on-chain failure throws
+ * {@link TransactionFailedError}; losing track of the transaction throws
+ * {@link UnsettledTransactionError}.
+ */
+async function settleInFlight(rpc: Rpc<SolanaRpcApi>, tx: InFlightTransaction): Promise<'confirmed' | 'expired'> {
+    try {
+        return await waitForOutcome(rpc, tx);
+    } catch (err) {
+        if (err instanceof TransactionFailedError) throw err;
+        throw new UnsettledTransactionError(err, tx);
+    }
+}
+
+async function waitForOutcome(rpc: Rpc<SolanaRpcApi>, tx: InFlightTransaction): Promise<'confirmed' | 'expired'> {
+    const { signature, lastValidBlockHeight } = tx;
+    const send = () => broadcast(rpc, tx);
 
     // Settles a status entry: confirmed, failed on chain, or still pending (null).
     const settle = (entry: { err: unknown; confirmationStatus: string | null } | null) => {
-        if (entry?.err) throw new Error(`Transaction ${signature} failed: ${describeTxError(entry.err)}`);
+        if (entry?.err)
+            throw new TransactionFailedError(`Transaction ${signature} failed: ${describeTxError(entry.err)}`);
         if (entry?.confirmationStatus === 'confirmed' || entry?.confirmationStatus === 'finalized')
             return 'confirmed' as const;
         return null;
@@ -240,22 +282,25 @@ async function sendUntilSettled(
         }
         await sleep(1_000);
     }
-    throw new Error(
-        `Transaction ${signature} was neither confirmed nor expired within ${SETTLE_TIMEOUT_MS / 1000}s. ` +
-            'Check it in the explorer before trying again: it may still land.',
-    );
+    throw new Error(`neither confirmed nor expired within ${SETTLE_TIMEOUT_MS / 1000}s`);
 }
 
 /**
  * Signs `baseMessage` with a fresh blockhash, sends it, and waits for it. Signs
  * again (a new wallet prompt) only after the previous copy expired unexecuted.
+ *
+ * `inFlight` is this message's transaction from an earlier attempt that lost
+ * track of it. It is settled first, and only re-signed if it expired.
  */
 async function signSendConfirm(
     rpc: Rpc<SolanaRpcApi>,
     baseMessage: unknown,
     version: ConfidentialTxVersion,
     estimateResourceLimits: EstimateResourceLimits,
+    inFlight?: InFlightTransaction,
 ): Promise<Signature> {
+    if (inFlight && (await settleInFlight(rpc, inFlight)) === 'confirmed') return inFlight.signature;
+
     for (let signing = 1; ; signing++) {
         const { message, lastValidBlockHeight } = await prepareMessage(
             rpc,
@@ -264,13 +309,18 @@ async function signSendConfirm(
             estimateResourceLimits,
         );
         const signed = await signTransactionMessageWithSigners(message);
-        const signature = getSignatureFromTransaction(signed);
-        const outcome = await sendUntilSettled(
-            rpc,
-            getBase64EncodedWireTransaction(signed),
-            signature,
+        const tx: InFlightTransaction = {
+            wire: getBase64EncodedWireTransaction(signed),
+            signature: getSignatureFromTransaction(signed),
             lastValidBlockHeight,
-        );
+        };
+        // The first send's errors propagate as they are: a node refusing the
+        // bytes outright (malformed, unsupported version) will refuse every
+        // rebroadcast too, nothing is in flight, and the version-1 fallback
+        // reads exactly those errors.
+        await withBackoff('sendTransaction', () => broadcast(rpc, tx));
+        const outcome = await settleInFlight(rpc, tx);
+        const { signature } = tx;
         if (outcome === 'confirmed') return signature;
         if (signing >= MAX_SIGNINGS)
             throw new Error(
@@ -283,11 +333,13 @@ async function signSendConfirm(
 export type ConfidentialPlanProgress = (current: number, total: number) => void;
 
 /**
- * A plan that stopped part-way: some of its transactions confirmed, a later one
- * failed. Those confirmed transactions already changed state on chain (proof
- * context-state accounts hold rent until the plan's cleanup runs), so the caller
- * gets their signatures and a {@link ConfidentialPlanError.resume} that sends
- * the rest of the *same* planned messages, starting at the one that failed.
+ * A plan that stopped part-way: some of its transactions confirmed, or one was
+ * sent and its outcome is unknown, and the rest did not run. Those transactions
+ * may already have changed state on chain (proof context-state accounts hold
+ * rent until the plan's cleanup runs), so the caller gets their signatures and a
+ * {@link ConfidentialPlanError.resume} that sends the rest of the *same* planned
+ * messages, starting at the one that failed. An unsettled transaction is settled
+ * first, so a resume never sends a second copy of one that landed.
  */
 export class ConfidentialPlanError extends Error {
     constructor(
@@ -298,6 +350,8 @@ export class ConfidentialPlanError extends Error {
         readonly total: number,
         /** Sends the remaining transactions; resolves with every signature of the plan. */
         public resume: (onProgress?: ConfidentialPlanProgress) => Promise<Signature[]>,
+        /** The transaction that was sent but neither confirmed nor expired, if that is why the plan stopped. */
+        readonly unsettled?: Signature,
     ) {
         super(`Stopped after ${signatures.length} of ${total} transactions: ${messageChain(cause) || String(cause)}`, {
             cause,
@@ -310,14 +364,15 @@ export class ConfidentialPlanError extends Error {
  * Plans a confidential `InstructionPlan` into fee-payer-bound transaction
  * messages, then signs, sends, and confirms each in order — returning every
  * signature. `onProgress` fires before each transaction so multi-tx proof flows
- * can surface "sending 2/3". A failure after the first transaction confirmed
- * throws a {@link ConfidentialPlanError}.
+ * can surface "sending 2/3". A failure after the first transaction confirmed,
+ * or any loss of track of a sent transaction, throws a
+ * {@link ConfidentialPlanError}.
  *
  * At `version: 1`, a failure that looks like the wallet or the node rejecting
  * the format falls back to version 0 and starts over — but only while nothing
- * has landed yet. Once the first transaction confirms, the plan's proof
- * context-state accounts exist on chain and re-planning would be wrong, so from
- * that point the error propagates.
+ * can have landed yet. Once the first transaction confirms or may have landed,
+ * the plan's proof context-state accounts may exist on chain and re-planning
+ * would be wrong, so from that point the error propagates.
  */
 export async function executeConfidentialPlan(input: {
     instructionPlan: InstructionPlan;
@@ -339,17 +394,34 @@ export async function executeConfidentialPlan(input: {
         start: number,
         confirmed: Signature[],
         onProgress?: ConfidentialPlanProgress,
+        /** `messages[start]`'s transaction from the attempt that lost track of it. */
+        inFlight?: InFlightTransaction,
     ): Promise<Signature[]> => {
         const signatures = [...confirmed];
         for (let i = start; i < messages.length; i++) {
             onProgress?.(i + 1, messages.length);
             try {
-                signatures.push(await signSendConfirm(input.rpc, messages[i], version, estimateResourceLimits));
+                signatures.push(
+                    await signSendConfirm(
+                        input.rpc,
+                        messages[i],
+                        version,
+                        estimateResourceLimits,
+                        i === start ? inFlight : undefined,
+                    ),
+                );
             } catch (err) {
-                if (signatures.length === 0) throw err;
+                // A transaction that may still land makes even a plan's first
+                // step resumable: running it again from scratch would re-sign it.
+                const unsettled = err instanceof UnsettledTransactionError ? err.transaction : undefined;
+                if (signatures.length === 0 && !unsettled) throw err;
                 const done = [...signatures];
-                throw new ConfidentialPlanError(err, done, messages.length, resumeProgress =>
-                    sendFrom(messages, version, i, done, resumeProgress),
+                throw new ConfidentialPlanError(
+                    err,
+                    done,
+                    messages.length,
+                    resumeProgress => sendFrom(messages, version, i, done, resumeProgress, unsettled),
+                    unsettled?.signature,
                 );
             }
         }
