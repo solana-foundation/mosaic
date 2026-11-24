@@ -73,16 +73,31 @@ export function jestPassthroughArgs() {
     return args[0] === '--' ? args.slice(1) : args;
 }
 
-/** Run jest with `args` and the extra `env`, resolving to its exit code. */
-export async function spawnJest(args, env) {
-    const testProcess = spawn('jest', args, {
+/**
+ * Run `command args` with inherited stdio and the extra `env`, resolving to its exit code. A
+ * process killed by a signal (OOM killer, SIGKILL, runner timeout) has no exit code, and
+ * `process.exit(null)` exits 0, so that resolves to 1 instead: a killed run must never pass.
+ */
+export async function runToExitCode(command, args, env) {
+    const proc = spawn(command, args, {
         stdio: 'inherit',
         env: { ...process.env, ...env },
         shell: platform() === 'win32', // Windows compatibility
     });
-    return new Promise(resolve => {
-        testProcess.on('close', resolve);
+    return new Promise((resolve, reject) => {
+        proc.on('error', reject);
+        proc.on('close', (code, signal) => {
+            if (code === null) {
+                console.error(`${command} was killed by ${signal}`);
+            }
+            resolve(code ?? 1);
+        });
     });
+}
+
+/** Run jest with `args` and the extra `env`, resolving to its exit code. */
+export function spawnJest(args, env) {
+    return runToExitCode('jest', args, env);
 }
 
 /**
