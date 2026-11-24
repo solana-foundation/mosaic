@@ -14,7 +14,7 @@ import { setTimeout as sleep } from 'timers/promises';
 import type { Client } from './setup.js';
 import { createStablecoinInitTransaction } from '../../templates/index.js';
 import { createAddToAllowlistTransaction } from '../../management/index.js';
-import { sendAndPollConfirm } from './polling.js';
+import { isInstructionFailure, sendAndPollConfirm } from './polling.js';
 import { TEST_BACKEND } from './env.js';
 import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
@@ -226,11 +226,26 @@ export async function assertMemo(
 }
 
 /**
- * Assert transaction fails. Sends with preflight enabled so a program error rejects at
- * simulation, without a round of confirmation polling, on every backend.
+ * Assert a program rejects the transaction: one of its instructions must fail. Sends with
+ * preflight enabled so a program error rejects at simulation, without a round of confirmation
+ * polling, on every backend. Any other failure (a send that never reached a program, a network
+ * or decode error, a blockhash or fee problem) is rethrown, so it can't pass a negative-path test.
  */
 export async function assertTxFailure(client: Client, transactionToThrow: FullTransaction): Promise<void> {
-    await expect(sendAndConfirmTransaction(client, transactionToThrow, DEFAULT_COMMITMENT, false)).rejects.toThrow();
+    let error: unknown;
+    try {
+        await sendAndConfirmTransaction(client, transactionToThrow, DEFAULT_COMMITMENT, false);
+    } catch (e) {
+        error = e;
+    }
+    if (error === undefined) {
+        throw new Error('Expected the transaction to fail, but it confirmed');
+    }
+    if (!isInstructionFailure(error)) {
+        throw new Error('Expected a program to reject the transaction, but the send failed for another reason', {
+            cause: error,
+        });
+    }
 }
 
 /**

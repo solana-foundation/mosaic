@@ -5,6 +5,7 @@ import {
     type Rpc,
     type Signature,
     type SolanaRpcApi,
+    SOLANA_ERROR__INSTRUCTION_ERROR__UNKNOWN,
     SOLANA_ERROR__JSON_RPC__SERVER_ERROR_SEND_TRANSACTION_PREFLIGHT_FAILURE,
     getBase64EncodedWireTransaction,
     getSignatureFromTransaction,
@@ -19,6 +20,42 @@ import type { FullTransaction } from '../../transaction-util.js';
 
 const stringifySafe = (v: unknown): string =>
     JSON.stringify(v, (_k, val) => (typeof val === 'bigint' ? val.toString() : val));
+
+/** A transaction that landed and failed, carrying its RPC error and the program logs. */
+export class TransactionFailedError extends Error {
+    constructor(
+        readonly signature: string,
+        readonly err: unknown,
+        readonly logs = '(no logs)',
+    ) {
+        super(`Transaction ${signature} failed: ${stringifySafe(err)}\n${logs}`);
+        this.name = 'TransactionFailedError';
+    }
+}
+
+// Kit maps an `InstructionError` onto its SOLANA_ERROR__INSTRUCTION_ERROR__* block of codes
+// (4615000-4615999), starting at UNKNOWN.
+const INSTRUCTION_ERROR_CODES_START = SOLANA_ERROR__INSTRUCTION_ERROR__UNKNOWN;
+
+/**
+ * True when `error` says a program ran and one of the transaction's instructions failed: either a
+ * preflight rejection whose simulation error is an instruction error, or a landed transaction
+ * whose status is one. Anything else (a send that never reached a program, a network or decode
+ * error, a blockhash or fee problem) is false, so a negative-path test can't pass on it.
+ */
+export function isInstructionFailure(error: unknown): boolean {
+    if (error instanceof TransactionFailedError) {
+        return typeof error.err === 'object' && error.err !== null && 'InstructionError' in error.err;
+    }
+    if (!isSolanaError(error, SOLANA_ERROR__JSON_RPC__SERVER_ERROR_SEND_TRANSACTION_PREFLIGHT_FAILURE)) {
+        return false;
+    }
+    // Kit keeps the simulation's transaction error as the cause.
+    const { cause } = error;
+    if (!isSolanaError(cause)) return false;
+    const code = cause.context.__code;
+    return code >= INSTRUCTION_ERROR_CODES_START && code < INSTRUCTION_ERROR_CODES_START + 1000;
+}
 
 export interface SendAndPollOptions {
     /**
@@ -98,8 +135,7 @@ export async function sendAndPollConfirm(
                 })
                 .send()
                 .catch(() => null);
-            const logs = fetched?.meta?.logMessages?.join('\n') ?? '(no logs)';
-            throw new Error(`Transaction ${signature} failed: ${stringifySafe(entry.err)}\n${logs}`);
+            throw new TransactionFailedError(signature, entry.err, fetched?.meta?.logMessages?.join('\n'));
         }
         if (
             entry?.confirmationStatus === commitment ||
