@@ -23,11 +23,21 @@ import type { ConfidentialTxVersion } from './transaction-version';
  *
  * This is the browser counterpart to the CLI's `sendOrOutputInstructionPlan`
  * (`packages/cli/src/utils/instruction-plan.ts`): it plans the instructions into
- * fee-payer-bound messages and signs/sends/confirms each in order with a fresh
- * blockhash. The send loop mirrors the polling send/confirm approach proven in
- * the SDK's devnet end-to-end test — a fresh blockhash per attempt,
- * `skipPreflight: true`, and `getSignatureStatuses` polling — which is more
- * robust than WebSocket confirmation against lagging public RPCs.
+ * fee-payer-bound messages and signs/sends/confirms each in order. Confirmation
+ * polls `getSignatureStatuses` (with `skipPreflight: true` on send), which is
+ * more robust than WebSocket confirmation against lagging public RPCs.
+ *
+ * ## Retries
+ *
+ * A signed transaction is never replaced while it can still land. Deposits and
+ * withdrawals are not idempotent, so signing the same instruction again under a
+ * new blockhash while the first copy is in flight can execute it twice. The send
+ * loop therefore rebroadcasts the *same* signed transaction until it confirms,
+ * fails on chain, or its blockhash expires with no trace of it; only that last
+ * outcome re-signs. Every re-sign is a wallet prompt, so nothing else does:
+ * an on-chain execution error is final, and the "node is lagging" symptoms are
+ * retried only in the pre-sign simulation, which prompts nobody and executes
+ * nothing.
  *
  * ## Transaction version
  *
@@ -48,11 +58,27 @@ import type { ConfidentialTxVersion } from './transaction-version';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Transient public-RPC conditions — rate limits, load-balanced nodes lagging
-// behind the latest state, dropped txs / expired blockhashes. All are safe to
-// retry with a fresh blockhash.
-const TRANSIENT =
-    /429|Too Many Requests|debit an account|could not find|IncorrectProgramId|Blockhash(NotFound)?|block height exceeded|not confirmed|BlockhashNotFound/i;
+// What a version-1 simulation reports when it lands on a load-balanced node that
+// has not caught up with the plan's previous transaction yet: the proof
+// context-state account it created is missing (so still system-owned), or the
+// blockhash fetched a moment ago is unknown there. Retried before signing only,
+// where a retry costs no wallet prompt and cannot execute anything.
+const NODE_LAG = /debit an account|could not find|AccountNotFound|IncorrectProgramId|BlockhashNotFound/i;
+const PRESIGN_LAG_RETRIES = 4;
+
+// How many times one transaction may be signed. Each signing is a wallet
+// prompt, and a re-sign only happens after the previous copy provably expired.
+const MAX_SIGNINGS = 3;
+
+// Block heights past `lastValidBlockHeight` to wait before declaring a
+// transaction expired. Status and block-height reads can hit different nodes
+// behind a load balancer; the margin lets a lagging node catch up with a
+// transaction that did land before we trust its "not found".
+const EXPIRY_MARGIN = 32n;
+
+// Upper bound on waiting for one signed transaction. Expiry normally settles it
+// in about a minute; this only stops a stuck RPC from hanging the flow.
+const SETTLE_TIMEOUT_MS = 180_000;
 
 // A wallet or node that cannot handle a version-1 transaction at all: an
 // unknown message version, a wire transaction it fails to deserialize, or an
@@ -116,15 +142,22 @@ async function withBackoff<T>(label: string, fn: () => Promise<T>): Promise<T> {
  */
 type EstimateResourceLimits = typeof estimateAndSetConfidentialResourceLimits;
 
-/** Signs `baseMessage` with a fresh blockhash, sends it, and polls until confirmed. */
-async function signSendConfirm(
+/** JSON-stringifies an on-chain transaction error, which may hold bigints. */
+function describeTxError(err: unknown): string {
+    return JSON.stringify(err, (_k, v) => (typeof v === 'bigint' ? v.toString() : v));
+}
+
+/**
+ * Gives `baseMessage` a fresh blockhash and, at version 1, simulated resource
+ * limits. Nothing is signed here, so the node-lag symptoms are safe to retry.
+ */
+async function prepareMessage(
     rpc: Rpc<SolanaRpcApi>,
     baseMessage: unknown,
     version: ConfidentialTxVersion,
     estimateResourceLimits: EstimateResourceLimits,
-): Promise<Signature> {
-    let lastErr: unknown;
-    for (let attempt = 0; attempt < 6; attempt++) {
+): Promise<{ message: FullTransaction; lastValidBlockHeight: bigint }> {
+    for (let attempt = 0; ; attempt++) {
         try {
             const { value: bh } = await withBackoff('getLatestBlockhash', () => rpc.getLatestBlockhash().send());
             const withLifetime = setTransactionMessageLifetimeUsingBlockhash(
@@ -142,36 +175,108 @@ async function signSendConfirm(
                           estimateResourceLimits({ rpc, transactionMessage: withLifetime as FullTransaction }),
                       )
                     : withLifetime;
-            const signed = await signTransactionMessageWithSigners(message as FullTransaction);
-            const signature = getSignatureFromTransaction(signed);
-            const wire = getBase64EncodedWireTransaction(signed);
-            // skipPreflight avoids spurious preflight failures on lagging public-RPC
-            // nodes; execution errors still surface via getSignatureStatuses below.
-            await withBackoff('sendTransaction', () =>
-                rpc.sendTransaction(wire, { encoding: 'base64', skipPreflight: true }).send(),
-            );
-            const deadline = Date.now() + 45_000;
-            while (Date.now() < deadline) {
-                const status = await withBackoff('getSignatureStatuses', () =>
-                    rpc.getSignatureStatuses([signature]).send(),
-                );
-                const entry = status.value[0];
-                if (entry?.err)
-                    throw new Error(
-                        `Transaction ${signature} failed: ${JSON.stringify(entry.err, (_k, v) => (typeof v === 'bigint' ? v.toString() : v))}`,
-                    );
-                if (entry?.confirmationStatus === 'confirmed' || entry?.confirmationStatus === 'finalized')
-                    return signature;
-                await sleep(1_000);
-            }
-            throw new Error(`Transaction ${signature} not confirmed within 45s`);
+            return { message: message as FullTransaction, lastValidBlockHeight: bh.lastValidBlockHeight };
         } catch (err) {
-            lastErr = err;
-            if (!TRANSIENT.test(messageChain(err))) throw err;
-            await sleep(2_000); // let lagging nodes catch up, then retry with a fresh blockhash
+            if (attempt >= PRESIGN_LAG_RETRIES || !NODE_LAG.test(messageChain(err))) throw err;
+            await sleep(2_000); // let the lagging node catch up
         }
     }
-    throw lastErr;
+}
+
+/**
+ * Sends one signed transaction and waits for its outcome, rebroadcasting the
+ * same bytes while it is unseen. Resolves `'confirmed'`, or `'expired'` once its
+ * blockhash has expired and no node knows the signature, which is the only
+ * state in which signing a replacement cannot double-execute. An on-chain
+ * failure throws.
+ */
+async function sendUntilSettled(
+    rpc: Rpc<SolanaRpcApi>,
+    wire: ReturnType<typeof getBase64EncodedWireTransaction>,
+    signature: Signature,
+    lastValidBlockHeight: bigint,
+): Promise<'confirmed' | 'expired'> {
+    const send = () => rpc.sendTransaction(wire, { encoding: 'base64', skipPreflight: true }).send();
+    // The first send's errors propagate: a node refusing the bytes outright
+    // (malformed, unsupported version) will refuse every rebroadcast too, and
+    // the version-1 fallback reads exactly those errors.
+    await withBackoff('sendTransaction', send);
+
+    // Settles a status entry: confirmed, failed on chain, or still pending (null).
+    const settle = (entry: { err: unknown; confirmationStatus: string | null } | null) => {
+        if (entry?.err) throw new Error(`Transaction ${signature} failed: ${describeTxError(entry.err)}`);
+        if (entry?.confirmationStatus === 'confirmed' || entry?.confirmationStatus === 'finalized')
+            return 'confirmed' as const;
+        return null;
+    };
+
+    const deadline = Date.now() + SETTLE_TIMEOUT_MS;
+    let lastBroadcast = Date.now();
+    while (Date.now() < deadline) {
+        const { value } = await withBackoff('getSignatureStatuses', () => rpc.getSignatureStatuses([signature]).send());
+        const entry = value[0];
+        if (settle(entry)) return 'confirmed';
+
+        if (!entry) {
+            const height = await withBackoff('getBlockHeight', () =>
+                rpc.getBlockHeight({ commitment: 'confirmed' }).send(),
+            );
+            if (height > lastValidBlockHeight + EXPIRY_MARGIN) {
+                // The blockhash is past its last valid height, so this
+                // transaction can no longer be included. Check the full history
+                // once in case it landed and the recent-status cache missed it.
+                const { value: history } = await withBackoff('getSignatureStatuses', () =>
+                    rpc.getSignatureStatuses([signature], { searchTransactionHistory: true }).send(),
+                );
+                if (!history[0]) return 'expired';
+                if (settle(history[0])) return 'confirmed';
+            } else if (Date.now() - lastBroadcast >= 2_000) {
+                // Same bytes, same signature: a rebroadcast can land at most once.
+                lastBroadcast = Date.now();
+                await send().catch(() => {
+                    /* best effort; the status poll decides */
+                });
+            }
+        }
+        await sleep(1_000);
+    }
+    throw new Error(
+        `Transaction ${signature} was neither confirmed nor expired within ${SETTLE_TIMEOUT_MS / 1000}s. ` +
+            'Check it in the explorer before trying again: it may still land.',
+    );
+}
+
+/**
+ * Signs `baseMessage` with a fresh blockhash, sends it, and waits for it. Signs
+ * again (a new wallet prompt) only after the previous copy expired unexecuted.
+ */
+async function signSendConfirm(
+    rpc: Rpc<SolanaRpcApi>,
+    baseMessage: unknown,
+    version: ConfidentialTxVersion,
+    estimateResourceLimits: EstimateResourceLimits,
+): Promise<Signature> {
+    for (let signing = 1; ; signing++) {
+        const { message, lastValidBlockHeight } = await prepareMessage(
+            rpc,
+            baseMessage,
+            version,
+            estimateResourceLimits,
+        );
+        const signed = await signTransactionMessageWithSigners(message);
+        const signature = getSignatureFromTransaction(signed);
+        const outcome = await sendUntilSettled(
+            rpc,
+            getBase64EncodedWireTransaction(signed),
+            signature,
+            lastValidBlockHeight,
+        );
+        if (outcome === 'confirmed') return signature;
+        if (signing >= MAX_SIGNINGS)
+            throw new Error(
+                `Transaction expired before landing ${signing} times (last: ${signature}). Nothing was executed; try again.`,
+            );
+    }
 }
 
 /** Progress callback: `(current, total)` as each transaction in a plan is sent. */
