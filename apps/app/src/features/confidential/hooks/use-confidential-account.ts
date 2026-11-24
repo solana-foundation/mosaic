@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
 import type { ConfidentialAccountState, ConfidentialKeys } from '@solana/mosaic-sdk/confidential';
 import { humanizeError } from '@/lib/errors';
@@ -45,9 +45,16 @@ export function useConfidentialAccount(input: {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Id of the latest load. Only that load may write state: an earlier one (a
+    // slow reveal still waiting on its wallet prompt, say) can resolve after the
+    // account or RPC changed, and would show the old account's balances.
+    const latestLoadRef = useRef(0);
+
     const load = useCallback(
         async (withReveal: boolean) => {
             if (!rpc || !tokenAccount) return;
+            const id = ++latestLoadRef.current;
+            const isLatest = () => id === latestLoadRef.current;
             setIsLoading(true);
             setError(null);
             try {
@@ -57,13 +64,14 @@ export function useConfidentialAccount(input: {
                 // Decryption runs inside the key lease, so a wallet switch
                 // cannot free the keys mid-decrypt.
                 const next = withReveal ? await withKeys(fetchState) : await fetchState();
+                if (!isLatest()) return;
                 setState(next);
                 setIsConfigured(next !== null);
                 if (withReveal) setIsRevealed(true);
             } catch (err) {
-                setError(humanizeError(err));
+                if (isLatest()) setError(humanizeError(err));
             } finally {
-                setIsLoading(false);
+                if (isLatest()) setIsLoading(false);
             }
         },
         [rpc, tokenAccount, withKeys],
@@ -72,9 +80,16 @@ export function useConfidentialAccount(input: {
     const refresh = useCallback(() => void load(isRevealed), [load, isRevealed]);
     const reveal = useCallback(() => void load(true), [load]);
 
-    // Initial, prompt-free load whenever the account or RPC changes.
+    // Initial, prompt-free load whenever the account or RPC changes. The previous
+    // selection's state is cleared first, and any load still in flight for it is
+    // superseded, so nothing of the old account stays on screen.
     useEffect(() => {
+        latestLoadRef.current++;
+        setState(null);
+        setIsConfigured(false);
         setIsRevealed(false);
+        setIsLoading(false);
+        setError(null);
         void load(false);
     }, [tokenAccount, rpc, load]);
 
