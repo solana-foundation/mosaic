@@ -98,11 +98,12 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
     // Resolve the owner's associated token account (the confidential account).
     const [tokenAccount, setTokenAccount] = useState<Address | undefined>();
     useEffect(() => {
+        // Cleared on every change, not only on disconnect: until the new
+        // owner's account resolves, the steps must not pair the new signer with
+        // the previous owner's account. Every step is gated on it.
+        setTokenAccount(undefined);
+        if (!owner) return;
         let active = true;
-        if (!owner) {
-            setTokenAccount(undefined);
-            return;
-        }
         resolveAta(owner, mint).then(ata => {
             if (active) setTokenAccount(ata);
         });
@@ -112,8 +113,11 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
     }, [owner, mint]);
 
     // Mint decimals, for formatting decrypted confidential amounts.
+    // Reset on every RPC or mint change, so a failed fetch falls back to the
+    // default rather than to the previous network's or mint's value.
     const [decimals, setDecimals] = useState<number>(0);
     useEffect(() => {
+        setDecimals(0);
         if (!rpc) return;
         let active = true;
         fetchMintDecimals(rpc, mint)
@@ -130,9 +134,11 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
 
     // The mint's confidential config, to decide whether (and by whom) accounts
     // must be approved. Undefined while loading; null when the mint has no
-    // ConfidentialTransferMint extension.
+    // ConfidentialTransferMint extension. Reset on every RPC or mint change,
+    // like the decimals above.
     const [mintConfig, setMintConfig] = useState<ConfidentialMintConfig | null | undefined>();
     useEffect(() => {
+        setMintConfig(undefined);
         if (!rpc) return;
         let active = true;
         fetchConfidentialMintConfig(rpc, mint)
