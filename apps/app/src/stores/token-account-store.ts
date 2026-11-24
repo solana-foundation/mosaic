@@ -19,7 +19,7 @@ interface TokenBalanceResult {
     uiAmount: number;
 }
 
-// Token account state for a specific wallet+mint combination
+// Token account state for a specific RPC+wallet+mint combination
 interface TokenAccountState {
     hasTokenAccount: boolean;
     balance: TokenBalanceResult | null;
@@ -41,7 +41,10 @@ function createDefaultTokenAccountState(): TokenAccountState {
 
 // Store interface
 interface TokenAccountStore {
-    // State: keyed by `${walletAddress}-${mintAddress}`
+    // State: keyed by `${rpcUrl}|${walletAddress}-${mintAddress}`. The RPC is
+    // part of the key so a balance read on one network is never shown on
+    // another, and a fetch still in flight for the old network lands in its own
+    // entry.
     accounts: Record<string, TokenAccountState>;
 
     // Actions
@@ -49,13 +52,13 @@ interface TokenAccountStore {
     refetchTokenAccount: (walletAddress: string, mintAddress: string, rpcUrl: string) => Promise<void>;
 
     // Utility actions
-    clearAccount: (walletAddress: string, mintAddress: string) => void;
-    getAccountState: (walletAddress: string, mintAddress: string) => TokenAccountState;
+    clearAccount: (walletAddress: string, mintAddress: string, rpcUrl: string) => void;
+    getAccountState: (walletAddress: string, mintAddress: string, rpcUrl: string) => TokenAccountState;
 }
 
-// Generate key for wallet+mint combination
-function getAccountKey(walletAddress: string, mintAddress: string): string {
-    return `${walletAddress}-${mintAddress}`;
+// Generate key for an RPC+wallet+mint combination
+function getAccountKey(walletAddress: string, mintAddress: string, rpcUrl: string): string {
+    return `${rpcUrl}|${walletAddress}-${mintAddress}`;
 }
 
 // Helper to ensure account state exists (mutates in place with Immer)
@@ -82,13 +85,16 @@ async function tryGetBalance(
             tokenProgram,
         });
 
-        const accountInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed' }).send();
+        // 'confirmed', not the RPC default 'finalized': callers refetch right
+        // after their own transaction confirms, and a finalized read would
+        // return the pre-transaction balance for about 13 more seconds.
+        const accountInfo = await rpc.getAccountInfo(ata, { encoding: 'jsonParsed', commitment: 'confirmed' }).send();
 
         if (!accountInfo?.value?.data) {
             return null;
         }
 
-        const balanceResult = await rpc.getTokenAccountBalance(ata).send();
+        const balanceResult = await rpc.getTokenAccountBalance(ata, { commitment: 'confirmed' }).send();
 
         return {
             rawBalance: BigInt(balanceResult.value.amount),
@@ -107,7 +113,7 @@ export const useTokenAccountStore = create<TokenAccountStore>()(
 
         // Fetch token account state from chain
         fetchTokenAccount: async (walletAddress: string, mintAddress: string, rpcUrl: string) => {
-            const key = getAccountKey(walletAddress, mintAddress);
+            const key = getAccountKey(walletAddress, mintAddress, rpcUrl);
 
             // Set loading state
             set(state => {
@@ -182,16 +188,16 @@ export const useTokenAccountStore = create<TokenAccountStore>()(
         },
 
         // Clear account state
-        clearAccount: (walletAddress: string, mintAddress: string) => {
-            const key = getAccountKey(walletAddress, mintAddress);
+        clearAccount: (walletAddress: string, mintAddress: string, rpcUrl: string) => {
+            const key = getAccountKey(walletAddress, mintAddress, rpcUrl);
             set(state => {
                 delete state.accounts[key];
             });
         },
 
         // Get account state with defaults
-        getAccountState: (walletAddress: string, mintAddress: string) => {
-            const key = getAccountKey(walletAddress, mintAddress);
+        getAccountState: (walletAddress: string, mintAddress: string, rpcUrl: string) => {
+            const key = getAccountKey(walletAddress, mintAddress, rpcUrl);
             return get().accounts[key] ?? createDefaultTokenAccountState();
         },
     })),
@@ -207,17 +213,18 @@ const DEFAULT_TOKEN_ACCOUNT_STATE: TokenAccountState = {
 };
 
 /**
- * Selector hook for token account state of a specific wallet+mint combination
+ * Selector hook for token account state of a specific RPC+wallet+mint combination
  * Uses useShallow to prevent unnecessary re-renders
  */
 export function useTokenAccountState(
     walletAddress: string | undefined,
     mintAddress: string | undefined,
+    rpcUrl: string | undefined,
 ): TokenAccountState {
     return useTokenAccountStore(
         useShallow(state => {
-            if (!walletAddress || !mintAddress) return DEFAULT_TOKEN_ACCOUNT_STATE;
-            const key = getAccountKey(walletAddress, mintAddress);
+            if (!walletAddress || !mintAddress || !rpcUrl) return DEFAULT_TOKEN_ACCOUNT_STATE;
+            const key = getAccountKey(walletAddress, mintAddress, rpcUrl);
             return state.accounts[key] ?? DEFAULT_TOKEN_ACCOUNT_STATE;
         }),
     );
