@@ -28,7 +28,11 @@ import { getClusterName } from '@/lib/solana/explorer';
 import { useConfidentialKeys } from '../hooks/use-confidential-keys';
 import { useConfidentialAccount } from '../hooks/use-confidential-account';
 import { useConfidentialTxVersion } from '../hooks/use-confidential-tx-version';
-import { executeConfidentialPlan, type ConfidentialPlanProgress } from '../lib/execute-confidential-plan';
+import {
+    ConfidentialPlanError,
+    executeConfidentialPlan,
+    type ConfidentialPlanProgress,
+} from '../lib/execute-confidential-plan';
 import {
     buildApplyPlan,
     buildApprovePlan,
@@ -147,23 +151,45 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
         refetchPlaintext();
     }, [refresh, refetchPlaintext]);
 
+    /**
+     * Runs `send`, then refreshes both balance views — after a failure too, since
+     * a plan that stopped part-way has still changed state on chain. A partial
+     * failure's `resume` is wrapped the same way, so resuming refreshes as well.
+     */
+    const settle = useCallback(
+        async function settleRun(send: () => Promise<Signature[]>): Promise<Signature[]> {
+            try {
+                return await send();
+            } catch (err) {
+                if (err instanceof ConfidentialPlanError) {
+                    const resume = err.resume;
+                    err.resume = resumeProgress => settleRun(() => resume(resumeProgress));
+                }
+                throw err;
+            } finally {
+                refresh();
+                refetchPlaintext();
+            }
+        },
+        [refresh, refetchPlaintext],
+    );
+
     /** Builds a plan, executes it, then refreshes both balance views. */
     const runPlan = useCallback(
         async (build: () => Promise<InstructionPlan>, onProgress: ConfidentialPlanProgress): Promise<Signature[]> => {
             if (!rpc || !signer) throw new Error('Wallet not connected.');
             const plan = await build();
-            const signatures = await executeConfidentialPlan({
-                instructionPlan: plan,
-                feePayer: signer as unknown as TransactionSigner,
-                rpc,
-                onProgress,
-                version: txVersion,
-            });
-            refresh();
-            refetchPlaintext();
-            return signatures;
+            return settle(() =>
+                executeConfidentialPlan({
+                    instructionPlan: plan,
+                    feePayer: signer as unknown as TransactionSigner,
+                    rpc,
+                    onProgress,
+                    version: txVersion,
+                }),
+            );
         },
-        [rpc, signer, txVersion, refresh, refetchPlaintext],
+        [rpc, signer, txVersion, settle],
     );
 
     const authority = signer as unknown as TransactionSigner;

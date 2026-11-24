@@ -283,10 +283,35 @@ async function signSendConfirm(
 export type ConfidentialPlanProgress = (current: number, total: number) => void;
 
 /**
+ * A plan that stopped part-way: some of its transactions confirmed, a later one
+ * failed. Those confirmed transactions already changed state on chain (proof
+ * context-state accounts hold rent until the plan's cleanup runs), so the caller
+ * gets their signatures and a {@link ConfidentialPlanError.resume} that sends
+ * the rest of the *same* planned messages, starting at the one that failed.
+ */
+export class ConfidentialPlanError extends Error {
+    constructor(
+        cause: unknown,
+        /** Signatures of the transactions that confirmed, in plan order. */
+        readonly signatures: Signature[],
+        /** Number of transactions in the whole plan. */
+        readonly total: number,
+        /** Sends the remaining transactions; resolves with every signature of the plan. */
+        public resume: (onProgress?: ConfidentialPlanProgress) => Promise<Signature[]>,
+    ) {
+        super(`Stopped after ${signatures.length} of ${total} transactions: ${messageChain(cause) || String(cause)}`, {
+            cause,
+        });
+        this.name = 'ConfidentialPlanError';
+    }
+}
+
+/**
  * Plans a confidential `InstructionPlan` into fee-payer-bound transaction
  * messages, then signs, sends, and confirms each in order — returning every
  * signature. `onProgress` fires before each transaction so multi-tx proof flows
- * can surface "sending 2/3".
+ * can surface "sending 2/3". A failure after the first transaction confirmed
+ * throws a {@link ConfidentialPlanError}.
  *
  * At `version: 1`, a failure that looks like the wallet or the node rejecting
  * the format falls back to version 0 and starts over — but only while nothing
@@ -307,30 +332,48 @@ export async function executeConfidentialPlan(input: {
     const { estimateAndSetConfidentialResourceLimits: estimateResourceLimits, planConfidentialInstructions } =
         await import('@solana/mosaic-sdk/confidential');
 
-    const run = async (version: ConfidentialTxVersion, signatures: Signature[]): Promise<Signature[]> => {
+    /** Sends `messages[start..]`, appending to the signatures of `messages[..start]`. */
+    const sendFrom = async (
+        messages: unknown[],
+        version: ConfidentialTxVersion,
+        start: number,
+        confirmed: Signature[],
+        onProgress?: ConfidentialPlanProgress,
+    ): Promise<Signature[]> => {
+        const signatures = [...confirmed];
+        for (let i = start; i < messages.length; i++) {
+            onProgress?.(i + 1, messages.length);
+            try {
+                signatures.push(await signSendConfirm(input.rpc, messages[i], version, estimateResourceLimits));
+            } catch (err) {
+                if (signatures.length === 0) throw err;
+                const done = [...signatures];
+                throw new ConfidentialPlanError(err, done, messages.length, resumeProgress =>
+                    sendFrom(messages, version, i, done, resumeProgress),
+                );
+            }
+        }
+        return signatures;
+    };
+
+    const run = async (version: ConfidentialTxVersion): Promise<Signature[]> => {
         const plan = await planConfidentialInstructions({
             instructionPlan: input.instructionPlan,
             feePayer: input.feePayer,
             version,
         });
         const messages = flattenTransactionPlan(plan).map(single => single.message);
-
-        for (let i = 0; i < messages.length; i++) {
-            input.onProgress?.(i + 1, messages.length);
-            signatures.push(await signSendConfirm(input.rpc, messages[i], version, estimateResourceLimits));
-        }
-        return signatures;
+        return sendFrom(messages, version, 0, [], input.onProgress);
     };
 
     const version = input.version ?? 0;
-    const signatures: Signature[] = [];
     try {
-        return await run(version, signatures);
+        return await run(version);
     } catch (err) {
-        if (version !== 1 || signatures.length > 0) throw err;
+        if (version !== 1 || err instanceof ConfidentialPlanError) throw err;
 
         const message = messageChain(err);
-        if (V1_UNSUPPORTED.test(message)) return run(0, signatures);
+        if (V1_UNSUPPORTED.test(message)) return run(0);
 
         // A version-1 attempt that failed before anything landed, in a way
         // V1_UNSUPPORTED does not recognise. It may still be a wallet or node
