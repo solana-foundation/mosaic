@@ -66,6 +66,19 @@ export function getEnvRpcUrl(network: NetworkName): string | undefined {
     }
 }
 
+/**
+ * The built-in clusters as the app offers them: each network whose env RPC
+ * variable is set points at that URL and carries an "(Env RPC)" label. The
+ * connector setup and the cluster switcher both read this, so the switcher
+ * lists the same labels the connector reports for the active cluster.
+ */
+export function getAppClusters(): ClusterDefinition[] {
+    return BUILTIN_CLUSTERS.map(cluster => {
+        const envRpcUrl = getEnvRpcUrl(cluster.name);
+        return envRpcUrl ? { ...cluster, label: `${cluster.label} (Env RPC)`, url: envRpcUrl } : cluster;
+    });
+}
+
 /** Maps a network name to the cluster id used by @solana/connector. */
 export const CLUSTER_ID_BY_NETWORK = Object.fromEntries(
     BUILTIN_CLUSTERS.map(cluster => [cluster.name, cluster.id]),

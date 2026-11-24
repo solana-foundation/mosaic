@@ -5,21 +5,18 @@ import { AppProvider } from '@solana/connector/react';
 import { getDefaultConfig, getDefaultMobileConfig } from '@solana/connector/headless';
 import { ThemeProvider } from '@/components/theme-provider';
 import { useRpcStore } from '@/stores/rpc-store';
-import { BUILTIN_CLUSTERS, getConfiguredNetwork, getEnvRpcUrl } from '@/lib/solana/network';
+import { getAppClusters, getConfiguredNetwork } from '@/lib/solana/network';
 
 export function Providers({ children }: { children: ReactNode }) {
     const customRpcs = useRpcStore(state => state.customRpcs);
 
     const connectorConfig = useMemo(() => {
-        // Base clusters - always available. The list itself lives in
-        // lib/solana/network.ts so the network picker sees the same one; only the
-        // per-network env RPC overrides are applied here. Each override replaces
-        // its own network's public endpoint, which is rate-limited and may reject
+        // Base clusters - always available, with the per-network env RPC
+        // overrides applied. The list lives in lib/solana/network.ts so the
+        // network picker shows the same one. Each override replaces its own
+        // network's public endpoint, which is rate-limited and may reject
         // browser writes with HTTP 403, and never any other network's.
-        const baseClusters = BUILTIN_CLUSTERS.map(cluster => {
-            const envRpcUrl = getEnvRpcUrl(cluster.name);
-            return envRpcUrl ? { ...cluster, label: `${cluster.label} (Env RPC)`, url: envRpcUrl } : cluster;
-        });
+        const baseClusters = getAppClusters();
 
         // Add user-defined custom RPCs
         const userClusters = customRpcs.map(rpc => ({
