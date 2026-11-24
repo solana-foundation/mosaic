@@ -1,4 +1,5 @@
 import {
+    SOLANA_ERROR__RPC__TRANSPORT_HTTP_ERROR,
     type InstructionPlan,
     type Rpc,
     type Signature,
@@ -7,6 +8,7 @@ import {
     flattenTransactionPlan,
     getBase64EncodedWireTransaction,
     getSignatureFromTransaction,
+    isSolanaError,
     setTransactionMessageLifetimeUsingBlockhash,
     signTransactionMessageWithSigners,
 } from '@solana/kit';
@@ -128,16 +130,19 @@ function messageChain(err: unknown): string {
 /** Runs an RPC call, retrying on HTTP 429 with exponential backoff. */
 async function withBackoff<T>(label: string, fn: () => Promise<T>): Promise<T> {
     let delay = 500;
+    let lastRateLimit: unknown;
     for (let attempt = 0; attempt < 8; attempt++) {
         try {
             return await fn();
         } catch (err) {
             if (!/429|Too Many Requests/i.test(messageChain(err))) throw err;
+            lastRateLimit = err;
             await sleep(delay);
             delay = Math.min(delay * 2, 8_000);
         }
     }
-    throw new Error(`${label}: exhausted retries after repeated 429s`);
+    // The last 429 stays on `cause`, so callers can still tell it was a refusal.
+    throw new Error(`${label}: exhausted retries after repeated 429s`, { cause: lastRateLimit });
 }
 
 /**
@@ -164,7 +169,14 @@ async function prepareMessage(
 ): Promise<{ message: FullTransaction; lastValidBlockHeight: bigint }> {
     for (let attempt = 0; ; attempt++) {
         try {
-            const { value: bh } = await withBackoff('getLatestBlockhash', () => rpc.getLatestBlockhash().send());
+            // Both reads at 'confirmed', the level each previous transaction of
+            // the plan was confirmed at. The RPC default is 'finalized', which
+            // trails it by about 13 seconds: the simulation would not see the
+            // context-state account the previous transaction just created, and
+            // fail for longer than the lag retries below wait.
+            const { value: bh } = await withBackoff('getLatestBlockhash', () =>
+                rpc.getLatestBlockhash({ commitment: 'confirmed' }).send(),
+            );
             const withLifetime = setTransactionMessageLifetimeUsingBlockhash(
                 bh,
                 baseMessage as Parameters<typeof setTransactionMessageLifetimeUsingBlockhash>[1],
@@ -177,7 +189,11 @@ async function prepareMessage(
             const message =
                 version === 1
                     ? await withBackoff('estimateResourceLimits', () =>
-                          estimateResourceLimits({ rpc, transactionMessage: withLifetime as FullTransaction }),
+                          estimateResourceLimits({
+                              rpc,
+                              transactionMessage: withLifetime as FullTransaction,
+                              commitment: 'confirmed',
+                          }),
                       )
                     : withLifetime;
             return { message: message as FullTransaction, lastValidBlockHeight: bh.lastValidBlockHeight };
@@ -217,6 +233,29 @@ class UnsettledTransactionError extends Error {
             { cause },
         );
     }
+}
+
+/**
+ * Whether `err` proves the request was refused before any node could forward
+ * the transaction: a JSON-RPC error response from the node, or an HTTP 4xx
+ * (the public endpoints answer browser writes with 403, for one). Kit maps a
+ * JSON-RPC error to a `SolanaError` carrying the response's own code, which is
+ * negative, while its own codes are positive. A timeout, a reset connection or
+ * a 5xx proves nothing either way.
+ */
+function isNodeRefusal(err: unknown): boolean {
+    let current: unknown = err;
+    for (let depth = 0; current instanceof Error && depth < 8; depth++) {
+        if (isSolanaError(current)) {
+            if (current.context.__code < 0) return true;
+            if (isSolanaError(current, SOLANA_ERROR__RPC__TRANSPORT_HTTP_ERROR)) {
+                const status = current.context.statusCode;
+                if (status >= 400 && status < 500) return true;
+            }
+        }
+        current = current.cause;
+    }
+    return false;
 }
 
 const broadcast = (rpc: Rpc<SolanaRpcApi>, tx: InFlightTransaction) =>
@@ -314,11 +353,19 @@ async function signSendConfirm(
             signature: getSignatureFromTransaction(signed),
             lastValidBlockHeight,
         };
-        // The first send's errors propagate as they are: a node refusing the
-        // bytes outright (malformed, unsupported version) will refuse every
-        // rebroadcast too, nothing is in flight, and the version-1 fallback
-        // reads exactly those errors.
-        await withBackoff('sendTransaction', () => broadcast(rpc, tx));
+        try {
+            await withBackoff('sendTransaction', () => broadcast(rpc, tx));
+        } catch (err) {
+            // A refusal (a JSON-RPC error such as malformed bytes, an
+            // unsupported version or an unhealthy node, or an HTTP 4xx) means
+            // nothing is in flight, every rebroadcast would be refused too, and
+            // the version-1 fallback reads exactly those errors, so it
+            // propagates as it is. Anything else (a timeout, a reset
+            // connection, a 5xx) may have reached a node that forwarded the
+            // transaction, so it is settled like any sent one: rebroadcast and
+            // polled until it confirms or provably expires.
+            if (isNodeRefusal(err)) throw err;
+        }
         const outcome = await settleInFlight(rpc, tx);
         const { signature } = tx;
         if (outcome === 'confirmed') return signature;
