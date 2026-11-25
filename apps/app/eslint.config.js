@@ -65,6 +65,13 @@ export default [
         },
     },
     {
+        // Jest unit tests (`pnpm test`)
+        files: ['**/__tests__/**/*.ts', '**/*.test.ts'],
+        languageOptions: {
+            globals: globals.jest,
+        },
+    },
+    {
         ignores: ['node_modules/', '.next/', 'out/', 'build/', 'dist/'],
     },
 ];

@@ -19,7 +19,9 @@ const mockAbl = (mode: number) =>
         ABL_PROGRAM_ID,
         getAddWalletInstructions: jest.fn().mockResolvedValue([{ programAddress: ABL_PROGRAM_ID }]),
         getRemoveWalletInstructions: jest.fn().mockResolvedValue([{ programAddress: ABL_PROGRAM_ID }]),
-        getList: jest.fn().mockResolvedValue({ mode }),
+        getListConfig: jest.fn().mockResolvedValue({ mode }),
+        // The mode check needs only the list config, never the member scan.
+        getList: jest.fn().mockRejectedValue(new Error('getList should not be called to read the list mode')),
         getListConfigPda: jest.fn().mockResolvedValue(LIST_CONFIG),
     }));
 

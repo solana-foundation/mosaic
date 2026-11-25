@@ -48,10 +48,15 @@ import {
     addAddressToAllowlist,
     removeAddressFromBlocklist,
     removeAddressFromAllowlist,
+    readAccessListState,
 } from '@/features/token-management/lib/access-list';
+import {
+    type AccessListState,
+    type ReadyAccessListState,
+    shortAddress,
+} from '@/features/token-management/lib/access-list-state';
 import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from '@solana/kit';
-import { getList, getListConfigPda, getTokenDashboardData, getTokenExtensions } from '@solana/mosaic-sdk';
-import { Mode } from '@solana/token-acl-gate-sdk';
+import { getTokenDashboardData, getTokenExtensions } from '@solana/mosaic-sdk';
 import { buildAddressExplorerUrl } from '@/lib/solana/explorer';
 import { getTokenAuthorities } from '@/lib/solana/rpc';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -85,28 +90,6 @@ export default function ManageTokenPage() {
     return <ManageTokenConnected address={address} />;
 }
 
-const getAccessList = async (
-    rpc: Rpc<SolanaRpcApi>,
-    authority: Address,
-    mint: Address,
-): Promise<{ type: 'allowlist' | 'blocklist'; wallets: string[] } | null> => {
-    try {
-        const listConfigPda = await getListConfigPda({
-            authority,
-            mint,
-        });
-        const list = await getList({ rpc, listConfig: listConfigPda });
-        return {
-            type: list.mode === Mode.Allow ? 'allowlist' : 'blocklist',
-            wallets: list.wallets,
-        };
-    } catch {
-        // List config account doesn't exist yet - this is normal for tokens that
-        // have SRFC-37 enabled but haven't had their access list initialized
-        return null;
-    }
-};
-
 function ManageTokenConnected({ address }: { address: string }) {
     const router = useRouter();
     const { selectedAccount, cluster } = useConnector();
@@ -115,8 +98,15 @@ function ManageTokenConnected({ address }: { address: string }) {
     const updateToken = useTokenStore(state => state.updateToken);
     const [token, setToken] = useState<TokenDisplay | null>(null);
     const [loading, setLoading] = useState(true);
-    const [accessList, setAccessList] = useState<string[]>([]);
-    const [listType, setListType] = useState<'allowlist' | 'blocklist'>('blocklist');
+    // The sRFC-37 list attached to the mint, read from chain (not derived from the connected wallet).
+    const [accessListState, setAccessListState] = useState<AccessListState>({ status: 'loading' });
+    const accessList: string[] = accessListState.status === 'ready' ? accessListState.wallets : [];
+    const listLabel =
+        accessListState.status === 'ready'
+            ? accessListState.mode === 'allowlist'
+                ? 'Allowlist'
+                : 'Blocklist'
+            : 'Access List';
     const [newAddress, setNewAddress] = useState('');
     const [showAccessListModal, setShowAccessListModal] = useState(false);
     const [actionInProgress, setActionInProgress] = useState(false);
@@ -143,13 +133,16 @@ function ManageTokenConnected({ address }: { address: string }) {
         return createSolanaRpc(cluster.url) as Rpc<SolanaRpcApi>;
     }, [cluster?.url]);
 
-    const loadedAccessListRef = useRef<string | null>(null);
-
+    // Re-read the list after a write; the current state stays on screen until the new read lands.
     const refreshAccessList = () => {
         setTimeout(() => {
-            loadedAccessListRef.current = null;
             setRefreshTrigger(prev => prev + 1);
         }, 600);
+    };
+
+    const retryAccessList = () => {
+        setAccessListState({ status: 'loading' });
+        setRefreshTrigger(prev => prev + 1);
     };
 
     // Use the connector signer hook which provides a kit-compatible transaction signer
@@ -252,34 +245,42 @@ function ManageTokenConnected({ address }: { address: string }) {
         reloadKey,
     ]);
 
+    // A different wallet, mint or cluster must not show the previous read while the new one loads.
+    const accessListKey = `${selectedAccount}-${token?.address}-${cluster?.url}`;
+    const [loadedAccessListKey, setLoadedAccessListKey] = useState(accessListKey);
+    if (loadedAccessListKey !== accessListKey) {
+        setLoadedAccessListKey(accessListKey);
+        setAccessListState({ status: 'loading' });
+    }
+
     useEffect(() => {
-        const loadAccessList = async () => {
-            if (!rpc) return;
+        if (!rpc || !token?.address || !token?.isSrfc37) return;
 
-            const currentKey = `${selectedAccount}-${token?.address}-${cluster?.url}-${refreshTrigger}`;
-
-            if (loadedAccessListRef.current === currentKey) {
-                return;
-            }
-
-            const result = await getAccessList(rpc, selectedAccount as Address, token?.address as Address);
-            if (result) {
-                setAccessList(result.wallets);
-                setListType(result.type);
-            } else {
-                // Access list not initialized yet - set empty list
-                setAccessList([]);
-            }
-            loadedAccessListRef.current = currentKey;
+        let cancelled = false;
+        readAccessListState(rpc, token.address as Address, (selectedAccount as Address | undefined) ?? null).then(
+            state => {
+                if (!cancelled) setAccessListState(state);
+            },
+        );
+        return () => {
+            cancelled = true;
         };
-
-        if (rpc && selectedAccount && token?.address && token?.isSrfc37) {
-            loadAccessList();
-        }
-    }, [rpc, selectedAccount, token?.address, token?.isSrfc37, cluster?.url, refreshTrigger]);
+    }, [rpc, selectedAccount, token?.address, token?.isSrfc37, refreshTrigger]);
 
     const openInExplorer = () => {
         window.open(buildAddressExplorerUrl(address, cluster), '_blank');
+    };
+
+    // Writes go through the SDK, which derives the list from the signer, so only the authority of
+    // the attached list may write. Returns that list, or reports why the wallet can't change it.
+    const manageableAccessList = (): ReadyAccessListState | null => {
+        if (accessListState.status === 'ready' && accessListState.canManage) return accessListState;
+        setError(
+            accessListState.status === 'ready'
+                ? `Only the list authority ${shortAddress(accessListState.authority)} can change this list.`
+                : "Only the list authority can change this list, and this token's list hasn't been read.",
+        );
+        return null;
     };
 
     const addToAccessList = async () => {
@@ -298,13 +299,15 @@ function ManageTokenConnected({ address }: { address: string }) {
             setError('Required parameters not available');
             return;
         }
+        const list = manageableAccessList();
+        if (!list) return;
 
         setActionInProgress(true);
         setError('');
 
         try {
             let result;
-            if (listType === 'blocklist') {
+            if (list.mode === 'blocklist') {
                 result = await removeAddressFromBlocklist(
                     rpc,
                     {
@@ -344,6 +347,8 @@ function ManageTokenConnected({ address }: { address: string }) {
             setError('Wallet not connected or RPC not available');
             return;
         }
+        const list = manageableAccessList();
+        if (!list) return;
 
         setActionInProgress(true);
         setError('');
@@ -354,7 +359,7 @@ function ManageTokenConnected({ address }: { address: string }) {
             }
 
             let result;
-            if (listType === 'blocklist') {
+            if (list.mode === 'blocklist') {
                 result = await addAddressToBlocklist(
                     rpc,
                     {
@@ -821,7 +826,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                                         value="blocklist"
                                         className="cursor-pointer rounded-none border-b-2 border-transparent data-[state=active]:!border-b-primary dark:data-[state=active]:border-transparent data-[state=active]:shadow-none px-0 py-3 bg-transparent data-[state=active]:bg-transparent"
                                     >
-                                        {listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}
+                                        {listLabel}
                                     </TabsTrigger>
                                 )}
                                 <TabsTrigger
@@ -840,11 +845,11 @@ function ManageTokenConnected({ address }: { address: string }) {
                             {token.isSrfc37 && (
                                 <TabsContent value="blocklist">
                                     <TransferRestrictions
-                                        accessList={accessList}
-                                        listType={listType}
+                                        state={accessListState}
                                         tokenSymbol={token.symbol}
                                         onAddToAccessList={() => setShowAccessListModal(true)}
                                         onRemoveFromAccessList={removeFromAccessList}
+                                        onRetry={retryAccessList}
                                     />
                                 </TabsContent>
                             )}
@@ -869,19 +874,21 @@ function ManageTokenConnected({ address }: { address: string }) {
                 transactionSignature={transactionSignature}
             />
 
-            <AddressModal
-                isOpen={showAccessListModal}
-                onClose={() => {
-                    setShowAccessListModal(false);
-                    setNewAddress('');
-                }}
-                onAdd={addToAccessList}
-                newAddress={newAddress}
-                onAddressChange={setNewAddress}
-                title={`Add to ${listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}`}
-                placeholder="Enter Solana address..."
-                buttonText={`Add to ${listType === 'allowlist' ? 'Allowlist' : 'Blocklist'}`}
-            />
+            {accessListState.status === 'ready' && accessListState.canManage && (
+                <AddressModal
+                    isOpen={showAccessListModal}
+                    onClose={() => {
+                        setShowAccessListModal(false);
+                        setNewAddress('');
+                    }}
+                    onAdd={addToAccessList}
+                    newAddress={newAddress}
+                    onAddressChange={setNewAddress}
+                    title={`Add to ${listLabel}`}
+                    placeholder="Enter Solana address..."
+                    buttonText={`Add to ${listLabel}`}
+                />
+            )}
         </div>
     );
 }
