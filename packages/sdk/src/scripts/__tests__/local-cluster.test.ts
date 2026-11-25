@@ -27,3 +27,29 @@ describe('runToExitCode', () => {
         expect(runnerExitStatus("process.kill(process.pid, 'SIGKILL')")).not.toBe(0);
     });
 });
+
+describe('waitForHealthy', () => {
+    it('gives up at the startup deadline when the RPC never answers', () => {
+        // A server that accepts the connection but never responds: without a per-request deadline,
+        // the getHealth fetch blocks forever and the retry budget never runs out.
+        const runner = `
+            import { createServer } from 'http';
+            const { waitForHealthy } = await import(${JSON.stringify(LOCAL_CLUSTER_URL)});
+            const server = createServer(() => {});
+            await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+            const url = 'http://127.0.0.1:' + server.address().port;
+            const start = Date.now();
+            try {
+                await waitForHealthy(url, 3, { intervalMs: 100 });
+                process.exit(2);
+            } catch {
+                process.exit(Date.now() - start < 2000 ? 0 : 3);
+            }
+        `;
+        const result = spawnSync(process.execPath, ['--input-type=module', '-e', runner], {
+            stdio: 'ignore',
+            timeout: 10_000,
+        });
+        expect(result.status).toBe(0);
+    }, 15_000);
+});

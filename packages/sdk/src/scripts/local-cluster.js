@@ -40,16 +40,26 @@ export async function commandOutput(command, args) {
  * remote cluster in the ambient `solana config` can't make a local one look ready.
  * `assertAlive` runs before each poll and can throw to stop waiting early, e.g. when the
  * cluster process has already exited.
+ *
+ * The whole wait is bounded by a wall-clock deadline of `retries * intervalMs`: each request,
+ * body read included, is aborted when the deadline passes, so a stalled RPC can't stretch it.
  */
 export async function waitForHealthy(rpcUrl, retries, { intervalMs = 1000, assertAlive = () => {} } = {}) {
     console.log(`Waiting for ${rpcUrl} to be healthy...`);
+    const budgetMs = retries * intervalMs;
+    const deadline = Date.now() + budgetMs;
     for (let i = 0; i < retries; i++) {
         assertAlive();
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) {
+            break;
+        }
         try {
             const res = await fetch(rpcUrl, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
                 body: '{"jsonrpc":"2.0","id":1,"method":"getHealth"}',
+                signal: AbortSignal.timeout(remaining),
             });
             const body = await res.json();
             if (body.result === 'ok') {
@@ -57,11 +67,15 @@ export async function waitForHealthy(rpcUrl, retries, { intervalMs = 1000, asser
                 return;
             }
         } catch {
-            // Not listening yet
+            // Not listening yet, or the request ran into the deadline
         }
-        await setTimeout(intervalMs);
+        const sleepMs = Math.min(intervalMs, deadline - Date.now());
+        if (sleepMs <= 0) {
+            break;
+        }
+        await setTimeout(sleepMs);
     }
-    throw new Error(`${rpcUrl} did not become healthy within ${(retries * intervalMs) / 1000}s`);
+    throw new Error(`${rpcUrl} did not become healthy within ${budgetMs / 1000}s`);
 }
 
 /**
