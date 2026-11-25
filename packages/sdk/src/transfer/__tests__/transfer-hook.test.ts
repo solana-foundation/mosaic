@@ -164,6 +164,42 @@ describe('extra account meta codec', () => {
         };
         expect(() => encodeExtraAccountMetas([meta])).toThrow('over the 32-byte limit');
     });
+
+    test.each<[string, ExtraAccountMeta['config'], string]>([
+        [
+            'an account-data seed offset past 255',
+            { __kind: 'ProgramPda', seeds: [{ __kind: 'AccountData', accountIndex: 0, dataIndex: 256, length: 32 }] },
+            'account-data seed dataIndex must be an integer in 0..255, got 256',
+        ],
+        [
+            'a fractional instruction-data seed length',
+            { __kind: 'ProgramPda', seeds: [{ __kind: 'InstructionData', index: 8, length: 1.5 }] },
+            'instruction-data seed length must be an integer in 0..255, got 1.5',
+        ],
+        [
+            'a negative account-key seed index',
+            { __kind: 'ProgramPda', seeds: [{ __kind: 'AccountKey', index: -1 }] },
+            'account-key seed index must be an integer in 0..255, got -1',
+        ],
+        [
+            'a negative pubkey-data instruction offset',
+            { __kind: 'PubkeyData', pubkeyData: { __kind: 'InstructionData', index: -1 } },
+            'pubkey data index must be an integer in 0..255, got -1',
+        ],
+        [
+            'a pubkey-data account offset past 255',
+            { __kind: 'PubkeyData', pubkeyData: { __kind: 'AccountData', accountIndex: 0, dataIndex: 300 } },
+            'pubkey data dataIndex must be an integer in 0..255, got 300',
+        ],
+        [
+            'a negative AccountPda program index',
+            { __kind: 'AccountPda', accountIndex: -1, seeds: [] },
+            'PDA program accountIndex must be an integer in 0..255, got -1',
+        ],
+    ])('rejects %s instead of wrapping it', (_, config, message) => {
+        const meta: ExtraAccountMeta = { config, isSigner: false, isWritable: false };
+        expect(() => encodeExtraAccountMetas([meta])).toThrow(message);
+    });
 });
 
 describe('resolveExtraAccountMetasForExecute', () => {

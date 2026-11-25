@@ -96,6 +96,14 @@ function invalid(message: string): Error {
     return new Error(`Invalid transfer hook extra account metas: ${message}`);
 }
 
+/** Returns `value` if it fits the one-byte field it is encoded into, so it never wraps silently. */
+function u8(value: number, field: string): number {
+    if (!Number.isInteger(value) || value < 0 || value > 0xff) {
+        throw invalid(`${field} must be an integer in 0..255, got ${value}`);
+    }
+    return value;
+}
+
 function readU32(bytes: ReadonlyUint8Array, offset: number): number {
     return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(offset, true);
 }
@@ -229,13 +237,22 @@ function encodeSeeds(seeds: ExtraAccountMetaSeed[]): number[] {
                 out.push(1, seed.bytes.length, ...seed.bytes);
                 break;
             case 'InstructionData':
-                out.push(2, seed.index, seed.length);
+                out.push(
+                    2,
+                    u8(seed.index, 'instruction-data seed index'),
+                    u8(seed.length, 'instruction-data seed length'),
+                );
                 break;
             case 'AccountKey':
-                out.push(3, seed.index);
+                out.push(3, u8(seed.index, 'account-key seed index'));
                 break;
             case 'AccountData':
-                out.push(4, seed.accountIndex, seed.dataIndex, seed.length);
+                out.push(
+                    4,
+                    u8(seed.accountIndex, 'account-data seed accountIndex'),
+                    u8(seed.dataIndex, 'account-data seed dataIndex'),
+                    u8(seed.length, 'account-data seed length'),
+                );
                 break;
         }
     }
@@ -260,10 +277,15 @@ export function encodeExtraAccountMeta(meta: ExtraAccountMeta): Uint8Array {
             discriminator = 2;
             addressConfig =
                 config.pubkeyData.__kind === 'InstructionData'
-                    ? [1, config.pubkeyData.index]
-                    : [2, config.pubkeyData.accountIndex, config.pubkeyData.dataIndex];
+                    ? [1, u8(config.pubkeyData.index, 'pubkey data index')]
+                    : [
+                          2,
+                          u8(config.pubkeyData.accountIndex, 'pubkey data accountIndex'),
+                          u8(config.pubkeyData.dataIndex, 'pubkey data dataIndex'),
+                      ];
             break;
         case 'AccountPda':
+            u8(config.accountIndex, 'PDA program accountIndex');
             if (config.accountIndex > 0xff - ACCOUNT_PDA_DISCRIMINATOR_OFFSET) throw invalid('account index too large');
             discriminator = ACCOUNT_PDA_DISCRIMINATOR_OFFSET + config.accountIndex;
             addressConfig = encodeSeeds(config.seeds);
