@@ -20,7 +20,7 @@ import {
     createRemoveFromBlocklistTransaction,
     createAddToAllowlistTransaction,
     createRemoveFromAllowlistTransaction,
-    getList,
+    getListWallets,
     getListConfigPda,
 } from '@solana/mosaic-sdk';
 import { fetchMaybeListConfig } from '@solana/token-acl-gate-sdk';
@@ -51,7 +51,7 @@ export async function readAccessListState(
 
         const listConfig = attachedListConfig(extraMetas);
         const listConfigAccount = listConfig ? await fetchMaybeListConfig(rpc, listConfig) : null;
-        const wallets = listConfig && listConfigAccount?.exists ? (await getList({ rpc, listConfig })).wallets : [];
+        const wallets = listConfig && listConfigAccount?.exists ? await getListWallets({ rpc, listConfig }) : [];
         const derivedListConfigForWallet = connectedWallet
             ? await getListConfigPda({ authority: connectedWallet, mint })
             : null;

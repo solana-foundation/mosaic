@@ -154,20 +154,18 @@ export const getListConfig = async (input: { rpc: Rpc<SolanaRpcApi>; listConfig:
 };
 
 /**
- * Fetches the complete list data including configuration and wallet addresses.
+ * Fetches the wallet addresses that are part of an allowlist or blocklist.
  *
- * This function retrieves both the configuration information and all wallet addresses
- * that are part of an allowlist or blocklist. It queries the blockchain for all
- * wallet accounts associated with the list configuration.
+ * This function queries the blockchain for all wallet accounts associated with
+ * the list configuration. It does not read the list configuration account itself,
+ * so callers that already hold the configuration avoid fetching it again.
  *
- * @param input - Parameters for fetching the complete list data
+ * @param input - Parameters for fetching the list members
  * @param input.rpc - The Solana RPC client instance
  * @param input.listConfig - The address of the list configuration account
- * @returns Promise containing the complete list data including wallet addresses
+ * @returns Promise containing the wallet addresses on the list
  */
-export const getList = async (input: { rpc: Rpc<SolanaRpcApi>; listConfig: Address }): Promise<List> => {
-    const listConfig = await getListConfig(input);
-
+export const getListWallets = async (input: { rpc: Rpc<SolanaRpcApi>; listConfig: Address }): Promise<Address[]> => {
     const accounts = await input.rpc
         .getProgramAccounts(ABL_PROGRAM_ID, {
             encoding: 'base64',
@@ -186,15 +184,30 @@ export const getList = async (input: { rpc: Rpc<SolanaRpcApi>; listConfig: Addre
         })
         .send();
 
-    const list = accounts.map(account => {
+    return accounts.map(account => {
         const data = new Uint8Array(Buffer.from(account.account.data[0], 'base64'));
         const abWallet: WalletEntry = getWalletEntryDecoder().decode(data);
         return abWallet.walletAddress;
     });
+};
 
+/**
+ * Fetches the complete list data including configuration and wallet addresses.
+ *
+ * This function retrieves both the configuration information and all wallet addresses
+ * that are part of an allowlist or blocklist.
+ *
+ * @param input - Parameters for fetching the complete list data
+ * @param input.rpc - The Solana RPC client instance
+ * @param input.listConfig - The address of the list configuration account
+ * @returns Promise containing the complete list data including wallet addresses
+ */
+export const getList = async (input: { rpc: Rpc<SolanaRpcApi>; listConfig: Address }): Promise<List> => {
+    const listConfig = await getListConfig(input);
+    const wallets = await getListWallets(input);
     return {
         ...listConfig,
-        wallets: list,
+        wallets,
     };
 };
 
