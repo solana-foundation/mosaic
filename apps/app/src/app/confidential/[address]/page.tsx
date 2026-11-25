@@ -38,30 +38,32 @@ function ConfidentialConnected({ address }: { address: string }) {
     return (
         <div className="flex-1 p-8">
             <div className="max-w-5xl mx-auto space-y-8">
-                {/* Header */}
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                        <Link className="p-0" href={`/manage/${address}`}>
-                            <Button variant="ghost" size="icon" className="w-6 h-10 group">
-                                <ChevronLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200 ease-in-out" />
-                            </Button>
-                        </Link>
-                        <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10">
-                            <Lock className="h-5 w-5 text-primary/60" />
-                        </div>
-                        <div>
-                            <h1 className="text-xl font-bold">Confidential Transfers</h1>
-                            <p className="text-md text-muted-foreground -mt-1">{token?.symbol ?? address}</p>
+                <div className="space-y-4">
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-4">
+                            <Link className="p-0" href={`/manage/${address}`}>
+                                <Button variant="ghost" size="icon" className="w-6 h-10 group">
+                                    <ChevronLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform duration-200 ease-in-out" />
+                                </Button>
+                            </Link>
+                            <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10">
+                                <Lock className="h-5 w-5 text-primary/60" />
+                            </div>
+                            <div>
+                                <h1 className="text-xl font-bold">Confidential Transfers</h1>
+                                <p className="text-md text-muted-foreground -mt-1">{token?.symbol ?? address}</p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Intro */}
-                <p className="text-sm text-muted-foreground max-w-3xl">
-                    Walk through the confidential-transfer lifecycle for this token. Balances are encrypted on-chain
-                    under keys derived from your wallet signature — deriving them prompts your wallet once, and the keys
-                    stay in memory only for this session.
-                </p>
+                    {/* Intro */}
+                    <p className="text-sm text-muted-foreground max-w-3xl">
+                        Walk through the confidential-transfer lifecycle for this token. Balances are encrypted on-chain
+                        under keys derived from your wallet signature — deriving them prompts your wallet once, and the
+                        keys stay in memory only for this session.
+                    </p>
+                </div>
 
                 <ConfidentialKeysProvider>
                     <WalletSupportNotice />

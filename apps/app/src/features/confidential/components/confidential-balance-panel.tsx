@@ -65,8 +65,8 @@ export function ConfidentialBalancePanel({
     };
 
     return (
-        <Card className="rounded-2xl">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <Card className="rounded-2xl py-5 gap-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5">
                 <CardTitle className="text-base">Balances</CardTitle>
                 <div className="flex items-center gap-2">
                     <Button
@@ -93,7 +93,7 @@ export function ConfidentialBalancePanel({
                     )}
                 </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-5">
                 {/* Configuration status */}
                 <div className="flex items-center gap-2">
                     {isConfigured ? (
@@ -132,7 +132,7 @@ export function ConfidentialBalancePanel({
 
                 {/* Pending-credit counter */}
                 {isConfigured && state && (
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between pt-1 text-sm">
                         <span className="text-muted-foreground">Pending credit counter</span>
                         <span className={`font-mono ${counterAtMax ? 'text-destructive font-semibold' : ''}`}>
                             {state.pendingBalanceCreditCounter.toString()} /{' '}

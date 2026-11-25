@@ -155,20 +155,20 @@ export function ConfidentialActionCard({
     };
 
     return (
-        <Card className="rounded-2xl">
-            <CardHeader className="flex flex-row items-start gap-3 space-y-0">
+        <Card className="rounded-2xl py-5 gap-4">
+            <CardHeader className="flex flex-row items-start gap-3 space-y-0 px-5">
                 <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
                     {stepNumber}
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 pt-1">
                     <div className="flex items-center gap-2">
                         <Icon className="h-4 w-4 text-primary/60" />
                         <h3 className="font-semibold">{title}</h3>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-0.5">{description}</p>
+                    <p className="text-sm text-muted-foreground mt-1">{description}</p>
                 </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4 px-5 sm:pl-16">
                 {needsAddress && (
                     <SolanaAddressInput
                         label={addressLabel}
@@ -190,24 +190,26 @@ export function ConfidentialActionCard({
                     />
                 )}
 
-                <Button
-                    onClick={handleRun}
-                    disabled={isLoading || !inputsValid || !!disabledReason || !!partial}
-                    className="w-full"
-                >
-                    {isLoading ? (
-                        <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            {progress && progress.total > 1
-                                ? `Sending ${progress.current}/${progress.total}...`
-                                : 'Sending...'}
-                        </>
-                    ) : (
-                        actionLabel
-                    )}
-                </Button>
+                <div className="space-y-2">
+                    <Button
+                        onClick={handleRun}
+                        disabled={isLoading || !inputsValid || !!disabledReason || !!partial}
+                        className="w-full"
+                    >
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                {progress && progress.total > 1
+                                    ? `Sending ${progress.current}/${progress.total}...`
+                                    : 'Sending...'}
+                            </>
+                        ) : (
+                            actionLabel
+                        )}
+                    </Button>
 
-                {disabledReason && !isLoading && <p className="text-xs text-muted-foreground">{disabledReason}</p>}
+                    {disabledReason && !isLoading && <p className="text-xs text-muted-foreground">{disabledReason}</p>}
+                </div>
 
                 {error && <p className="text-sm text-destructive break-words">{error}</p>}
 
