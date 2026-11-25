@@ -7,4 +7,5 @@ export * from './force-transfer.js';
 export * from './mint.js';
 export * from './pause.js';
 export * from './permissioned-burn.js';
+export * from './scaled-ui-amount.js';
 export * from './transfer-hook.js';
