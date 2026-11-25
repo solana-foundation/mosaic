@@ -1,4 +1,4 @@
-import { createNoopSigner, generateKeyPairSigner } from '@solana/kit';
+import { createLazyKeyPairSignerFromBytes, createNoopSigner, generateKeyPairSigner } from '@solana/kit';
 import { getSharedFeePayerSigner, resolveFeePayerAndAuthority, resolveSigners } from '../signers.js';
 
 describe('getSharedFeePayerSigner', () => {
@@ -77,5 +77,16 @@ describe('resolveSigners', () => {
         const [a, b] = resolveSigners(address, address);
         expect(a).toBe(b);
         expect(a.address).toBe(address);
+    });
+
+    // Kit's lazy key pair signer is a frozen object with exactly address,
+    // signMessages and signTransactions, the same shape as a no-op signer. It is a
+    // real signer and must still win over a no-op one on the same key.
+    it('prefers a lazy key pair signer over a no-op signer for its key', () => {
+        // The address is read from the last 32 bytes; the key is only imported on first sign.
+        const lazy = createLazyKeyPairSignerFromBytes(crypto.getRandomValues(new Uint8Array(64)));
+        const [payer, owner] = resolveSigners(createNoopSigner(lazy.address), lazy);
+        expect(payer).toBe(lazy);
+        expect(owner).toBe(lazy);
     });
 });

@@ -19,18 +19,32 @@ export function toSigner(value: AddressOrSigner): TransactionSigner<string> {
 
 const NOOP_SIGNER_KEYS = ['address', 'signMessages', 'signTransactions'];
 
+// Method sources of a reference Kit no-op signer, to compare candidates against.
+const NOOP_REFERENCE = createNoopSigner('11111111111111111111111111111111' as Address);
+const NOOP_SIGN_MESSAGES_SOURCE = String(NOOP_REFERENCE.signMessages);
+const NOOP_SIGN_TRANSACTIONS_SOURCE = String(NOOP_REFERENCE.signTransactions);
+
 /**
- * Whether a signer has the shape of Kit's `createNoopSigner` result: a frozen
- * object with exactly `address`, `signMessages` and `signTransactions`. A key pair
- * signer also carries `keyPair`, and wallet signers expose modifying or sending
- * methods, so neither matches.
+ * Whether a signer is a Kit `createNoopSigner` result: a frozen object with
+ * exactly `address`, `signMessages` and `signTransactions`, whose methods are
+ * Kit's no-op ones. Shape alone isn't enough: Kit's lazy key pair signer
+ * (`createLazyKeyPairSignerFromBytes`) has the same frozen shape but really signs,
+ * so the method sources are compared too. A no-op signer from a different Kit copy
+ * whose methods read differently counts as real, and the first signer given for
+ * its key wins.
  */
 function isNoopSigner(signer: TransactionSigner<string>): boolean {
     if (!Object.isFrozen(signer)) {
         return false;
     }
     const keys = Object.keys(signer);
-    return keys.length === NOOP_SIGNER_KEYS.length && NOOP_SIGNER_KEYS.every(key => keys.includes(key));
+    if (keys.length !== NOOP_SIGNER_KEYS.length || !NOOP_SIGNER_KEYS.every(key => keys.includes(key))) {
+        return false;
+    }
+    const { signMessages, signTransactions } = signer as unknown as Record<string, unknown>;
+    return (
+        String(signMessages) === NOOP_SIGN_MESSAGES_SOURCE && String(signTransactions) === NOOP_SIGN_TRANSACTIONS_SOURCE
+    );
 }
 
 /**
