@@ -24,6 +24,25 @@ import {
 } from '@solana-program/token-2022';
 import { getAddMemoInstruction } from '@solana-program/memo';
 import { getThawPermissionlessInstructions } from '../token-acl/index.js';
+import { getTransferHookProgramId, withTransferHookAccounts } from './transfer-hook.js';
+
+export {
+    EXECUTE_INSTRUCTION_DISCRIMINATOR,
+    EXTRA_ACCOUNT_METAS_SEED,
+    decodeExtraAccountMetaList,
+    deEscalateAccountMeta,
+    encodeExtraAccountMeta,
+    encodeExtraAccountMetas,
+    findExtraAccountMetaListPda,
+    getTransferHookProgramId,
+    resolveExtraAccountMetasForExecute,
+    withTransferHookAccounts,
+    type ExtraAccountMeta,
+    type ExtraAccountMetaConfig,
+    type ExtraAccountMetaPubkeyData,
+    type ExtraAccountMetaSeed,
+    type ResolveExtraAccountMetasForExecuteInput,
+} from './transfer-hook.js';
 
 /**
  * Creates a list of instructions to transfer SPL tokens (Token-2022) from one account to another.
@@ -34,7 +53,8 @@ import { getThawPermissionlessInstructions } from '../token-acl/index.js';
  *   - Optionally creates the recipient's associated token account if it does not exist.
  *   - Optionally thaws the recipient's account if it is frozen and SRFC-37 is enabled.
  *   - Optionally adds a memo instruction.
- *   - Appends the transferChecked instruction for the actual token transfer.
+ *   - Appends the transferChecked instruction for the actual token transfer, with the transfer
+ *     hook's extra accounts when the mint has an active transfer hook.
  *
  * @param input - Object containing:
  *   - rpc: Solana RPC client instance
@@ -107,21 +127,30 @@ export const createTransferInstructions = async (input: {
         instructions.push(getAddMemoInstruction({ memo }));
     }
 
-    // Add transfer instruction
+    // Add transfer instruction. An active transfer hook needs its extra accounts appended.
+    const transferInstruction = getTransferCheckedInstruction(
+        {
+            source: senderTokenAccountInfo.tokenAccount,
+            destination: recipientTokenAccountInfo.tokenAccount,
+            mint: mint,
+            authority,
+            amount: rawAmount,
+            decimals,
+        },
+        {
+            programAddress: TOKEN_2022_PROGRAM_ADDRESS,
+        },
+    );
     instructions.push(
-        getTransferCheckedInstruction(
-            {
-                source: senderTokenAccountInfo.tokenAccount,
-                destination: recipientTokenAccountInfo.tokenAccount,
-                mint: mint,
-                authority,
-                amount: rawAmount,
-                decimals,
-            },
-            {
-                programAddress: TOKEN_2022_PROGRAM_ADDRESS,
-            },
-        ),
+        await withTransferHookAccounts(transferInstruction, {
+            rpc,
+            transferHookProgramAddress: getTransferHookProgramId(extensions),
+            source: senderTokenAccountInfo.tokenAccount,
+            mint,
+            destination: recipientTokenAccountInfo.tokenAccount,
+            owner: authority.address,
+            amount: rawAmount,
+        }),
     );
     return instructions;
 };

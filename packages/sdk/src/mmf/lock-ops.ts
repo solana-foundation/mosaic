@@ -22,6 +22,7 @@ import {
 import type { FullTransaction } from '../transaction-util.js';
 import { decimalAmountToRaw, getMintDetails, resolveTokenAccount } from '../transaction-util.js';
 import { deriveLockAccountAddress, type LockType } from './lock-address.js';
+import { getTransferHookProgramId, withTransferHookAccounts } from '../transfer/transfer-hook.js';
 
 interface LockOpCommon {
     mint: Address;
@@ -66,6 +67,32 @@ const buildTx = async (
         m => appendTransactionMessageInstructions(instructions, m),
     ) as FullTransaction;
 };
+
+/**
+ * TransferChecked moved by the permanent delegate, with the transfer hook's extra accounts appended
+ * when the mint has an active hook (no extra RPC call otherwise).
+ */
+const transferIx = async (
+    rpc: Rpc<SolanaRpcApi>,
+    extensions: Array<{ extension: string; state?: Record<string, unknown> }>,
+    input: {
+        source: Address;
+        mint: Address;
+        destination: Address;
+        authority: TransactionSigner<string>;
+        amount: bigint;
+        decimals: number;
+    },
+): Promise<Instruction> =>
+    withTransferHookAccounts(getTransferCheckedInstruction(input, { programAddress: TOKEN_2022_PROGRAM_ADDRESS }), {
+        rpc,
+        transferHookProgramAddress: getTransferHookProgramId(extensions),
+        source: input.source,
+        mint: input.mint,
+        destination: input.destination,
+        owner: input.authority.address,
+        amount: input.amount,
+    });
 
 const thawIx = (lockAccount: Address, mint: Address, freezeAuthority: TransactionSigner<string>) =>
     getThawAccountInstruction(
@@ -160,23 +187,20 @@ export const createBurnLockTransaction = async (
 ): Promise<FullTransaction> => {
     const { mint, holder, decimalAmount, permanentDelegate, freezeAuthority, feePayer } = input;
     const lockAccount = await resolveLockAccount('burn-lock', permanentDelegate.address, mint, holder);
-    const { decimals } = await getMintDetails(rpc, mint);
+    const { decimals, extensions } = await getMintDetails(rpc, mint);
     const { tokenAccount: holderAta } = await resolveTokenAccount(rpc, holder, mint);
     const rawAmount = decimalAmountToRaw(decimalAmount, decimals);
 
     const instructions: Instruction[] = [
         thawIx(lockAccount, mint, freezeAuthority),
-        getTransferCheckedInstruction(
-            {
-                source: holderAta,
-                mint,
-                destination: lockAccount,
-                authority: permanentDelegate,
-                amount: rawAmount,
-                decimals,
-            },
-            { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
-        ),
+        await transferIx(rpc, extensions, {
+            source: holderAta,
+            mint,
+            destination: lockAccount,
+            authority: permanentDelegate,
+            amount: rawAmount,
+            decimals,
+        }),
         freezeIx(lockAccount, mint, freezeAuthority),
     ];
 
@@ -201,23 +225,20 @@ export const createSettleMintLockTransaction = async (
 ): Promise<FullTransaction> => {
     const { mint, holder, permanentDelegate, freezeAuthority, feePayer } = input;
     const lockAccount = await resolveLockAccount('mint-lock', permanentDelegate.address, mint, holder);
-    const { decimals } = await getMintDetails(rpc, mint);
+    const { decimals, extensions } = await getMintDetails(rpc, mint);
     const { tokenAccount: holderAta } = await resolveTokenAccount(rpc, holder, mint);
     const rawAmount = await getLockAccountRawBalance(rpc, lockAccount);
 
     const instructions: Instruction[] = [
         thawIx(lockAccount, mint, freezeAuthority),
-        getTransferCheckedInstruction(
-            {
-                source: lockAccount,
-                mint,
-                destination: holderAta,
-                authority: permanentDelegate,
-                amount: rawAmount,
-                decimals,
-            },
-            { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
-        ),
+        await transferIx(rpc, extensions, {
+            source: lockAccount,
+            mint,
+            destination: holderAta,
+            authority: permanentDelegate,
+            amount: rawAmount,
+            decimals,
+        }),
         closeIx(lockAccount, feePayer.address, permanentDelegate),
     ];
 
@@ -289,23 +310,20 @@ export const createCancelBurnLockTransaction = async (
 ): Promise<FullTransaction> => {
     const { mint, holder, permanentDelegate, freezeAuthority, feePayer } = input;
     const lockAccount = await resolveLockAccount('burn-lock', permanentDelegate.address, mint, holder);
-    const { decimals } = await getMintDetails(rpc, mint);
+    const { decimals, extensions } = await getMintDetails(rpc, mint);
     const { tokenAccount: holderAta } = await resolveTokenAccount(rpc, holder, mint);
     const rawAmount = await getLockAccountRawBalance(rpc, lockAccount);
 
     const instructions: Instruction[] = [
         thawIx(lockAccount, mint, freezeAuthority),
-        getTransferCheckedInstruction(
-            {
-                source: lockAccount,
-                mint,
-                destination: holderAta,
-                authority: permanentDelegate,
-                amount: rawAmount,
-                decimals,
-            },
-            { programAddress: TOKEN_2022_PROGRAM_ADDRESS },
-        ),
+        await transferIx(rpc, extensions, {
+            source: lockAccount,
+            mint,
+            destination: holderAta,
+            authority: permanentDelegate,
+            amount: rawAmount,
+            decimals,
+        }),
         closeIx(lockAccount, feePayer.address, permanentDelegate),
     ];
 
