@@ -222,15 +222,17 @@ step "build the test wallets"
 # A plain string, not an array: macOS bash 3.2 treats an empty array as unset under `set -u`.
 ALT=""
 [[ -n "$B_ADDRESS" ]] && ALT="--alt-role b"
+# Into this run's directory, so an overlapping run cannot swap a bundle
+# between this run's build and its browser's launch.
 build() { node "$HERE/build-test-wallet.mjs" "$@"; }
 for role in "${SESSIONS[@]}"; do
     case "$role" in
-        a) build --role a $ALT --out test-wallet-a.js ;;
-        b) build --role b --out test-wallet-b.js ;;
-        nosign) build --role a --no-sign-message --out test-wallet-a-nosign.js ;;
+        a) build --role a $ALT --out "runs/$RUN_ID/test-wallet-a.js" ;;
+        b) build --role b --out "runs/$RUN_ID/test-wallet-b.js" ;;
+        nosign) build --role a --no-sign-message --out "runs/$RUN_ID/test-wallet-a-nosign.js" ;;
         empty)
             # A fresh keypair per run that never holds SOL, for the insufficient-funds paths.
-            EMPTY_KEYPAIR="$APP_ROOT/.agent-browser/empty-keypair.json"
+            EMPTY_KEYPAIR="$OUT/empty-keypair.json"
             node -e '
                 const { generateKeyPairSync } = require("node:crypto");
                 const { privateKey, publicKey } = generateKeyPairSync("ed25519");
@@ -238,7 +240,7 @@ for role in "${SESSIONS[@]}"; do
                 const pub = publicKey.export({ format: "der", type: "spki" }).subarray(-32);
                 console.log(JSON.stringify([...seed, ...pub]));
             ' >"$EMPTY_KEYPAIR"
-            build --keypair "$EMPTY_KEYPAIR" --out test-wallet-empty.js
+            build --keypair "$EMPTY_KEYPAIR" --out "runs/$RUN_ID/test-wallet-empty.js"
             ;;
         *) fail "unknown session role '$role' in a flow's '# e2e: sessions=' line" ;;
     esac
@@ -247,7 +249,7 @@ done
 launch() {
     local role="$1" bundle="test-wallet-$1.js"
     [[ "$role" == nosign ]] && bundle=test-wallet-a-nosign.js
-    local args=(--init-script "$APP_ROOT/.agent-browser/$bundle")
+    local args=(--init-script "$OUT/$bundle")
     [[ "${HEADED:-}" == 1 ]] && args+=(--headed)
     # Recorded before the browser starts, so cleanup also closes a session
     # whose launch failed halfway.

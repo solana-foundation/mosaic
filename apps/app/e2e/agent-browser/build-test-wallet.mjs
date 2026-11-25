@@ -8,15 +8,16 @@
 //   --alt-role b         second keypair, reachable with window.__mosaicTestWallet.switchAccount()
 //   --alt <path>         the same, from a file
 //   --no-sign-message    leave out solana:signMessage, like a wallet that cannot sign messages
-//   --out <name>         output file name (default: test-wallet.js)
+//   --out <path>         output file, relative to apps/app/.agent-browser/
+//                        (default: test-wallet.js); a path outside it is refused
 //
-// Prints the address it embedded. Output: apps/app/.agent-browser/<name>,
+// Prints the address it embedded. Output: apps/app/.agent-browser/<path>,
 // which is gitignored because it contains secret keys. Never commit it or
 // paste it anywhere.
 /* global process, console */
 import { build } from 'esbuild';
 import { mkdirSync, readFileSync } from 'node:fs';
-import { basename, dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { getBase58Decoder } from '@solana/kit';
@@ -40,6 +41,14 @@ const { values: args } = parseArgs({
         out: { type: 'string', default: 'test-wallet.js' },
     },
 });
+
+// Bundles stay inside the gitignored .agent-browser/, whatever --out says.
+const outDir = join(appRoot, '.agent-browser');
+const outfile = resolve(outDir, args.out);
+const inside = relative(outDir, outfile);
+if (!inside || inside.startsWith('..') || isAbsolute(inside)) {
+    die(`--out ${args.out} is outside ${outDir}: the bundle embeds secret keys`);
+}
 
 function pathFor(path, role) {
     if (path) return path;
@@ -68,7 +77,6 @@ const altPath = args.alt ?? (args['alt-role'] ? pathFor(undefined, args['alt-rol
 const altSecretKey = altPath ? readKeypair(altPath) : null;
 // A Solana CLI keypair file is the 32-byte seed followed by the 32-byte public key.
 const walletAddress = getBase58Decoder().decode(new Uint8Array(secretKey.slice(32)));
-const outfile = join(appRoot, '.agent-browser', basename(args.out));
 
 mkdirSync(dirname(outfile), { recursive: true });
 
