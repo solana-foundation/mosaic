@@ -1,18 +1,9 @@
-import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-    type Address,
-    type Instruction,
-    type Rpc,
-    type SolanaRpcApi,
-    type TransactionSigner,
-} from '@solana/kit';
+import { type Address, type Instruction, type Rpc, type SolanaRpcApi, type TransactionSigner } from '@solana/kit';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 import type { FullTransaction } from '../transaction-util.js';
 import { findMintConfigPda, getCreateConfigInstruction } from '@solana/token-acl-sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils.js';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Generates instructions for creating a new Token ACL mint configuration.
@@ -36,6 +27,8 @@ export const getCreateConfigInstructions = async (input: {
 }): Promise<{ instructions: Instruction<string>[]; mintConfig: Address }> => {
     const mintConfigPda = await findMintConfigPda({ mint: input.mint }, { programAddress: TOKEN_ACL_PROGRAM_ID });
 
+    // The generated instruction takes `payer` as a writable non-signer address, so it never carries
+    // the payer's signer: whoever builds the message must set the payer as its fee payer signer.
     const payer = input.payer?.address ?? input.authority.address;
 
     const createConfigInstruction = getCreateConfigInstruction(
@@ -80,14 +73,12 @@ export const getCreateConfigTransaction = async (input: {
     transaction: FullTransaction;
     mintConfig: Address;
 }> => {
-    const { instructions, mintConfig } = await getCreateConfigInstructions(input);
-    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    const transaction = pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(input.payer.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
+        input.payer,
+        input.authority,
+    );
+    const { instructions, mintConfig } = await getCreateConfigInstructions({ ...input, payer, authority });
+    const transaction = await buildFullTransaction(input.rpc, payer, instructions);
     return {
         transaction,
         mintConfig,

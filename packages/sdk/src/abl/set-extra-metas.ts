@@ -1,20 +1,11 @@
-import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-    type Address,
-    type Instruction,
-    type Rpc,
-    type SolanaRpcApi,
-    type TransactionSigner,
-} from '@solana/kit';
+import { type Address, type Instruction, type Rpc, type SolanaRpcApi, type TransactionSigner } from '@solana/kit';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 import type { FullTransaction } from '../transaction-util.js';
 import { ABL_PROGRAM_ID } from './utils.js';
 import { getSetupExtraMetasInstruction } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda, findThawExtraMetasAccountPda } from '@solana/token-acl-sdk';
 import { TOKEN_ACL_PROGRAM_ID } from '../token-acl/index.js';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Generates instructions for setting extra metadata thaw configuration for a token.
@@ -75,12 +66,10 @@ export const getSetExtraMetasTransaction = async (input: {
     mint: Address;
     addresses: Address[];
 }): Promise<FullTransaction> => {
-    const instructions = await getSetExtraMetasInstructions(input);
-    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(input.payer.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
+        input.payer,
+        input.authority,
+    );
+    const instructions = await getSetExtraMetasInstructions({ ...input, payer, authority });
+    return buildFullTransaction(input.rpc, payer, instructions);
 };

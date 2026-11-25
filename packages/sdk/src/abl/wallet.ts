@@ -1,18 +1,9 @@
-import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-    type Address,
-    type Instruction,
-    type Rpc,
-    type SolanaRpcApi,
-    type TransactionSigner,
-} from '@solana/kit';
+import { type Address, type Instruction, type Rpc, type SolanaRpcApi, type TransactionSigner } from '@solana/kit';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 import type { FullTransaction } from '../transaction-util.js';
 import { ABL_PROGRAM_ID } from './utils.js';
 import { findWalletEntryPda, getAddWalletInstruction, getRemoveWalletInstruction } from '@solana/token-acl-gate-sdk';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Generates instructions for adding a wallet to an allowlist or blocklist.
@@ -74,14 +65,12 @@ export const getAddWalletTransaction = async (input: {
     wallet: Address;
     list: Address;
 }): Promise<FullTransaction> => {
-    const instructions = await getAddWalletInstructions(input);
-    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(input.payer.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
+        input.payer,
+        input.authority,
+    );
+    const instructions = await getAddWalletInstructions({ ...input, payer, authority });
+    return buildFullTransaction(input.rpc, payer, instructions);
 };
 
 /**
@@ -141,12 +130,10 @@ export const getRemoveWalletTransaction = async (input: {
     wallet: Address;
     list: Address;
 }): Promise<FullTransaction> => {
-    const instructions = await getRemoveWalletInstructions(input);
-    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(input.payer.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
+        input.payer,
+        input.authority,
+    );
+    const instructions = await getRemoveWalletInstructions({ ...input, authority });
+    return buildFullTransaction(input.rpc, payer, instructions);
 };

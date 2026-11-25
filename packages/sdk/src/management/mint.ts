@@ -1,13 +1,6 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
 import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-} from '@solana/kit';
-import {
     TOKEN_2022_PROGRAM_ADDRESS,
     getMintToInstruction,
     getCreateAssociatedTokenIdempotentInstruction,
@@ -20,6 +13,7 @@ import {
     isDefaultAccountStateSetFrozen,
     resolveTokenAccount,
 } from '../transaction-util.js';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Creates a transaction to mint tokens to a recipient's associated token account.
@@ -87,15 +81,7 @@ export const createMintToTransaction = async (
         ),
     ];
 
-    // Get latest blockhash for transaction
-    const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(feePayerSigner.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    return buildFullTransaction(rpc, feePayerSigner, instructions);
 };
 
 /**

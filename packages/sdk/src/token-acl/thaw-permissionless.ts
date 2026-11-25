@@ -1,9 +1,4 @@
 import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
     fetchEncodedAccount,
     lamports,
     type Address,
@@ -12,10 +7,12 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 import type { FullTransaction } from '../transaction-util.js';
 import { createThawPermissionlessInstructionWithExtraMetas } from '@solana/token-acl-sdk';
 import { TOKEN_ACL_PROGRAM_ID } from './utils.js';
 import { getTokenEncoder, AccountState, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Generates instructions for performing a permissionless thaw operation on a token account.
@@ -101,12 +98,10 @@ export const getThawPermissionlessTransaction = async (input: {
     tokenAccount: Address;
     tokenAccountOwner: Address;
 }): Promise<FullTransaction> => {
-    const instructions = await getThawPermissionlessInstructions(input);
-    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(input.payer.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
+        input.payer,
+        input.authority,
+    );
+    const instructions = await getThawPermissionlessInstructions({ ...input, authority });
+    return buildFullTransaction(input.rpc, payer, instructions);
 };

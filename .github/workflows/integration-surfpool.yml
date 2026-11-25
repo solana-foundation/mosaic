@@ -1,0 +1,122 @@
+name: Integration (surfpool)
+
+# Runs the SDK integration suite against surfpool, which forks devnet, so it also covers the
+# SRFC-37 (Token ACL / ABL) and Token-2022 v11 suites the validator job in ci.yml can't. Not
+# required: it depends on a remote datasource, so both jobs stay continue-on-error.
+#
+# Two jobs, split by trust:
+#
+# - `pr` runs a PR's code (fork PRs included) on plain `pull_request`. It gets no secrets and no
+#   OIDC token, and surfpool forks public devnet. Public devnet can rate-limit it, so a red run
+#   here is a hint, not a blocker.
+# - `main` runs on pushes to main (merged code only) and forks a private devnet RPC (RPC_URL +
+#   RPC_KEY, Doppler project `mosaic`, config `stg`). It is the only job with `id-token: write`.
+#
+# Do not switch the PR job to `pull_request_target` or give it secrets: it runs untrusted code,
+# and any step (a `postinstall` script, a test) could mint the OIDC token or read the secrets.
+#
+# Doppler setup (repo admins): create a service identity that reads only `mosaic` / `stg` and
+# trusts the GitHub OIDC subject `repo:solana-foundation/mosaic:ref:refs/heads/main`, then set the
+# Actions variable DOPPLER_SERVICE_IDENTITY_ID to its ID. Until it is set, `main` uses public
+# devnet. The subject is the ref GitHub ran on, not something the workflow file declares, so a
+# manual run on another branch, or a PR from a branch in this repo, can't get a token Doppler
+# accepts.
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One in-flight run per PR (or per ref).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  pr:
+    name: integration-surfpool (public devnet)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup surfpool
+        uses: ./.github/actions/setup-surfpool
+
+      - name: Test Integration (surfpool, public devnet)
+        run: pnpm run test:integration:surfpool
+
+  main:
+    name: integration-surfpool
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      id-token: write # Doppler OIDC auth
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup surfpool
+        uses: ./.github/actions/setup-surfpool
+
+      # Doppler only trusts main, so a manual run on another branch skips this and uses public devnet.
+      - name: Fetch Doppler secrets
+        if: github.ref == 'refs/heads/main' && vars.DOPPLER_SERVICE_IDENTITY_ID != ''
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534 # v2.0.0
+        with:
+          auth-method: oidc
+          doppler-identity-id: ${{ vars.DOPPLER_SERVICE_IDENTITY_ID }}
+          doppler-project: ${{ vars.DOPPLER_PROJECT || 'mosaic' }}
+          doppler-config: ${{ vars.DOPPLER_CONFIG_CI || 'stg' }}
+          inject-env-vars: true
+
+      - name: Test Integration (surfpool)
+        run: |
+          if [ -n "${RPC_URL:-}" ] && [ -n "${RPC_KEY:-}" ]; then
+            export SURFPOOL_DATASOURCE_RPC_URL="${RPC_URL}${RPC_KEY}"
+          fi
+          pnpm run test:integration:surfpool

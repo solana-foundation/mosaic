@@ -4,13 +4,14 @@ import type { KeyPairSigner, TransactionSigner } from '@solana/kit';
 import { generateKeyPairSigner } from '@solana/kit';
 import {
     sendAndConfirmTransaction,
-    assertTxSuccess,
+    assertTxLanded,
     assertTxFailure,
     assertBalance,
     DEFAULT_TIMEOUT,
     DEFAULT_COMMITMENT,
     describeSkipIf,
 } from './helpers.js';
+import { TEST_BACKEND } from './env.js';
 import { Token } from '../../issuance/index.js';
 import {
     createMintToTransaction,
@@ -26,9 +27,10 @@ import { inspectToken } from '../../inspection/index.js';
 import { decimalAmountToRaw } from '../../transaction-util.js';
 import { AuthorityType } from '@solana-program/token-2022';
 
-// Requires a local validator whose Token-2022 program supports permissioned burn (program >= v11).
-// Skipped until the CI validator ships v11; flip to describeSkipIf() once it does.
-describeSkipIf(true)('Permissioned Burn Integration Tests', () => {
+// Surfpool leg only: permissioned burn needs Token-2022 >= v11 (surfpool embeds v11, the CI
+// solana-test-validator ships an older build), and the tokenized-security case creates a Token
+// ACL config, which needs the real Token ACL program (forked from devnet by surfpool).
+describeSkipIf(TEST_BACKEND !== 'surfpool')('Permissioned Burn Integration Tests', () => {
     let client: Client;
     let mintAuthority: TransactionSigner<string>;
     let freezeAuthority: TransactionSigner<string>;
@@ -71,7 +73,7 @@ describeSkipIf(true)('Permissioned Burn Integration Tests', () => {
             mint,
             feePayer: payer,
         });
-        await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+        await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT));
     }
 
     async function mintTo(recipient: KeyPairSigner<string>, amount: number): Promise<void> {
@@ -83,7 +85,7 @@ describeSkipIf(true)('Permissioned Burn Integration Tests', () => {
             mintAuthority,
             payer,
         );
-        assertTxSuccess(await sendAndConfirmTransaction(client, mintTx));
+        await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, mintTx));
     }
 
     describe('Mint creation and inspection', () => {
@@ -115,13 +117,13 @@ describeSkipIf(true)('Permissioned Burn Integration Tests', () => {
                     'SEC',
                     6,
                     'https://example.com/sec.json',
-                    payer.address,
+                    payer,
                     mint,
                     payer,
                     freezeAuthority.address,
                     { enableSrfc37: false },
                 );
-                assertTxSuccess(await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT));
+                await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT));
 
                 const inspection = await inspectToken(client.rpc, mint.address, DEFAULT_COMMITMENT);
                 expect(inspection.extensions.map(ext => ext.name)).toContain('PermissionedBurn');
@@ -146,7 +148,7 @@ describeSkipIf(true)('Permissioned Burn Integration Tests', () => {
 
                 // Correct co-signer: burn succeeds
                 const burnTx = await createBurnTransaction(client.rpc, mint.address, holder, 4, payer, mintAuthority);
-                assertTxSuccess(await sendAndConfirmTransaction(client, burnTx));
+                await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, burnTx));
                 await assertBalance(client.rpc, holder.address, mint.address, decimalAmountToRaw(6, 6));
             },
             DEFAULT_TIMEOUT,
@@ -167,7 +169,7 @@ describeSkipIf(true)('Permissioned Burn Integration Tests', () => {
                     payer,
                     holder,
                 );
-                assertTxSuccess(await sendAndConfirmTransaction(client, burnTx));
+                await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, burnTx));
                 await assertBalance(client.rpc, holder.address, mint.address, decimalAmountToRaw(3, 6));
             },
             DEFAULT_TIMEOUT,
@@ -197,7 +199,7 @@ describeSkipIf(true)('Permissioned Burn Integration Tests', () => {
                     mint,
                     feePayer: payer,
                 });
-                await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT);
+                await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, createTx, DEFAULT_COMMITMENT));
                 await mintTo(holder, 8);
 
                 // Delegate covers both the owner/delegate role and the burn authority co-signature
@@ -209,7 +211,7 @@ describeSkipIf(true)('Permissioned Burn Integration Tests', () => {
                     mintAuthority,
                     payer,
                 );
-                assertTxSuccess(await sendAndConfirmTransaction(client, forceBurnTx));
+                await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, forceBurnTx));
                 await assertBalance(client.rpc, holder.address, mint.address, decimalAmountToRaw(5, 6));
             },
             DEFAULT_TIMEOUT,
@@ -233,14 +235,14 @@ describeSkipIf(true)('Permissioned Burn Integration Tests', () => {
                     currentAuthority: mintAuthority,
                     newAuthority: newAuthority.address,
                 });
-                assertTxSuccess(await sendAndConfirmTransaction(client, rotateTx));
+                await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, rotateTx));
                 await expect(getPermissionedBurnAuthority(client.rpc, mint.address)).resolves.toBe(
                     newAuthority.address,
                 );
 
                 // The new authority can co-sign burns
                 const burnTx = await createBurnTransaction(client.rpc, mint.address, holder, 2, payer, newAuthority);
-                assertTxSuccess(await sendAndConfirmTransaction(client, burnTx));
+                await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, burnTx));
 
                 // Remove the authority: regular burns work again
                 const removeTx = await getRemoveAuthorityTransaction({
@@ -250,11 +252,11 @@ describeSkipIf(true)('Permissioned Burn Integration Tests', () => {
                     role: AuthorityType.PermissionedBurn,
                     currentAuthority: newAuthority,
                 });
-                assertTxSuccess(await sendAndConfirmTransaction(client, removeTx));
+                await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, removeTx));
                 await expect(getPermissionedBurnAuthority(client.rpc, mint.address)).resolves.toBeNull();
 
                 const regularBurnTx = await createBurnTransaction(client.rpc, mint.address, holder, 3, payer);
-                assertTxSuccess(await sendAndConfirmTransaction(client, regularBurnTx));
+                await assertTxLanded(client.rpc, await sendAndConfirmTransaction(client, regularBurnTx));
                 await assertBalance(client.rpc, holder.address, mint.address, decimalAmountToRaw(5, 6));
             },
             DEFAULT_TIMEOUT,

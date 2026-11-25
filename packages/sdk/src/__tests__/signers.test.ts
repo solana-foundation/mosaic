@@ -1,5 +1,5 @@
-import { createNoopSigner, generateKeyPairSigner } from '@solana/kit';
-import { getSharedFeePayerSigner, resolveFeePayerAndAuthority } from '../signers.js';
+import { createLazyKeyPairSignerFromBytes, createNoopSigner, generateKeyPairSigner } from '@solana/kit';
+import { getSharedFeePayerSigner, resolveFeePayerAndAuthority, resolveSigners } from '../signers.js';
 
 describe('getSharedFeePayerSigner', () => {
     it('returns undefined when the addresses differ', async () => {
@@ -46,5 +46,47 @@ describe('resolveFeePayerAndAuthority', () => {
         );
         expect(feePayerSigner).toBe(authority);
         expect(authoritySigner).toBe(authority);
+    });
+});
+
+describe('resolveSigners', () => {
+    it('resolves different addresses on their own', async () => {
+        const [a, b] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
+        const [resolvedA, resolvedB] = resolveSigners(a, b.address);
+        expect(resolvedA).toBe(a);
+        expect(resolvedB.address).toBe(b.address);
+    });
+
+    it('gives every role on one key the real signer, wherever it appears', async () => {
+        const owner = await generateKeyPairSigner();
+        const resolved = resolveSigners(owner.address, createNoopSigner(owner.address), owner);
+        expect(resolved).toEqual([owner, owner, owner]);
+        resolved.forEach(signer => expect(signer).toBe(owner));
+    });
+
+    it('keeps the first real signer when two real signers share a key', async () => {
+        const first = await generateKeyPairSigner();
+        const second = { ...first };
+        const [a, b] = resolveSigners(first, second);
+        expect(a).toBe(first);
+        expect(b).toBe(first);
+    });
+
+    it('shares one no-op signer between bare addresses for one key', async () => {
+        const { address } = await generateKeyPairSigner();
+        const [a, b] = resolveSigners(address, address);
+        expect(a).toBe(b);
+        expect(a.address).toBe(address);
+    });
+
+    // Kit's lazy key pair signer is a frozen object with exactly address,
+    // signMessages and signTransactions, the same shape as a no-op signer. It is a
+    // real signer and must still win over a no-op one on the same key.
+    it('prefers a lazy key pair signer over a no-op signer for its key', () => {
+        // The address is read from the last 32 bytes; the key is only imported on first sign.
+        const lazy = createLazyKeyPairSignerFromBytes(crypto.getRandomValues(new Uint8Array(64)));
+        const [payer, owner] = resolveSigners(createNoopSigner(lazy.address), lazy);
+        expect(payer).toBe(lazy);
+        expect(owner).toBe(lazy);
     });
 });

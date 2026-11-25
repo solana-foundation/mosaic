@@ -1,9 +1,4 @@
 import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
     type Address,
     type Base58EncodedBytes,
     type Instruction,
@@ -11,6 +6,7 @@ import {
     type SolanaRpcApi,
     type TransactionSigner,
 } from '@solana/kit';
+import { resolveFeePayerAndAuthority } from '../signers.js';
 import type { FullTransaction } from '../transaction-util.js';
 import { ABL_PROGRAM_ID } from './utils.js';
 import {
@@ -22,6 +18,7 @@ import {
     Mode,
     type WalletEntry,
 } from '@solana/token-acl-gate-sdk';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Generates instructions for creating a new allowlist/blocklist configuration.
@@ -84,18 +81,16 @@ export const getCreateListTransaction = async (input: {
     transaction: FullTransaction;
     listConfig: Address;
 }> => {
+    const { feePayerSigner: payer, authoritySigner: authority } = resolveFeePayerAndAuthority(
+        input.payer,
+        input.authority,
+    );
     const { instructions, listConfig } = await getCreateListInstructions({
-        authority: input.authority,
-        payer: input.payer,
+        authority,
+        payer,
         mint: input.mint,
     });
-    const { value: latestBlockhash } = await input.rpc.getLatestBlockhash().send();
-    const transaction = pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(input.payer.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    const transaction = await buildFullTransaction(input.rpc, payer, instructions);
     return {
         transaction,
         listConfig,

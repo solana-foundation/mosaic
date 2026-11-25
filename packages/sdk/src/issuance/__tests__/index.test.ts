@@ -1,6 +1,11 @@
 // Test imports - Jest globals are available automatically
 import type { AccountSignerMeta, Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
-import { createNoopSigner, generateKeyPairSigner } from '@solana/kit';
+import {
+    assertIsFullySignedTransaction,
+    createNoopSigner,
+    generateKeyPairSigner,
+    signTransactionMessageWithSigners,
+} from '@solana/kit';
 import {
     AccountState,
     TOKEN_2022_PROGRAM_ADDRESS,
@@ -755,6 +760,31 @@ describe('Token', () => {
             expect(transaction.version).toBe(0);
             expect(transaction.feePayer.address).toBe(mockFeePayer.address);
             expect(transaction.instructions.length).toBeGreaterThan(0);
+        });
+
+        // buildInstructions swaps a no-op fee payer for the real mint authority signer on the same
+        // key. The message must carry that same object, or Kit refuses to sign it.
+        it("signs when the fee payer is a no-op for the mint authority's key", async () => {
+            const [mintAuthority, mint] = await Promise.all([generateKeyPairSigner(), generateKeyPairSigner()]);
+            token.withMetadata({
+                mintAddress: mint.address,
+                authority: mintAuthority.address,
+                metadata: TEST_METADATA,
+                additionalMetadata: new Map(),
+            });
+
+            const transaction = await token.buildTransaction({
+                rpc: mockRpc,
+                decimals: 6,
+                mintAuthority,
+                mint,
+                feePayer: createNoopSigner(mintAuthority.address),
+            });
+
+            expect(transaction.feePayer).toBe(mintAuthority);
+            const signed = await signTransactionMessageWithSigners(transaction);
+            assertIsFullySignedTransaction(signed);
+            expect(Object.keys(signed.signatures).sort()).toEqual([mintAuthority.address, mint.address].sort());
         });
     });
 });

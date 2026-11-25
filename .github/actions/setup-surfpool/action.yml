@@ -1,0 +1,47 @@
+name: 'Setup surfpool'
+description: 'Install and cache a pinned, checksum-verified surfpool release'
+
+inputs:
+  version:
+    description: 'surfpool release tag. Keep in sync with SURFPOOL_VERSION in packages/sdk/src/scripts/test-with-surfpool.js, and update sha256 with it.'
+    default: 'v1.6.0'
+  sha256:
+    description: 'SHA-256 of surfpool-linux-x64.tar.gz for that release (the asset digest on its GitHub release page).'
+    default: 'cb471b00aa3b7d603338eb74ebfec1d23959ecba005b5f1be42ba8d174107fc2'
+
+runs:
+  using: 'composite'
+  steps:
+    # Keyed on the exact version and checksum with no restore-keys: surfpool's Token-2022 is the ELF
+    # embedded in the binary, so a cached binary from another build would silently change what is tested.
+    - name: Cache surfpool binary
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/bin/surfpool
+        key: surfpool-${{ runner.os }}-${{ inputs.version }}-${{ inputs.sha256 }}
+
+    # Downloads the release asset directly and checks it against the committed checksum, rather than
+    # running the mutable run.surfpool.run installer: the `main` job runs this with `id-token: write`.
+    - name: Install surfpool
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        SURFPOOL_VERSION: ${{ inputs.version }}
+        SURFPOOL_SHA256: ${{ inputs.sha256 }}
+      run: |
+        set -euo pipefail
+        tmp="$(mktemp -d)"
+        curl -sSfL -o "$tmp/surfpool.tar.gz" \
+          "https://github.com/solana-foundation/surfpool/releases/download/${SURFPOOL_VERSION}/surfpool-linux-x64.tar.gz"
+        echo "${SURFPOOL_SHA256}  $tmp/surfpool.tar.gz" | sha256sum -c -
+        tar -xzf "$tmp/surfpool.tar.gz" -C "$tmp"
+        mkdir -p "$HOME/.local/bin"
+        install -m 0755 "$tmp/surfpool" "$HOME/.local/bin/surfpool"
+        rm -rf "$tmp"
+
+    - name: Add surfpool to PATH
+      shell: bash
+      run: |
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        "$HOME/.local/bin/surfpool" --version

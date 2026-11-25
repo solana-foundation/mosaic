@@ -71,11 +71,10 @@ export default {
         // ESM+wasm bundler entry, but as of @solana/zk-sdk 0.5.2 that subpath carries a
         // `node` condition pointing at the CJS node build, which jest honours under
         // testEnvironment: 'node'. (Before 0.5.2 this was a local pnpm patch + a remap here.)
+        // Unit tests only: jest.integration.config.js and jest.devnet.config.js drop these two
+        // mappings so the real Token ACL SDKs run against a cluster.
         '^@solana/token-acl-sdk$': '<rootDir>/src/__mocks__/@mosaic/token-acl.ts',
         '^@solana/token-acl-gate-sdk$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',
-        '^@mosaic/abl$': '<rootDir>/src/__mocks__/@mosaic/abl.ts',
-        '^@mosaic/token-acl$': '<rootDir>/src/__mocks__/@mosaic/token-acl.ts',
-        '^@mosaic/tlv-account-resolution$': '<rootDir>/../tlv-account-resolution/src',
     },
     moduleFileExtensions: ['ts', 'js', 'json'],
     setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],

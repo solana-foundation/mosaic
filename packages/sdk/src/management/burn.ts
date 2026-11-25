@@ -1,20 +1,14 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
 import {
-    createNoopSigner,
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-} from '@solana/kit';
-import {
     getBurnCheckedInstruction,
     getPermissionedBurnCheckedInstruction,
     TOKEN_2022_PROGRAM_ADDRESS,
 } from '@solana-program/token-2022';
 import { resolveTokenAccount, decimalAmountToRaw, getMintDetails } from '../transaction-util.js';
 import { getPermissionedBurnAuthority } from './permissioned-burn.js';
+import { addressOf, resolveSigners } from '../signers.js';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Creates a transaction to burn tokens from the owner's token account.
@@ -40,9 +34,7 @@ export const createBurnTransaction = async (
     feePayer: Address | TransactionSigner<string>,
     permissionedBurnAuthority?: Address | TransactionSigner<string>,
 ): Promise<FullTransaction> => {
-    const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-    const ownerSigner = typeof owner === 'string' ? createNoopSigner(owner) : owner;
-    const ownerAddress = typeof owner === 'string' ? owner : owner.address;
+    const ownerAddress = addressOf(owner);
 
     // Get mint info to determine decimals
     const { decimals } = await getMintDetails(rpc, mint);
@@ -65,16 +57,14 @@ export const createBurnTransaction = async (
     // authority must co-sign a permissioned burn instruction instead.
     const configuredBurnAuthority = await getPermissionedBurnAuthority(rpc, mint);
 
-    // Reuse ownerSigner for the burn-authority slot when the configured authority
-    // matches the owner, so a self-burn doesn't pair a real signer with a noop signer
-    // for the same address.
-    const permissionedBurnAuthoritySigner = permissionedBurnAuthority
-        ? typeof permissionedBurnAuthority === 'string'
-            ? createNoopSigner(permissionedBurnAuthority)
-            : permissionedBurnAuthority
-        : configuredBurnAuthority === ownerSigner.address
-          ? ownerSigner
-          : createNoopSigner(configuredBurnAuthority ?? ownerSigner.address);
+    // One signer object per key across the fee payer, the owner and the burn authority: Kit
+    // refuses to sign a message that pairs a real signer with a no-op signer for the same address,
+    // e.g. a self-burn whose fee payer is given as the owner's address.
+    const [feePayerSigner, ownerSigner, permissionedBurnAuthoritySigner] = resolveSigners(
+        feePayer,
+        owner,
+        permissionedBurnAuthority ?? configuredBurnAuthority ?? ownerAddress,
+    );
 
     const burnInstruction = configuredBurnAuthority
         ? getPermissionedBurnCheckedInstruction(
@@ -103,13 +93,5 @@ export const createBurnTransaction = async (
               },
           );
 
-    // Get latest blockhash for transaction
-    const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(feePayerSigner.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions([burnInstruction], m),
-    ) as FullTransaction;
+    return buildFullTransaction(rpc, feePayerSigner, [burnInstruction]);
 };

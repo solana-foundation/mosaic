@@ -1,15 +1,9 @@
 import type { Address, Rpc, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
-import {
-    createNoopSigner,
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-} from '@solana/kit';
 import { getCloseAccountInstruction, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { resolveTokenAccount } from '../transaction-util.js';
+import { resolveFeePayerAndAuthority } from '../signers.js';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Creates a transaction to close an empty token account and reclaim the rent.
@@ -29,9 +23,8 @@ export const createCloseAccountTransaction = async (
     destination: Address,
     feePayer: Address | TransactionSigner<string>,
 ): Promise<FullTransaction> => {
-    const feePayerSigner = typeof feePayer === 'string' ? createNoopSigner(feePayer) : feePayer;
-    const ownerSigner = typeof owner === 'string' ? createNoopSigner(owner) : owner;
-    const ownerAddress = typeof owner === 'string' ? owner : owner.address;
+    const { feePayerSigner, authoritySigner: ownerSigner } = resolveFeePayerAndAuthority(feePayer, owner);
+    const ownerAddress = ownerSigner.address;
 
     // Resolve owner's token account
     const { tokenAccount, isInitialized, balance } = await resolveTokenAccount(rpc, ownerAddress, mint);
@@ -56,13 +49,5 @@ export const createCloseAccountTransaction = async (
         },
     );
 
-    // Get latest blockhash for transaction
-    const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(feePayerSigner.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions([closeInstruction], m),
-    ) as FullTransaction;
+    return buildFullTransaction(rpc, feePayerSigner, [closeInstruction]);
 };

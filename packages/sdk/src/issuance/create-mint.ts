@@ -1,14 +1,6 @@
 import type { Address, Instruction, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
 import { assertValidDecimals, type FullTransaction } from '../transaction-util.js';
-import {
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-    createNoopSigner,
-    some,
-} from '@solana/kit';
+import { createNoopSigner, some } from '@solana/kit';
 import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     AccountState,
@@ -24,6 +16,7 @@ import {
 } from '@solana-program/token-2022';
 import { createUpdateFieldInstruction } from './create-update-field-instruction.js';
 import { addressOf, getSharedFeePayerSigner } from '../signers.js';
+import { buildFullTransaction } from '../build-transaction.js';
 
 // Anything larger is almost certainly a millisecond timestamp (10^10 s is the year 2286).
 const MAX_UNIX_SECONDS_TIMESTAMP = 10_000_000_000n;
@@ -396,7 +389,23 @@ export class Token {
         return this;
     }
 
-    async buildInstructions({
+    async buildInstructions(args: {
+        rpc: Rpc<SolanaRpcApiMainnet>;
+        decimals: number;
+        mintAuthority?: Address | TransactionSigner<string>; // defaults to feePayer
+        freezeAuthority?: Address; // default to feePayer
+        mint: TransactionSigner<string>;
+        feePayer: TransactionSigner<string>;
+    }): Promise<Instruction[]> {
+        return (await this.buildInstructionsAndFeePayer(args)).instructions;
+    }
+
+    /**
+     * The mint's instructions together with the fee payer signer they were built for. Resolving
+     * the shared signer once, here, is what keeps a transaction's fee payer and the signer its
+     * instructions carry for that key the same object.
+     */
+    private async buildInstructionsAndFeePayer({
         rpc,
         decimals,
         mintAuthority: mintAuthorityInput,
@@ -410,7 +419,7 @@ export class Token {
         freezeAuthority?: Address; // default to feePayer
         mint: TransactionSigner<string>;
         feePayer: TransactionSigner<string>;
-    }): Promise<Instruction[]> {
+    }): Promise<{ instructions: Instruction[]; feePayer: TransactionSigner<string> }> {
         assertValidExtensionCombination(this.extensions);
         // A mint authority with the fee payer's address is the fee payer, whether given as
         // a bare address or as a different signer object for the same key. Both roles use
@@ -522,12 +531,15 @@ export class Token {
             );
         }
 
-        return [
-            createMintAccountInstruction,
-            ...preInitializeInstructions,
-            initMintInstruction,
-            ...postInitializeInstructions,
-        ];
+        return {
+            instructions: [
+                createMintAccountInstruction,
+                ...preInitializeInstructions,
+                initMintInstruction,
+                ...postInitializeInstructions,
+            ],
+            feePayer,
+        };
     }
 
     async buildTransaction({
@@ -545,7 +557,9 @@ export class Token {
         mint: TransactionSigner<string>;
         feePayer: TransactionSigner<string>;
     }): Promise<FullTransaction> {
-        const instructions = await this.buildInstructions({
+        // The message's fee payer must be the signer object the instructions carry for that key, or
+        // Kit refuses to sign, so take it from the same call that built them.
+        const { instructions, feePayer: feePayerSigner } = await this.buildInstructionsAndFeePayer({
             rpc,
             decimals,
             mintAuthority,
@@ -554,15 +568,7 @@ export class Token {
             feePayer,
         });
 
-        // Get latest blockhash for transaction
-        const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-
-        return pipe(
-            createTransactionMessage({ version: 0 }),
-            m => setTransactionMessageFeePayer(feePayer.address, m),
-            m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-            m => appendTransactionMessageInstructions(instructions, m),
-        ) as FullTransaction;
+        return buildFullTransaction(rpc, feePayerSigner, instructions);
     }
 }
 

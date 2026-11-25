@@ -1,11 +1,6 @@
 import {
     type Address,
     createNoopSigner,
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
     type Instruction,
     type Rpc,
     type SolanaRpcApi,
@@ -22,6 +17,7 @@ import { getMintDetails, resolveTokenAccount } from '../transaction-util.js';
 import { getAddWalletInstructions, getList, getListConfigPda, getRemoveWalletInstructions } from '../abl/index.js';
 import { getFreezeInstructions } from '../token-acl/freeze.js';
 import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless.js';
+import { buildFullTransaction } from '../build-transaction.js';
 
 export const isAblBlocklist = async (rpc: Rpc<SolanaRpcApi>, listConfig: Address) => {
     const list = await getList({ rpc, listConfig });
@@ -100,13 +96,7 @@ export const createAddToBlocklistTransaction = async (
 ): Promise<FullTransaction> => {
     const instructions = await getAddToBlocklistInstructions(rpc, mint, account, authority);
     const authoritySigner = typeof authority === 'string' ? createNoopSigner(authority) : authority;
-    const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(authoritySigner.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    return buildFullTransaction(rpc, authoritySigner, instructions);
 };
 
 export const getRemoveFromBlocklistInstructions = async (
@@ -171,11 +161,5 @@ export const createRemoveFromBlocklistTransaction = async (
 ): Promise<FullTransaction> => {
     const instructions = await getRemoveFromBlocklistInstructions(rpc, mint, account, authority);
     const authoritySigner = typeof authority === 'string' ? createNoopSigner(authority) : authority;
-    const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(authoritySigner.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    return buildFullTransaction(rpc, authoritySigner, instructions);
 };

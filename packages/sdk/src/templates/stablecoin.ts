@@ -2,14 +2,7 @@ import { Token } from '../issuance/index.js';
 import type { ConfidentialBalancesConfig } from '../issuance/create-mint.js';
 import type { Rpc, Address, SolanaRpcApi, TransactionSigner } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
-import {
-    createNoopSigner,
-    pipe,
-    createTransactionMessage,
-    setTransactionMessageFeePayer,
-    setTransactionMessageLifetimeUsingBlockhash,
-    appendTransactionMessageInstructions,
-} from '@solana/kit';
+import { createNoopSigner } from '@solana/kit';
 import { Mode } from '@solana/token-acl-gate-sdk';
 import { ABL_PROGRAM_ID } from '../abl/utils.js';
 import { getCreateConfigInstructions } from '../token-acl/create-config.js';
@@ -18,6 +11,7 @@ import { getEnablePermissionlessThawInstructions } from '../token-acl/enable-per
 import { getCreateListInstructions } from '../abl/list.js';
 import { getSetExtraMetasInstructions } from '../abl/set-extra-metas.js';
 import { resolveFeePayerAndAuthority } from '../signers.js';
+import { buildFullTransaction } from '../build-transaction.js';
 
 /**
  * Creates a transaction to initialize a new stablecoin mint on Solana with common stablecoin features.
@@ -112,15 +106,7 @@ export const createStablecoinInitTransaction = async (
 
     // 2. create mintConfig (Token ACL) - only if SRFC-37 is enabled
     if (!useSrfc37) {
-        // Get latest blockhash for transaction
-        const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-
-        return pipe(
-            createTransactionMessage({ version: 0 }),
-            m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
-            m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-            m => appendTransactionMessageInstructions(instructions, m),
-        ) as FullTransaction;
+        return buildFullTransaction(rpc, feePayerSigner, instructions);
     }
 
     // The on-chain authority for Token-ACL/ABL setup stays the mint authority so the
@@ -168,12 +154,5 @@ export const createStablecoinInitTransaction = async (
     instructions.push(...createListInstructions);
     instructions.push(...setExtraMetasInstructions);
 
-    // Get latest blockhash for transaction
-    const { value: latestBlockhash } = await rpc.getLatestBlockhash().send();
-    return pipe(
-        createTransactionMessage({ version: 0 }),
-        m => setTransactionMessageFeePayer(typeof feePayer === 'string' ? feePayer : feePayer.address, m),
-        m => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, m),
-        m => appendTransactionMessageInstructions(instructions, m),
-    ) as FullTransaction;
+    return buildFullTransaction(rpc, feePayerSigner, instructions);
 };
