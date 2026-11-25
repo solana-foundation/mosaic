@@ -566,6 +566,70 @@ describeSkipIf()('Administration Integration Tests', () => {
         );
 
         it(
+            'grows the name before shrinking the URI, funding only the final size',
+            async () => {
+                await createTokenWithMetadata();
+                const before = await getMintAccount();
+                // name +100 bytes, then uri -10 bytes: the mint is 100 bytes larger between the two
+                // instructions than at the end, but only the final +90 bytes are funded
+                const name = ORIGINAL.name + 'x'.repeat(100);
+                const uri = 'https://e.co/r.json';
+
+                const updateTx = await createUpdateMetadataTransaction(client.rpc, {
+                    mint: mint.address,
+                    updateAuthority: mintAuthority,
+                    feePayer: payer,
+                    updates: [
+                        { field: 'name', value: name },
+                        { field: 'uri', value: uri },
+                    ],
+                });
+                expect(updateTx.instructions).toHaveLength(3);
+                assertTxSuccess(await sendAndConfirmTransaction(client, updateTx, DEFAULT_COMMITMENT));
+
+                await assertToken(client.rpc, mint.address, {
+                    metadata: { ...ORIGINAL, name, uri, updateAuthority: mintAuthority.address },
+                });
+                const after = await getMintAccount();
+                expect(after.space).toBe(before.space + 90n);
+                const rent = await client.rpc.getMinimumBalanceForRentExemption(after.space).send();
+                expect(after.lamports).toBe(lamports(rent));
+            },
+            DEFAULT_TIMEOUT,
+        );
+
+        it(
+            'grows the name before shrinking the URI, with no top-up when the net size shrinks',
+            async () => {
+                await createTokenWithMetadata();
+                const before = await getMintAccount();
+                // name +20 bytes, then uri -28 bytes: the mint briefly exceeds its funded size
+                const name = ORIGINAL.name + 'x'.repeat(20);
+                const uri = 'u';
+
+                const updateTx = await createUpdateMetadataTransaction(client.rpc, {
+                    mint: mint.address,
+                    updateAuthority: mintAuthority,
+                    feePayer: payer,
+                    updates: [
+                        { field: 'name', value: name },
+                        { field: 'uri', value: uri },
+                    ],
+                });
+                expect(updateTx.instructions).toHaveLength(2);
+                assertTxSuccess(await sendAndConfirmTransaction(client, updateTx, DEFAULT_COMMITMENT));
+
+                await assertToken(client.rpc, mint.address, {
+                    metadata: { ...ORIGINAL, name, uri, updateAuthority: mintAuthority.address },
+                });
+                const after = await getMintAccount();
+                expect(after.space).toBe(before.space - 8n);
+                expect(after.lamports).toBe(before.lamports);
+            },
+            DEFAULT_TIMEOUT,
+        );
+
+        it(
             'refuses to build when the signer is not the metadata update authority',
             async () => {
                 await createTokenWithMetadata();
