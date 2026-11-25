@@ -13,7 +13,12 @@ import {
 } from '@solana/kit';
 import type { FullTransaction } from '../transaction-util.js';
 import { getMintDetails, resolveTokenAccount } from '../transaction-util.js';
-import { getAddWalletInstructions, getList, getListConfigPda, getRemoveWalletInstructions } from '../abl/index.js';
+import {
+    getAddWalletInstructions,
+    getListConfig,
+    getListConfigPda,
+    getRemoveWalletInstructions,
+} from '../abl/index.js';
 import { Mode } from '@solana/token-acl-gate-sdk';
 import { getFreezeInstructions } from '../token-acl/freeze.js';
 import { getThawPermissionlessInstructions } from '../token-acl/thaw-permissionless.js';
@@ -24,7 +29,7 @@ import {
 } from '@solana-program/token-2022';
 
 export const isAblAllowlist = async (rpc: Rpc<SolanaRpcApi>, listConfig: Address) => {
-    const list = await getList({ rpc, listConfig });
+    const list = await getListConfig({ rpc, listConfig });
     return list.mode === Mode.Allow;
 };
 
