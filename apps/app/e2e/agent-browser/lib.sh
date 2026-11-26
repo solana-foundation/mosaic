@@ -334,7 +334,22 @@ token_field() { CHAIN token --role "$1" --mint "$2" | jq -r ".$3"; }
 mint_field() { CHAIN mint --mint "$1" | jq -r ".$2"; }
 
 # Token amounts in raw units: `raw 25` is 25000000 at the default 6 decimals.
-raw() { awk -v n="$1" -v d="${2:-6}" 'BEGIN { printf "%.0f", n * 10 ^ d }'; }
+# Raw amounts are u64, past both Bash arithmetic (signed 64-bit) and awk
+# (doubles, exact to 2^53), so raw and raw_add count in BigInt.
+raw() {
+    node -e '
+        const [n, d] = process.argv.slice(1);
+        const m = /^(\d+)(?:\.(\d+))?$/.exec(n);
+        const frac = m?.[2] ?? "";
+        if (!m || !/^\d+$/.test(d) || frac.length > Number(d)) {
+            console.error(`raw: ${n} is not an amount at ${d} decimals`);
+            process.exit(1);
+        }
+        console.log((BigInt(m[1]) * 10n ** BigInt(d) + BigInt(frac.padEnd(Number(d), "0") || "0")).toString());
+    ' "$1" "${2:-6}"
+}
+# The sum of raw amounts: `raw_add "$BEFORE" "$(raw 100)"`.
+raw_add() { node -e 'console.log(process.argv.slice(1).reduce((s, a) => s + BigInt(a), 0n).toString())' "$@"; }
 
 # Polls a command's output until it equals a value (devnet reads lag
 # confirmations): `await_value 60 "$(raw 900)" token_field a "$MINT" publicBalance`.

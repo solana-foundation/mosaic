@@ -412,6 +412,15 @@ const FIXTURE_FLOWS = {
     // Text read inline from a failing `ab get text`.
     'inline-text': ['# e2e:', 'check "no error banner" not_contains "$(ab get text main)" "Error"'],
     'page-errors': ['# e2e: sessions=b', 'assert_no_page_errors', 'check "no page errors" true'],
+    // Raw token amounts past 2^53 (awk's doubles) and 2^63 (Bash arithmetic).
+    'raw-amounts': [
+        '# e2e:',
+        'refuses() { ! "$@" 2>/dev/null; }',
+        'check "raw keeps every digit" [ "$(raw 123456789.123456789 9)" = 123456789123456789 ]',
+        'check "raw pads the fraction" [ "$(raw 1.5)" = 1500000 ]',
+        'check "raw_add sums past 2^63" [ "$(raw_add 10000000000000000000 100000000)" = 10000000000100000000 ]',
+        'check "raw refuses more decimals than the mint has" refuses raw 1.1234567',
+    ],
 };
 
 /** Fixture groups, by name: their lines. `suite` is made only of @groups. */
@@ -561,6 +570,11 @@ describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' },
         const run = await runHarness(['await-flaky'], { AWAIT_POLL_S: '0' });
         assert.equal(run.status, 0, run.stdout + run.stderr);
         assert.match(lastResults(), /^pass\tawait-flaky\ta zero timeout still polls once$/m);
+    });
+
+    test('raw and raw_add are exact for any u64 amount', async () => {
+        const run = await runHarness(['raw-amounts']);
+        assert.equal(run.status, 0, run.stdout + run.stderr + lastResults());
     });
 
     test('a failed text read does not pass not_contains', async () => {

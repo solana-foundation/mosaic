@@ -34,7 +34,7 @@ DECIMALS="$(mint_field "$MINT" decimals)"
 [[ "$DECIMALS" =~ ^[0-9]+$ ]] || fail "could not read the mint's decimals: '$DECIMALS'"
 BEFORE="$(token_field a "$MINT" publicBalance)"
 [[ "$BEFORE" =~ ^[0-9]+$ ]] || BEFORE=0 # no token account yet
-WANT=$((BEFORE + $(raw 100 "$DECIMALS")))
+WANT="$(raw_add "$BEFORE" "$(raw 100 "$DECIMALS")")"
 ab find role button click --name "Admin Actions" >/dev/null
 ab find role menuitem click --name "Mint Tokens" >/dev/null
 ab find role button click --name "Use my wallet" >/dev/null
