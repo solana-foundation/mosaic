@@ -500,6 +500,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                             </Link>
                             <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10 overflow-hidden">
                                 {token.image ? (
+                                    // eslint-disable-next-line @next/next/no-img-element -- token images are arbitrary metadata URLs; next/image would need an open remotePatterns proxy
                                     <img
                                         src={token.image}
                                         alt={token.name || 'Token'}
