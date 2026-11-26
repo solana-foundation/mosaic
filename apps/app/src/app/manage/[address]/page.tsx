@@ -53,7 +53,7 @@ import { Address, createSolanaRpc, Rpc, SolanaRpcApi } from '@solana/kit';
 import { getList, getListConfigPda, getTokenDashboardData, getTokenExtensions } from '@solana/mosaic-sdk';
 import { Mode } from '@solana/token-acl-gate-sdk';
 import { buildAddressExplorerUrl } from '@/lib/solana/explorer';
-import { getTokenAuthorities } from '@/lib/solana/rpc';
+import { getRpcUrl, getTokenAuthorities } from '@/lib/solana/rpc';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     DropdownMenu,
@@ -183,8 +183,7 @@ function ManageTokenConnected({ address }: { address: string }) {
 
                 // Fetch authority information from the blockchain
                 try {
-                    const rpcUrl =
-                        cluster?.url ?? process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
+                    const rpcUrl = getRpcUrl(cluster?.url);
                     const authorities = await getTokenAuthorities(foundToken.address as Address, rpcUrl);
                     // Merge fetched authorities into the token, preserving existing values if they exist
                     foundToken.mintAuthority = authorities.mintAuthority || foundToken.mintAuthority;
@@ -501,6 +500,7 @@ function ManageTokenConnected({ address }: { address: string }) {
                             </Link>
                             <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center border border-primary/10 overflow-hidden">
                                 {token.image ? (
+                                    // eslint-disable-next-line @next/next/no-img-element -- token images are arbitrary metadata URLs; next/image would need an open remotePatterns proxy
                                     <img
                                         src={token.image}
                                         alt={token.name || 'Token'}

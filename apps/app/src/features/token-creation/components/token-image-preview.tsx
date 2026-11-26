@@ -89,6 +89,7 @@ export function TokenImagePreview({ uri, symbol, className }: TokenImagePreviewP
             {isLoading ? (
                 <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             ) : imageUrl && !error ? (
+                // eslint-disable-next-line @next/next/no-img-element -- token images are arbitrary metadata URLs; next/image would need an open remotePatterns proxy
                 <img
                     src={imageUrl}
                     alt={symbol || 'Token'}
