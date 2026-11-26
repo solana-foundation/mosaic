@@ -34,7 +34,7 @@ pnpm build && pnpm start                           # in another terminal (or pnp
 pnpm e2e:agent                                     # the smoke group
 pnpm e2e:agent connect                             # a single flow
 MINT=<address> pnpm e2e:agent manage               # any flow runs on its own in a fresh session
-HEADED=1 KEEP_OPEN=1 pnpm e2e:agent create-stablecoin manage   # watch it, and poke around afterwards
+HEADED=1 KEEP_OPEN=1 pnpm e2e:agent create-stablecoin manage   # watch it, and poke around afterwards (keeps the key-bearing wallet bundles too)
 ```
 
 `run.sh`:
@@ -67,8 +67,10 @@ step "do the thing"
 ab find role button click --name "Create Token" >/dev/null
 ab find label "Token Name" fill "My Token" >/dev/null
 
-check "the modal opened" contains "$(ab get text '[role=dialog]')" "Create New Token"
-known_defect HOO-123 "the button says what it will do" contains "$(ab get text main)" "Create and sign"
+dialog="$(ab get text '[role=dialog]')"     # read first: a failed read then stops the flow
+check "the modal opened" contains "$dialog" "Create New Token"
+main="$(ab get text main)"
+known_defect HOO-123 "the button says what it will do" contains "$main" "Create and sign"
 note "anything worth quoting in the ticket"
 
 assert_no_page_errors
@@ -76,7 +78,7 @@ finish_flow
 ```
 
 - **The header line** (`# e2e:`) declares `funded` if the flow spends SOL, and `sessions=b,nosign` if it needs wallet B or the wallet without `signMessage` (drive them with `as_wallet b <command>`).
-- **Checks** are `check` (stops the flow), `soft_check` (keeps going; the flow fails when it ends, or at `finish_flow`), `known_defect TICKET` (expected to fail until the ticket is fixed: XFAIL keeps the run green, XPASS says it is time to make it a plain check), `note` (an observation for a write-up) and `block_run` (stop the whole run, exit 3). A command that fails outside a check stops the flow and is recorded as `stopped at: <command>`. A run is green only when every flow exits 0 and `results.tsv` has no `fail` line.
+- **Checks** are `check` (stops the flow), `soft_check` (keeps going; the flow fails when it ends, or at `finish_flow`), `known_defect TICKET` (expected to fail until the ticket is fixed: XFAIL keeps the run green, XPASS says it is time to make it a plain check), `note` (an observation for a write-up) and `block_run` (stop the whole run, exit 3). A command that fails outside a check stops the flow and is recorded as `stopped at: <command>`. Read page text into a variable before checking it, as above: an inline `"$(ab get text …)"` argument hides a failed read and hands the check an empty string. `assert_no_page_errors` checks every session the run launched. A run is green only when every flow exits 0 and `results.tsv` has no `fail` line.
 - **Locators:** `find role|label|placeholder|text … click|fill` and `wait --text`; never snapshot refs. Where the app gives nothing to hold on to, tag elements from the page with `js` (an `eval` wrapper that prints JSON) and target the tag.
 - **The chain:** `chain.mjs` (`CHAIN token --role a --mint M`, `token_field`, `await_value`, `sol_of`, `raw`) reads what a step did on chain, and sets up what the UI cannot (`create-ata`, `fund`). Wallet-side failure modes are `wallet_ctl` and `sign_count`.
 - **Add it to a group** in `groups/`, and a row to the suite table above.

@@ -42,6 +42,7 @@ MINT="${MINT_PATH#/manage/}"
 [[ "$MINT" =~ ^[1-9A-HJ-NP-Za-km-z]{32,44}$ ]] || fail "unexpected mint address: '$MINT'"
 printf '%s\n' "$MINT" >"$OUT/mint.txt"
 echo "mint: $MINT (https://explorer.solana.com/address/$MINT?cluster=devnet)"
+check "the mint exists on chain" await_value 60 true mint_field "$MINT" exists
 
 step "the token is listed on the dashboard"
 ab find role button click --name "Done" >/dev/null

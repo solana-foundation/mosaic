@@ -8,6 +8,7 @@
 //
 //   address  --role a|b|master                     the role's address
 //   balance  --role a|b|master                     SOL balance
+//   mint     --mint M                              the mint: existence, decimals, raw supply
 //   token    --role a|b --mint M                   the role's token account: address,
 //                                                  existence, raw public balance
 //   create-ata --role a --owner <address> --mint M create <owner>'s associated token
@@ -18,14 +19,16 @@
 // Roles: a, b and master, resolved by keypairs.mjs (the same keys the wallet
 //        bundles embed); master is an optional faucet-funded wallet that run.sh
 //        refills A from.
-// RPC:   $SOLANA_RPC_URL, default public devnet. Devnet and localnet only.
+// RPC:   $SOLANA_RPC_URL, default public devnet. Devnet and localnet only: the
+//        host must be loopback or carry a `devnet` label (isDevnetRpcUrl), and
+//        anything that signs first checks a remote endpoint's genesis hash.
 //
 // Suites extend this file rather than copy it: import `commands` and the
 // helpers below, add commands, and call `runCli(commands)` (see a suite's
 // chain-*.mjs). The CLI only runs when this file is executed directly; a suite
 // file that is itself imported somewhere can guard its own with `isMain`.
 /* global process, console, setTimeout */
-import { readFileSync, realpathSync } from 'node:fs';
+import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import {
@@ -46,11 +49,12 @@ import {
 import { getTransferSolInstruction } from '@solana-program/system';
 import {
     TOKEN_2022_PROGRAM_ADDRESS,
+    fetchMaybeMint,
     fetchMaybeToken,
     findAssociatedTokenPda,
     getCreateAssociatedTokenIdempotentInstruction,
 } from '@solana-program/token-2022';
-import { keypairPath } from './keypairs.mjs';
+import { keypairPath, readKeypairFile } from './keypairs.mjs';
 
 export const RPC_URL = process.env.SOLANA_RPC_URL ?? 'https://api.devnet.solana.com';
 
@@ -58,6 +62,30 @@ export const rpc = createSolanaRpc(RPC_URL);
 export const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 export const json = value => JSON.stringify(value, (_key, v) => (typeof v === 'bigint' ? v.toString() : v), 2);
 export { toAddress };
+
+const DEVNET_GENESIS_HASH = 'EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG';
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]']);
+
+const hostnameOf = url => {
+    try {
+        return new URL(url).hostname;
+    } catch {
+        return null;
+    }
+};
+const isLoopback = url => LOOPBACK_HOSTS.has(hostnameOf(url));
+
+/**
+ * Whether an RPC URL is one this harness may sign against: a loopback host
+ * (localnet), or a host name with a `devnet` label, such as
+ * api.devnet.solana.com, devnet.helius-rpc.com or solana-devnet.g.alchemy.com.
+ * Only the host counts: `?cluster=devnet` or `localhost.example.com` do not.
+ */
+export function isDevnetRpcUrl(url) {
+    const hostname = hostnameOf(url);
+    if (!hostname) return false;
+    return LOOPBACK_HOSTS.has(hostname) || hostname.split(/[.-]/).includes('devnet');
+}
 
 export function die(message) {
     console.error(`chain: ${message}`);
@@ -87,9 +115,9 @@ export async function signerFor(role) {
         die(error.message);
     }
     try {
-        return await createKeyPairSignerFromBytes(new Uint8Array(JSON.parse(readFileSync(path, 'utf8'))));
+        return await createKeyPairSignerFromBytes(new Uint8Array(readKeypairFile(path)));
     } catch (error) {
-        die(`could not read the ${role} keypair at ${path}: ${error.message}`);
+        die(`could not read the ${role} keypair: ${error.message}`);
     }
 }
 
@@ -108,8 +136,23 @@ export async function withBackoff(fn) {
     }
 }
 
+let genesisChecked;
+/**
+ * Refuses to sign against a remote endpoint that is not devnet, whatever its
+ * host name says. Loopback is localnet, whose genesis differs per validator.
+ */
+function assertDevnetGenesis() {
+    if (isLoopback(RPC_URL)) return Promise.resolve();
+    genesisChecked ??= withBackoff(() => rpc.getGenesisHash().send()).then(hash => {
+        if (hash !== DEVNET_GENESIS_HASH)
+            die(`refusing to sign against ${RPC_URL}: its genesis hash ${hash} is not devnet's`);
+    });
+    return genesisChecked;
+}
+
 /** Signs a compiled message (lifetime already set), sends it, and polls until confirmed. */
 export async function sendMessage(message) {
+    await assertDevnetGenesis();
     const signed = await signTransactionMessageWithSigners(message);
     const signature = getSignatureFromTransaction(signed);
     await withBackoff(() =>
@@ -148,6 +191,16 @@ export async function solBalance(addr) {
     return Number(value) / 1e9;
 }
 
+/** A mint: { exists, decimals?, supply? } (supply in raw units). */
+export async function mintState(mint) {
+    const account = await withBackoff(() => fetchMaybeMint(rpc, toAddress(mint), { commitment: 'confirmed' }));
+    return {
+        mint,
+        exists: account.exists,
+        ...(account.exists ? { decimals: account.data.decimals, supply: account.data.supply } : {}),
+    };
+}
+
 /** The role's associated token account for a mint: { tokenAccount, exists, publicBalance? }. */
 export async function tokenState(role, mint) {
     const signer = await signerFor(role);
@@ -168,6 +221,11 @@ export const commands = {
 
     async balance({ role }) {
         return solBalance((await signerFor(role)).address);
+    },
+
+    async mint({ mint }) {
+        if (!mint) die('mint needs --mint');
+        return mintState(mint);
     },
 
     async token({ role, mint }) {
@@ -222,7 +280,7 @@ export const OPTIONS = {
 export async function runCli(table, extraOptions = {}) {
     const [command, ...rest] = process.argv.slice(2);
     if (!table[command]) die(`unknown command '${command ?? ''}'; commands: ${Object.keys(table).join(', ')}`);
-    if (!/devnet|127\.0\.0\.1|localhost/.test(RPC_URL)) die(`refusing to run against ${RPC_URL}: devnet only`);
+    if (!isDevnetRpcUrl(RPC_URL)) die(`refusing to run against ${RPC_URL}: devnet or localnet only`);
     const { values } = parseArgs({ args: rest, options: { ...OPTIONS, ...extraOptions } });
     const result = await table[command](values);
     console.log(typeof result === 'string' ? result : json(result));

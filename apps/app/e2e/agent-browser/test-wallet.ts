@@ -116,13 +116,15 @@ export interface TestWalletControl {
     disconnect(): void;
     /** Swap to the other keypair, as if the user switched accounts in the extension. */
     switchAccount(): string;
-    /** Clear counters, the log and every failure mode. */
+    /** Clear counters, the log and every failure mode. Requests still pending settle unlogged. */
     reset(): void;
 }
 
 declare global {
     interface Window {
         __mosaicTestWallet?: TestWalletControl;
+        /** Why the wallet did not register on an app page, e.g. `insecure context`. */
+        __mosaicTestWalletUnavailable?: string;
     }
 }
 
@@ -192,6 +194,8 @@ function createTestWallet(): { wallet: Wallet; control: TestWalletControl } {
     let rejectTransactionAt: { n: number; message?: string } | null = null;
     let delayMs = 0;
     let lastError: string | null = null;
+    /** Bumped by `reset()`, so a request booked before it cannot write into the fresh log. */
+    let generation = 0;
     /** Errors that stand for the user rejecting a request: logged as `rejected`, not `refused`. */
     const rejections = new WeakSet<object>();
 
@@ -200,7 +204,8 @@ function createTestWallet(): { wallet: Wallet; control: TestWalletControl } {
      * account it was made for are fixed here, before `run` awaits anything, so
      * overlapping requests and a `switchAccount()` while one is pending cannot
      * change them. The outcome is then logged against that booking, and
-     * `lastError` follows the most recent request.
+     * `lastError` follows the most recent request, unless `reset()` ran while
+     * it was pending: then it settles without leaving a trace.
      */
     const handle = <T>(
         kind: SignRecord['kind'],
@@ -209,16 +214,21 @@ function createTestWallet(): { wallet: Wallet; control: TestWalletControl } {
     ): Promise<T> => {
         counts[kind] += 1;
         const booking = { kind, n: counts[kind], account: account?.address ?? '(none)' };
+        const bookedIn = generation;
         return run(booking.n).then(
             value => {
-                log.push({ ...booking, outcome: 'signed' });
-                lastError = null;
+                if (bookedIn === generation) {
+                    log.push({ ...booking, outcome: 'signed' });
+                    lastError = null;
+                }
                 return value;
             },
             (error: unknown) => {
-                const rejected = typeof error === 'object' && error !== null && rejections.has(error);
-                log.push({ ...booking, outcome: rejected ? 'rejected' : 'refused' });
-                lastError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+                if (bookedIn === generation) {
+                    const rejected = typeof error === 'object' && error !== null && rejections.has(error);
+                    log.push({ ...booking, outcome: rejected ? 'rejected' : 'refused' });
+                    lastError = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+                }
                 throw error;
             },
         );
@@ -368,6 +378,7 @@ function createTestWallet(): { wallet: Wallet; control: TestWalletControl } {
             return current().account.address;
         },
         reset() {
+            generation += 1;
             counts = { signTransaction: 0, signMessage: 0 };
             log = [];
             messageRefusal = null;
@@ -381,8 +392,17 @@ function createTestWallet(): { wallet: Wallet; control: TestWalletControl } {
 }
 
 // Init scripts also run on about:blank and other non-secure documents, where
-// WebCrypto (and so signing) is unavailable. The app never runs there.
-if (globalThis.isSecureContext && globalThis.crypto?.subtle) {
+// WebCrypto (and so signing) is unavailable. An app page served over plain http
+// from a host other than localhost is one of them: say so, rather than let the
+// harness guess.
+if (!globalThis.isSecureContext && globalThis.location?.protocol === 'http:') {
+    window.__mosaicTestWalletUnavailable = 'insecure context';
+    // eslint-disable-next-line no-console
+    console.error(
+        `[${WALLET_NAME}] not registered: ${location.origin} is not a secure context, so WebCrypto cannot sign. ` +
+            'Serve the app over https or from localhost.',
+    );
+} else if (globalThis.isSecureContext && globalThis.crypto?.subtle) {
     try {
         const { wallet, control } = createTestWallet();
         window.__mosaicTestWallet = control;

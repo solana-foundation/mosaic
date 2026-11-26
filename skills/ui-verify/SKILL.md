@@ -18,7 +18,7 @@ The app is driven by [agent-browser](https://agent-browser.dev), and it connects
 
 ### 2. A dev server is answering
 
-`curl -sf http://localhost:3000/` succeeds. If not, start one in the background from `apps/app` with `pnpm exec next dev --webpack -H 0.0.0.0 -p 3000` (`-H 0.0.0.0` so a human can watch the same app over the network), and wait for a 200: the first request compiles for up to a minute. When telling the human where to look, give the machine's network host name rather than `localhost`, since the human is usually not on this machine.
+`curl -sf http://localhost:3000/` succeeds. If not, start one in the background from `apps/app` with `pnpm exec next dev --webpack -H localhost -p 3000`, and wait for a 200: the first request compiles for up to a minute. Pass `-H localhost` explicitly, because `next dev` otherwise listens on every network interface. Only when the human asks to watch from another machine, start it with `-H 0.0.0.0` instead and give them the machine's network host name. agent-browser keeps using `http://localhost:3000` either way: the test wallet signs with WebCrypto, which only works in a secure context (https, or http on localhost).
 
 ### 3. The test wallet is built
 
@@ -49,7 +49,7 @@ Done means: every claim in your report is backed by a snapshot line, a `get text
 
 ### 6. Clean up and report
 
-`agent-browser --session "$S" close`. Report what you verified, the evidence, and any page errors. Stop the dev server only if you started it.
+`agent-browser --session "$S" close`, then delete `.agent-browser/test-wallet.js` (it embeds the secret key). Report what you verified, the evidence, and any page errors. Stop the dev server only if you started it.
 
 ## Reference
 
