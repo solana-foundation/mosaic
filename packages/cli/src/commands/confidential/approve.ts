@@ -31,7 +31,7 @@ export const approveCommand = new Command('approve')
             // The signer here is the mint's confidential-transfer authority.
             const { authority: signer, feePayer } = await resolveSigners(opts);
             const mint = options.mint as Address;
-            const tokenAccount = await resolveTokenAccount(mint, options.owner as Address, options.tokenAccount);
+            const tokenAccount = await resolveTokenAccount(rpc, mint, options.owner as Address, options.tokenAccount);
 
             const plan = createApproveConfidentialAccountInstructionPlan({ tokenAccount, mint, authority: signer });
             const { raw, signatures } = await sendOrOutputInstructionPlan(plan, feePayer, rpc, opts, spinner);

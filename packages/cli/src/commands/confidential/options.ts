@@ -2,8 +2,8 @@
 // (ESM-only, which the CLI's CommonJS jest can't load) so it can be unit tested, the same split as
 // `utils/global-options.ts`. `common.ts` re-exports it.
 import type { Command } from 'commander';
-import type { Address, KeyPairSigner } from '@solana/kit';
-import { findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
+import type { Address, GetAccountInfoApi, KeyPairSigner, Rpc } from '@solana/kit';
+import { fetchMaybeToken, findAssociatedTokenPda, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import { getGlobalOpts, type GlobalOptions } from '../../utils/global-options.js';
 import type { TxVersion } from '../../utils/instruction-plan.js';
 import { loadKeypair, resolveSigners } from '../../utils/solana.js';
@@ -74,18 +74,39 @@ export async function loadSupplyKeysSigner(opts: ConfidentialOpts, supplyKeypair
     return loadKeypair(supplyKeypair ?? opts.keypair);
 }
 
+/** The parts of a fetched (maybe missing) token account that the mint and owner checks read. */
+export type InspectedAccount = { exists: false } | { exists: true; data: { mint: Address; owner: Address } };
+
+/**
+ * Throws when an existing token account belongs to another mint. A missing account passes: the
+ * command creates it, or the program rejects it.
+ */
+export function assertAccountMint(account: InspectedAccount, tokenAccount: Address, mint: Address): void {
+    if (account.exists && account.data.mint !== mint) {
+        throw new Error(`Token account ${tokenAccount} belongs to mint ${account.data.mint}, not ${mint}.`);
+    }
+}
+
 /**
  * Resolves the token account to operate on: the explicit `--token-account` when given, otherwise
- * the owner's associated token account (ATA) for the mint.
+ * the owner's associated token account (ATA) for the mint. An explicit account is fetched and
+ * checked against `mint`, so a mixed-up address fails instead of changing another token's
+ * account while the command reports `mint`.
  */
-export async function resolveTokenAccount(mint: Address, owner: Address, explicit?: string): Promise<Address> {
-    if (explicit) return explicit as Address;
+export async function resolveTokenAccount(
+    rpc: Rpc<GetAccountInfoApi>,
+    mint: Address,
+    owner: Address,
+    explicit?: string,
+): Promise<Address> {
+    if (explicit) {
+        const tokenAccount = explicit as Address;
+        assertAccountMint(await fetchMaybeToken(rpc, tokenAccount), tokenAccount, mint);
+        return tokenAccount;
+    }
     const [ata] = await findAssociatedTokenPda({ owner, tokenProgram: TOKEN_2022_PROGRAM_ADDRESS, mint });
     return ata;
 }
-
-/** The parts of a fetched (maybe missing) token account that `canSignerDecrypt` reads. */
-export type InspectedAccount = { exists: false } | { exists: true; data: { mint: Address; owner: Address } };
 
 /**
  * Whether `inspect-account` can decrypt an account with the signer's keys. Keys are derived from
@@ -100,9 +121,7 @@ export function canSignerDecrypt(
     signer: Address | undefined,
 ): boolean {
     if (!account.exists) return false;
-    if (account.data.mint !== mint) {
-        throw new Error(`Token account ${tokenAccount} belongs to mint ${account.data.mint}, not ${mint}.`);
-    }
+    assertAccountMint(account, tokenAccount, mint);
     return signer !== undefined && account.data.owner === signer;
 }
 

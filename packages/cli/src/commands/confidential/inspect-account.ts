@@ -48,7 +48,7 @@ export const inspectAccountCommand = new Command('inspect-account')
             if (!options.tokenAccount && !owner) {
                 throw new Error('Provide --token-account, or a keypair / --authority to derive the ATA.');
             }
-            const tokenAccount = await resolveTokenAccount(mint, owner as Address, options.tokenAccount);
+            const tokenAccount = await resolveTokenAccount(rpc, mint, owner as Address, options.tokenAccount);
 
             const account = await fetchMaybeToken(rpc, tokenAccount);
             let keys: ConfidentialKeys | undefined;

@@ -40,7 +40,12 @@ export const mintCommand = new Command('mint')
             const { authority, feePayer } = await resolveSigners(opts);
             const supplyAuthority = await loadSupplyKeysSigner(opts, options.supplyKeypair);
             const mint = options.mint as Address;
-            const destinationToken = await resolveTokenAccount(mint, options.to as Address, options.toTokenAccount);
+            const destinationToken = await resolveTokenAccount(
+                rpc,
+                mint,
+                options.to as Address,
+                options.toTokenAccount,
+            );
 
             const supplyKeys = await deriveConfidentialKeys({ signer: supplyAuthority });
             try {

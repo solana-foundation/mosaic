@@ -2,13 +2,16 @@ import { generateKeyPairSync } from 'node:crypto';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { address, createKeyPairSignerFromBytes } from '@solana/kit';
+import { address, createKeyPairSignerFromBytes, none, type GetAccountInfoApi, type Rpc } from '@solana/kit';
+import { AccountState, getTokenEncoder, TOKEN_2022_PROGRAM_ADDRESS } from '@solana-program/token-2022';
 import {
+    assertAccountMint,
     canSignerDecrypt,
     loadKeysSigner,
     loadSupplyKeysSigner,
     parseRawSupply,
     parseTxVersion,
+    resolveTokenAccount,
     type ConfidentialOpts,
 } from '../commands/confidential/options';
 import {
@@ -85,6 +88,68 @@ describe('canSignerDecrypt (inspect-account, HOO-2911 finding 4)', () => {
     it('rejects an account of another mint', () => {
         const otherMint = { exists: true as const, data: { mint: OTHER_MINT, owner: SIGNER } };
         expect(() => canSignerDecrypt(otherMint, TOKEN_ACCOUNT, MINT, SIGNER)).toThrow(/belongs to mint/);
+    });
+});
+
+/** A fake RPC whose `getAccountInfo` returns a Token-2022 account of `mint`, or nothing. */
+function accountRpc(mint?: string): Rpc<GetAccountInfoApi> {
+    const value = mint
+        ? {
+              data: [
+                  Buffer.from(
+                      getTokenEncoder().encode({
+                          mint: address(mint),
+                          owner: SIGNER,
+                          amount: 0n,
+                          delegate: none(),
+                          state: AccountState.Initialized,
+                          isNative: none(),
+                          delegatedAmount: 0n,
+                          closeAuthority: none(),
+                          extensions: none(),
+                      }),
+                  ).toString('base64'),
+                  'base64',
+              ],
+              executable: false,
+              lamports: 2_039_280n,
+              owner: TOKEN_2022_PROGRAM_ADDRESS,
+              space: 165n,
+              rentEpoch: 0n,
+          }
+        : null;
+    return {
+        getAccountInfo: () => ({ send: async () => ({ context: { slot: 0n }, value }) }),
+    } as unknown as Rpc<GetAccountInfoApi>;
+}
+
+describe('resolveTokenAccount (explicit --token-account vs --mint)', () => {
+    it('rejects an explicit account of another mint', async () => {
+        await expect(resolveTokenAccount(accountRpc(OTHER_MINT), MINT, SIGNER, TOKEN_ACCOUNT)).rejects.toThrow(
+            /belongs to mint/,
+        );
+    });
+
+    it('accepts an explicit account of the mint', async () => {
+        await expect(resolveTokenAccount(accountRpc(MINT), MINT, SIGNER, TOKEN_ACCOUNT)).resolves.toBe(TOKEN_ACCOUNT);
+    });
+
+    it('passes a missing explicit account through', async () => {
+        await expect(resolveTokenAccount(accountRpc(), MINT, SIGNER, TOKEN_ACCOUNT)).resolves.toBe(TOKEN_ACCOUNT);
+    });
+
+    it('derives the ATA without fetching when no account is given', async () => {
+        const rpc = { getAccountInfo: jest.fn() } as unknown as Rpc<GetAccountInfoApi>;
+        await expect(resolveTokenAccount(rpc, MINT, SIGNER)).resolves.toEqual(expect.any(String));
+        expect(rpc.getAccountInfo).not.toHaveBeenCalled();
+    });
+});
+
+describe('assertAccountMint', () => {
+    it('passes a missing account and an account of the mint', () => {
+        expect(() => assertAccountMint({ exists: false }, TOKEN_ACCOUNT, MINT)).not.toThrow();
+        const ours = { exists: true as const, data: { mint: MINT, owner: SIGNER } };
+        expect(() => assertAccountMint(ours, TOKEN_ACCOUNT, MINT)).not.toThrow();
     });
 });
 

@@ -38,7 +38,7 @@ export const burnCommand = new Command('burn')
             // keys, which only `confidential mint` and `confidential update-supply` use).
             const signer = await loadKeysSigner(opts);
             const mint = options.mint as Address;
-            const tokenAccount = await resolveTokenAccount(mint, signer.address, options.tokenAccount);
+            const tokenAccount = await resolveTokenAccount(rpc, mint, signer.address, options.tokenAccount);
 
             // On a permissioned burn mint the burn authority co-signs. When it is the signer itself,
             // reuse that signer: Kit rejects two distinct signers for one address.

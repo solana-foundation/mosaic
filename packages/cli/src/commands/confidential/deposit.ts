@@ -28,7 +28,7 @@ export const depositCommand = new Command('deposit')
             const { authority: signer, feePayer } = await resolveSigners(opts);
             const address = signer.address;
             const mint = options.mint as Address;
-            const tokenAccount = await resolveTokenAccount(mint, address, options.tokenAccount);
+            const tokenAccount = await resolveTokenAccount(rpc, mint, address, options.tokenAccount);
 
             const plan = await createConfidentialDepositInstructionPlan({
                 rpc,

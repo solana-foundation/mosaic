@@ -33,10 +33,13 @@ export const transferCommand = new Command('transfer')
             const rpc = createRpcClient(opts.rpcUrl);
             const signer = await loadKeysSigner(opts);
             const mint = options.mint as Address;
-            const sourceToken = await resolveTokenAccount(mint, signer.address, options.tokenAccount);
-            const destinationToken = options.toTokenAccount
-                ? (options.toTokenAccount as Address)
-                : await resolveTokenAccount(mint, options.to as Address);
+            const sourceToken = await resolveTokenAccount(rpc, mint, signer.address, options.tokenAccount);
+            const destinationToken = await resolveTokenAccount(
+                rpc,
+                mint,
+                options.to as Address,
+                options.toTokenAccount,
+            );
 
             const keys = await deriveConfidentialKeys({ signer });
             try {

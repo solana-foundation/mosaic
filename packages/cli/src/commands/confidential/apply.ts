@@ -28,7 +28,7 @@ export const applyCommand = new Command('apply')
             const rpc = createRpcClient(opts.rpcUrl);
             const signer = await loadKeysSigner(opts);
             const mint = options.mint as Address;
-            const tokenAccount = await resolveTokenAccount(mint, signer.address, options.tokenAccount);
+            const tokenAccount = await resolveTokenAccount(rpc, mint, signer.address, options.tokenAccount);
 
             const keys = await deriveConfidentialKeys({ signer });
             try {
