@@ -16,12 +16,12 @@
 // paste it anywhere.
 /* global process, console */
 import { build } from 'esbuild';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { chmodSync, mkdirSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { getBase58Decoder } from '@solana/kit';
-import { keypairPath } from './keypairs.mjs';
+import { keypairPath, readKeypairFile } from './keypairs.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, '../..');
@@ -60,16 +60,11 @@ function pathFor(path, role) {
 }
 
 function readKeypair(path) {
-    let secretKey;
     try {
-        secretKey = JSON.parse(readFileSync(path, 'utf8'));
+        return readKeypairFile(path);
     } catch (error) {
-        die(`could not read keypair at ${path}: ${error.message}`);
+        die(error.message);
     }
-    if (!Array.isArray(secretKey) || secretKey.length !== 64) {
-        die(`${path} is not a 64-byte Solana CLI keypair`);
-    }
-    return secretKey;
 }
 
 const secretKey = readKeypair(pathFor(args.keypair, args.role));
@@ -97,6 +92,8 @@ await build({
     legalComments: 'none',
     logLevel: 'warning',
 });
+// Owner-only: the bundle embeds secret keys.
+chmodSync(outfile, 0o600);
 
 const modes = [altSecretKey && 'alt account', args['no-sign-message'] && 'no signMessage'].filter(Boolean);
 console.log(`build-test-wallet: wrote ${outfile} for ${walletAddress}${modes.length ? ` (${modes.join(', ')})` : ''}`);

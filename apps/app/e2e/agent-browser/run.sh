@@ -7,7 +7,8 @@
 #   <flow>           flows/<flow>.sh
 #   <group>          groups/<group>.group: one flow or @group per line, `#` comments.
 #                    A group made only of @groups is a suite of runs: each of its
-#                    groups runs as its own run.
+#                    groups runs as its own run. Several suites run one after the
+#                    other; a suite cannot be mixed with flows or plain groups.
 #
 # A flow declares what it needs in a header line, read before anything launches:
 #   # e2e: sessions=b,nosign funded
@@ -26,7 +27,9 @@
 #                               funded runs read balances
 #   MIN_SOL_A / TOP_UP_A        refill A from master below MIN_SOL_A (0.3), by TOP_UP_A (0.5)
 #   HEADED=1                    show the browser windows instead of running headless
-#   KEEP_OPEN=1                 leave the sessions open afterwards for poking around
+#   KEEP_OPEN=1                 leave the sessions open afterwards for poking around, and keep
+#                               the run's wallet bundles (they embed the secret keys; otherwise
+#                               they are deleted when the run ends)
 #   AB_SESSION                  session name prefix (default: mosaic-e2e-<run id>)
 #   REUSE_OUT=<run id>          copy that run's handed-over files (mint-*.json, *.txt)
 #                               into this run, e.g. to resume after a failure
@@ -38,36 +41,62 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 APP_ROOT="$(cd "$HERE/../.." && pwd)"
 GROUPS_DIR="$HERE/groups"
 
-group_file() { printf '%s/%s.group' "$GROUPS_DIR" "$1"; }
-# A group's entries, without comments or blank lines.
-group_entries() { sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$(group_file "$1")" | tr -d ' \t\r' | tr '\n' ' '; }
+# Before lib.sh is sourced there is no results file to record a failure in.
+die() {
+    printf '\033[31m✗ %s\033[0m\n' "$*" >&2
+    exit 1
+}
 
-# A suite of runs: every entry is an @group. Run each entry as its own run, with
-# its own sessions, wallet builds and results.
-if (($# == 1)) && [[ -f "$(group_file "$1")" ]]; then
-    entries=($(group_entries "$1"))
-    suite=1
-    for e in "${entries[@]}"; do [[ "$e" == @* ]] || suite=0; done
-    if ((suite)); then
-        status=0
-        for e in "${entries[@]}"; do
-            bash "$0" "${e#@}" || { rc=$?; ((status == 0 || rc == 1)) && status=$rc; }
+group_file() { printf '%s/%s.group' "$GROUPS_DIR" "$1"; }
+is_group() { [[ -f "$(group_file "$1")" ]]; }
+# A group's entries, without comments or blank lines; a group without any is an error.
+group_entries() {
+    local entries
+    entries="$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$(group_file "$1")" | tr -d ' \t\r' | tr '\n' ' ')"
+    [[ -n "${entries// /}" ]] || die "group $1 lists no flows"
+    printf '%s\n' "$entries"
+}
+# A suite of runs: a group whose every entry is an @group.
+is_suite() {
+    local e entries
+    is_group "$1" || return 1
+    entries="$(group_entries "$1")" || exit 1
+    for e in $entries; do [[ "$e" == @* ]] || return 1; done
+}
+
+# Suites run each of their groups as its own run, with its own sessions,
+# wallet builds and results. The groups a run is nested in come down through
+# E2E_SUITE_STACK, so a suite that names itself, directly or not, stops.
+ARGS=("${@:-smoke}")
+suites=0
+for arg in "${ARGS[@]}"; do is_suite "$arg" && suites=$((suites + 1)); done
+if ((suites > 0)); then
+    ((suites == ${#ARGS[@]})) || die "a suite runs as separate runs: pass suites on their own, not with flows or plain groups (${ARGS[*]})"
+    status=0
+    for suite in "${ARGS[@]}"; do
+        [[ " ${E2E_SUITE_STACK:-} " != *" $suite "* ]] || die "suite $suite includes itself (via${E2E_SUITE_STACK})"
+        for e in $(group_entries "$suite"); do
+            E2E_SUITE_STACK="${E2E_SUITE_STACK:-} $suite" bash "$0" "${e#@}" ||
+                { rc=$?; ((status == 0 || rc == 1)) && status=$rc; }
         done
-        exit $status
-    fi
+    done
+    exit $status
 fi
 
-# Expand the arguments into flows.
+# Expand the arguments into flows. `stack` is the groups being expanded, so a
+# group that includes itself stops instead of recursing forever.
 FLOWS=()
 expand() {
-    local name="$1" e
-    if [[ -f "$(group_file "$name")" ]]; then
-        for e in $(group_entries "$name"); do expand "${e#@}"; done
+    local name="$1" stack="${2:-}" e entries
+    if is_group "$name"; then
+        [[ " $stack " != *" $name "* ]] || die "group $name includes itself (via$stack)"
+        entries="$(group_entries "$name")" || exit 1
+        for e in $entries; do expand "${e#@}" "$stack $name"; done
     else
         FLOWS+=("$name")
     fi
 }
-for arg in "${@:-smoke}"; do expand "$arg"; done
+for arg in "${ARGS[@]}"; do expand "$arg"; done
 
 RUN_ID="$(date +%Y%m%d-%H%M%S)"
 # A run started in the same second as another gets a directory of its own.
@@ -99,6 +128,8 @@ for flow in "${FLOWS[@]}"; do
     done
 done
 has_session() { [[ " ${SESSIONS[*]} " == *" $1 "* ]]; }
+# For assert_no_page_errors, which checks every session's page.
+export E2E_ROLES="${SESSIONS[*]}"
 
 # Sessions whose browser launch has started, space-separated (a plain string:
 # macOS bash 3.2 treats an empty array as unset under `set -u`). Cleanup only
@@ -124,6 +155,18 @@ close_sessions() {
     fi
 }
 
+# The bundles embed the wallets' secret keys: they live only as long as the run,
+# unless KEEP_OPEN=1 keeps them for the sessions left open.
+remove_bundles() {
+    if [[ "${KEEP_OPEN:-}" == 1 ]]; then
+        compgen -G "$OUT/test-wallet-*.js" >/dev/null &&
+            echo "wallet bundles kept (they embed secret keys): $OUT/test-wallet-*.js"
+    else
+        rm -f "$OUT"/test-wallet-*.js
+    fi
+    return 0
+}
+
 cleanup() {
     local status=$? role
     if [[ $status -ne 0 ]]; then
@@ -137,6 +180,7 @@ cleanup() {
     fi
     summarise
     close_sessions
+    remove_bundles
     exit $status
 }
 # Armed before anything launches, so a failed pre-flight or launch (or Ctrl-C)
@@ -168,6 +212,11 @@ done
 step "pre-flight"
 command -v agent-browser >/dev/null || fail "agent-browser not installed: npm i -g agent-browser && agent-browser install"
 command -v jq >/dev/null || fail "jq not installed"
+# The test wallet signs with WebCrypto, which browsers only offer to secure
+# contexts: https, or http on a loopback host.
+secure_origin_re='^(https://|http://(localhost|[^/]*\.localhost|127\.[0-9.]+|\[::1\])(:[0-9]+)?(/|$))'
+[[ "$BASE_URL" =~ $secure_origin_re ]] ||
+    fail "BASE_URL $BASE_URL is not a secure context, so the test wallet cannot sign there: use https, or http://localhost"
 curl -sf -o /dev/null "$BASE_URL/" || fail "no app at $BASE_URL; start it with: pnpm build && pnpm start (or pnpm dev)"
 
 # Keypairs resolve through keypairs.mjs, the same way the wallet bundles do.
@@ -273,6 +322,7 @@ for flow in "${FLOWS[@]}"; do
         trap - EXIT
         summarise
         close_sessions
+        remove_bundles
         exit 3
     fi
     ((flow_status == 0)) || exit "$flow_status"

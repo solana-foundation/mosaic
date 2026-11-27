@@ -29,6 +29,12 @@ ab find role tab click --name "Permissions" >/dev/null
 ab find role tab click --name "Extensions" >/dev/null
 
 step "mint 100 tokens to the connected wallet"
+# Read the chain first: a reused mint already holds tokens.
+DECIMALS="$(mint_field "$MINT" decimals)"
+[[ "$DECIMALS" =~ ^[0-9]+$ ]] || fail "could not read the mint's decimals: '$DECIMALS'"
+BEFORE="$(token_field a "$MINT" publicBalance)"
+[[ "$BEFORE" =~ ^[0-9]+$ ]] || BEFORE=0 # no token account yet
+WANT="$(raw_add "$BEFORE" "$(raw 100 "$DECIMALS")")"
 ab find role button click --name "Admin Actions" >/dev/null
 ab find role menuitem click --name "Mint Tokens" >/dev/null
 ab find role button click --name "Use my wallet" >/dev/null
@@ -38,6 +44,7 @@ if ! wait_slow "Tokens minted successfully!"; then
     ab get text '[role=alertdialog]' >&2 || true
     fail "mint did not succeed"
 fi
+check "wallet A holds 100 more tokens on chain" await_value 60 "$WANT" token_field a "$MINT" publicBalance
 
 assert_no_page_errors
 finish_flow

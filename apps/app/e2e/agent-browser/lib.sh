@@ -107,6 +107,12 @@ js() {
 #   note "<observation>"                    neither pass nor fail, for write-ups
 #   block_run "<reason>"                    the rest of the run is meaningless;
 #                                           run.sh stops and exits 3
+#
+# Read page text into a variable before checking it, never inline:
+#   text="$(ab get text main)"              stops the flow if the read fails
+#   check "no error banner" not_contains "$text" "Error"
+# An inline "$(ab get text main)" argument swallows the failure and hands the
+# predicate an empty string.
 # ---------------------------------------------------------------------------
 
 check() {
@@ -172,19 +178,24 @@ finish_flow() {
 # Small predicates for check/known_defect.
 not() { ! "$@"; }
 contains() { [[ "$1" == *"$2"* ]]; }
-not_contains() { [[ "$1" != *"$2"* ]]; }
+# Empty text fails: it is far more often a read that failed than a blank page.
+not_contains() { [[ -n "$1" && "$1" != *"$2"* ]]; }
 equals() { [[ "$1" == "$2" ]]; }
 
-# Fails the flow if the page has thrown since the last check, then clears the
-# buffer so each flow only answers for its own errors.
+# Fails the flow if a page in any of the run's sessions ($E2E_ROLES, set by
+# run.sh) has thrown since the last check, then clears the buffers so each flow
+# only answers for its own errors.
 assert_no_page_errors() {
-    local errors
-    errors="$(ab errors)"
-    ab errors --clear >/dev/null
-    if [[ -n "$errors" ]]; then
-        printf '%s\n' "$errors" >&2
-        fail "page errors in ${FLOW:-flow}"
-    fi
+    local role errors failed=""
+    for role in ${E2E_ROLES:-a}; do
+        errors="$(as_wallet "$role" ab errors)"
+        as_wallet "$role" ab errors --clear >/dev/null
+        if [[ -n "$errors" ]]; then
+            printf '[%s] %s\n' "$role" "$errors" >&2
+            failed="$failed $role"
+        fi
+    done
+    [[ -z "$failed" ]] || fail "page errors in ${FLOW:-flow} (sessions:$failed)"
 }
 
 # Public devnet answers bursts with HTTP 429, which @solana/kit reports as
@@ -204,13 +215,14 @@ connected_js() {
     printf '%s' '(() => { const w = window.__mosaicTestWallet; if (!w) return false; const s = w.address.slice(0, 4) + "..." + w.address.slice(-4); return [...document.querySelectorAll("button")].some(b => b.textContent.trim() === s); })()'
 }
 is_connected() { [[ "$(js "$(connected_js)")" == true ]]; }
+# Whether the header shows the "Connect Wallet" button.
+disconnected_js() {
+    printf '%s' '[...document.querySelectorAll("button")].some(b => b.textContent.trim() === "Connect Wallet")'
+}
 # Waits up to `ms` (default 20000) for the header to show the wallet connected.
 wait_connected() { ab wait --fn "$(connected_js)" --timeout "${1:-20000}" >/dev/null 2>&1; }
 
-# Whether the header shows the "Connect Wallet" button.
-is_disconnected() {
-    [[ "$(js '[...document.querySelectorAll("button")].some(b => b.textContent.trim() === "Connect Wallet")')" == true ]]
-}
+is_disconnected() { [[ "$(js "$(disconnected_js)")" == true ]]; }
 
 # Connects Mosaic Test Wallet through the header's Connect Wallet button, and
 # fails the flow unless the header then shows it connected.
@@ -240,11 +252,18 @@ connect_wallet() {
 ensure_connected() {
     # agent-browser occasionally relaunches its browser ("[agent-browser]
     # relaunched browser"), and the new one has no init script, so no wallet.
-    [[ "$(js '!!window.__mosaicTestWallet')" == true ]] ||
+    if [[ "$(js '!!window.__mosaicTestWallet')" != true ]]; then
+        # test-wallet.ts leaves this marker where it cannot run at all.
+        [[ -z "$(js 'window.__mosaicTestWalletUnavailable')" ]] ||
+            block_run "the test wallet needs a secure context: BASE_URL must be https or localhost, not $BASE_URL"
         block_run "the browser lost the test wallet (agent-browser relaunched it without the init script); rerun"
+    fi
     # Give auto-connect (production builds) a moment before stepping in, or the
     # modal opens just as it connects and closes under the click.
     wait_connected 5000 && return 0
+    # Still connecting (a cold start, a slow devnet): wait for either outcome.
+    ab wait --fn "($(connected_js)) || ($(disconnected_js))" --timeout "$SLOW_TIMEOUT_MS" >/dev/null 2>&1 || true
+    is_connected && return 0
     is_disconnected ||
         fail "the page shows neither the connected wallet nor a Connect Wallet button (an error page, or stuck connecting)"
     connect_wallet
@@ -311,21 +330,42 @@ CHAIN() { node "$E2E_DIR/chain.mjs" "$@"; }
 sol_of() { CHAIN balance --role "$1"; }
 # One field of the role's token account, e.g. `token_field a "$MINT" publicBalance`.
 token_field() { CHAIN token --role "$1" --mint "$2" | jq -r ".$3"; }
+# One field of a mint, e.g. `mint_field "$MINT" decimals`.
+mint_field() { CHAIN mint --mint "$1" | jq -r ".$2"; }
 
 # Token amounts in raw units: `raw 25` is 25000000 at the default 6 decimals.
-raw() { awk -v n="$1" -v d="${2:-6}" 'BEGIN { printf "%.0f", n * 10 ^ d }'; }
+# Raw amounts are u64, past both Bash arithmetic (signed 64-bit) and awk
+# (doubles, exact to 2^53), so raw and raw_add count in BigInt.
+raw() {
+    node -e '
+        const [n, d] = process.argv.slice(1);
+        const m = /^(\d+)(?:\.(\d+))?$/.exec(n);
+        const frac = m?.[2] ?? "";
+        if (!m || !/^\d+$/.test(d) || frac.length > Number(d)) {
+            console.error(`raw: ${n} is not an amount at ${d} decimals`);
+            process.exit(1);
+        }
+        console.log((BigInt(m[1]) * 10n ** BigInt(d) + BigInt(frac.padEnd(Number(d), "0") || "0")).toString());
+    ' "$1" "${2:-6}"
+}
+# The sum of raw amounts: `raw_add "$BEFORE" "$(raw 100)"`.
+raw_add() { node -e 'console.log(process.argv.slice(1).reduce((s, a) => s + BigInt(a), 0n).toString())' "$@"; }
 
 # Polls a command's output until it equals a value (devnet reads lag
 # confirmations): `await_value 60 "$(raw 900)" token_field a "$MINT" publicBalance`.
+# It always polls at least once, and a poll that fails (a 429 that outlasts
+# chain.mjs's backoff, a network blip) counts as "not yet", not as the end of
+# the flow.
 await_value() {
-    local timeout="$1" want="$2" got deadline
+    local timeout="$1" want="$2" got="" deadline
     shift 2
     deadline=$((SECONDS + timeout))
-    while ((SECONDS < deadline)); do
-        got="$("$@")"
+    while true; do
+        got="$("$@")" || got="(the poll failed)"
         [[ "$got" == "$want" ]] && return 0
+        ((SECONDS < deadline)) || break
         # Gentle: this shares the public endpoint's rate limit with the app.
-        sleep 5
+        sleep "${AWAIT_POLL_S:-5}"
     done
     echo "chain: '$*' is '$got', expected '$want'" >&2
     return 1

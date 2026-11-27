@@ -1,6 +1,6 @@
 // Test imports - Jest globals are available automatically
-import type { Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
-import { generateKeyPairSigner } from '@solana/kit';
+import type { AccountSignerMeta, Address, Rpc, SolanaRpcApiMainnet, TransactionSigner } from '@solana/kit';
+import { createNoopSigner, generateKeyPairSigner } from '@solana/kit';
 import {
     AccountState,
     TOKEN_2022_PROGRAM_ADDRESS,
@@ -12,6 +12,7 @@ import {
     identifyToken2022Instruction,
     parseUpdateMultiplierScaledUiMintInstruction,
 } from '@solana-program/token-2022';
+import { getCreateAccountInstructionDataDecoder } from '@solana-program/system';
 import { Token, getCreateMintInstructions } from '../index.js';
 import {
     createMockRpc,
@@ -197,7 +198,37 @@ describe('Token', () => {
                 });
 
             expect(result).toBe(token);
-            expect(token.getExtensions()).toHaveLength(2); // ConfidentialTransferMint + TransferFeeConfig
+            // Registered as an extension, so the mint account is sized for it.
+            expect(token.getExtensions().map(e => e.__kind)).toEqual([
+                'ConfidentialTransferMint',
+                'TransferFeeConfig',
+                'ConfidentialTransferFee',
+            ]);
+        });
+
+        it('replaces the config on a repeat call instead of registering the extension twice', () => {
+            const first = generateMockAddress() as Address;
+            const second = generateMockAddress() as Address;
+            token
+                .withConfidentialBalances(TEST_AUTHORITY)
+                .withTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawAuthority: TEST_AUTHORITY,
+                    feeBasisPoints: 100,
+                    maximumFee: 1000n,
+                })
+                .withConfidentialTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawWithheldAuthorityElGamalPubkey: first,
+                })
+                .withConfidentialTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawWithheldAuthorityElGamalPubkey: second,
+                });
+
+            const fees = token.getExtensions().filter(e => e.__kind === 'ConfidentialTransferFee');
+            expect(fees).toHaveLength(1);
+            expect(fees[0]).toEqual(expect.objectContaining({ elgamalPubkey: second }));
         });
 
         it('should include confidential transfer fee instruction in buildInstructions', async () => {
@@ -223,13 +254,22 @@ describe('Token', () => {
                 feePayer: mockFeePayer,
             });
 
-            // Should have: create + pre-init (confidential transfer mint + confidential transfer fee) + init
-            expect(instructions.length).toBeGreaterThan(2);
-            // Check that one of the pre-init instructions is for confidential transfer fee
-            const hasConfidentialTransferFeeInstruction = instructions.some(
-                (inst: any) => inst.programAddress === TOKEN_2022_PROGRAM_ADDRESS && inst.data,
+            // The account must have room for every extension, ConfidentialTransferFee
+            // included; otherwise its initializer fails on-chain with InvalidAccountData.
+            const { space } = getCreateAccountInstructionDataDecoder().decode(instructions[0].data!);
+            expect(space).toBe(BigInt(getMintSize(token.getExtensions())));
+            expect(space).toBeGreaterThan(
+                BigInt(getMintSize(token.getExtensions().filter(e => e.__kind !== 'ConfidentialTransferFee'))),
             );
-            expect(hasConfidentialTransferFeeInstruction).toBe(true);
+
+            // Exactly one InitializeConfidentialTransferFee, before InitializeMint.
+            const kinds = instructions
+                .filter(ix => ix.programAddress === TOKEN_2022_PROGRAM_ADDRESS)
+                .map(ix => identifyToken2022Instruction(ix.data!));
+            expect(kinds.filter(k => k === Token2022Instruction.InitializeConfidentialTransferFee)).toHaveLength(1);
+            expect(kinds.indexOf(Token2022Instruction.InitializeConfidentialTransferFee)).toBeLessThan(
+                kinds.indexOf(Token2022Instruction.InitializeMint),
+            );
         });
     });
 
@@ -403,6 +443,158 @@ describe('Token', () => {
             expect(instructions).toHaveLength(6); // create + pre-init + init + post-init + 2x additional metadata
             expect(instructions[0].programAddress).toBe('11111111111111111111111111111111'); // System program for account creation
             expect(instructions[instructions.length - 1].programAddress).toBe(TOKEN_2022_PROGRAM_ADDRESS); // Token program for mint init
+        });
+
+        it("treats a mintAuthority address equal to the fee payer's as the fee payer signer", async () => {
+            const feePayer = await generateKeyPairSigner();
+            token.withMetadata({
+                mintAddress: mockMint.address,
+                authority: feePayer.address,
+                metadata: TEST_METADATA,
+                additionalMetadata: new Map(),
+            });
+
+            // A bare address would otherwise be rejected for TokenMetadata.
+            const instructions = await token.buildInstructions({
+                rpc: mockRpc,
+                decimals: 6,
+                mintAuthority: feePayer.address,
+                mint: mockMint,
+                feePayer,
+            });
+
+            const signersForFeePayer = new Set(
+                instructions.flatMap(ix =>
+                    (ix.accounts ?? [])
+                        .filter(
+                            (meta): meta is AccountSignerMeta => meta.address === feePayer.address && 'signer' in meta,
+                        )
+                        .map(meta => meta.signer),
+                ),
+            );
+            expect(signersForFeePayer).toEqual(new Set([feePayer]));
+        });
+
+        it('rejects a transfer fee with confidential balances but no confidential transfer fee', async () => {
+            token.withConfidentialBalances({ authority: TEST_AUTHORITY }).withTransferFee({
+                authority: TEST_AUTHORITY,
+                withdrawAuthority: TEST_AUTHORITY,
+                feeBasisPoints: 50,
+                maximumFee: 1_000n,
+            });
+            await expect(
+                token.buildInstructions({ rpc: mockRpc, decimals: 6, mint: mockMint, feePayer: mockFeePayer }),
+            ).rejects.toThrow(/confidential transfer fee/);
+        });
+
+        it('rejects a confidential transfer fee without confidential balances', async () => {
+            token
+                .withConfidentialBalances({ authority: TEST_AUTHORITY })
+                .withTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawAuthority: TEST_AUTHORITY,
+                    feeBasisPoints: 50,
+                    maximumFee: 1_000n,
+                })
+                .withConfidentialTransferFee({
+                    authority: TEST_AUTHORITY,
+                    withdrawWithheldAuthorityElGamalPubkey: TEST_AUTHORITY,
+                });
+            // The builder checks call order only; the extension list itself stays mutable.
+            const extensions = token.getExtensions();
+            extensions.splice(
+                extensions.findIndex(ext => ext.__kind === 'ConfidentialTransferMint'),
+                1,
+            );
+            await expect(
+                token.buildInstructions({ rpc: mockRpc, decimals: 6, mint: mockMint, feePayer: mockFeePayer }),
+            ).rejects.toThrow(/confidential transfer fee extension needs both/);
+        });
+
+        it('rejects confidential mint and burn without confidential balances', async () => {
+            token.getExtensions().push({
+                __kind: 'ConfidentialMintBurn',
+                confidentialSupply: new Uint8Array(64),
+                decryptableSupply: new Uint8Array(36),
+                supplyElgamalPubkey: TEST_AUTHORITY,
+                pendingBurn: new Uint8Array(64),
+            } as never);
+            await expect(
+                token.buildInstructions({ rpc: mockRpc, decimals: 6, mint: mockMint, feePayer: mockFeePayer }),
+            ).rejects.toThrow(/confidential mint and burn extension needs confidential balances/);
+        });
+
+        it('rejects a non-transferable mint with confidential balances', async () => {
+            token.withNonTransferable().withConfidentialBalances({ authority: TEST_AUTHORITY });
+            await expect(
+                token.buildInstructions({ rpc: mockRpc, decimals: 6, mint: mockMint, feePayer: mockFeePayer }),
+            ).rejects.toThrow(/non-transferable mint with confidential balances/);
+        });
+
+        it('rejects combining scaled UI amount with interest bearing', async () => {
+            token.withScaledUiAmount(TEST_AUTHORITY, 2).withInterestBearing({ authority: TEST_AUTHORITY, rate: 5 });
+            await expect(
+                token.buildInstructions({ rpc: mockRpc, decimals: 6, mint: mockMint, feePayer: mockFeePayer }),
+            ).rejects.toThrow(/cannot be combined/);
+        });
+
+        it("uses the fee payer's signer when mintAuthority is another signer object for its address", async () => {
+            const feePayer = await generateKeyPairSigner();
+            token.withMetadata({
+                mintAddress: mockMint.address,
+                authority: feePayer.address,
+                metadata: TEST_METADATA,
+                additionalMetadata: new Map(),
+            });
+
+            const instructions = await token.buildInstructions({
+                rpc: mockRpc,
+                decimals: 6,
+                mintAuthority: createNoopSigner(feePayer.address),
+                mint: mockMint,
+                feePayer,
+            });
+
+            const signersForFeePayer = new Set(
+                instructions.flatMap(ix =>
+                    (ix.accounts ?? [])
+                        .filter(
+                            (meta): meta is AccountSignerMeta => meta.address === feePayer.address && 'signer' in meta,
+                        )
+                        .map(meta => meta.signer),
+                ),
+            );
+            expect(signersForFeePayer).toEqual(new Set([feePayer]));
+        });
+
+        it("uses the mint authority's signer when the fee payer is a no-op for the same key", async () => {
+            const mintAuthority = await generateKeyPairSigner();
+            token.withMetadata({
+                mintAddress: mockMint.address,
+                authority: mintAuthority.address,
+                metadata: TEST_METADATA,
+                additionalMetadata: new Map(),
+            });
+
+            const instructions = await token.buildInstructions({
+                rpc: mockRpc,
+                decimals: 6,
+                mintAuthority,
+                mint: mockMint,
+                feePayer: createNoopSigner(mintAuthority.address),
+            });
+
+            const signersForKey = new Set(
+                instructions.flatMap(ix =>
+                    (ix.accounts ?? [])
+                        .filter(
+                            (meta): meta is AccountSignerMeta =>
+                                meta.address === mintAuthority.address && 'signer' in meta,
+                        )
+                        .map(meta => meta.signer),
+                ),
+            );
+            expect(signersForKey).toEqual(new Set([mintAuthority]));
         });
 
         it('should build instructions for token without extensions', async () => {

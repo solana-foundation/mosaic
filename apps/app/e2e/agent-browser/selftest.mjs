@@ -15,6 +15,7 @@ import {
     readdirSync,
     readFileSync,
     rmSync,
+    statSync,
     symlinkSync,
     writeFileSync,
 } from 'node:fs';
@@ -140,6 +141,54 @@ describe('keypairs', () => {
         const { status, stderr } = runNode(join(HERE, 'build-test-wallet.mjs'), ['--out', KEYS_BUNDLE]);
         assert.equal(status, 1);
         assert.match(stderr, /could not read keypair at .*mosaic-e2e-a\.json/);
+    });
+
+    test('a keypair whose public half is not its own is refused by the build and chain.mjs', () => {
+        const mismatched = join(TMP, 'mismatched.json');
+        const a = JSON.parse(readFileSync(KEY_A.path, 'utf8'));
+        const b = JSON.parse(readFileSync(KEY_B.path, 'utf8'));
+        writeFileSync(mismatched, JSON.stringify([...a.slice(0, 32), ...b.slice(32)]));
+        const env = { MOSAIC_TEST_KEYPAIR_A: mismatched };
+        const build = runNode(join(HERE, 'build-test-wallet.mjs'), ['--out', KEYS_BUNDLE], env);
+        assert.equal(build.status, 1);
+        assert.match(build.stderr, /public key does not match the secret key/);
+        const chain = runNode(join(HERE, 'chain.mjs'), ['address', '--role', 'a'], env);
+        assert.equal(chain.status, 1);
+        assert.match(chain.stderr, /public key does not match the secret key/);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// chain.mjs refuses anything but devnet and localnet
+// ---------------------------------------------------------------------------
+
+describe('devnet guard', () => {
+    test('only a loopback host or a devnet host name passes', async () => {
+        const { isDevnetRpcUrl } = await import('./chain.mjs');
+        const cases = {
+            'https://api.devnet.solana.com': true,
+            'https://devnet.helius-rpc.com/?api-key=k': true,
+            'https://solana-devnet.g.alchemy.com/v2/k': true,
+            'http://127.0.0.1:8899': true,
+            'http://localhost:8899': true,
+            'http://[::1]:8899': true,
+            'https://rpc.example.com/?cluster=devnet': false,
+            'https://mainnet.example.com/devnet': false,
+            'https://localhost.example.com': false,
+            'https://api.mainnet-beta.solana.com': false,
+            'https://mydevnet.example.com': false,
+            'not a url': false,
+        };
+        for (const [url, expected] of Object.entries(cases)) assert.equal(isDevnetRpcUrl(url), expected, url);
+    });
+
+    test('chain.mjs refuses an RPC whose host name is not devnet', () => {
+        const { status, stderr } = runNode(join(HERE, 'chain.mjs'), ['address', '--role', 'a'], {
+            MOSAIC_TEST_KEYPAIR_A: KEY_A.path,
+            SOLANA_RPC_URL: 'https://rpc.example.com/mainnet?tag=devnet',
+        });
+        assert.equal(status, 1);
+        assert.match(stderr, /refusing to run against/);
     });
 });
 
@@ -268,6 +317,22 @@ describe('test wallet', () => {
         ]);
     });
 
+    test('a request still pending when reset() runs leaves no trace', async () => {
+        const w = await connected();
+        w.control.refuseSignMessage();
+        w.control.delaySignMs(50);
+        const signed = signTransaction(w, w.account);
+        const refused = signMessage(w, w.account);
+        w.control.reset();
+        await Promise.all([signed, assert.rejects(refused)]);
+        assert.deepEqual(w.control.counts, { signTransaction: 0, signMessage: 0 });
+        assert.deepEqual(w.control.log, []);
+        assert.equal(w.control.lastError, null);
+        // The next request is booked and logged as usual.
+        await signTransaction(w, w.account);
+        assert.deepEqual(w.control.log, [entry('signTransaction', 1, 'signed', KEY_A.address)]);
+    });
+
     test('rejectSignTransaction(2) rejects the second request from arming with code 4001', async () => {
         const w = await connected();
         await signTransaction(w, w.account);
@@ -299,14 +364,18 @@ function hasCommand(tool, env = process.env) {
 const HAS_BASH = hasCommand('bash');
 const HAS_SHELL_TOOLS = ['bash', 'jq', 'curl', 'awk'].every(tool => hasCommand(tool));
 
-// Logs every call, fails the ones whose arguments match $STUB_FAIL, and answers
+// Logs every call, fails the ones whose arguments match $STUB_FAIL, answers
 // `eval` from $STUB_EVAL: lines of "<regex><TAB><answer>", first match wins,
-// `null` otherwise.
+// `null` otherwise, and reports a page error for the sessions in
+// $STUB_ERRORS_SESSIONS.
 const STUB_AGENT_BROWSER = `#!/usr/bin/env bash
 printf '%s\\n' "$*" >>"$STUB_LOG"
 if [[ -n "\${STUB_FAIL:-}" && "$*" =~ $STUB_FAIL ]]; then
     echo "stub: failing '$*'" >&2
     exit 1
+fi
+if [[ "$3" == errors && $# == 3 && " \${STUB_ERRORS_SESSIONS:-} " == *" $2 "* ]]; then
+    echo "Uncaught TypeError: boom"
 fi
 if [[ "$3" == eval ]]; then
     if [[ -n "\${STUB_EVAL:-}" ]]; then
@@ -333,10 +402,36 @@ const FIXTURE_FLOWS = {
     boom: ['# e2e:', 'false', 'check "never reached" true'],
     blocked: ['# e2e:', 'block_run "the fixture is missing"'],
     'connect-check': ['# e2e:', 'ensure_connected', 'check "ensure_connected returned" true'],
+    // A poll that fails once, then answers; and a zero timeout.
+    'await-flaky': [
+        '# e2e:',
+        'flaky() { if [[ -f "$OUT/flaky" ]]; then echo ok; return 0; fi; touch "$OUT/flaky"; return 1; }',
+        'await_value 10 ok flaky',
+        'check "a zero timeout still polls once" await_value 0 y echo y',
+    ],
+    // Text read inline from a failing `ab get text`.
+    'inline-text': ['# e2e:', 'check "no error banner" not_contains "$(ab get text main)" "Error"'],
+    'page-errors': ['# e2e: sessions=b', 'assert_no_page_errors', 'check "no page errors" true'],
+    // Raw token amounts past 2^53 (awk's doubles) and 2^63 (Bash arithmetic).
+    'raw-amounts': [
+        '# e2e:',
+        'refuses() { ! "$@" 2>/dev/null; }',
+        'check "raw keeps every digit" [ "$(raw 123456789.123456789 9)" = 123456789123456789 ]',
+        'check "raw pads the fraction" [ "$(raw 1.5)" = 1500000 ]',
+        'check "raw_add sums past 2^63" [ "$(raw_add 10000000000000000000 100000000)" = 10000000000100000000 ]',
+        'check "raw refuses more decimals than the mint has" refuses raw 1.1234567',
+    ],
 };
 
 /** Fixture groups, by name: their lines. `suite` is made only of @groups. */
-const FIXTURE_GROUPS = { 'st-one': ['noop'], 'st-two': ['noop'], 'st-suite': ['# two runs', '@st-one', '@st-two'] };
+const FIXTURE_GROUPS = {
+    'st-one': ['noop'],
+    'st-two': ['noop'],
+    'st-suite': ['# two runs', '@st-one', '@st-two'],
+    'st-empty': ['# nothing here yet'],
+    'st-cycle': ['noop', '@st-cycle'],
+    'st-loop': ['@st-loop'],
+};
 
 function writeFlow(name, [header, ...body]) {
     const script = ['#!/usr/bin/env bash', header, `FLOW=${name}`, 'source "$(dirname "$0")/../lib.sh"', ...body, ''];
@@ -441,16 +536,59 @@ describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' },
         assert.match(run.stdout, /all flows passed/);
     });
 
-    test("each session loads a wallet bundle from its own run's directory", async () => {
+    const launchedBundles = run => run.calls.map(call => / --init-script (\S+) /.exec(call)?.[1]).filter(Boolean);
+
+    test("each session loads a wallet bundle from its own run's directory, deleted when the run ends", async () => {
         const run = await runHarness(['two-sessions']);
         assert.equal(run.status, 0, run.stdout + run.stderr);
-        const bundles = run.calls.map(call => / --init-script (\S+) /.exec(call)?.[1]).filter(Boolean);
+        const bundles = launchedBundles(run);
         assert.equal(bundles.length, 3, run.calls.join('\n'));
         const runDir = lastRunDir();
         for (const bundle of bundles) {
             assert.ok(bundle.startsWith(`${runDir}/`), `${bundle} is outside the run's directory ${runDir}`);
-            assert.ok(existsSync(bundle), `${bundle} was not built`);
+            assert.ok(!existsSync(bundle), `${bundle} holds secret keys and outlived the run`);
         }
+    });
+
+    test('KEEP_OPEN=1 keeps the wallet bundles, readable by their owner only', async () => {
+        const run = await runHarness(['noop'], { KEEP_OPEN: '1' });
+        assert.equal(run.status, 0, run.stdout + run.stderr);
+        const [bundle] = launchedBundles(run);
+        assert.ok(existsSync(bundle), `${bundle} was not kept`);
+        assert.equal(statSync(bundle).mode & 0o777, 0o600);
+        assert.match(run.stdout, /wallet bundles kept/);
+    });
+
+    test('a BASE_URL that is not a secure context is refused before anything launches', async () => {
+        const run = await runHarness(['noop'], { BASE_URL: 'http://my-box.invalid:3000' });
+        assert.equal(run.status, 1, run.stdout + run.stderr);
+        assert.match(run.stderr, /not a secure context/);
+        assert.deepEqual(launchedBundles(run), []);
+    });
+
+    test('a failed poll in await_value is retried, and a zero timeout polls once', async () => {
+        const run = await runHarness(['await-flaky'], { AWAIT_POLL_S: '0' });
+        assert.equal(run.status, 0, run.stdout + run.stderr);
+        assert.match(lastResults(), /^pass\tawait-flaky\ta zero timeout still polls once$/m);
+    });
+
+    test('raw and raw_add are exact for any u64 amount', async () => {
+        const run = await runHarness(['raw-amounts']);
+        assert.equal(run.status, 0, run.stdout + run.stderr + lastResults());
+    });
+
+    test('a failed text read does not pass not_contains', async () => {
+        const run = await runHarness(['inline-text'], { STUB_FAIL: ' get text ' });
+        assert.equal(run.status, 1, run.stdout + run.stderr);
+        assert.match(lastResults(), /^fail\tinline-text\tno error banner$/m);
+    });
+
+    test("assert_no_page_errors checks every session's page", async () => {
+        const run = await runHarness(['page-errors'], { STUB_ERRORS_SESSIONS: 'st-b' });
+        assert.equal(run.status, 1, run.stdout + run.stderr);
+        assert.match(lastResults(), /^fail\tpage-errors\tpage errors in page-errors \(sessions: b\)$/m);
+        const clean = await runHarness(['page-errors']);
+        assert.equal(clean.status, 0, clean.stdout + clean.stderr);
     });
 
     test('a failed launch closes the sessions already started', async () => {
@@ -536,11 +674,51 @@ describe('run.sh', { skip: !HAS_SHELL_TOOLS && 'needs bash, jq, curl and awk' },
         );
     });
 
+    test('ensure_connected waits out a slow auto-connect instead of failing', async () => {
+        const run = await runHarness(['connect-check'], { STUB_FAIL: 'wait --fn .* --timeout 5000$' }, [
+            WALLET_PRESENT,
+            ['w\\.address\\.slice', 'true'],
+        ]);
+        assert.equal(run.status, 0, run.stdout + run.stderr);
+        assert.ok(!run.calls.some(call => call.includes('click --name Connect Wallet')), run.calls.join('\n'));
+    });
+
+    test('a page where the wallet cannot run blocks with the reason', async () => {
+        const run = await runHarness(['connect-check'], {}, [['__mosaicTestWalletUnavailable', '"insecure context"']]);
+        assert.equal(run.status, 3, run.stdout + run.stderr);
+        assert.match(lastResults(), /^blocked\tconnect-check\tthe test wallet needs a secure context/m);
+    });
+
     test('a group made only of @groups runs each as its own run', async () => {
         const run = await runHarness(['st-suite']);
         assert.equal(run.status, 0, run.stdout + run.stderr);
         assert.equal(run.stdout.match(/all flows passed/g)?.length, 2, run.stdout);
         assert.equal(run.calls.filter(call => call.endsWith('open about:blank')).length, 2, run.calls.join('\n'));
+    });
+
+    test('several suites run one after the other; a suite mixed with a flow is refused', async () => {
+        const two = await runHarness(['st-suite', 'st-suite']);
+        assert.equal(two.status, 0, two.stdout + two.stderr);
+        assert.equal(two.stdout.match(/all flows passed/g)?.length, 4, two.stdout);
+        const mixed = await runHarness(['st-suite', 'noop']);
+        assert.equal(mixed.status, 1, mixed.stdout + mixed.stderr);
+        assert.match(mixed.stderr, /pass suites on their own/);
+        assert.deepEqual(mixed.calls, []);
+    });
+
+    test('an empty group fails instead of passing with no flows', async () => {
+        const run = await runHarness(['st-empty']);
+        assert.equal(run.status, 1, run.stdout + run.stderr);
+        assert.match(run.stderr, /group st-empty lists no flows/);
+    });
+
+    test('a group or suite that includes itself stops', async () => {
+        for (const group of ['st-cycle', 'st-loop']) {
+            const run = await runHarness([group]);
+            assert.equal(run.status, 1, run.stdout + run.stderr);
+            assert.match(run.stderr, new RegExp(`${group} includes itself`));
+            assert.deepEqual(run.calls, []);
+        }
     });
 });
 
