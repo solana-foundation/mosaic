@@ -64,8 +64,9 @@ interface ConfidentialWizardProps {
 
 /**
  * Guided, step-by-step demonstration of the confidential-transfer account
- * lifecycle: configure → approve → deposit → apply → transfer → withdraw →
- * empty, with a live balance panel. Each step builds a confidential
+ * lifecycle, in the eight cards it renders: configure → approve → enable
+ * confidential credits → deposit → apply → transfer → withdraw → empty, with a
+ * live balance panel. Each step builds a confidential
  * `InstructionPlan` and runs it through {@link executeConfidentialPlan}
  * (multi-transaction proof flows show per-tx progress), then refreshes the
  * balances.
