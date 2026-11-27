@@ -47,6 +47,38 @@ export const BUILTIN_CLUSTERS: ClusterDefinition[] = [
     },
 ];
 
+/**
+ * The RPC endpoint configured for one network, or undefined to use its public
+ * endpoint. Each network has its own variable, so a provider URL for one
+ * cluster can never end up behind another cluster's label: a mainnet endpoint
+ * serving the "Devnet" entry would move real funds. `NEXT_PUBLIC_SOLANA_RPC_URL`
+ * keeps the mainnet-only meaning it has always had.
+ */
+export function getEnvRpcUrl(network: NetworkName): string | undefined {
+    // Literal member accesses: Next.js only inlines NEXT_PUBLIC_* that way.
+    switch (network) {
+        case 'mainnet-beta':
+            return process.env.NEXT_PUBLIC_SOLANA_RPC_URL || undefined;
+        case 'devnet':
+            return process.env.NEXT_PUBLIC_SOLANA_DEVNET_RPC_URL || undefined;
+        case 'testnet':
+            return process.env.NEXT_PUBLIC_SOLANA_TESTNET_RPC_URL || undefined;
+    }
+}
+
+/**
+ * The built-in clusters as the app offers them: each network whose env RPC
+ * variable is set points at that URL and carries an "(Env RPC)" label. The
+ * connector setup and the cluster switcher both read this, so the switcher
+ * lists the same labels the connector reports for the active cluster.
+ */
+export function getAppClusters(): ClusterDefinition[] {
+    return BUILTIN_CLUSTERS.map(cluster => {
+        const envRpcUrl = getEnvRpcUrl(cluster.name);
+        return envRpcUrl ? { ...cluster, label: `${cluster.label} (Env RPC)`, url: envRpcUrl } : cluster;
+    });
+}
+
 /** Maps a network name to the cluster id used by @solana/connector. */
 export const CLUSTER_ID_BY_NETWORK = Object.fromEntries(
     BUILTIN_CLUSTERS.map(cluster => [cluster.name, cluster.id]),

@@ -1,0 +1,504 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+    type Address,
+    type GetMinimumBalanceForRentExemptionApi,
+    type InstructionPlan,
+    type Rpc,
+    type Signature,
+    type SolanaRpcApi,
+    type TransactionSigner,
+    createSolanaRpc,
+} from '@solana/kit';
+import { useConnector } from '@solana/connector/react';
+import {
+    Settings2,
+    ArrowDownToLine,
+    BadgeCheck,
+    CheckCheck,
+    Send,
+    ArrowUpFromLine,
+    Eraser,
+    ShieldCheck,
+} from 'lucide-react';
+import { useConnectorSigner } from '@/features/wallet/hooks/use-connector-signer';
+import { useTokenBalance } from '@/hooks/use-token-balance';
+import { getClusterName } from '@/lib/solana/explorer';
+import { humanizeError } from '@/lib/errors';
+import { useConfidentialKeys } from '../hooks/use-confidential-keys';
+import { useConfidentialAccount } from '../hooks/use-confidential-account';
+import { useConfidentialTxVersion } from '../hooks/use-confidential-tx-version';
+import {
+    ConfidentialPlanError,
+    executeConfidentialPlan,
+    type ConfidentialPlanProgress,
+} from '../lib/execute-confidential-plan';
+import {
+    buildApplyPlan,
+    buildApprovePlan,
+    buildConfigurePlan,
+    buildDepositPlan,
+    buildEmptyPlan,
+    buildEnableConfidentialCreditsPlan,
+    buildTransferPlan,
+    buildWithdrawPlan,
+    fetchConfidentialMintConfig,
+    fetchMintDecimals,
+    resolveAta,
+    type ConfidentialMintConfig,
+} from '../lib/operations';
+import {
+    ConfidentialActionCard,
+    type ConfidentialActionValues,
+    type ConfidentialRunContext,
+} from './confidential-action-card';
+import { ConfidentialBalancePanel } from './confidential-balance-panel';
+
+type RpcWithRent = Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
+
+interface ConfidentialWizardProps {
+    mint: Address;
+    symbol?: string;
+}
+
+/**
+ * Guided, step-by-step demonstration of the confidential-transfer account
+ * lifecycle, in the eight cards it renders: configure → approve → enable
+ * confidential credits → deposit → apply → transfer → withdraw → empty, with a
+ * live balance panel. Each step builds a confidential
+ * `InstructionPlan` and runs it through {@link executeConfidentialPlan}
+ * (multi-transaction proof flows show per-tx progress), then refreshes the
+ * balances.
+ */
+export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
+    const { selectedAccount, cluster } = useConnector();
+    const signer = useConnectorSigner();
+    const { withKeys } = useConfidentialKeys();
+    // Version 0 unless both the selected RPC and the connected wallet prove they
+    // accept SIMD-0385 transactions; see `useConfidentialTxVersion`.
+    const { version: txVersion } = useConfidentialTxVersion();
+
+    const owner = selectedAccount ? (String(selectedAccount) as Address) : undefined;
+    const clusterName = getClusterName(cluster);
+
+    // Ties a plan that stopped part-way to this selection, so the cards resume it
+    // only on the network, wallet and mint it started on.
+    const runContext = useMemo<ConfidentialRunContext | undefined>(() => {
+        if (!cluster?.url || !owner) return undefined;
+        return {
+            key: `${cluster.url}|${owner}|${mint}`,
+            label: `${cluster.label ?? clusterName ?? cluster.url} · ${owner.slice(0, 4)}…${owner.slice(-4)}`,
+        };
+    }, [cluster?.url, cluster?.label, clusterName, owner, mint]);
+
+    const rpc = useMemo<RpcWithRent | null>(() => {
+        if (!cluster?.url) return null;
+        return createSolanaRpc(cluster.url) as RpcWithRent;
+    }, [cluster?.url]);
+
+    // Resolve the owner's associated token account (the confidential account).
+    const [tokenAccount, setTokenAccount] = useState<Address | undefined>();
+    const [tokenAccountError, setTokenAccountError] = useState<string | undefined>();
+    useEffect(() => {
+        // Cleared on every change, not only on disconnect: until the new
+        // owner's account resolves, the steps must not pair the new signer with
+        // the previous owner's account. Every step is gated on it.
+        setTokenAccount(undefined);
+        setTokenAccountError(undefined);
+        if (!owner) return;
+        let active = true;
+        resolveAta(owner, mint)
+            .then(ata => {
+                if (active) setTokenAccount(ata);
+            })
+            .catch(err => {
+                if (active) setTokenAccountError(`Could not derive your token account: ${humanizeError(err)}`);
+            });
+        return () => {
+            active = false;
+        };
+    }, [owner, mint]);
+
+    // Mint decimals, for formatting decrypted confidential amounts. Undefined
+    // until read: guessing 0 would show 1.5 tokens of a 9-decimals mint as
+    // 1500000000, so the panel withholds amounts until this is known. Reset on
+    // every RPC or mint change, so nothing carries over from the previous one.
+    // A failed read is retried from the panel's refresh control (see
+    // `refreshAll`), so a transient RPC error does not hide amounts for good.
+    const [decimals, setDecimals] = useState<number | undefined>();
+    const [decimalsError, setDecimalsError] = useState<string | undefined>();
+    const [decimalsAttempt, setDecimalsAttempt] = useState(0);
+    useEffect(() => {
+        setDecimals(undefined);
+        setDecimalsError(undefined);
+        if (!rpc) return;
+        let active = true;
+        fetchMintDecimals(rpc, mint)
+            .then(d => {
+                if (active) setDecimals(d);
+            })
+            .catch(err => {
+                if (active) setDecimalsError(`Could not read the mint's decimals: ${humanizeError(err)}`);
+            });
+        return () => {
+            active = false;
+        };
+    }, [rpc, mint, decimalsAttempt]);
+
+    // The mint's confidential config, to decide whether (and by whom) accounts
+    // must be approved. Undefined while loading; null when the mint has no
+    // ConfidentialTransferMint extension. Reset on every RPC or mint change,
+    // like the decimals above, and retried from refresh after a failed read.
+    const [mintConfig, setMintConfig] = useState<ConfidentialMintConfig | null | undefined>();
+    const [mintConfigFailed, setMintConfigFailed] = useState(false);
+    const [mintConfigAttempt, setMintConfigAttempt] = useState(0);
+    useEffect(() => {
+        setMintConfig(undefined);
+        setMintConfigFailed(false);
+        if (!rpc) return;
+        let active = true;
+        fetchConfidentialMintConfig(rpc, mint)
+            .then(c => {
+                if (active) setMintConfig(c);
+            })
+            .catch(() => {
+                // Leave undefined: the approve step stays enabled and fails
+                // on-chain if unusable. Refresh retries the read.
+                if (active) setMintConfigFailed(true);
+            });
+        return () => {
+            active = false;
+        };
+    }, [rpc, mint, mintConfigAttempt]);
+
+    const confAccount = useConfidentialAccount({ tokenAccount, rpc });
+    const tokenBalance = useTokenBalance(mint);
+
+    const { isConfigured, refresh } = confAccount;
+    const refetchPlaintext = tokenBalance.refetch;
+
+    /**
+     * The panel's refresh control. Both balance views must be refetched: the
+     * public balance is cached until something explicitly refetches it
+     * (`use-token-balance.ts` fetches only while `lastFetched === null`), so
+     * refreshing the confidential state alone leaves a stale public balance on
+     * screen with no way for the user to clear it. A failed mint read (decimals
+     * or confidential config) is retried here too, since nothing else reruns it
+     * while the RPC and mint stay the same.
+     */
+    const refreshAll = useCallback(() => {
+        refresh();
+        refetchPlaintext();
+        if (decimalsError) setDecimalsAttempt(n => n + 1);
+        if (mintConfigFailed) setMintConfigAttempt(n => n + 1);
+    }, [refresh, refetchPlaintext, decimalsError, mintConfigFailed]);
+
+    /**
+     * Runs `send`, then refreshes both balance views — after a failure too, since
+     * a plan that stopped part-way has still changed state on chain. A partial
+     * failure's `resume` is wrapped the same way, so resuming refreshes as well.
+     */
+    const settle = useCallback(
+        async function settleRun(send: () => Promise<Signature[]>): Promise<Signature[]> {
+            try {
+                return await send();
+            } catch (err) {
+                if (err instanceof ConfidentialPlanError) {
+                    const resume = err.resume;
+                    err.resume = resumeProgress => settleRun(() => resume(resumeProgress));
+                }
+                throw err;
+            } finally {
+                refresh();
+                refetchPlaintext();
+            }
+        },
+        [refresh, refetchPlaintext],
+    );
+
+    /** Builds a plan, executes it, then refreshes both balance views. */
+    const runPlan = useCallback(
+        async (build: () => Promise<InstructionPlan>, onProgress: ConfidentialPlanProgress): Promise<Signature[]> => {
+            if (!rpc || !signer) throw new Error('Wallet not connected.');
+            const plan = await build();
+            return settle(() =>
+                executeConfidentialPlan({
+                    instructionPlan: plan,
+                    feePayer: signer as unknown as TransactionSigner,
+                    rpc,
+                    onProgress,
+                    version: txVersion,
+                }),
+            );
+        },
+        [rpc, signer, txVersion, settle],
+    );
+
+    const authority = signer as unknown as TransactionSigner;
+
+    /**
+     * One operation at a time across the whole wizard. Every step reads and
+     * changes the same account, so two at once race: applying the pending
+     * balance while a transfer is still setting up proofs makes the transfer's
+     * proof stale, and its token instruction then fails after the proof-account
+     * rent was paid. A step holds the lock while it runs and while it keeps an
+     * unfinished run (resume or start over releases it).
+     */
+    const [busySteps, setBusySteps] = useState<ReadonlySet<number>>(() => new Set());
+    const setStepBusy = useCallback((step: number, busy: boolean) => {
+        setBusySteps(current => {
+            if (current.has(step) === busy) return current;
+            const next = new Set(current);
+            if (busy) next.add(step);
+            else next.delete(step);
+            return next;
+        });
+    }, []);
+    const lockReason = (step: number): string | undefined => {
+        const holder = [...busySteps].find(other => other !== step);
+        return holder === undefined
+            ? undefined
+            : `Step ${holder} has an unfinished run. Let it finish, or resume or start it over, first.`;
+    };
+
+    // Shown while the token account is unknown: still resolving, or failed to.
+    const resolvingReason = tokenAccountError ?? 'Resolving your token account…';
+
+    // The ConfidentialTransferMint extension cannot be added after the mint is
+    // created, so on a mint without it configuring would only pay fees and rent
+    // for a transaction that fails on chain.
+    const configurePrereq = !tokenAccount
+        ? resolvingReason
+        : mintConfig === null
+          ? 'This mint does not support confidential transfers.'
+          : isConfigured
+            ? 'This account is already configured for confidential transfers.'
+            : undefined;
+    const needsConfigured = !tokenAccount
+        ? resolvingReason
+        : !isConfigured
+          ? 'Configure the account first (step 1).'
+          : undefined;
+
+    // Gated on mint-level facts only — the approval target may be another
+    // owner's account, so the connected wallet's own configure/approve state
+    // says nothing about whether this step should run.
+    const approvePrereq = !tokenAccount
+        ? resolvingReason
+        : mintConfig === null
+          ? 'This mint does not support confidential transfers.'
+          : mintConfig?.autoApproveNewAccounts
+            ? 'This mint auto-approves new accounts — approval is not required.'
+            : mintConfig && mintConfig.authority !== owner
+              ? `Only the mint's confidential authority (${mintConfig.authority ?? 'none'}) can approve accounts.`
+              : undefined;
+
+    const handleConfigure = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
+        runPlan(
+            () => withKeys(keys => buildConfigurePlan({ rpc: rpc!, payer: authority, owner: authority, mint, keys })),
+            onProgress,
+        );
+
+    const handleApprove = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
+        runPlan(async () => {
+            // Blank address means "approve my own account".
+            const target = v.address ? await resolveAta(v.address as Address, mint) : tokenAccount!;
+            return buildApprovePlan({ tokenAccount: target, mint, authority });
+        }, onProgress);
+
+    const handleEnableCredits = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
+        runPlan(() => buildEnableConfidentialCreditsPlan({ tokenAccount: tokenAccount!, authority }), onProgress);
+
+    const handleDeposit = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
+        runPlan(
+            () => buildDepositPlan({ rpc: rpc!, mint, tokenAccount: tokenAccount!, authority, amount: v.amount! }),
+            onProgress,
+        );
+
+    const handleApply = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
+        runPlan(
+            () => withKeys(keys => buildApplyPlan({ rpc: rpc!, tokenAccount: tokenAccount!, authority, keys })),
+            onProgress,
+        );
+
+    const handleTransfer = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
+        runPlan(async () => {
+            const destinationToken = await resolveAta(v.address! as Address, mint);
+            return withKeys(keys =>
+                buildTransferPlan({
+                    rpc: rpc!,
+                    payer: authority,
+                    mint,
+                    sourceToken: tokenAccount!,
+                    destinationToken,
+                    authority,
+                    amount: v.amount!,
+                    keys,
+                }),
+            );
+        }, onProgress);
+
+    const handleWithdraw = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
+        runPlan(
+            () =>
+                withKeys(keys =>
+                    buildWithdrawPlan({
+                        rpc: rpc!,
+                        payer: authority,
+                        mint,
+                        tokenAccount: tokenAccount!,
+                        authority,
+                        amount: v.amount!,
+                        keys,
+                    }),
+                ),
+            onProgress,
+        );
+
+    const handleEmpty = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
+        runPlan(
+            () =>
+                withKeys(keys =>
+                    buildEmptyPlan({ rpc: rpc!, payer: authority, tokenAccount: tokenAccount!, authority, keys }),
+                ),
+            onProgress,
+        );
+
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+            {/* Steps */}
+            <div className="space-y-4">
+                <ConfidentialActionCard
+                    stepNumber={1}
+                    title="Configure account"
+                    description="Create and configure your associated token account for confidential transfers."
+                    icon={Settings2}
+                    actionLabel="Configure account"
+                    disabledReason={lockReason(1) ?? configurePrereq}
+                    onBusyChange={setStepBusy}
+                    clusterName={clusterName}
+                    runContext={runContext}
+                    onRun={handleConfigure}
+                />
+                <ConfidentialActionCard
+                    stepNumber={2}
+                    title="Approve account"
+                    description="Whitelist mints require the confidential authority to approve an account before it can be used. Leave the address blank to approve your own."
+                    icon={BadgeCheck}
+                    actionLabel="Approve account"
+                    fields={{ address: true }}
+                    addressLabel="Owner wallet address (defaults to your own)"
+                    addressPlaceholder="Enter owner Solana address..."
+                    addressOptional
+                    disabledReason={lockReason(2) ?? approvePrereq}
+                    onBusyChange={setStepBusy}
+                    clusterName={clusterName}
+                    runContext={runContext}
+                    onRun={handleApprove}
+                />
+                <ConfidentialActionCard
+                    stepNumber={3}
+                    title="Enable confidential credits"
+                    description="Allow this account to receive incoming confidential transfers."
+                    icon={ShieldCheck}
+                    actionLabel="Enable confidential credits"
+                    disabledReason={lockReason(3) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
+                    clusterName={clusterName}
+                    runContext={runContext}
+                    onRun={handleEnableCredits}
+                />
+                <ConfidentialActionCard
+                    stepNumber={4}
+                    title="Deposit"
+                    description="Move tokens from your public balance into the pending confidential balance."
+                    icon={ArrowDownToLine}
+                    actionLabel="Deposit to pending"
+                    fields={{ amount: true }}
+                    amountLabel="Amount to deposit"
+                    amountSymbol={symbol}
+                    disabledReason={lockReason(4) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
+                    clusterName={clusterName}
+                    runContext={runContext}
+                    onRun={handleDeposit}
+                />
+                <ConfidentialActionCard
+                    stepNumber={5}
+                    title="Apply pending balance"
+                    description="Apply the pending balance so it becomes spendable available balance."
+                    icon={CheckCheck}
+                    actionLabel="Apply pending → available"
+                    disabledReason={lockReason(5) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
+                    clusterName={clusterName}
+                    runContext={runContext}
+                    onRun={handleApply}
+                />
+                <ConfidentialActionCard
+                    stepNumber={6}
+                    title="Confidential transfer"
+                    description="Send an encrypted amount to another wallet's confidential account."
+                    icon={Send}
+                    actionLabel="Send confidentially"
+                    fields={{ address: true, amount: true }}
+                    addressLabel="Recipient wallet address"
+                    amountLabel="Amount to send"
+                    amountSymbol={symbol}
+                    disabledReason={lockReason(6) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
+                    clusterName={clusterName}
+                    runContext={runContext}
+                    onRun={handleTransfer}
+                />
+                <ConfidentialActionCard
+                    stepNumber={7}
+                    title="Withdraw"
+                    description="Move available confidential balance back to your public balance."
+                    icon={ArrowUpFromLine}
+                    actionLabel="Withdraw available → public"
+                    fields={{ amount: true }}
+                    amountLabel="Amount to withdraw"
+                    amountSymbol={symbol}
+                    disabledReason={lockReason(7) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
+                    clusterName={clusterName}
+                    runContext={runContext}
+                    onRun={handleWithdraw}
+                />
+                <ConfidentialActionCard
+                    stepNumber={8}
+                    title="Empty account"
+                    description="Prove the available balance is zero so the account can be closed. Withdraw everything first."
+                    icon={Eraser}
+                    actionLabel="Empty confidential balance"
+                    disabledReason={lockReason(8) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
+                    clusterName={clusterName}
+                    runContext={runContext}
+                    onRun={handleEmpty}
+                />
+            </div>
+
+            {/* Sticky balance panel */}
+            <div className="lg:sticky lg:top-6 lg:self-start">
+                <ConfidentialBalancePanel
+                    state={confAccount.state}
+                    isConfigured={confAccount.isConfigured}
+                    isRevealed={confAccount.isRevealed}
+                    isLoading={confAccount.isLoading}
+                    error={confAccount.error}
+                    canReveal={confAccount.canReveal}
+                    onReveal={confAccount.reveal}
+                    onRefresh={refreshAll}
+                    decimals={decimals}
+                    decimalsError={decimalsError}
+                    symbol={symbol}
+                    plaintextBalance={tokenBalance.balance?.formattedBalance ?? null}
+                    plaintextLoading={tokenBalance.isLoading}
+                />
+            </div>
+        </div>
+    );
+}

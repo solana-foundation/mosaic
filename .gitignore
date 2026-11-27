@@ -32,6 +32,13 @@ out/
 *.tsbuildinfo
 .tscache/
 
+# Compiled TS emit accidentally written next to sources (src is TS-only).
+# `*.d.ts` is deliberately not listed: it would also hide a hand-written
+# declaration file, and a stray emitted one shows up in `git status` instead.
+apps/app/src/**/*.js
+apps/app/src/**/*.js.map
+apps/app/src/**/*.d.ts.map
+
 # Testing
 coverage/
 .nyc_output/

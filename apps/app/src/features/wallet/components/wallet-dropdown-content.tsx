@@ -11,7 +11,7 @@ import { useCluster } from '@solana/connector/react';
 import { motion } from 'motion/react';
 import { CopyButton } from '@/components/ui/copy-button';
 import { useRpcStore, type NetworkName } from '@/stores/rpc-store';
-import { BUILTIN_CLUSTERS, getConfiguredNetwork, getDefaultClusterId } from '@/lib/solana/network';
+import { BUILTIN_CLUSTERS, getAppClusters, getConfiguredNetwork, getDefaultClusterId } from '@/lib/solana/network';
 import { markNetworkNoticeSeen } from '@/stores/network-notice-store';
 import { toast } from '@/components/ui/sonner';
 
@@ -31,7 +31,8 @@ interface NetworkOption {
     isCustom?: boolean;
 }
 
-const DEFAULT_NETWORKS: NetworkOption[] = BUILTIN_CLUSTERS.map(({ id, label, name }) => ({ id, label, name }));
+// Labelled like the connector's clusters, "(Env RPC)" suffix included.
+const DEFAULT_NETWORKS: NetworkOption[] = getAppClusters().map(({ id, label, name }) => ({ id, label, name }));
 
 export function WalletDropdownContent({
     selectedAccount,
@@ -52,7 +53,7 @@ export function WalletDropdownContent({
 
     const shortAddress = `${selectedAccount.slice(0, 4)}...${selectedAccount.slice(-4)}`;
 
-    // Get current cluster id for selection
+    // Get current cluster id for selection (matches the connector's default network).
     const currentClusterId = (cluster as { id?: string })?.id || getDefaultClusterId();
 
     // Build all networks list (default + custom)

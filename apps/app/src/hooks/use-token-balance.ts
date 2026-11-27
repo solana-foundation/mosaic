@@ -34,7 +34,7 @@ export function useTokenBalance(mintAddress: string | undefined): UseTokenBalanc
     const rpcUrl = cluster?.url;
 
     // Get state from store
-    const accountState = useTokenAccountState(walletAddress, mintAddress);
+    const accountState = useTokenAccountState(walletAddress, mintAddress, rpcUrl);
     const { fetchTokenAccount, refetchTokenAccount } = useTokenAccountStore();
 
     // Fetch on mount and when dependencies change
