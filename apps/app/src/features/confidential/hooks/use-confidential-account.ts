@@ -50,9 +50,18 @@ export function useConfidentialAccount(input: {
     // account or RPC changed, and would show the old account's balances.
     const latestLoadRef = useRef(0);
 
+    // The account and RPC currently selected. A `refresh` closure from an
+    // earlier render (held by an operation that finishes after the selection
+    // changed) still loads the old pair, and bumping the id above would let it
+    // supersede the current load and show the old account's balances. Such a
+    // load is dropped before it starts.
+    const selectionRef = useRef({ rpc, tokenAccount });
+
     const load = useCallback(
         async (withReveal: boolean) => {
             if (!rpc || !tokenAccount) return;
+            const selected = selectionRef.current;
+            if (selected.rpc !== rpc || selected.tokenAccount !== tokenAccount) return;
             const id = ++latestLoadRef.current;
             const isLatest = () => id === latestLoadRef.current;
             setIsLoading(true);
@@ -84,6 +93,7 @@ export function useConfidentialAccount(input: {
     // selection's state is cleared first, and any load still in flight for it is
     // superseded, so nothing of the old account stays on screen.
     useEffect(() => {
+        selectionRef.current = { rpc, tokenAccount };
         latestLoadRef.current++;
         setState(null);
         setIsConfigured(false);
