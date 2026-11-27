@@ -225,6 +225,31 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
 
     const authority = signer as unknown as TransactionSigner;
 
+    /**
+     * One operation at a time across the whole wizard. Every step reads and
+     * changes the same account, so two at once race: applying the pending
+     * balance while a transfer is still setting up proofs makes the transfer's
+     * proof stale, and its token instruction then fails after the proof-account
+     * rent was paid. A step holds the lock while it runs and while it keeps an
+     * unfinished run (resume or start over releases it).
+     */
+    const [busySteps, setBusySteps] = useState<ReadonlySet<number>>(() => new Set());
+    const setStepBusy = useCallback((step: number, busy: boolean) => {
+        setBusySteps(current => {
+            if (current.has(step) === busy) return current;
+            const next = new Set(current);
+            if (busy) next.add(step);
+            else next.delete(step);
+            return next;
+        });
+    }, []);
+    const lockReason = (step: number): string | undefined => {
+        const holder = [...busySteps].find(other => other !== step);
+        return holder === undefined
+            ? undefined
+            : `Step ${holder} has an unfinished run. Let it finish, or resume or start it over, first.`;
+    };
+
     // Shown while the token account is unknown: still resolving, or failed to.
     const resolvingReason = tokenAccountError ?? 'Resolving your token account…';
 
@@ -338,7 +363,8 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     description="Create and configure your associated token account for confidential transfers."
                     icon={Settings2}
                     actionLabel="Configure account"
-                    disabledReason={configurePrereq}
+                    disabledReason={lockReason(1) ?? configurePrereq}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
                     runContext={runContext}
                     onRun={handleConfigure}
@@ -353,7 +379,8 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     addressLabel="Owner wallet address (defaults to your own)"
                     addressPlaceholder="Enter owner Solana address..."
                     addressOptional
-                    disabledReason={approvePrereq}
+                    disabledReason={lockReason(2) ?? approvePrereq}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
                     runContext={runContext}
                     onRun={handleApprove}
@@ -364,7 +391,8 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     description="Allow this account to receive incoming confidential transfers."
                     icon={ShieldCheck}
                     actionLabel="Enable confidential credits"
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(3) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
                     runContext={runContext}
                     onRun={handleEnableCredits}
@@ -378,7 +406,8 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     fields={{ amount: true }}
                     amountLabel="Amount to deposit"
                     amountSymbol={symbol}
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(4) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
                     runContext={runContext}
                     onRun={handleDeposit}
@@ -389,7 +418,8 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     description="Apply the pending balance so it becomes spendable available balance."
                     icon={CheckCheck}
                     actionLabel="Apply pending → available"
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(5) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
                     runContext={runContext}
                     onRun={handleApply}
@@ -404,7 +434,8 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     addressLabel="Recipient wallet address"
                     amountLabel="Amount to send"
                     amountSymbol={symbol}
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(6) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
                     runContext={runContext}
                     onRun={handleTransfer}
@@ -418,7 +449,8 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     fields={{ amount: true }}
                     amountLabel="Amount to withdraw"
                     amountSymbol={symbol}
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(7) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
                     runContext={runContext}
                     onRun={handleWithdraw}
@@ -429,7 +461,8 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     description="Prove the available balance is zero so the account can be closed. Withdraw everything first."
                     icon={Eraser}
                     actionLabel="Empty confidential balance"
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(8) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
                     runContext={runContext}
                     onRun={handleEmpty}

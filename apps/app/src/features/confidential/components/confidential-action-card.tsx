@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ExternalLink, Loader2, type LucideIcon } from 'lucide-react';
 import type { Signature } from '@solana/kit';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -50,6 +50,11 @@ interface ConfidentialActionCardProps {
     clusterName?: string;
     /** The current selection. Undefined while there is none (no wallet, no network). */
     runContext?: ConfidentialRunContext;
+    /**
+     * Reports whether this step holds the wizard's operation lock: while it runs,
+     * and while it keeps a run that stopped part-way.
+     */
+    onBusyChange?: (step: number, busy: boolean) => void;
     /** Runs the operation; returns the transaction signatures. */
     onRun: (
         values: ConfidentialActionValues,
@@ -72,6 +77,7 @@ export function ConfidentialActionCard({
     disabledReason,
     clusterName,
     runContext,
+    onBusyChange,
     onRun,
 }: ConfidentialActionCardProps) {
     const { validateSolanaAddress } = useInputValidation();
@@ -94,6 +100,11 @@ export function ConfidentialActionCard({
         /** What the plan ran against; resuming needs the same selection. */
         context?: ConfidentialRunContext;
     } | null>(null);
+
+    const busy = isLoading || !!partial;
+    useEffect(() => {
+        onBusyChange?.(stepNumber, busy);
+    }, [onBusyChange, stepNumber, busy]);
 
     const needsAmount = !!fields?.amount;
     const needsAddress = !!fields?.address;
