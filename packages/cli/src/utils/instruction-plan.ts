@@ -3,6 +3,7 @@ import {
     type TransactionMessage,
     type InstructionPlan,
     type Rpc,
+    type Address,
     type Signature,
     type SolanaRpcApi,
     type TransactionMessageWithFeePayer,
@@ -13,6 +14,7 @@ import {
     setTransactionMessageLifetimeUsingBlockhash,
     signTransactionMessageWithSigners,
 } from '@solana/kit';
+import { identifySystemInstruction, SYSTEM_PROGRAM_ADDRESS, SystemInstruction } from '@solana-program/system';
 import { outputRawTransaction } from './raw-tx.js';
 import type { FullTransaction } from './types.js';
 
@@ -187,6 +189,88 @@ export function flattenPlan(plan: TransactionPlan): PlannedMessage[] {
     return plan.plans.flatMap(flattenPlan);
 }
 
+/**
+ * Accounts that `sent` messages created (System `CreateAccount` / `CreateAccountWithSeed`) and that
+ * `unsent` messages still use: the proof context-state and record accounts whose cleanup never
+ * ran, so they still hold rent.
+ */
+export function findStrandedAccounts(sent: PlannedMessage[], unsent: PlannedMessage[]): Address[] {
+    const created = new Set<Address>();
+    for (const message of sent) {
+        for (const ix of message.instructions) {
+            if (ix.programAddress !== SYSTEM_PROGRAM_ADDRESS || !ix.data || !ix.accounts?.[1]) continue;
+            let kind: SystemInstruction;
+            try {
+                kind = identifySystemInstruction(ix.data);
+            } catch {
+                continue;
+            }
+            if (kind === SystemInstruction.CreateAccount || kind === SystemInstruction.CreateAccountWithSeed) {
+                created.add(ix.accounts[1].address);
+            }
+        }
+    }
+    const stranded = new Set<Address>();
+    for (const message of unsent) {
+        for (const ix of message.instructions) {
+            for (const account of ix.accounts ?? []) {
+                if (created.has(account.address)) stranded.add(account.address);
+            }
+        }
+    }
+    return [...stranded];
+}
+
+/**
+ * Thrown when a multi-transaction plan fails after some of its transactions confirmed. Carries
+ * the confirmed signatures and the accounts the unsent cleanup would have closed, so the caller
+ * can see what landed and reclaim the rent.
+ */
+export class PlanExecutionError extends Error {
+    constructor(
+        readonly failedIndex: number,
+        readonly total: number,
+        readonly signatures: Signature[],
+        readonly strandedAccounts: Address[],
+        cause: unknown,
+    ) {
+        const parts = [
+            `Transaction ${failedIndex + 1}/${total} failed after ${signatures.length} confirmed (${signatures.join(', ')}).`,
+        ];
+        if (strandedAccounts.length > 0) {
+            parts.push(
+                `These proof accounts were created but not closed, and still hold rent: ${strandedAccounts.join(', ')}.`,
+            );
+        }
+        super(parts.join(' '), { cause });
+        this.name = 'PlanExecutionError';
+    }
+}
+
+/**
+ * Sends planned messages one at a time, in order. A failure after the first transaction confirmed
+ * becomes a {@link PlanExecutionError}; a failure of the first one is rethrown as is.
+ */
+export async function sendPlannedMessages(
+    rpc: Rpc<SolanaRpcApi>,
+    messages: PlannedMessage[],
+    sendOptions: SendOptions = {},
+    onStep?: (index: number) => void,
+): Promise<Signature[]> {
+    const signatures: Signature[] = [];
+    for (let i = 0; i < messages.length; i++) {
+        onStep?.(i);
+        try {
+            signatures.push(await signSendConfirm(rpc, messages[i], sendOptions));
+        } catch (err) {
+            if (i === 0) throw err;
+            const stranded = findStrandedAccounts(messages.slice(0, i), messages.slice(i));
+            throw new PlanExecutionError(i, messages.length, signatures, stranded, err);
+        }
+    }
+    return signatures;
+}
+
 /** What {@link sendOrOutputInstructionPlan} reads from the global and per-command options. */
 export interface PlanSendOptions {
     rawTx?: string;
@@ -239,11 +323,9 @@ export async function sendOrOutputInstructionPlan(
             ? message => estimateAndSetConfidentialResourceLimits({ rpc, transactionMessage: message })
             : undefined;
 
-    const signatures: Signature[] = [];
-    for (let i = 0; i < messages.length; i++) {
+    const signatures = await sendPlannedMessages(rpc, messages, { estimateLimits }, i => {
         spinner.text =
             messages.length > 1 ? `Sending transaction ${i + 1}/${messages.length}...` : 'Sending transaction...';
-        signatures.push(await signSendConfirm(rpc, messages[i], { estimateLimits }));
-    }
+    });
     return { raw: false, signatures };
 }

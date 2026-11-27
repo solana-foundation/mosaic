@@ -11,10 +11,14 @@ import {
     type SolanaRpcApi,
     type TransactionPlan,
 } from '@solana/kit';
+import { getCreateAccountInstruction } from '@solana-program/system';
 import {
     BlockhashExpiredError,
     flattenPlan,
+    findStrandedAccounts,
     isRetryableSendError,
+    PlanExecutionError,
+    sendPlannedMessages,
     signSendConfirm,
     UnconfirmedTransactionError,
     type EstimateLimits,
@@ -235,5 +239,91 @@ describe('flattenPlan', () => {
             ],
         } as unknown as TransactionPlan;
         expect(flattenPlan(plan)).toEqual([a, b, c]);
+    });
+});
+
+describe('sendPlannedMessages', () => {
+    let feePayer: KeyPairSigner;
+    let proofAccount: KeyPairSigner;
+
+    beforeAll(async () => {
+        feePayer = await generateKeyPairSigner();
+        proofAccount = await generateKeyPairSigner();
+    });
+
+    /** Setup creates a proof account; the action and the cleanup both use it. */
+    function proofFlow() {
+        const setup = pipe(buildMessage(feePayer, 1), m =>
+            appendTransactionMessageInstruction(
+                getCreateAccountInstruction({
+                    payer: feePayer,
+                    newAccount: proofAccount,
+                    lamports: 1_000_000n,
+                    space: 100,
+                    programAddress: MEMO_PROGRAM,
+                }),
+                m,
+            ),
+        );
+        const usesProof = (memo: number) =>
+            pipe(buildMessage(feePayer, memo), m =>
+                appendTransactionMessageInstruction(
+                    { programAddress: MEMO_PROGRAM, accounts: [{ address: proofAccount.address, role: 0 }] },
+                    m,
+                ),
+            );
+        return [setup, usesProof(2), usesProof(3)];
+    }
+
+    it('sends every message in order and returns their signatures', async () => {
+        const { rpc, sendTransaction } = fakeRpc({
+            statusesPerAttempt: [[{ confirmationStatus: 'confirmed' }], [{ confirmationStatus: 'confirmed' }]],
+        });
+        const signatures = await sendPlannedMessages(rpc, [buildMessage(feePayer, 1), buildMessage(feePayer, 2)], {
+            pollIntervalMs: 1,
+        });
+        expect(signatures).toHaveLength(2);
+        expect(sendTransaction).toHaveBeenCalledTimes(2);
+    });
+
+    it('reports the confirmed signatures and the unclosed proof accounts when a later step fails', async () => {
+        const { rpc } = fakeRpc({
+            statusesPerAttempt: [[{ confirmationStatus: 'confirmed' }], [{ err: { InstructionError: [1, 'Custom'] } }]],
+        });
+        const failure = sendPlannedMessages(rpc, proofFlow(), { pollIntervalMs: 1 });
+        await expect(failure).rejects.toBeInstanceOf(PlanExecutionError);
+        const err = (await failure.catch(e => e)) as PlanExecutionError;
+        expect(err.failedIndex).toBe(1);
+        expect(err.signatures).toHaveLength(1);
+        expect(err.strandedAccounts).toEqual([proofAccount.address]);
+        expect(err.message).toContain(proofAccount.address);
+        expect(err.cause).toBeInstanceOf(Error);
+    });
+
+    it('rethrows a failure of the first message as is', async () => {
+        const { rpc } = fakeRpc({ statusesPerAttempt: [[{ err: { InstructionError: [0, 'Custom'] } }]] });
+        const failure = sendPlannedMessages(rpc, proofFlow(), { pollIntervalMs: 1 });
+        await expect(failure).rejects.not.toBeInstanceOf(PlanExecutionError);
+        await expect(failure).rejects.toThrow(/failed/);
+    });
+});
+
+describe('findStrandedAccounts', () => {
+    it('ignores accounts created by messages that were not sent', async () => {
+        const feePayer = await generateKeyPairSigner();
+        const newAccount = await generateKeyPairSigner();
+        const create = pipe(buildMessage(feePayer), m =>
+            appendTransactionMessageInstruction(
+                getCreateAccountInstruction({
+                    payer: feePayer,
+                    newAccount,
+                    lamports: 1n,
+                    space: 0,
+                    programAddress: MEMO_PROGRAM,
+                }),
+                m,
+            ),
+        );
+        expect(findStrandedAccounts([buildMessage(feePayer)], [create])).toEqual([]);
     });
 });
