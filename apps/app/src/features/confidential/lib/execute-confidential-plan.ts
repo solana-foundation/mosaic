@@ -83,6 +83,15 @@ const MAX_SIGNINGS = 3;
 // transaction that did land before we trust its "not found".
 const EXPIRY_MARGIN = 32n;
 
+// Block heights past `lastValidBlockHeight` within which a "not found" still
+// proves the transaction never landed. Validators keep a signature's status for
+// about 300 slots after its blockhash, i.e. about 150 past its last valid
+// height; an RPC without its own transaction history answers null once that
+// window has passed, whether or not the transaction executed. The send loop
+// polls continuously and decides well inside the window; a resume minutes
+// later does not, and must not re-sign on an answer that proves nothing.
+const STATUS_WINDOW = 120n;
+
 // Upper bound on waiting for one signed transaction. Expiry normally settles it
 // in about a minute; this only stops a stuck RPC from hanging the flow.
 const SETTLE_TIMEOUT_MS = 180_000;
@@ -283,12 +292,15 @@ async function waitForOutcome(rpc: Rpc<SolanaRpcApi>, tx: InFlightTransaction): 
     const send = () => broadcast(rpc, tx);
 
     // Settles a status entry: confirmed, failed on chain, or still pending (null).
+    // Either outcome counts only at 'confirmed' or above. A 'processed' entry,
+    // failed or not, may come from a fork that is later abandoned, while the same
+    // signed bytes still execute on another fork: an error there is not final,
+    // and re-signing on it could execute the operation twice.
     const settle = (entry: { err: unknown; confirmationStatus: string | null } | null) => {
-        if (entry?.err)
+        if (entry?.confirmationStatus !== 'confirmed' && entry?.confirmationStatus !== 'finalized') return null;
+        if (entry.err)
             throw new TransactionFailedError(`Transaction ${signature} failed: ${describeTxError(entry.err)}`);
-        if (entry?.confirmationStatus === 'confirmed' || entry?.confirmationStatus === 'finalized')
-            return 'confirmed' as const;
-        return null;
+        return 'confirmed' as const;
     };
 
     const deadline = Date.now() + SETTLE_TIMEOUT_MS;
@@ -309,7 +321,14 @@ async function waitForOutcome(rpc: Rpc<SolanaRpcApi>, tx: InFlightTransaction): 
                 const { value: history } = await withBackoff('getSignatureStatuses', () =>
                     rpc.getSignatureStatuses([signature], { searchTransactionHistory: true }).send(),
                 );
-                if (!history[0]) return 'expired';
+                if (!history[0]) {
+                    if (height <= lastValidBlockHeight + STATUS_WINDOW) return 'expired';
+                    // Too late to tell: the RPC may simply have forgotten it.
+                    throw new Error(
+                        `its blockhash expired ${height - lastValidBlockHeight} blocks ago, too long for this RPC to prove it never landed. ` +
+                            'Look it up on an explorer: if it is not there, use Start over; if it is, this step already ran',
+                    );
+                }
                 if (settle(history[0])) return 'confirmed';
             } else if (Date.now() - lastBroadcast >= 2_000) {
                 // Same bytes, same signature: a rebroadcast can land at most once.

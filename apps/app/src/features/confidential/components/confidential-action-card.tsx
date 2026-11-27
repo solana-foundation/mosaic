@@ -226,6 +226,17 @@ export function ConfidentialActionCard({
                                 ? `Transaction ${signatures.length + 1} of ${partial.total} was sent, but whether it landed is unknown. Resume checks it before sending anything new; Start over could send it twice.`
                                 : `Stopped after ${signatures.length} of ${partial.total} transactions. The confirmed ones below are on chain; resume to send the remaining ${partial.total - signatures.length}, including the cleanup that reclaims proof account rent.`}
                         </p>
+                        {partial.unsettled && (
+                            <a
+                                href={buildExplorerUrl(partial.unsettled, signaturesCluster)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-1 text-xs font-mono text-muted-foreground hover:text-primary"
+                            >
+                                {partial.unsettled.slice(0, 8)}…{partial.unsettled.slice(-8)}
+                                <ExternalLink className="h-3 w-3" />
+                            </a>
+                        )}
                         <div className="flex gap-2">
                             <Button
                                 onClick={handleResume}
