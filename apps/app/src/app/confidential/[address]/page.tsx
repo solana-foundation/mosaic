@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ChevronLeft, Lock } from 'lucide-react';
-import type { Address } from '@solana/kit';
+import { type Address, isAddress } from '@solana/kit';
 import { useConnector } from '@solana/connector/react';
 import { Button } from '@/components/ui/button';
 import { useTokenStore } from '@/stores/token-store';
@@ -16,6 +16,21 @@ export default function ConfidentialPage() {
     const { connected, selectedAccount } = useConnector();
     const params = useParams();
     const address = params.address as string;
+
+    // The mint comes straight from the URL; every step derives accounts from
+    // it, and a malformed one would only fail deep inside those derivations.
+    if (!isAddress(address)) {
+        return (
+            <div className="flex-1 flex flex-col items-center justify-center p-8">
+                <div className="text-center">
+                    <h2 className="text-3xl font-bold mb-4">Invalid Token Address</h2>
+                    <p className="mb-6">
+                        <span className="font-mono break-all">{address}</span> is not a valid Solana address.
+                    </p>
+                </div>
+            </div>
+        );
+    }
 
     if (!connected || !selectedAccount) {
         return (

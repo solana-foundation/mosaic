@@ -25,6 +25,7 @@ import {
 import { useConnectorSigner } from '@/features/wallet/hooks/use-connector-signer';
 import { useTokenBalance } from '@/hooks/use-token-balance';
 import { getClusterName } from '@/lib/solana/explorer';
+import { humanizeError } from '@/lib/errors';
 import { useConfidentialKeys } from '../hooks/use-confidential-keys';
 import { useConfidentialAccount } from '../hooks/use-confidential-account';
 import { useConfidentialTxVersion } from '../hooks/use-confidential-tx-version';
@@ -97,16 +98,22 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
 
     // Resolve the owner's associated token account (the confidential account).
     const [tokenAccount, setTokenAccount] = useState<Address | undefined>();
+    const [tokenAccountError, setTokenAccountError] = useState<string | undefined>();
     useEffect(() => {
         // Cleared on every change, not only on disconnect: until the new
         // owner's account resolves, the steps must not pair the new signer with
         // the previous owner's account. Every step is gated on it.
         setTokenAccount(undefined);
+        setTokenAccountError(undefined);
         if (!owner) return;
         let active = true;
-        resolveAta(owner, mint).then(ata => {
-            if (active) setTokenAccount(ata);
-        });
+        resolveAta(owner, mint)
+            .then(ata => {
+                if (active) setTokenAccount(ata);
+            })
+            .catch(err => {
+                if (active) setTokenAccountError(`Could not derive your token account: ${humanizeError(err)}`);
+            });
         return () => {
             active = false;
         };
@@ -214,13 +221,21 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
 
     const authority = signer as unknown as TransactionSigner;
 
+    // Shown while the token account is unknown: still resolving, or failed to.
+    const resolvingReason = tokenAccountError ?? 'Resolving your token account…';
+
+    // The ConfidentialTransferMint extension cannot be added after the mint is
+    // created, so on a mint without it configuring would only pay fees and rent
+    // for a transaction that fails on chain.
     const configurePrereq = !tokenAccount
-        ? 'Resolving your token account…'
-        : isConfigured
-          ? 'This account is already configured for confidential transfers.'
-          : undefined;
+        ? resolvingReason
+        : mintConfig === null
+          ? 'This mint does not support confidential transfers.'
+          : isConfigured
+            ? 'This account is already configured for confidential transfers.'
+            : undefined;
     const needsConfigured = !tokenAccount
-        ? 'Resolving your token account…'
+        ? resolvingReason
         : !isConfigured
           ? 'Configure the account first (step 1).'
           : undefined;
@@ -229,7 +244,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
     // owner's account, so the connected wallet's own configure/approve state
     // says nothing about whether this step should run.
     const approvePrereq = !tokenAccount
-        ? 'Resolving your token account…'
+        ? resolvingReason
         : mintConfig === null
           ? 'This mint does not support confidential transfers.'
           : mintConfig?.autoApproveNewAccounts
