@@ -17,7 +17,10 @@ interface ConfidentialBalancePanelProps {
     canReveal: boolean;
     onReveal: () => void;
     onRefresh: () => void;
-    decimals: number;
+    /** Undefined until the mint is read; decrypted amounts stay hidden until then. */
+    decimals: number | undefined;
+    /** Why the decimals could not be read, if they could not. */
+    decimalsError?: string;
     symbol?: string;
     /** Formatted plaintext (non-confidential) SPL balance. */
     plaintextBalance: string | null;
@@ -42,6 +45,7 @@ export function ConfidentialBalancePanel({
     onReveal,
     onRefresh,
     decimals,
+    decimalsError,
     symbol,
     plaintextBalance,
     plaintextLoading,
@@ -56,6 +60,12 @@ export function ConfidentialBalancePanel({
     const renderConfidentialAmount = (amount: bigint | undefined) => {
         if (!isConfigured) return <span className="text-muted-foreground">—</span>;
         if (!isRevealed || amount === undefined) return <span className="font-mono text-muted-foreground">•••••</span>;
+        if (decimals === undefined)
+            return (
+                <span className="font-mono text-muted-foreground" title={decimalsError ?? 'Reading mint decimals…'}>
+                    {decimalsError ? '?' : '…'}
+                </span>
+            );
         return (
             <span className="font-mono font-semibold">
                 {formatRawAmount(amount, decimals)}
@@ -65,8 +75,8 @@ export function ConfidentialBalancePanel({
     };
 
     return (
-        <Card className="rounded-2xl">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+        <Card className="rounded-2xl py-5 gap-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 px-5">
                 <CardTitle className="text-base">Balances</CardTitle>
                 <div className="flex items-center gap-2">
                     <Button
@@ -93,7 +103,7 @@ export function ConfidentialBalancePanel({
                     )}
                 </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 px-5">
                 {/* Configuration status */}
                 <div className="flex items-center gap-2">
                     {isConfigured ? (
@@ -132,7 +142,7 @@ export function ConfidentialBalancePanel({
 
                 {/* Pending-credit counter */}
                 {isConfigured && state && (
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center justify-between pt-1 text-sm">
                         <span className="text-muted-foreground">Pending credit counter</span>
                         <span className={`font-mono ${counterAtMax ? 'text-destructive font-semibold' : ''}`}>
                             {state.pendingBalanceCreditCounter.toString()} /{' '}
@@ -152,6 +162,7 @@ export function ConfidentialBalancePanel({
                 )}
 
                 {error && <p className="text-sm text-destructive">{error}</p>}
+                {decimalsError && isRevealed && <p className="text-sm text-destructive">{decimalsError}</p>}
             </CardContent>
         </Card>
     );

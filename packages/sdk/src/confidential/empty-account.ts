@@ -1,16 +1,16 @@
 import {
     type Address,
-    type GetMinimumBalanceForRentExemptionApi,
     type InstructionPlan,
     type Rpc,
     type SolanaRpcApi,
     type TransactionSigner,
+    nonDivisibleSequentialInstructionPlan,
 } from '@solana/kit';
 import { fetchToken } from '@solana-program/token-2022';
 import { getEmptyConfidentialTransferAccountInstructionPlan } from '@solana-program/token-2022/confidential';
+import { toSigner } from '../signers.js';
 import { isConfidentialTransferAccount } from './extensions.js';
 import { assertConfidentialKeysMatchTokenAccount, type ConfidentialKeys } from './keys.js';
-import { toAuthoritySigner } from './util.js';
 
 /**
  * Empties a confidential token account's **available** balance so it can be
@@ -19,8 +19,12 @@ import { toAuthoritySigner } from './util.js';
  *
  * Wraps the official `getEmptyConfidentialTransferAccountInstructionPlan`, which
  * generates the zero-ciphertext proof and wires it through a context-state
- * account, so the returned plan may span multiple transactions (proof setup →
- * empty → cleanup).
+ * account. The whole plan (create the context account, verify, empty, close it)
+ * packs into a single transaction, so it lands or fails atomically. Upstream
+ * returns a divisible plan, so it is wrapped as non-divisible here: composed
+ * after another plan, the planner could otherwise put the proof setup into the
+ * previous transaction's spare room and strand the context account's rent if
+ * the empty transaction then fails.
  *
  * Reads and decodes the token account, and adds the Mosaic value-adds: an
  * account-configured fail-fast and a keys-match-account assertion, so a wrong
@@ -30,7 +34,7 @@ import { toAuthoritySigner } from './util.js';
  * the proof fails on-chain.
  */
 export async function createEmptyConfidentialAccountInstructionPlan(input: {
-    rpc: Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
+    rpc: Rpc<SolanaRpcApi>;
     /** Pays for the context-state account rent. */
     payer: TransactionSigner;
     /** The confidential token account (ATA) to empty. */
@@ -49,17 +53,17 @@ export async function createEmptyConfidentialAccountInstructionPlan(input: {
                 `createConfigureConfidentialAccountInstructionPlan.`,
         );
     }
-    // The plan funds a rent-paying context-state account in a setup transaction
-    // before the empty itself reaches the chain, so catching a key mismatch here
-    // avoids failing the empty *and* skipping the cleanup that reclaims that rent.
+    // A key mismatch would only fail on-chain as an opaque proof rejection;
+    // catching it here names the actual cause.
     assertConfidentialKeysMatchTokenAccount(input.keys, decoded, `token account ${input.tokenAccount}`);
 
-    return getEmptyConfidentialTransferAccountInstructionPlan({
+    const plan = await getEmptyConfidentialTransferAccountInstructionPlan({
         rpc: input.rpc,
         payer: input.payer,
         token: input.tokenAccount,
         tokenAccount: decoded.data,
-        authority: toAuthoritySigner(input.authority),
+        authority: toSigner(input.authority),
         elgamalKeypair: input.keys.elgamal,
     });
+    return nonDivisibleSequentialInstructionPlan([plan]);
 }

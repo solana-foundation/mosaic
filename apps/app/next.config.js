@@ -17,7 +17,16 @@ const nextConfig = {
     // Turbopack-unsupported list), so `next dev --turbopack` fails to resolve
     // the SDK source at all. Keeping both compilations on the same bundler
     // also stops dev and prod from drifting apart the way they did in HOO-628.
-    webpack: (config, { isServer }) => {
+    webpack: (config, { isServer, webpack }) => {
+        // `@solana/connector` (≥ 0.3.0) lazily imports its optional
+        // `@walletconnect/universal-provider` peer inside a try/catch, only when
+        // WalletConnect is enabled — which this app does not do. Ignoring the
+        // request silences webpack's "Module not found" for the missing peer
+        // while keeping the import a runtime miss, so the connector's own
+        // "WalletConnect is enabled but … not installed" error still applies
+        // should WalletConnect ever be switched on without installing it.
+        config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^@walletconnect\/universal-provider$/ }));
+
         // The SDK is consumed from source (transpilePackages + the tsconfig
         // paths alias) but its relative imports carry explicit `.js`
         // extensions for Node ESM; map them back onto the `.ts` sources.

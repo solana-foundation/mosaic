@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Address, Rpc, SolanaRpcApi } from '@solana/kit';
-import type { ConfidentialAccountState } from '@solana/mosaic-sdk/confidential';
+import type { ConfidentialAccountState, ConfidentialKeys } from '@solana/mosaic-sdk/confidential';
 import { humanizeError } from '@/lib/errors';
 import { useConfidentialKeys } from './use-confidential-keys';
 
@@ -37,7 +37,7 @@ export function useConfidentialAccount(input: {
     rpc: Rpc<SolanaRpcApi> | null;
 }): UseConfidentialAccountResult {
     const { tokenAccount, rpc } = input;
-    const { getKeys, canDerive } = useConfidentialKeys();
+    const { withKeys, canDerive } = useConfidentialKeys();
 
     const [state, setState] = useState<ConfidentialAccountState | null>(null);
     const [isConfigured, setIsConfigured] = useState(false);
@@ -45,37 +45,61 @@ export function useConfidentialAccount(input: {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Id of the latest load. Only that load may write state: an earlier one (a
+    // slow reveal still waiting on its wallet prompt, say) can resolve after the
+    // account or RPC changed, and would show the old account's balances.
+    const latestLoadRef = useRef(0);
+
+    // The account and RPC currently selected. A `refresh` closure from an
+    // earlier render (held by an operation that finishes after the selection
+    // changed) still loads the old pair, and bumping the id above would let it
+    // supersede the current load and show the old account's balances. Such a
+    // load is dropped before it starts.
+    const selectionRef = useRef({ rpc, tokenAccount });
+
     const load = useCallback(
         async (withReveal: boolean) => {
             if (!rpc || !tokenAccount) return;
+            const selected = selectionRef.current;
+            if (selected.rpc !== rpc || selected.tokenAccount !== tokenAccount) return;
+            const id = ++latestLoadRef.current;
+            const isLatest = () => id === latestLoadRef.current;
             setIsLoading(true);
             setError(null);
             try {
                 const { fetchConfidentialAccountState } = await import('@solana/mosaic-sdk/confidential');
-                const keys = withReveal ? await getKeys() : undefined;
-                const next = await fetchConfidentialAccountState(
-                    rpc,
-                    tokenAccount,
-                    keys ? { keys, decryptPendingBalance: true } : {},
-                );
+                const fetchState = (keys?: ConfidentialKeys) =>
+                    fetchConfidentialAccountState(rpc, tokenAccount, keys ? { keys, decryptPendingBalance: true } : {});
+                // Decryption runs inside the key lease, so a wallet switch
+                // cannot free the keys mid-decrypt.
+                const next = withReveal ? await withKeys(fetchState) : await fetchState();
+                if (!isLatest()) return;
                 setState(next);
                 setIsConfigured(next !== null);
                 if (withReveal) setIsRevealed(true);
             } catch (err) {
-                setError(humanizeError(err));
+                if (isLatest()) setError(humanizeError(err));
             } finally {
-                setIsLoading(false);
+                if (isLatest()) setIsLoading(false);
             }
         },
-        [rpc, tokenAccount, getKeys],
+        [rpc, tokenAccount, withKeys],
     );
 
     const refresh = useCallback(() => void load(isRevealed), [load, isRevealed]);
     const reveal = useCallback(() => void load(true), [load]);
 
-    // Initial, prompt-free load whenever the account or RPC changes.
+    // Initial, prompt-free load whenever the account or RPC changes. The previous
+    // selection's state is cleared first, and any load still in flight for it is
+    // superseded, so nothing of the old account stays on screen.
     useEffect(() => {
+        selectionRef.current = { rpc, tokenAccount };
+        latestLoadRef.current++;
+        setState(null);
+        setIsConfigured(false);
         setIsRevealed(false);
+        setIsLoading(false);
+        setError(null);
         void load(false);
     }, [tokenAccount, rpc, load]);
 

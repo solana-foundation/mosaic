@@ -57,28 +57,39 @@ function meetsMinimumVersion(solanaCore: string): boolean {
 }
 
 /**
- * Cached per endpoint URL. The probe is one `getVersion` call and the answer
- * cannot change under a running node, so every caller — the wizard and the
- * notice both ask — shares one in-flight request.
+ * Cached per endpoint URL. The probe is one `getVersion` call and a version the
+ * node did report cannot change under it, so every caller — the wizard and the
+ * notice both ask — shares one in-flight request. A probe that got no version
+ * (a 429, a network error, a malformed reply) is dropped from the cache once it
+ * settles, so the next caller asks again instead of keeping "no" for the life of
+ * the page.
  */
 const rpcProbes = new Map<string, Promise<boolean>>();
+
+/** The node's `solana-core` version, or undefined when it could not be read. */
+async function readAgaveVersion(url: string): Promise<string | undefined> {
+    try {
+        const rpc = createSolanaRpc(url) as Rpc<GetVersionApi>;
+        const version = await rpc.getVersion().send();
+        const solanaCore: unknown = version?.['solana-core'];
+        return typeof solanaCore === 'string' ? solanaCore : undefined;
+    } catch {
+        return undefined;
+    }
+}
 
 /** Whether the RPC at `url` runs a release that accepts version-1 transactions. */
 export function rpcSupportsTransactionV1(url: string): Promise<boolean> {
     const cached = rpcProbes.get(url);
     if (cached) return cached;
 
-    const probe = (async () => {
-        try {
-            const rpc = createSolanaRpc(url) as Rpc<GetVersionApi>;
-            const version = await rpc.getVersion().send();
-            return meetsMinimumVersion(version['solana-core']);
-        } catch {
-            // An unreachable or non-conforming endpoint tells us nothing, and
-            // version 0 is the safe answer to "we don't know".
-            return false;
-        }
-    })();
+    const probe = readAgaveVersion(url).then(solanaCore => {
+        if (solanaCore !== undefined) return meetsMinimumVersion(solanaCore);
+        // An unreachable or non-conforming endpoint tells us nothing, and
+        // version 0 is the safe answer to "we don't know" — for now.
+        if (rpcProbes.get(url) === probe) rpcProbes.delete(url);
+        return false;
+    });
 
     rpcProbes.set(url, probe);
     return probe;

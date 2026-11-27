@@ -23,6 +23,7 @@ import {
     getUpdateMultiplierScaledUiMintInstruction,
 } from '@solana-program/token-2022';
 import { createUpdateFieldInstruction } from './create-update-field-instruction.js';
+import { addressOf, getSharedFeePayerSigner } from '../signers.js';
 
 // Anything larger is almost certainly a millisecond timestamp (10^10 s is the year 2286).
 const MAX_UNIX_SECONDS_TIMESTAMP = 10_000_000_000n;
@@ -59,6 +60,45 @@ export interface ConfidentialBalancesOptions {
  * input, which defaults to the mint authority), so it is not part of this config.
  */
 export type ConfidentialBalancesConfig = Omit<ConfidentialBalancesOptions, 'authority'>;
+
+/**
+ * Rejects extension sets that Token-2022 refuses at `InitializeMint` with
+ * `InvalidExtensionCombination`, so the caller gets a named error at build time
+ * instead of a failed transaction. Mirrors every rule in upstream
+ * `ExtensionType::check_for_invalid_mint_extension_combinations`.
+ */
+function assertValidExtensionCombination(extensions: Extension[]): void {
+    const has = (kind: Extension['__kind']) => extensions.some(ext => ext.__kind === kind);
+    if (has('ConfidentialTransferFee') && !(has('TransferFeeConfig') && has('ConfidentialTransferMint'))) {
+        throw new Error(
+            'The confidential transfer fee extension needs both the transfer fee and confidential balances ' +
+                'extensions; Token-2022 rejects the mint without them.',
+        );
+    }
+    if (has('TransferFeeConfig') && has('ConfidentialTransferMint') && !has('ConfidentialTransferFee')) {
+        throw new Error(
+            'A mint with both a transfer fee and confidential balances also needs the confidential transfer fee ' +
+                'extension (withConfidentialTransferFee, or enableConfidentialTransferFee on the custom token ' +
+                'template); Token-2022 rejects the mint without it.',
+        );
+    }
+    if (has('ConfidentialMintBurn') && !has('ConfidentialTransferMint')) {
+        throw new Error(
+            'The confidential mint and burn extension needs confidential balances; Token-2022 rejects the mint without it.',
+        );
+    }
+    if (has('ScaledUiAmountConfig') && has('InterestBearingConfig')) {
+        throw new Error(
+            'The scaled UI amount and interest-bearing extensions cannot be combined; Token-2022 rejects a mint with both.',
+        );
+    }
+    if (has('NonTransferable') && has('ConfidentialTransferMint') && !has('ConfidentialMintBurn')) {
+        throw new Error(
+            'A non-transferable mint with confidential balances also needs the confidential mint and burn extension; ' +
+                'Token-2022 rejects the mint without it.',
+        );
+    }
+}
 
 export class Token {
     private extensions: Extension[] = [];
@@ -344,8 +384,15 @@ export class Token {
             elgamalPubkey: config.withdrawWithheldAuthorityElGamalPubkey,
             harvestToMintEnabled: true,
             withheldAmount: new Uint8Array(64),
-        };
-        this.extensions.push(confidentialTransferFeeExtension as Extension);
+        } as Extension;
+        // A repeat call replaces the config rather than adding a second entry, which would
+        // oversize the mint and emit a second initializer that fails on chain.
+        const existing = this.extensions.findIndex(ext => ext.__kind === 'ConfidentialTransferFee');
+        if (existing === -1) {
+            this.extensions.push(confidentialTransferFeeExtension);
+        } else {
+            this.extensions[existing] = confidentialTransferFeeExtension;
+        }
         return this;
     }
 
@@ -355,7 +402,7 @@ export class Token {
         mintAuthority: mintAuthorityInput,
         freezeAuthority,
         mint,
-        feePayer,
+        feePayer: feePayerInput,
     }: {
         rpc: Rpc<SolanaRpcApiMainnet>;
         decimals: number;
@@ -364,16 +411,19 @@ export class Token {
         mint: TransactionSigner<string>;
         feePayer: TransactionSigner<string>;
     }): Promise<Instruction[]> {
-        // A bare address equal to the fee payer's is the fee payer: use its signer, so the
-        // metadata init can sign with it and the transaction never holds two signer
-        // objects for one address (kit rejects that at signing time).
-        const mintAuthority = mintAuthorityInput === feePayer.address ? feePayer : mintAuthorityInput;
+        assertValidExtensionCombination(this.extensions);
+        // A mint authority with the fee payer's address is the fee payer, whether given as
+        // a bare address or as a different signer object for the same key. Both roles use
+        // one shared signer (the real one when the other is a no-op), so the metadata init
+        // can sign with it and the transaction never holds two signer objects for one
+        // address. A distinct bare address stays an address, so the TokenMetadata guard
+        // below still rejects it.
+        const shared =
+            mintAuthorityInput === undefined ? undefined : getSharedFeePayerSigner(feePayerInput, mintAuthorityInput);
+        const feePayer = shared ?? feePayerInput;
+        const mintAuthority = shared ?? mintAuthorityInput;
         // Get instructions for creating and initializing the mint account
-        const mintAuthorityAddress = mintAuthority
-            ? typeof mintAuthority === 'string'
-                ? mintAuthority
-                : mintAuthority.address
-            : feePayer.address;
+        const mintAuthorityAddress = mintAuthority ? addressOf(mintAuthority) : feePayer.address;
         const [createMintAccountInstruction, initMintInstruction] = await getCreateMintInstructions({
             rpc: rpc,
             decimals,

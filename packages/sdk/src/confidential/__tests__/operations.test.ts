@@ -6,11 +6,19 @@ import type {
     TransactionMessageWithFeePayer,
 } from '@solana/kit';
 import {
+    appendTransactionMessageInstruction,
     blockhash,
+    createTransactionMessage,
     flattenTransactionPlan,
     generateKeyPairSigner,
     getAddressEncoder,
+    getLinearMessagePackerInstructionPlan,
+    getTransactionMessageComputeUnitLimit,
+    getTransactionMessageSize,
+    getTransactionMessageSizeLimit,
     parallelInstructionPlan,
+    pipe,
+    setTransactionMessageFeePayerSigner,
     setTransactionMessageLifetimeUsingBlockhash,
 } from '@solana/kit';
 import { createMockRpc, createMockSigner, seedMintDetails, MOCK_EPOCH } from '../../__tests__/test-utils.js';
@@ -24,7 +32,8 @@ const mockConfigurePlan = { kind: 'configurePlan' } as const;
 const mockWithdrawPlan = { kind: 'withdrawPlan' } as const;
 const mockTransferPlan = { kind: 'transferPlan' } as const;
 const mockApplyIx = { tag: 'applyIx' } as const;
-const mockEmptyPlan = { kind: 'emptyPlan' } as const;
+// Shaped like a real (divisible) instruction plan, so wrapping it is observable.
+const mockEmptyPlan = { kind: 'sequential', divisible: true, planType: 'instructionPlan', plans: [] } as const;
 // Record-backed variants stage the batched range proof in an SPL Record account
 // rather than inline; distinct identities so dispatch can be asserted.
 const mockWithdrawWithRecordPlan = { kind: 'withdrawWithRecordPlan' } as const;
@@ -32,12 +41,23 @@ const mockTransferWithRecordPlan = { kind: 'transferWithRecordPlan' } as const;
 // The fee-aware transfer has no separate `…WithRecord` twin upstream — it takes
 // the record fields inline — so one identity covers both dispatch paths.
 const mockTransferWithFeePlan = { kind: 'transferWithFeePlan' } as const;
+
+const MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Address;
+const SOURCE_TOKEN = 'sAPDrViGV3C6PaT4xD7uRDDvB4xCURfZzDkGEd8Yv4v' as Address;
+const DEST_TOKEN = 'HA3KcFsXNjRJsRZq1P1Y8qPAeSZnZsFyauCDEsSSGqTj' as Address;
+const AUTHORITY = 'FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT' as Address;
+const AUDITOR = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' as Address;
+const OTHER_MINT = '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo' as Address;
+const DEST_OWNER = '9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM' as Address;
+
 // Matches `fakeKeys.elgamal.pubkey()` below, so builders' new
 // `assertConfidentialKeysMatchAccount` check passes for the source account.
 const SOURCE_ELGAMAL_PUBKEY = 'DsT1111111111111111111111111111111111111111' as Address;
 const mockSourceToken = {
     data: {
         kind: 'sourceTokenData',
+        mint: MINT,
+        owner: AUTHORITY,
         extensions: {
             __option: 'Some',
             value: [{ __kind: 'ConfidentialTransferAccount', elgamalPubkey: SOURCE_ELGAMAL_PUBKEY }],
@@ -47,6 +67,8 @@ const mockSourceToken = {
 const mockDestToken = {
     data: {
         kind: 'destTokenData',
+        mint: MINT,
+        owner: DEST_OWNER,
         // Destination must carry the ConfidentialTransferAccount extension or the
         // transfer builder fails fast.
         extensions: { __option: 'Some', value: [{ __kind: 'ConfidentialTransferAccount' }] },
@@ -94,6 +116,7 @@ import {
     createApproveConfidentialAccountInstructionPlan,
     createConfidentialDepositInstructionPlan,
     createConfidentialTransferInstructionPlan,
+    FEE_SCHEDULE_CHANGE_GUARD_SLOTS,
     createConfidentialWithdrawInstructionPlan,
     createConfigureConfidentialAccountInstructionPlan,
     createEmptyConfidentialAccountInstructionPlan,
@@ -105,12 +128,6 @@ import {
     estimateAndSetConfidentialResourceLimits,
     planConfidentialInstructions,
 } from '../index.js';
-
-const MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v' as Address;
-const SOURCE_TOKEN = 'sAPDrViGV3C6PaT4xD7uRDDvB4xCURfZzDkGEd8Yv4v' as Address;
-const DEST_TOKEN = 'HA3KcFsXNjRJsRZq1P1Y8qPAeSZnZsFyauCDEsSSGqTj' as Address;
-const AUTHORITY = 'FA4EafWTpd3WEpB5hzsMjPwWnFBzjN25nKHsStgxBpiT' as Address;
-const AUDITOR = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' as Address;
 
 // A structural stand-in for ConfidentialKeys (the helpers are mocked, so the
 // real WASM objects are never used — apply just needs `elgamal.secret()`).
@@ -354,6 +371,58 @@ describe('confidential operation builders', () => {
                 }),
             );
         });
+
+        // The upstream plan pays rent for proof accounts before the withdraw
+        // instruction runs, so an account the program would reject must be caught
+        // before the plan is built, not after its first transactions land.
+        const withdrawArgs = {
+            mint: MINT,
+            tokenAccount: SOURCE_TOKEN,
+            authority: AUTHORITY,
+            amount: '2',
+        };
+
+        it('rejects a token account of a different mint before planning', async () => {
+            mockTokenByAddr[SOURCE_TOKEN] = { data: { ...mockSourceToken.data, mint: OTHER_MINT } };
+            await expect(
+                createConfidentialWithdrawInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...withdrawArgs,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(
+                `The token account ${SOURCE_TOKEN} holds mint ${OTHER_MINT}, not the requested mint ${MINT}.`,
+            );
+            expect(getConfidentialWithdrawInstructionPlan).not.toHaveBeenCalled();
+            expect(getConfidentialWithdrawWithRecordInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('rejects an authority that does not own the token account before planning', async () => {
+            await expect(
+                createConfidentialWithdrawInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...withdrawArgs,
+                    authority: DEST_OWNER,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(
+                `The token account ${SOURCE_TOKEN} is owned by ${AUTHORITY}, not the authority ${DEST_OWNER}.`,
+            );
+            expect(getConfidentialWithdrawInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('accepts the owner given as a signer', async () => {
+            const plan = await createConfidentialWithdrawInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                ...withdrawArgs,
+                authority: createMockSigner(AUTHORITY),
+                keys: fakeKeys,
+            });
+            expect(plan).toBe(mockWithdrawPlan);
+        });
     });
 
     describe('transfer', () => {
@@ -442,9 +511,9 @@ describe('confidential operation builders', () => {
             ).rejects.toThrow(/not configured for confidential transfers/);
             expect(getConfidentialTransferInstructionPlan).not.toHaveBeenCalled();
         });
-    });
 
-    describe('transfer on a ConfidentialTransferFee mint', () => {
+        // As with withdraw, the plan's first transactions pay proof-account rent
+        // that a later on-chain rejection would strand, so these fail at planning.
         const transferArgs = {
             mint: MINT,
             sourceToken: SOURCE_TOKEN,
@@ -453,16 +522,126 @@ describe('confidential operation builders', () => {
             amount: '3',
         };
 
-        /** A mint carrying both halves the fee-aware transfer needs. */
-        function seedFeeMint() {
+        it('rejects a source account of a different mint before planning', async () => {
+            mockTokenByAddr[SOURCE_TOKEN] = { data: { ...mockSourceToken.data, mint: OTHER_MINT } };
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(
+                `The source token account ${SOURCE_TOKEN} holds mint ${OTHER_MINT}, not the requested mint ${MINT}.`,
+            );
+            expect(getConfidentialTransferInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('rejects a destination account of a different mint before planning', async () => {
+            mockTokenByAddr[DEST_TOKEN] = { data: { ...mockDestToken.data, mint: OTHER_MINT } };
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(
+                `The destination token account ${DEST_TOKEN} holds mint ${OTHER_MINT}, not the requested mint ${MINT}.`,
+            );
+            expect(getConfidentialTransferInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('rejects an authority that does not own the source account before planning', async () => {
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    authority: DEST_OWNER,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(
+                `The source token account ${SOURCE_TOKEN} is owned by ${AUTHORITY}, not the authority ${DEST_OWNER}.`,
+            );
+            expect(getConfidentialTransferInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('rejects a mismatched account on a fee-bearing mint before the fee-aware helper', async () => {
             mockMintExtensions = {
                 __option: 'Some',
                 value: [
                     { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
-                    { __kind: 'TransferFeeConfig' },
+                    {
+                        __kind: 'TransferFeeConfig',
+                        olderTransferFee: { epoch: 0n, transferFeeBasisPoints: 50, maximumFee: 1_000n },
+                        newerTransferFee: { epoch: 0n, transferFeeBasisPoints: 50, maximumFee: 1_000n },
+                    },
                     { __kind: 'ConfidentialTransferFee' },
                 ],
             };
+            mockTokenByAddr[DEST_TOKEN] = { data: { ...mockDestToken.data, mint: OTHER_MINT } };
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    currentEpoch: MOCK_EPOCH,
+                    keys: fakeKeys,
+                }),
+            ).rejects.toThrow(/holds mint/);
+            expect(getConfidentialTransferWithFeeInstructionPlan).not.toHaveBeenCalled();
+        });
+
+        it('does not require the authority to own the destination account', async () => {
+            // The default destination is owned by DEST_OWNER, not the authority.
+            const plan = await createConfidentialTransferInstructionPlan({
+                rpc: rpc as never,
+                payer,
+                ...transferArgs,
+                authority: createMockSigner(AUTHORITY),
+                keys: fakeKeys,
+            });
+            expect(plan).toBe(mockTransferPlan);
+        });
+    });
+
+    describe('transfer on a fee-bearing mint', () => {
+        const transferArgs = {
+            mint: MINT,
+            sourceToken: SOURCE_TOKEN,
+            destinationToken: DEST_TOKEN,
+            authority: AUTHORITY,
+            amount: '3',
+        };
+
+        const fee = (epoch: bigint, transferFeeBasisPoints: number) => ({
+            epoch,
+            transferFeeBasisPoints,
+            maximumFee: 1_000n,
+        });
+
+        /**
+         * A confidential mint with a fee config, which Token-2022 only allows together
+         * with `ConfidentialTransferFee`. By default the newer schedule is already in force.
+         */
+        function seedFeeMint(newerTransferFee = fee(0n, 50)) {
+            mockMintExtensions = {
+                __option: 'Some',
+                value: [
+                    { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
+                    { __kind: 'TransferFeeConfig', olderTransferFee: fee(0n, 50), newerTransferFee },
+                    { __kind: 'ConfidentialTransferFee' },
+                ],
+            };
+        }
+
+        /** Makes the mock RPC report `slotsLeft` slots remaining in {@link MOCK_EPOCH}. */
+        function seedSlotsLeftInEpoch(slotsLeft: bigint) {
+            jest.spyOn(rpc as unknown as { getEpochInfo: () => unknown }, 'getEpochInfo').mockReturnValue({
+                send: () =>
+                    Promise.resolve({ epoch: MOCK_EPOCH, slotIndex: 432_000n - slotsLeft, slotsInEpoch: 432_000n }),
+            });
         }
 
         it('routes to the fee-aware helper instead of the standard one', async () => {
@@ -492,7 +671,7 @@ describe('confidential operation builders', () => {
             );
         });
 
-        it('never reads the epoch for a mint without ConfidentialTransferFee', async () => {
+        it('never reads the epoch for a mint without TransferFeeConfig', async () => {
             const getEpochInfo = jest.spyOn(rpc as unknown as { getEpochInfo: () => unknown }, 'getEpochInfo');
             await createConfidentialTransferInstructionPlan({
                 rpc: rpc as never,
@@ -537,7 +716,7 @@ describe('confidential operation builders', () => {
                 payer,
                 ...transferArgs,
                 keys: fakeKeys,
-                recordBackedProof: { authority: recordAuthority },
+                recordBackedProof: { recordAuthority },
             });
             expect(plan).toBe(mockTransferWithFeePlan);
             expect(getConfidentialTransferWithRecordInstructionPlan).not.toHaveBeenCalled();
@@ -546,14 +725,9 @@ describe('confidential operation builders', () => {
             );
         });
 
-        it('fails fast when ConfidentialTransferFee is present without TransferFeeConfig', async () => {
-            mockMintExtensions = {
-                __option: 'Some',
-                value: [
-                    { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
-                    { __kind: 'ConfidentialTransferFee' },
-                ],
-            };
+        it('refuses to plan right before an epoch boundary where the fee changes', async () => {
+            seedFeeMint(fee(MOCK_EPOCH + 1n, 75));
+            seedSlotsLeftInEpoch(FEE_SCHEDULE_CHANGE_GUARD_SLOTS);
             await expect(
                 createConfidentialTransferInstructionPlan({
                     rpc: rpc as never,
@@ -561,28 +735,34 @@ describe('confidential operation builders', () => {
                     ...transferArgs,
                     keys: fakeKeys,
                 }),
-            ).rejects.toThrow(/without TransferFeeConfig/);
+            ).rejects.toThrow(/transfer fee changes at epoch 43/);
             expect(getConfidentialTransferWithFeeInstructionPlan).not.toHaveBeenCalled();
         });
 
-        it('leaves a plain TransferFeeConfig mint on the standard no-fee path', async () => {
-            // TransferFeeConfig alone is a plaintext transfer fee; only the
-            // confidential half switches the proof set.
-            mockMintExtensions = {
-                __option: 'Some',
-                value: [
-                    { __kind: 'ConfidentialTransferMint', auditorElgamalPubkey: { __option: 'None' } },
-                    { __kind: 'TransferFeeConfig' },
-                ],
-            };
-            const plan = await createConfidentialTransferInstructionPlan({
-                rpc: rpc as never,
-                payer,
-                ...transferArgs,
-                keys: fakeKeys,
-            });
-            expect(plan).toBe(mockTransferPlan);
-            expect(getConfidentialTransferWithFeeInstructionPlan).not.toHaveBeenCalled();
+        it('plans normally when the fee change is further away than the guard', async () => {
+            seedFeeMint(fee(MOCK_EPOCH + 1n, 75));
+            seedSlotsLeftInEpoch(FEE_SCHEDULE_CHANGE_GUARD_SLOTS + 1n);
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    keys: fakeKeys,
+                }),
+            ).resolves.toBe(mockTransferWithFeePlan);
+        });
+
+        it('plans normally at a boundary where the scheduled fee is unchanged', async () => {
+            seedFeeMint(fee(MOCK_EPOCH + 1n, 50));
+            seedSlotsLeftInEpoch(1n);
+            await expect(
+                createConfidentialTransferInstructionPlan({
+                    rpc: rpc as never,
+                    payer,
+                    ...transferArgs,
+                    keys: fakeKeys,
+                }),
+            ).resolves.toBe(mockTransferWithFeePlan);
         });
     });
 
@@ -598,7 +778,14 @@ describe('confidential operation builders', () => {
                 authority: AUTHORITY,
                 keys: fakeKeys,
             });
-            expect(plan).toBe(mockEmptyPlan);
+            // Upstream's plan is divisible; wrapping it keeps the planner from splitting
+            // the proof setup away from the empty instruction when composed after another plan.
+            expect(plan).toEqual({
+                kind: 'sequential',
+                divisible: false,
+                planType: 'instructionPlan',
+                plans: [mockEmptyPlan],
+            });
             expect(getEmptyConfidentialTransferAccountInstructionPlan).toHaveBeenCalledWith(
                 expect.objectContaining({
                     payer,
@@ -678,7 +865,7 @@ describe('confidential operation builders', () => {
                 authority: AUTHORITY,
                 amount: '1',
                 keys: fakeKeys,
-                recordBackedProof: { rentReceiver: AUTHORITY },
+                recordBackedProof: { recordRentReceiver: AUTHORITY },
             });
             expect(withRecord).toBe(mockWithdrawWithRecordPlan);
             expect(getConfidentialWithdrawWithRecordInstructionPlan).toHaveBeenCalledWith(
@@ -751,6 +938,23 @@ describe('confidential operation builders', () => {
             expect(txPlan.message.config).toEqual({ computeUnitLimit: 0, loadedAccountsDataSizeLimit: 0 });
         });
 
+        it('reserves a compute-unit-limit instruction at version 0 when asked', async () => {
+            const feePayer = await generateKeyPairSigner();
+            const owner = await generateKeyPairSigner();
+            const instructionPlan = createEnableConfidentialCreditsInstructionPlan({
+                tokenAccount: SOURCE_TOKEN,
+                authority: owner,
+            });
+            const plain: any = await planConfidentialInstructions({ instructionPlan, feePayer });
+            const reserved: any = await planConfidentialInstructions({
+                instructionPlan,
+                feePayer,
+                reserveComputeUnitLimit: true,
+            });
+            expect(reserved.message.version).toBe(0);
+            expect(reserved.message.instructions).toHaveLength(plain.message.instructions.length + 1);
+        });
+
         it('fits more instructions per transaction at version 1 than at version 0', async () => {
             // Synthetic oversized instructions rather than real confidential ones:
             // the upstream plan helpers are mocked here, and what is under test is
@@ -769,6 +973,29 @@ describe('confidential operation builders', () => {
             expect(flattenTransactionPlan(v0)).toHaveLength(2);
             expect(flattenTransactionPlan(v1)).toHaveLength(1);
         });
+
+        it.each([
+            ['version 1', { version: 1 as const }],
+            ['version 0 with reserveComputeUnitLimit', { reserveComputeUnitLimit: true }],
+        ])('reserves the limits before a message packer fills a fresh message (%s)', async (_name, options) => {
+            // A message packer (e.g. an SPL Record write) fills each new message to
+            // capacity. Limits added after packing would push every one of them over.
+            const feePayer = await generateKeyPairSigner();
+            const program = (await generateKeyPairSigner()).address;
+            const instructionPlan = getLinearMessagePackerInstructionPlan({
+                totalLength: 6000,
+                getInstruction: (_offset, length) => ({ programAddress: program, data: new Uint8Array(length) }),
+            });
+
+            const plan = await createConfidentialTransactionPlanner(feePayer, options)(instructionPlan);
+
+            const messages = flattenTransactionPlan(plan).map(p => p.message);
+            expect(messages.length).toBeGreaterThan(1);
+            for (const message of messages) {
+                expect(getTransactionMessageComputeUnitLimit(message)).toBe(0);
+                expect(getTransactionMessageSize(message)).toBeLessThanOrEqual(getTransactionMessageSizeLimit(message));
+            }
+        });
     });
 
     describe('estimateAndSetConfidentialResourceLimits', () => {
@@ -784,7 +1011,10 @@ describe('confidential operation builders', () => {
             } as unknown as Rpc<SimulateTransactionApi>;
         }
 
-        async function planOne(version: 0 | 1): Promise<TransactionMessage & TransactionMessageWithFeePayer> {
+        async function planOne(
+            version: 0 | 1,
+            reserveComputeUnitLimit = false,
+        ): Promise<TransactionMessage & TransactionMessageWithFeePayer> {
             const feePayer = await generateKeyPairSigner();
             const owner = await generateKeyPairSigner();
             const txPlan: any = await planConfidentialInstructions({
@@ -794,6 +1024,7 @@ describe('confidential operation builders', () => {
                 }),
                 feePayer,
                 version,
+                reserveComputeUnitLimit,
             });
             return txPlan.message;
         }
@@ -809,13 +1040,23 @@ describe('confidential operation builders', () => {
             ).rejects.toThrow(/without a lifetime/);
         });
 
-        it('replaces version-1 provisory limits with the simulated values', async () => {
+        it('replaces version-1 provisory limits with the simulated values plus 10% headroom', async () => {
             const message = setTransactionMessageLifetimeUsingBlockhash(LIFETIME, await planOne(1));
             const updated: any = await estimateAndSetConfidentialResourceLimits({
                 rpc: mockSimulationRpc({ err: null, unitsConsumed: 123_456n, loadedAccountsDataSize: 65_536 }),
                 transactionMessage: message,
             });
-            expect(updated.config).toEqual({ computeUnitLimit: 123_456, loadedAccountsDataSizeLimit: 65_536 });
+            // 123_456 + ceil(12_345.6) and 65_536 + ceil(6_553.6).
+            expect(updated.config).toEqual({ computeUnitLimit: 135_802, loadedAccountsDataSizeLimit: 72_090 });
+        });
+
+        it('caps the headroom at the runtime compute-unit maximum', async () => {
+            const message = setTransactionMessageLifetimeUsingBlockhash(LIFETIME, await planOne(1));
+            const updated: any = await estimateAndSetConfidentialResourceLimits({
+                rpc: mockSimulationRpc({ err: null, unitsConsumed: 1_350_000n, loadedAccountsDataSize: 65_536 }),
+                transactionMessage: message,
+            });
+            expect(updated.config.computeUnitLimit).toBe(1_400_000);
         });
 
         it('throws for version 1 when the RPC omits the loaded-accounts data size', async () => {
@@ -837,9 +1078,44 @@ describe('confidential operation builders', () => {
                 transactionMessage: message,
             });
             expect(updated.config).toBeUndefined();
-            // The added ComputeBudget instruction is what makes `recordBackedProof`
-            // necessary at version 0: it grows an already size-critical message.
+            // Unreserved, the ComputeBudget instruction is added here and grows the message.
             expect(updated.instructions.length).toBe(message.instructions.length + 1);
+        });
+
+        it('only rewrites the instruction the version-0 planner reserved', async () => {
+            const message = setTransactionMessageLifetimeUsingBlockhash(LIFETIME, await planOne(0, true));
+            const updated: any = await estimateAndSetConfidentialResourceLimits({
+                rpc: mockSimulationRpc({ err: null, unitsConsumed: 99_000n }),
+                transactionMessage: message,
+            });
+            expect(updated.instructions.length).toBe(message.instructions.length);
+            expect(getTransactionMessageSize(updated)).toBe(getTransactionMessageSize(message));
+        });
+
+        it('throws a targeted error when the added limit overflows a full version-0 message', async () => {
+            const feePayer = await generateKeyPairSigner();
+            const program = (await generateKeyPairSigner()).address;
+            const withData = (length: number) =>
+                pipe(
+                    createTransactionMessage({ version: 0 }),
+                    m => setTransactionMessageFeePayerSigner(feePayer, m),
+                    m => setTransactionMessageLifetimeUsingBlockhash(LIFETIME, m),
+                    m =>
+                        appendTransactionMessageInstruction(
+                            { programAddress: program, data: new Uint8Array(length) },
+                            m,
+                        ),
+                );
+            // 5 bytes under the limit: fits as planned, but not with a ComputeBudget instruction.
+            const sample = withData(200);
+            const length = getTransactionMessageSizeLimit(sample) - getTransactionMessageSize(sample) + 200 - 5;
+            const rpc = mockSimulationRpc({ err: null, unitsConsumed: 99_000n });
+            await expect(
+                estimateAndSetConfidentialResourceLimits({ rpc, transactionMessage: withData(length) }),
+            ).rejects.toThrow(/reserveComputeUnitLimit/);
+            // Checked before simulating: a real RPC rejects the oversized message
+            // itself, which would surface only as an opaque estimation failure.
+            expect(rpc.simulateTransaction).not.toHaveBeenCalled();
         });
     });
 });

@@ -86,10 +86,14 @@ src/
 
 ### Environment Variables
 
-Both are inlined at build time, so changing either requires a rebuild/redeploy.
+All are inlined at build time, so changing any of them requires a rebuild/redeploy.
 
 - `NEXT_PUBLIC_SOLANA_NETWORK`: The network the app boots into when the user has never picked one. Accepts `devnet`, `testnet`, or `mainnet-beta` (`mainnet` is an alias). Defaults to `devnet`. This sets the **default**, not a hard override: a user's explicit in-app network choice is persisted and wins on their next visit.
-- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom Solana RPC endpoint URL, applied to whichever cluster is selected. If not set, each network uses its public endpoint (devnet: `https://api.devnet.solana.com`). This variable is exposed to the client-side and available in production builds. See `.env.example` for more details.
+- `NEXT_PUBLIC_SOLANA_RPC_URL`: Custom RPC endpoint for **mainnet** only. If not set, mainnet uses `https://api.mainnet-beta.solana.com`.
+- `NEXT_PUBLIC_SOLANA_DEVNET_RPC_URL`: Custom RPC endpoint for **devnet** only. If not set, devnet uses `https://api.devnet.solana.com`, which is rate-limited and may reject browser writes; confidential transfers need a provider endpoint here.
+- `NEXT_PUBLIC_SOLANA_TESTNET_RPC_URL`: Custom RPC endpoint for **testnet** only. If not set, testnet uses `https://api.testnet.solana.com`.
+
+Each RPC variable applies to its own network only, so a mainnet endpoint can never end up behind the Devnet entry, and an overridden network is labelled "(Env RPC)" in the cluster switcher. All of them are exposed to the client and available in production builds. See `.env.example` for more details.
 
 ## Development
 

@@ -25,10 +25,15 @@ import {
 import { useConnectorSigner } from '@/features/wallet/hooks/use-connector-signer';
 import { useTokenBalance } from '@/hooks/use-token-balance';
 import { getClusterName } from '@/lib/solana/explorer';
+import { humanizeError } from '@/lib/errors';
 import { useConfidentialKeys } from '../hooks/use-confidential-keys';
 import { useConfidentialAccount } from '../hooks/use-confidential-account';
 import { useConfidentialTxVersion } from '../hooks/use-confidential-tx-version';
-import { executeConfidentialPlan, type ConfidentialPlanProgress } from '../lib/execute-confidential-plan';
+import {
+    ConfidentialPlanError,
+    executeConfidentialPlan,
+    type ConfidentialPlanProgress,
+} from '../lib/execute-confidential-plan';
 import {
     buildApplyPlan,
     buildApprovePlan,
@@ -43,7 +48,11 @@ import {
     resolveAta,
     type ConfidentialMintConfig,
 } from '../lib/operations';
-import { ConfidentialActionCard, type ConfidentialActionValues } from './confidential-action-card';
+import {
+    ConfidentialActionCard,
+    type ConfidentialActionValues,
+    type ConfidentialRunContext,
+} from './confidential-action-card';
 import { ConfidentialBalancePanel } from './confidential-balance-panel';
 
 type RpcWithRent = Rpc<GetMinimumBalanceForRentExemptionApi & SolanaRpcApi>;
@@ -55,8 +64,9 @@ interface ConfidentialWizardProps {
 
 /**
  * Guided, step-by-step demonstration of the confidential-transfer account
- * lifecycle: configure → approve → deposit → apply → transfer → withdraw →
- * empty, with a live balance panel. Each step builds a confidential
+ * lifecycle, in the eight cards it renders: configure → approve → enable
+ * confidential credits → deposit → apply → transfer → withdraw → empty, with a
+ * live balance panel. Each step builds a confidential
  * `InstructionPlan` and runs it through {@link executeConfidentialPlan}
  * (multi-transaction proof flows show per-tx progress), then refreshes the
  * balances.
@@ -64,13 +74,23 @@ interface ConfidentialWizardProps {
 export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
     const { selectedAccount, cluster } = useConnector();
     const signer = useConnectorSigner();
-    const { getKeys } = useConfidentialKeys();
+    const { withKeys } = useConfidentialKeys();
     // Version 0 unless both the selected RPC and the connected wallet prove they
     // accept SIMD-0385 transactions; see `useConfidentialTxVersion`.
     const { version: txVersion } = useConfidentialTxVersion();
 
     const owner = selectedAccount ? (String(selectedAccount) as Address) : undefined;
     const clusterName = getClusterName(cluster);
+
+    // Ties a plan that stopped part-way to this selection, so the cards resume it
+    // only on the network, wallet and mint it started on.
+    const runContext = useMemo<ConfidentialRunContext | undefined>(() => {
+        if (!cluster?.url || !owner) return undefined;
+        return {
+            key: `${cluster.url}|${owner}|${mint}`,
+            label: `${cluster.label ?? clusterName ?? cluster.url} · ${owner.slice(0, 4)}…${owner.slice(-4)}`,
+        };
+    }, [cluster?.url, cluster?.label, clusterName, owner, mint]);
 
     const rpc = useMemo<RpcWithRent | null>(() => {
         if (!cluster?.url) return null;
@@ -79,31 +99,44 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
 
     // Resolve the owner's associated token account (the confidential account).
     const [tokenAccount, setTokenAccount] = useState<Address | undefined>();
+    const [tokenAccountError, setTokenAccountError] = useState<string | undefined>();
     useEffect(() => {
+        // Cleared on every change, not only on disconnect: until the new
+        // owner's account resolves, the steps must not pair the new signer with
+        // the previous owner's account. Every step is gated on it.
+        setTokenAccount(undefined);
+        setTokenAccountError(undefined);
+        if (!owner) return;
         let active = true;
-        if (!owner) {
-            setTokenAccount(undefined);
-            return;
-        }
-        resolveAta(owner, mint).then(ata => {
-            if (active) setTokenAccount(ata);
-        });
+        resolveAta(owner, mint)
+            .then(ata => {
+                if (active) setTokenAccount(ata);
+            })
+            .catch(err => {
+                if (active) setTokenAccountError(`Could not derive your token account: ${humanizeError(err)}`);
+            });
         return () => {
             active = false;
         };
     }, [owner, mint]);
 
-    // Mint decimals, for formatting decrypted confidential amounts.
-    const [decimals, setDecimals] = useState<number>(0);
+    // Mint decimals, for formatting decrypted confidential amounts. Undefined
+    // until read: guessing 0 would show 1.5 tokens of a 9-decimals mint as
+    // 1500000000, so the panel withholds amounts until this is known. Reset on
+    // every RPC or mint change, so nothing carries over from the previous one.
+    const [decimals, setDecimals] = useState<number | undefined>();
+    const [decimalsError, setDecimalsError] = useState<string | undefined>();
     useEffect(() => {
+        setDecimals(undefined);
+        setDecimalsError(undefined);
         if (!rpc) return;
         let active = true;
         fetchMintDecimals(rpc, mint)
             .then(d => {
                 if (active) setDecimals(d);
             })
-            .catch(() => {
-                /* keep default */
+            .catch(err => {
+                if (active) setDecimalsError(`Could not read the mint's decimals: ${humanizeError(err)}`);
             });
         return () => {
             active = false;
@@ -112,9 +145,11 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
 
     // The mint's confidential config, to decide whether (and by whom) accounts
     // must be approved. Undefined while loading; null when the mint has no
-    // ConfidentialTransferMint extension.
+    // ConfidentialTransferMint extension. Reset on every RPC or mint change,
+    // like the decimals above.
     const [mintConfig, setMintConfig] = useState<ConfidentialMintConfig | null | undefined>();
     useEffect(() => {
+        setMintConfig(undefined);
         if (!rpc) return;
         let active = true;
         fetchConfidentialMintConfig(rpc, mint)
@@ -147,34 +182,89 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
         refetchPlaintext();
     }, [refresh, refetchPlaintext]);
 
+    /**
+     * Runs `send`, then refreshes both balance views — after a failure too, since
+     * a plan that stopped part-way has still changed state on chain. A partial
+     * failure's `resume` is wrapped the same way, so resuming refreshes as well.
+     */
+    const settle = useCallback(
+        async function settleRun(send: () => Promise<Signature[]>): Promise<Signature[]> {
+            try {
+                return await send();
+            } catch (err) {
+                if (err instanceof ConfidentialPlanError) {
+                    const resume = err.resume;
+                    err.resume = resumeProgress => settleRun(() => resume(resumeProgress));
+                }
+                throw err;
+            } finally {
+                refresh();
+                refetchPlaintext();
+            }
+        },
+        [refresh, refetchPlaintext],
+    );
+
     /** Builds a plan, executes it, then refreshes both balance views. */
     const runPlan = useCallback(
         async (build: () => Promise<InstructionPlan>, onProgress: ConfidentialPlanProgress): Promise<Signature[]> => {
             if (!rpc || !signer) throw new Error('Wallet not connected.');
             const plan = await build();
-            const signatures = await executeConfidentialPlan({
-                instructionPlan: plan,
-                feePayer: signer as unknown as TransactionSigner,
-                rpc,
-                onProgress,
-                version: txVersion,
-            });
-            refresh();
-            refetchPlaintext();
-            return signatures;
+            return settle(() =>
+                executeConfidentialPlan({
+                    instructionPlan: plan,
+                    feePayer: signer as unknown as TransactionSigner,
+                    rpc,
+                    onProgress,
+                    version: txVersion,
+                }),
+            );
         },
-        [rpc, signer, txVersion, refresh, refetchPlaintext],
+        [rpc, signer, txVersion, settle],
     );
 
     const authority = signer as unknown as TransactionSigner;
 
+    /**
+     * One operation at a time across the whole wizard. Every step reads and
+     * changes the same account, so two at once race: applying the pending
+     * balance while a transfer is still setting up proofs makes the transfer's
+     * proof stale, and its token instruction then fails after the proof-account
+     * rent was paid. A step holds the lock while it runs and while it keeps an
+     * unfinished run (resume or start over releases it).
+     */
+    const [busySteps, setBusySteps] = useState<ReadonlySet<number>>(() => new Set());
+    const setStepBusy = useCallback((step: number, busy: boolean) => {
+        setBusySteps(current => {
+            if (current.has(step) === busy) return current;
+            const next = new Set(current);
+            if (busy) next.add(step);
+            else next.delete(step);
+            return next;
+        });
+    }, []);
+    const lockReason = (step: number): string | undefined => {
+        const holder = [...busySteps].find(other => other !== step);
+        return holder === undefined
+            ? undefined
+            : `Step ${holder} has an unfinished run. Let it finish, or resume or start it over, first.`;
+    };
+
+    // Shown while the token account is unknown: still resolving, or failed to.
+    const resolvingReason = tokenAccountError ?? 'Resolving your token account…';
+
+    // The ConfidentialTransferMint extension cannot be added after the mint is
+    // created, so on a mint without it configuring would only pay fees and rent
+    // for a transaction that fails on chain.
     const configurePrereq = !tokenAccount
-        ? 'Resolving your token account…'
-        : isConfigured
-          ? 'This account is already configured for confidential transfers.'
-          : undefined;
+        ? resolvingReason
+        : mintConfig === null
+          ? 'This mint does not support confidential transfers.'
+          : isConfigured
+            ? 'This account is already configured for confidential transfers.'
+            : undefined;
     const needsConfigured = !tokenAccount
-        ? 'Resolving your token account…'
+        ? resolvingReason
         : !isConfigured
           ? 'Configure the account first (step 1).'
           : undefined;
@@ -183,7 +273,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
     // owner's account, so the connected wallet's own configure/approve state
     // says nothing about whether this step should run.
     const approvePrereq = !tokenAccount
-        ? 'Resolving your token account…'
+        ? resolvingReason
         : mintConfig === null
           ? 'This mint does not support confidential transfers.'
           : mintConfig?.autoApproveNewAccounts
@@ -193,10 +283,10 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
               : undefined;
 
     const handleConfigure = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
-        runPlan(async () => {
-            const keys = await getKeys();
-            return buildConfigurePlan({ rpc: rpc!, payer: authority, owner: authority, mint, keys });
-        }, onProgress);
+        runPlan(
+            () => withKeys(keys => buildConfigurePlan({ rpc: rpc!, payer: authority, owner: authority, mint, keys })),
+            onProgress,
+        );
 
     const handleApprove = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
         runPlan(async () => {
@@ -215,46 +305,53 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
         );
 
     const handleApply = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
-        runPlan(async () => {
-            const keys = await getKeys();
-            return buildApplyPlan({ rpc: rpc!, tokenAccount: tokenAccount!, authority, keys });
-        }, onProgress);
+        runPlan(
+            () => withKeys(keys => buildApplyPlan({ rpc: rpc!, tokenAccount: tokenAccount!, authority, keys })),
+            onProgress,
+        );
 
     const handleTransfer = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
         runPlan(async () => {
-            const keys = await getKeys();
             const destinationToken = await resolveAta(v.address! as Address, mint);
-            return buildTransferPlan({
-                rpc: rpc!,
-                payer: authority,
-                mint,
-                sourceToken: tokenAccount!,
-                destinationToken,
-                authority,
-                amount: v.amount!,
-                keys,
-            });
+            return withKeys(keys =>
+                buildTransferPlan({
+                    rpc: rpc!,
+                    payer: authority,
+                    mint,
+                    sourceToken: tokenAccount!,
+                    destinationToken,
+                    authority,
+                    amount: v.amount!,
+                    keys,
+                }),
+            );
         }, onProgress);
 
     const handleWithdraw = (v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
-        runPlan(async () => {
-            const keys = await getKeys();
-            return buildWithdrawPlan({
-                rpc: rpc!,
-                payer: authority,
-                mint,
-                tokenAccount: tokenAccount!,
-                authority,
-                amount: v.amount!,
-                keys,
-            });
-        }, onProgress);
+        runPlan(
+            () =>
+                withKeys(keys =>
+                    buildWithdrawPlan({
+                        rpc: rpc!,
+                        payer: authority,
+                        mint,
+                        tokenAccount: tokenAccount!,
+                        authority,
+                        amount: v.amount!,
+                        keys,
+                    }),
+                ),
+            onProgress,
+        );
 
     const handleEmpty = (_v: ConfidentialActionValues, onProgress: ConfidentialPlanProgress) =>
-        runPlan(async () => {
-            const keys = await getKeys();
-            return buildEmptyPlan({ rpc: rpc!, payer: authority, tokenAccount: tokenAccount!, authority, keys });
-        }, onProgress);
+        runPlan(
+            () =>
+                withKeys(keys =>
+                    buildEmptyPlan({ rpc: rpc!, payer: authority, tokenAccount: tokenAccount!, authority, keys }),
+                ),
+            onProgress,
+        );
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
@@ -266,8 +363,10 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     description="Create and configure your associated token account for confidential transfers."
                     icon={Settings2}
                     actionLabel="Configure account"
-                    disabledReason={configurePrereq}
+                    disabledReason={lockReason(1) ?? configurePrereq}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleConfigure}
                 />
                 <ConfidentialActionCard
@@ -280,8 +379,10 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     addressLabel="Owner wallet address (defaults to your own)"
                     addressPlaceholder="Enter owner Solana address..."
                     addressOptional
-                    disabledReason={approvePrereq}
+                    disabledReason={lockReason(2) ?? approvePrereq}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleApprove}
                 />
                 <ConfidentialActionCard
@@ -290,8 +391,10 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     description="Allow this account to receive incoming confidential transfers."
                     icon={ShieldCheck}
                     actionLabel="Enable confidential credits"
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(3) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleEnableCredits}
                 />
                 <ConfidentialActionCard
@@ -303,8 +406,10 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     fields={{ amount: true }}
                     amountLabel="Amount to deposit"
                     amountSymbol={symbol}
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(4) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleDeposit}
                 />
                 <ConfidentialActionCard
@@ -313,8 +418,10 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     description="Apply the pending balance so it becomes spendable available balance."
                     icon={CheckCheck}
                     actionLabel="Apply pending → available"
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(5) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleApply}
                 />
                 <ConfidentialActionCard
@@ -327,8 +434,10 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     addressLabel="Recipient wallet address"
                     amountLabel="Amount to send"
                     amountSymbol={symbol}
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(6) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleTransfer}
                 />
                 <ConfidentialActionCard
@@ -340,8 +449,10 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     fields={{ amount: true }}
                     amountLabel="Amount to withdraw"
                     amountSymbol={symbol}
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(7) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleWithdraw}
                 />
                 <ConfidentialActionCard
@@ -350,8 +461,10 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     description="Prove the available balance is zero so the account can be closed. Withdraw everything first."
                     icon={Eraser}
                     actionLabel="Empty confidential balance"
-                    disabledReason={needsConfigured}
+                    disabledReason={lockReason(8) ?? needsConfigured}
+                    onBusyChange={setStepBusy}
                     clusterName={clusterName}
+                    runContext={runContext}
                     onRun={handleEmpty}
                 />
             </div>
@@ -368,6 +481,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     onReveal={confAccount.reveal}
                     onRefresh={refreshAll}
                     decimals={decimals}
+                    decimalsError={decimalsError}
                     symbol={symbol}
                     plaintextBalance={tokenBalance.balance?.formattedBalance ?? null}
                     plaintextLoading={tokenBalance.isLoading}

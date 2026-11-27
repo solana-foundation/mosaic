@@ -74,28 +74,24 @@ export function useConfidentialTxVersion(): ConfidentialTxVersionState {
     const owner = selectedAccount ? (String(selectedAccount) as Address) : undefined;
 
     const walletSupportsV1 = useWalletStandardSupportsTransactionV1(owner);
-    const [rpcSupportsV1, setRpcSupportsV1] = useState(false);
-    // Starts true so the first render — before the effect has run — reports
-    // "probing" rather than "this RPC does not support version 1", which would
-    // flash the notice below for a frame on every mount.
-    const [isProbing, setIsProbing] = useState(true);
-
     const url = cluster?.url;
+    // The last probe answer, tagged with the endpoint it is about. An answer for
+    // another URL counts as no answer: when the cluster changes, the render
+    // that sees the new URL runs before the effect below starts its probe, and
+    // must not plan version 1 on the previous endpoint's word.
+    const [probed, setProbed] = useState<{ url: string; supported: boolean } | undefined>();
+    // True from the first render — before the effect has run — so the notice
+    // reads "probing" rather than "this RPC does not support version 1", which
+    // would flash it for a frame on every mount and every cluster switch.
+    const isProbing = url !== undefined && probed?.url !== url;
+    const rpcSupportsV1 = probed !== undefined && probed.url === url && probed.supported;
+
     useEffect(() => {
-        if (!url) {
-            setRpcSupportsV1(false);
-            setIsProbing(false);
-            return;
-        }
+        if (!url) return;
         let active = true;
-        setIsProbing(true);
-        rpcSupportsTransactionV1(url)
-            .then(supported => {
-                if (active) setRpcSupportsV1(supported);
-            })
-            .finally(() => {
-                if (active) setIsProbing(false);
-            });
+        rpcSupportsTransactionV1(url).then(supported => {
+            if (active) setProbed({ url, supported });
+        });
         return () => {
             active = false;
         };

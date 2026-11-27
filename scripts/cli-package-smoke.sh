@@ -78,15 +78,30 @@ try {
 # pnpm overrides reconcile that, but overrides do NOT propagate to a published
 # consumer — which is exactly the tree this scratch project reproduces. Report
 # what actually resolved, then drive one RPC-free token-acl code path through it.
+#
+# Known duplicates: until the token-acl SDKs ship a kit-v8 release, a published
+# consumer gets their own kit 6 / token-2022 0.12 / zk-sdk 0.4 copies nested
+# under them. Those are reported but tolerated. A copy anywhere else is a new
+# duplicate (e.g. a second zk-sdk next to the SDK's, which breaks WASM class
+# identity) and fails the smoke test.
 echo "--- resolved copies in the consumer tree ---"
+unexpected=0
 for pkg in @solana/kit @solana-program/token-2022 @solana/zk-sdk; do
     # -not -path prunes nested node_modules of the SAME package from its own subtree.
-    find node_modules -path "*/$pkg/package.json" -not -path '*/.bin/*' 2>/dev/null |
-        while read -r manifest; do
-            printf '  %-32s %s  (%s)\n' "$pkg" \
-                "$(node -p "require('./$manifest').version")" "${manifest%/package.json}"
-        done
+    while read -r manifest; do
+        dir="${manifest%/package.json}"
+        case "$dir" in
+            "node_modules/$pkg") note='' ;;
+            node_modules/@solana/token-acl-sdk/* | node_modules/@solana/token-acl-gate-sdk/*) note='  [known: token-acl]' ;;
+            *) note='  [UNEXPECTED duplicate]'; unexpected=1 ;;
+        esac
+        printf '  %-32s %s  (%s)%s\n' "$pkg" "$(node -p "require('./$manifest').version")" "$dir" "$note"
+    done < <(find node_modules -path "*/$pkg/package.json" -not -path '*/.bin/*' 2>/dev/null)
 done
+if [ "$unexpected" -ne 0 ]; then
+    echo "Unexpected duplicate copies in the consumer tree (see above)" >&2
+    exit 1
+fi
 
 node --input-type=module -e "
 const { getCreateConfigInstructions, TOKEN_ACL_PROGRAM_ID } = await import('@solana/mosaic-sdk');
