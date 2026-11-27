@@ -119,20 +119,23 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
         };
     }, [owner, mint]);
 
-    // Mint decimals, for formatting decrypted confidential amounts.
-    // Reset on every RPC or mint change, so a failed fetch falls back to the
-    // default rather than to the previous network's or mint's value.
-    const [decimals, setDecimals] = useState<number>(0);
+    // Mint decimals, for formatting decrypted confidential amounts. Undefined
+    // until read: guessing 0 would show 1.5 tokens of a 9-decimals mint as
+    // 1500000000, so the panel withholds amounts until this is known. Reset on
+    // every RPC or mint change, so nothing carries over from the previous one.
+    const [decimals, setDecimals] = useState<number | undefined>();
+    const [decimalsError, setDecimalsError] = useState<string | undefined>();
     useEffect(() => {
-        setDecimals(0);
+        setDecimals(undefined);
+        setDecimalsError(undefined);
         if (!rpc) return;
         let active = true;
         fetchMintDecimals(rpc, mint)
             .then(d => {
                 if (active) setDecimals(d);
             })
-            .catch(() => {
-                /* keep default */
+            .catch(err => {
+                if (active) setDecimalsError(`Could not read the mint's decimals: ${humanizeError(err)}`);
             });
         return () => {
             active = false;
@@ -444,6 +447,7 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                     onReveal={confAccount.reveal}
                     onRefresh={refreshAll}
                     decimals={decimals}
+                    decimalsError={decimalsError}
                     symbol={symbol}
                     plaintextBalance={tokenBalance.balance?.formattedBalance ?? null}
                     plaintextLoading={tokenBalance.isLoading}

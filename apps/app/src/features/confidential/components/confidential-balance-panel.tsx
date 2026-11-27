@@ -17,7 +17,10 @@ interface ConfidentialBalancePanelProps {
     canReveal: boolean;
     onReveal: () => void;
     onRefresh: () => void;
-    decimals: number;
+    /** Undefined until the mint is read; decrypted amounts stay hidden until then. */
+    decimals: number | undefined;
+    /** Why the decimals could not be read, if they could not. */
+    decimalsError?: string;
     symbol?: string;
     /** Formatted plaintext (non-confidential) SPL balance. */
     plaintextBalance: string | null;
@@ -42,6 +45,7 @@ export function ConfidentialBalancePanel({
     onReveal,
     onRefresh,
     decimals,
+    decimalsError,
     symbol,
     plaintextBalance,
     plaintextLoading,
@@ -56,6 +60,12 @@ export function ConfidentialBalancePanel({
     const renderConfidentialAmount = (amount: bigint | undefined) => {
         if (!isConfigured) return <span className="text-muted-foreground">—</span>;
         if (!isRevealed || amount === undefined) return <span className="font-mono text-muted-foreground">•••••</span>;
+        if (decimals === undefined)
+            return (
+                <span className="font-mono text-muted-foreground" title={decimalsError ?? 'Reading mint decimals…'}>
+                    {decimalsError ? '?' : '…'}
+                </span>
+            );
         return (
             <span className="font-mono font-semibold">
                 {formatRawAmount(amount, decimals)}
@@ -152,6 +162,7 @@ export function ConfidentialBalancePanel({
                 )}
 
                 {error && <p className="text-sm text-destructive">{error}</p>}
+                {decimalsError && isRevealed && <p className="text-sm text-destructive">{decimalsError}</p>}
             </CardContent>
         </Card>
     );
