@@ -5,10 +5,11 @@
 # Usage (from apps/app): pnpm e2e:agent [flow|group ...]
 #   no arguments     the `smoke` group
 #   <flow>           flows/<flow>.sh
-#   <group>          groups/<group>.group: one flow or @group per line, `#` comments.
-#                    A group made only of @groups is a suite of runs: each of its
-#                    groups runs as its own run. Several suites run one after the
-#                    other; a suite cannot be mixed with flows or plain groups.
+#   <group>          groups/<group>.group: one flow or @group per line, `#` comments,
+#                    and an optional `tx-version: 0|1` line. A group made only of
+#                    @groups and without a tx-version is a suite of runs: each of
+#                    its groups runs as its own run. Several suites run one after
+#                    the other; a suite cannot be mixed with flows or plain groups.
 #
 # A flow declares what it needs in a header line, read before anything launches:
 #   # e2e: sessions=b,nosign funded
@@ -16,6 +17,8 @@
 #   funded     the flow spends devnet SOL, so pre-flight checks and refills wallet A
 #
 #   BASE_URL                    app under test (default http://localhost:3000)
+#   TX_VERSION=0|1              the transaction version the wallets advertise
+#                               (default: the group's tx-version, else 0)
 #   MOSAIC_TEST_KEYPAIR_A       wallet A keypair (default $MOSAIC_TEST_KEYPAIR, else ~/.config/solana/mosaic-e2e-a.json)
 #   MOSAIC_TEST_KEYPAIR_B       wallet B keypair (default ~/.config/solana/mosaic-e2e-b.json); required
 #                               only by flows with sessions=b, otherwise wallet A's alt account
@@ -48,17 +51,20 @@ die() {
 
 group_file() { printf '%s/%s.group' "$GROUPS_DIR" "$1"; }
 is_group() { [[ -f "$(group_file "$1")" ]]; }
-# A group's entries, without comments or blank lines; a group without any is an error.
+# A group's entries, without comments, blank lines or directives; a group without any is an error.
 group_entries() {
     local entries
-    entries="$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$(group_file "$1")" | tr -d ' \t\r' | tr '\n' ' ')"
+    entries="$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' -e '/^[a-z-]*:/d' "$(group_file "$1")" | tr -d ' \t\r' | tr '\n' ' ')"
     [[ -n "${entries// /}" ]] || die "group $1 lists no flows"
     printf '%s\n' "$entries"
 }
-# A suite of runs: a group whose every entry is an @group.
+group_tx_version() { sed -n 's/^tx-version:[[:space:]]*\([01]\).*/\1/p' "$(group_file "$1")" | head -1; }
+# A suite of runs: a group whose every entry is an @group and that sets no
+# tx-version (each of its groups can need its own wallet build).
 is_suite() {
     local e entries
     is_group "$1" || return 1
+    [[ -z "$(group_tx_version "$1")" ]] || return 1
     entries="$(group_entries "$1")" || exit 1
     for e in $entries; do [[ "$e" == @* ]] || return 1; done
 }
@@ -82,13 +88,20 @@ if ((suites > 0)); then
     exit $status
 fi
 
-# Expand the arguments into flows. `stack` is the groups being expanded, so a
-# group that includes itself stops instead of recursing forever.
+# Expand the arguments into flows, and take the transaction version from the
+# groups that set one. `stack` is the groups being expanded, so a group that
+# includes itself stops instead of recursing forever.
 FLOWS=()
+GROUP_TX=""
 expand() {
-    local name="$1" stack="${2:-}" e entries
+    local name="$1" stack="${2:-}" e entries tx
     if is_group "$name"; then
         [[ " $stack " != *" $name "* ]] || die "group $name includes itself (via$stack)"
+        tx="$(group_tx_version "$name")"
+        if [[ -n "$tx" ]]; then
+            [[ -z "$GROUP_TX" || "$GROUP_TX" == "$tx" ]] || die "groups with different tx-versions; run them separately"
+            GROUP_TX="$tx"
+        fi
         entries="$(group_entries "$name")" || exit 1
         for e in $entries; do expand "${e#@}" "$stack $name"; done
     else
@@ -97,7 +110,10 @@ expand() {
 }
 for arg in "${ARGS[@]}"; do expand "$arg"; done
 
-RUN_ID="$(date +%Y%m%d-%H%M%S)"
+export TX_VERSION="${TX_VERSION:-${GROUP_TX:-0}}"
+[[ "$TX_VERSION" == 0 || "$TX_VERSION" == 1 ]] || { echo "TX_VERSION must be 0 or 1" >&2; exit 1; }
+
+RUN_ID="$(date +%Y%m%d-%H%M%S)-v$TX_VERSION"
 # A run started in the same second as another gets a directory of its own.
 [[ ! -e "$APP_ROOT/.agent-browser/runs/$RUN_ID" ]] || RUN_ID="$RUN_ID-$$"
 OUT="$APP_ROOT/.agent-browser/runs/$RUN_ID"
@@ -137,7 +153,7 @@ LAUNCHED=""
 summarise() {
     [[ -s "$RESULTS" ]] || return 0
     local kind
-    printf '\n\033[1mresults\033[0m (%s)\n' "$RESULTS"
+    printf '\n\033[1mresults, transactions v%s\033[0m (%s)\n' "$TX_VERSION" "$RESULTS"
     for kind in pass fail xfail xpass blocked; do
         printf '  %-7s %s\n' "$kind" "$(grep -c "^$kind	" "$RESULTS" || true)"
     done
@@ -266,8 +282,10 @@ if ((FUNDED)); then
     fi
 fi
 
-step "build the test wallets"
-# A plain string, not an array: macOS bash 3.2 treats an empty array as unset under `set -u`.
+step "build the test wallets (transactions: version $TX_VERSION)"
+# Plain strings, not arrays: macOS bash 3.2 treats an empty array as unset under `set -u`.
+V1=""
+[[ "$TX_VERSION" == 1 ]] && V1="--tx-v1"
 ALT=""
 [[ -n "$B_ADDRESS" ]] && ALT="--alt-role b"
 # Into this run's directory, so an overlapping run cannot swap a bundle
@@ -275,9 +293,9 @@ ALT=""
 build() { node "$HERE/build-test-wallet.mjs" "$@"; }
 for role in "${SESSIONS[@]}"; do
     case "$role" in
-        a) build --role a $ALT --out "runs/$RUN_ID/test-wallet-a.js" ;;
-        b) build --role b --out "runs/$RUN_ID/test-wallet-b.js" ;;
-        nosign) build --role a --no-sign-message --out "runs/$RUN_ID/test-wallet-a-nosign.js" ;;
+        a) build --role a $ALT $V1 --out "runs/$RUN_ID/test-wallet-a.js" ;;
+        b) build --role b $V1 --out "runs/$RUN_ID/test-wallet-b.js" ;;
+        nosign) build --role a --no-sign-message $V1 --out "runs/$RUN_ID/test-wallet-a-nosign.js" ;;
         *) fail "unknown session role '$role' in a flow's '# e2e: sessions=' line" ;;
     esac
 done

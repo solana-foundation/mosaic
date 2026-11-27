@@ -8,6 +8,7 @@
 //   --alt-role b         second keypair, reachable with window.__mosaicTestWallet.switchAccount()
 //   --alt <path>         the same, from a file
 //   --no-sign-message    leave out solana:signMessage, like a wallet that cannot sign messages
+//   --tx-v1              advertise version-1 transactions, so the app plans SIMD-0385 messages
 //   --out <path>         output file, relative to apps/app/.agent-browser/
 //                        (default: test-wallet.js); a path outside it is refused
 //
@@ -38,6 +39,7 @@ const { values: args } = parseArgs({
         'alt-role': { type: 'string' },
         alt: { type: 'string' },
         'no-sign-message': { type: 'boolean', default: false },
+        'tx-v1': { type: 'boolean', default: false },
         out: { type: 'string', default: 'test-wallet.js' },
     },
 });
@@ -70,6 +72,7 @@ function readKeypair(path) {
 const secretKey = readKeypair(pathFor(args.keypair, args.role));
 const altPath = args.alt ?? (args['alt-role'] ? pathFor(undefined, args['alt-role']) : null);
 const altSecretKey = altPath ? readKeypair(altPath) : null;
+const txVersions = args['tx-v1'] ? ['legacy', 0, 1] : ['legacy', 0];
 // A Solana CLI keypair file is the 32-byte seed followed by the 32-byte public key.
 const walletAddress = getBase58Decoder().decode(new Uint8Array(secretKey.slice(32)));
 
@@ -88,6 +91,7 @@ await build({
         __MOSAIC_TEST_SECRET_KEY__: JSON.stringify(secretKey),
         __MOSAIC_TEST_ALT_SECRET_KEY__: JSON.stringify(altSecretKey),
         __MOSAIC_TEST_SIGN_MESSAGE__: JSON.stringify(!args['no-sign-message']),
+        __MOSAIC_TEST_TX_VERSIONS__: JSON.stringify(txVersions),
     },
     legalComments: 'none',
     logLevel: 'warning',
@@ -95,5 +99,9 @@ await build({
 // Owner-only: the bundle embeds secret keys.
 chmodSync(outfile, 0o600);
 
-const modes = [altSecretKey && 'alt account', args['no-sign-message'] && 'no signMessage'].filter(Boolean);
+const modes = [
+    altSecretKey && 'alt account',
+    args['no-sign-message'] && 'no signMessage',
+    args['tx-v1'] && 'tx v1',
+].filter(Boolean);
 console.log(`build-test-wallet: wrote ${outfile} for ${walletAddress}${modes.length ? ` (${modes.join(', ')})` : ''}`);
