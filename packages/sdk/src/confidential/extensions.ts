@@ -31,6 +31,11 @@ function hasExtension(account: DecodedMint | DecodedToken, kind: ExtensionKind):
     return findExtension(account, kind) !== undefined;
 }
 
+/** Whether a decoded mint carries the `ConfidentialMintBurn` extension. */
+export function isConfidentialMintBurn(mint: DecodedMint): boolean {
+    return hasExtension(mint, 'ConfidentialMintBurn');
+}
+
 /** Whether a decoded mint carries the `ConfidentialTransferMint` extension. */
 export function isConfidentialTransferMint(mint: DecodedMint): boolean {
     return hasExtension(mint, 'ConfidentialTransferMint');
@@ -50,6 +55,17 @@ export function isConfidentialTransferAccount(token: DecodedToken): boolean {
  */
 export function getConfidentialTransferAccountElgamalPubkey(token: DecodedToken): Address | null {
     return findExtension(token, 'ConfidentialTransferAccount')?.elgamalPubkey ?? null;
+}
+
+/**
+ * The supply ElGamal public key a decoded mint's encrypted total supply is
+ * maintained under, or `null` if it has no `ConfidentialMintBurn` extension. The
+ * mint-side counterpart to {@link getConfidentialTransferAccountElgamalPubkey},
+ * used to catch a caller presenting some other wallet's keys as the supply keys
+ * before a proof is built from them.
+ */
+export function getConfidentialMintBurnSupplyElgamalPubkey(mint: DecodedMint): Address | null {
+    return findExtension(mint, 'ConfidentialMintBurn')?.supplyElgamalPubkey ?? null;
 }
 
 /**

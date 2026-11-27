@@ -14,11 +14,11 @@ The fee schedule is fixed when the plan is built, so a transfer planned just bef
 
 **New exports from `@solana/mosaic-sdk/confidential`:**
 
-- `tokenAmountToRaw(amount, decimals)` — the validated decimal→raw scaler the builders use internally, for callers that scale amounts by the mint's decimals themselves. The only exported alternative, the root `decimalAmountToRaw`, silently truncates over-precision. This one rejects it, along with non-numeric input and results outside `(0, 2^64)`.
+- `tokenAmountToRaw(amount, decimals)` — the validated decimal→raw scaler the builders use internally. The two APIs that take **raw** units (`createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan` and `resyncSupply` on apply-pending-burn) told callers to scale by the mint's decimals themselves, while the only exported alternative, the root `decimalAmountToRaw`, silently truncates over-precision. This one rejects it, along with non-numeric input and results outside `(0, 2^64)`.
 - `isSignerRejection` / `describeError` — tell "the user dismissed the wallet prompt" apart from "this wallet cannot sign the derivation message at all". `deriveConfidentialKeys` already makes that distinction internally; a UI wrapping its own signer needs it too.
 - `mintHasTransferFeeConfig` — the extension that decides the fee-aware route, alongside the existing `mintHasConfidentialTransferFee`.
 - `getConfidentialKeysElgamalAddress(keys)` — a key pair's ElGamal public key as the `Address` a token account or mint extension stores, e.g. for a mint's `withdrawWithheldAuthorityElGamalPubkey`.
 
-**Docs.** The confidential guide in `packages/sdk/README.md` now covers the four credits toggles, the extension readers, the key/account assertion, the account-state and decryption helpers, the amount types, and the deprecation of `confidential/proof.ts` — all of which were exported but undocumented.
+**Docs.** The confidential guide in `packages/sdk/README.md` now covers the four credits toggles, the extension readers, the key/account and key/supply assertions, the account-state and decryption helpers, the amount types, and the deprecation of `confidential/proof.ts` — all of which were exported but undocumented.
 
 **Note on `createKeyPairMessageSigner`.** Its doc comment claimed it was how a CLI/Node caller feeds `deriveConfidentialKeys`, which was wrong — derivation takes a kit `MessagePartialSigner`, and a kit `KeyPairSigner` already is one. The function is unchanged (it builds the `SignMessage` shape the wallet-standard subpath is built on); only the misleading documentation is corrected.

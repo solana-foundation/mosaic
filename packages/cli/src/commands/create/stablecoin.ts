@@ -1,21 +1,22 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ABL_PROGRAM_ID, createStablecoinInitTransaction, TOKEN_ACL_PROGRAM_ID } from '@solana/mosaic-sdk';
-import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
-import { loadKeypair } from '../../utils/solana.js';
-import {
-    generateKeyPairSigner,
-    signTransactionMessageWithSigners,
-    type Address,
-    sendAndConfirmTransactionFactory,
-    assertIsTransactionWithBlockhashLifetime,
-    getSignatureFromTransaction,
-} from '@solana/kit';
+import { createRpcClient, createRpcSubscriptions, resolveRpcUrl } from '../../utils/rpc.js';
+import { loadKeypair, resolveSigners } from '../../utils/solana.js';
+import { generateKeyPairSigner, type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { findListConfigPda } from '@solana/token-acl-gate-sdk';
 import { findMintConfigPda } from '@solana/token-acl-sdk';
-import { createSpinner, getGlobalOpts } from '../../utils/cli.js';
+import { createSpinner, getGlobalOpts, sendOrOutputTransaction } from '../../utils/cli.js';
+import { accountsStartFrozen, defaultAccountStateLabel } from '../../utils/default-account-state.js';
+import {
+    addConfidentialCreateOptions,
+    describeConfidentialExtensions,
+    getConfidentialBalancesConfig,
+    getConfidentialMintBurnInitFromFlags,
+    type ConfidentialCreateFlags,
+} from '../../utils/confidential-create.js';
 
-interface StablecoinOptions {
+interface StablecoinOptions extends ConfidentialCreateFlags {
     name: string;
     symbol: string;
     decimals: string;
@@ -30,7 +31,7 @@ interface StablecoinOptions {
     mintKeypair?: string;
 }
 
-export const createStablecoinCommand = new Command('stablecoin')
+export const createStablecoinCommand = addConfidentialCreateOptions(new Command('stablecoin'))
     .description('Create a new stablecoin with Token-2022 extensions')
     .requiredOption('-n, --name <name>', 'Token name')
     .requiredOption('-s, --symbol <symbol>', 'Token symbol')
@@ -57,8 +58,7 @@ export const createStablecoinCommand = new Command('stablecoin')
     })
     .action(async (options: StablecoinOptions, command) => {
         const parentOpts = getGlobalOpts(command);
-        const rpcUrl = parentOpts.rpcUrl;
-        const keypairPath = parentOpts.keypair;
+        const rpcUrl = resolveRpcUrl(parentOpts.rpcUrl);
         const rawTx: string | undefined = parentOpts.rawTx;
         const spinner = createSpinner('Creating stablecoin...', rawTx);
 
@@ -69,13 +69,9 @@ export const createStablecoinCommand = new Command('stablecoin')
             const sendAndConfirmTransaction = sendAndConfirmTransactionFactory({ rpc, rpcSubscriptions });
             spinner.text = `Using RPC URL: ${rpcUrl}`;
 
-            // Default to the provided mint authority if raw tx, otherwise use keypair
-            const signerKeypair = rawTx ? null : await loadKeypair(keypairPath);
-            const signerAddress = rawTx ? (options.mintAuthority as Address) : (signerKeypair!.address as Address);
-
             spinner.text = 'Loading keypairs...';
 
-            // Generate or load mint keypair (must be a signer if not raw)
+            // Generate or load the mint keypair; it always signs, in raw mode too
             let mintKeypair;
             if (options.mintKeypair) {
                 mintKeypair = await loadKeypair(options.mintKeypair);
@@ -83,18 +79,30 @@ export const createStablecoinCommand = new Command('stablecoin')
                 mintKeypair = await generateKeyPairSigner();
             }
 
+            // The mint authority signs (metadata init requires it), so it is resolved as a signer:
+            // --mint-authority, else --authority, else the --keypair signer. A role at the mint's
+            // address reuses the mint keypair's signer.
+            const { authority: mintAuthoritySigner, feePayer } = await resolveSigners(
+                parentOpts,
+                options.mintAuthority ?? parentOpts.authority,
+                options.mintAuthority ? '--mint-authority' : '--authority',
+                [mintKeypair],
+            );
+
             // Parse decimals
             const decimals = parseInt(options.decimals, 10);
             if (isNaN(decimals) || decimals < 0 || decimals > 9) {
                 throw new Error('Decimals must be a number between 0 and 9');
             }
 
-            // Set authorities (default to signer if not provided)
-            const mintAuthority = (options.mintAuthority || signerAddress) as Address;
+            // Set authorities (default to the mint authority if not provided)
+            const mintAuthority = mintAuthoritySigner.address;
             const metadataAuthority = (options.metadataAuthority || mintAuthority) as Address;
             const pausableAuthority = (options.pausableAuthority || mintAuthority) as Address;
             const confidentialBalancesAuthority = (options.confidentialBalancesAuthority || mintAuthority) as Address;
             const permanentDelegateAuthority = (options.permanentDelegateAuthority || mintAuthority) as Address;
+            const confidentialBalances = getConfidentialBalancesConfig(options);
+            const confidentialMintBurn = await getConfidentialMintBurnInitFromFlags(options);
 
             spinner.text = 'Building transaction...';
 
@@ -105,35 +113,31 @@ export const createStablecoinCommand = new Command('stablecoin')
                 options.symbol,
                 decimals,
                 options.uri || '',
-                mintAuthority,
-                rawTx ? (mintKeypair.address as Address) : mintKeypair,
-                rawTx ? signerAddress : signerKeypair!,
+                mintAuthoritySigner,
+                mintKeypair,
+                feePayer,
                 options.aclMode || 'blocklist',
                 metadataAuthority,
                 pausableAuthority,
                 confidentialBalancesAuthority,
                 permanentDelegateAuthority,
                 options.enableSrfc37,
+                undefined, // freezeAuthority: the template's default
+                confidentialBalances,
+                confidentialMintBurn,
             );
 
             if (rawTx) {
-                const { maybeOutputRawTx } = await import('../../utils/raw-tx.js');
-                if (maybeOutputRawTx(rawTx, transaction)) {
-                    return;
-                }
+                // stdout carries only the transaction; the new mint's address goes to stderr
+                console.error(`Mint Address: ${mintKeypair.address}`);
             }
-
-            spinner.text = 'Signing transaction...';
-
-            // Sign the transaction (buildTransaction includes signers but doesn't auto-sign)
-            const signedTransaction = await signTransactionMessageWithSigners(transaction);
-
-            spinner.text = 'Sending transaction...';
-
-            // Assert blockhash lifetime and send
-            assertIsTransactionWithBlockhashLifetime(signedTransaction);
-            await sendAndConfirmTransaction(signedTransaction, { commitment: 'confirmed' });
-            const signature = getSignatureFromTransaction(signedTransaction);
+            const { raw, signature } = await sendOrOutputTransaction(
+                transaction,
+                rawTx,
+                spinner,
+                sendAndConfirmTransaction,
+            );
+            if (raw) return;
 
             spinner.succeed('Stablecoin created successfully!');
 
@@ -163,11 +167,22 @@ export const createStablecoinCommand = new Command('stablecoin')
             console.log(`   ${chalk.bold('Confidential Balances Authority:')} ${confidentialBalancesAuthority}`);
             console.log(`   ${chalk.bold('Permanent Delegate Authority:')} ${permanentDelegateAuthority}`);
 
+            const frozen = accountsStartFrozen(options.aclMode, options.enableSrfc37);
+
             console.log(chalk.cyan('🛡️ Token Extensions:'));
             console.log(`   ${chalk.green('✓')} Metadata`);
             console.log(`   ${chalk.green('✓')} Pausable`);
-            console.log(`   ${chalk.green('✓')} Default Account State (Blocklist)`);
-            console.log(`   ${chalk.green('✓')} Confidential Balances`);
+            console.log(`   ${chalk.green('✓')} ${defaultAccountStateLabel(frozen)}`);
+            if (frozen) {
+                console.log(
+                    chalk.yellow(
+                        '     ⚠️  You must add addresses to the allowlist for your token to be usable by end users.',
+                    ),
+                );
+            }
+            for (const line of describeConfidentialExtensions(confidentialBalances, confidentialMintBurn)) {
+                console.log(`   ${chalk.green('✓')} ${line}`);
+            }
             console.log(`   ${chalk.green('✓')} Permanent Delegate`);
 
             if (options.uri) {
@@ -183,22 +198,25 @@ export const createStablecoinCommand = new Command('stablecoin')
                 console.log(
                     `   ${chalk.green('✓')} SRFC-37 ${mode.toLowerCase()} mint config Address: ${mintConfigPda[0]}`,
                 );
+            } else if (isAllowlist) {
+                // Without sRFC-37 the template starts accounts Initialized, so nothing is allowlisted
+                console.log(chalk.cyan(`🔑 Access Control:`));
+                console.log('New accounts start active and can be frozen individually');
+                console.log(
+                    chalk.yellow(
+                        '   ⚠️  The allowlist is not enforced without SRFC-37. Pass --enable-srfc37 true to start accounts frozen.',
+                    ),
+                );
             } else {
                 console.log(chalk.cyan(`🔑 ${mode} Initialized:`));
-                console.log(
-                    isAllowlist
-                        ? 'Allowlist managed via manual thawing of addresses'
-                        : 'Blocklist managed via manual feezing of addresses',
-                );
+                console.log('Blocklist managed via manual freezing of addresses');
             }
         } catch (error) {
             spinner.fail('Failed to create stablecoin');
-            if (error && typeof error === 'object' && 'context' in error) {
-                const typedError = error as { context: { logs: string[] } };
-                console.error(
-                    chalk.red(`❌ Transaction simulation failed:`),
-                    `\n\t${typedError.context.logs.join('\n\t')}`,
-                );
+            // Not every error with a `context` (e.g. a Kit SolanaError) carries simulation logs
+            const logs = (error as { context?: { logs?: unknown } } | undefined)?.context?.logs;
+            if (Array.isArray(logs)) {
+                console.error(chalk.red(`❌ Transaction simulation failed:`), `\n\t${logs.join('\n\t')}`);
             } else {
                 console.error(chalk.red('❌ Error:'), error instanceof Error ? error.message : 'Unknown error');
             }

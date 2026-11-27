@@ -1,9 +1,12 @@
-import { createKeyPairSignerFromPrivateKeyBytes, generateKeyPairSigner } from '@solana/kit';
+import type { Address } from '@solana/kit';
+import { createKeyPairSignerFromPrivateKeyBytes, generateKeyPairSigner, getAddressDecoder } from '@solana/kit';
 import { ElGamalKeypair, AeKey } from '@solana/zk-sdk/node';
 import { deriveConfidentialKeys as upstreamDeriveConfidentialKeys } from '@solana-program/token-2022/confidential';
 import {
     assertConfidentialKeysMatchAccount,
+    assertConfidentialKeysMatchSupply,
     deriveConfidentialKeys,
+    getConfidentialMintBurnInit,
     freeConfidentialKeys,
     getConfidentialKeysElgamalAddress,
     decryptAesBalance,
@@ -11,6 +14,7 @@ import {
 } from '../keys.js';
 
 // Uses the real @solana/zk-sdk WASM (verified to load under ts-jest ESM).
+const MINT_A = '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU' as Address;
 
 describe('deriveConfidentialKeys', () => {
     it('is deterministic: same signer yields the same keys', async () => {
@@ -152,6 +156,101 @@ describe('deriveConfidentialKeys', () => {
         await expect(deriveConfidentialKeys({ signer: { ...signer, signMessages } })).rejects.toThrow(
             /solana-conf-bal\/v1/,
         );
+    });
+});
+
+// A `ConfidentialMintBurn` mint's supply keys have no derivation of their own:
+// they are `deriveConfidentialKeys` run against a dedicated supply-authority
+// wallet. These tests pin the property that replaced the removed mint-seeded
+// scheme — separation comes from using a different *wallet*, and cannot come from
+// anywhere else.
+describe('supply keys', () => {
+    it("are indistinguishable from that wallet's account keys — one key pair per wallet", async () => {
+        const supplyAuthority = await generateKeyPairSigner();
+        const asSupply = await deriveConfidentialKeys({ signer: supplyAuthority });
+        const asAccount = await deriveConfidentialKeys({ signer: supplyAuthority });
+
+        // The regression the removed `mosaic-conf-supply/v1` domain tag would hide:
+        // there is no in-wallet separation to fall back on, so reusing a
+        // balance-holding wallet as the supply authority hands out both at once.
+        expect(asSupply.elgamal.pubkey().toBytes()).toEqual(asAccount.elgamal.pubkey().toBytes());
+        expect(asSupply.aes.toBytes()).toEqual(asAccount.aes.toBytes());
+
+        freeConfidentialKeys(asSupply);
+        freeConfidentialKeys(asAccount);
+    });
+
+    it('are separated from a holder by using a different wallet', async () => {
+        const supplyAuthority = await generateKeyPairSigner();
+        const holder = await generateKeyPairSigner();
+        const supply = await deriveConfidentialKeys({ signer: supplyAuthority });
+        const account = await deriveConfidentialKeys({ signer: holder });
+
+        expect(supply.elgamal.pubkey().toBytes()).not.toEqual(account.elgamal.pubkey().toBytes());
+        expect(supply.aes.toBytes()).not.toEqual(account.aes.toBytes());
+
+        freeConfidentialKeys(supply);
+        freeConfidentialKeys(account);
+    });
+
+    it('produce usable keys (AES + ElGamal round-trip)', async () => {
+        const supplyAuthority = await generateKeyPairSigner();
+        const keys = await deriveConfidentialKeys({ signer: supplyAuthority });
+
+        expect(decryptAesBalance(keys.aes, new Uint8Array(keys.aes.encrypt(4_200n).toBytes()))).toBe(4_200n);
+        const pubkey = keys.elgamal.pubkey();
+        expect(decryptElGamalBalance(keys.elgamal, new Uint8Array(pubkey.encryptU64(11n).toBytes()))).toBe(11n);
+        pubkey.free();
+
+        freeConfidentialKeys(keys);
+    });
+});
+
+describe('getConfidentialMintBurnInit', () => {
+    it('emits the supply pubkey the supply guard later accepts', async () => {
+        const supplyAuthority = await generateKeyPairSigner();
+        const keys = await deriveConfidentialKeys({ signer: supplyAuthority });
+
+        // The create -> operate round trip: whatever gets baked into the mint at
+        // creation must be exactly what `assertConfidentialKeysMatchSupply` checks
+        // for on every later confidential mint.
+        const init = getConfidentialMintBurnInit(keys);
+        expect(() => assertConfidentialKeysMatchSupply(keys, init.supplyElgamalPubkey, MINT_A)).not.toThrow();
+
+        // Initial supply is zero, encrypted under the supply AES key.
+        expect(decryptAesBalance(keys.aes, new Uint8Array(init.decryptableSupply))).toBe(0n);
+
+        freeConfidentialKeys(keys);
+    });
+});
+
+describe('assertConfidentialKeysMatchSupply', () => {
+    it("does not throw when the derived pubkey matches the mint's registered supply key", async () => {
+        const supplyAuthority = await generateKeyPairSigner();
+        const keys = await deriveConfidentialKeys({ signer: supplyAuthority });
+        const registered = getAddressDecoder().decode(keys.elgamal.pubkey().toBytes());
+
+        expect(() => assertConfidentialKeysMatchSupply(keys, registered, MINT_A)).not.toThrow();
+
+        freeConfidentialKeys(keys);
+    });
+
+    // The mistake the guard exists for: supply keys cannot be re-derived from the
+    // mint or the mint authority, so presenting the wrong wallet is an ordinary
+    // slip that would otherwise fail as an on-chain proof rejection.
+    it('throws naming the mint when a different wallet signed the derivation', async () => {
+        const supplyAuthority = await generateKeyPairSigner();
+        const wrongWallet = await generateKeyPairSigner();
+        const keys = await deriveConfidentialKeys({ signer: wrongWallet });
+        const registeredKeys = await deriveConfidentialKeys({ signer: supplyAuthority });
+        const registered = getAddressDecoder().decode(registeredKeys.elgamal.pubkey().toBytes());
+
+        expect(() => assertConfidentialKeysMatchSupply(keys, registered, MINT_A)).toThrow(
+            new RegExp(`does not match mint ${MINT_A}'s registered supply key`),
+        );
+
+        freeConfidentialKeys(keys);
+        freeConfidentialKeys(registeredKeys);
     });
 });
 

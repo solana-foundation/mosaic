@@ -18,6 +18,8 @@ import { removeCommand as removeFromBlocklistCommand } from './commands/blocklis
 import { addCommand as addToAllowlistCommand } from './commands/allowlist/add.js';
 import { removeCommand as removeFromAllowlistCommand } from './commands/allowlist/remove.js';
 import { controlCommand } from './commands/control/index.js';
+import { confidentialCommand } from './commands/confidential/index.js';
+import { addGlobalOptions } from './utils/global-options.js';
 
 const program = new Command();
 
@@ -52,16 +54,11 @@ program.addCommand(forceTransferCommand);
 program.addCommand(burnCommand);
 program.addCommand(forceBurnCommand);
 program.addCommand(controlCommand);
+program.addCommand(confidentialCommand);
 program.addCommand(inspectMintCommand);
 program.addCommand(tokenAclCommand);
 program.addCommand(ablCommand);
 
-// Global options
-program
-    .option('--rpc-url <url>', 'Solana RPC URL', 'https://api.devnet.solana.com')
-    .option('--keypair <path>', 'Path to keypair file (defaults to Solana CLI default)')
-    .option('--authority <address>', 'Authority address (for --raw-tx)')
-    .option('--fee-payer <address>', 'Fee payer address (for --raw-tx)')
-    .option('--raw-tx <encoding>', 'Output unsigned transaction instead of sending (b64|b58)');
+addGlobalOptions(program);
 
 program.parse(process.argv);

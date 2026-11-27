@@ -15,8 +15,10 @@ import {
 import { getThawPermissionlessInstructions } from '../token-acl/index.js';
 import { resolveFeePayerAndAuthority } from '../signers.js';
 import {
+    confidentialMintBurnConversionError,
     decimalAmountToRaw,
     getMintDetails,
+    mintHasConfidentialMintBurnExtension,
     isDefaultAccountStateSetFrozen,
     resolveTokenAccount,
 } from '../transaction-util.js';
@@ -49,9 +51,19 @@ export const createMintToTransaction = async (
         mintAuthority,
     );
 
+    // Single mint read: decimals + extensions (incl. the ConfidentialMintBurn
+    // fail-fast check below) + SRFC-37 detection all come from this one fetch.
+    const { decimals, extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
+
+    // A ConfidentialMintBurn mint keeps its supply encrypted, so Token-2022 rejects
+    // plaintext MintTo (IllegalMintBurnConversion). Fail fast with an actionable
+    // message rather than building a transaction the chain would reject.
+    if (await mintHasConfidentialMintBurnExtension(rpc, mint, extensions)) {
+        throw confidentialMintBurnConversionError(mint, 'plaintext minting', 'createConfidentialMintInstructionPlan');
+    }
+
     const { tokenAccount: destinationAta, isFrozen } = await resolveTokenAccount(rpc, recipient, mint);
 
-    const { decimals, extensions, usesTokenAcl } = await getMintDetails(rpc, mint);
     const enableSrfc37 = usesTokenAcl && isDefaultAccountStateSetFrozen(extensions);
 
     const rawAmount = decimalAmountToRaw(amount, decimals);

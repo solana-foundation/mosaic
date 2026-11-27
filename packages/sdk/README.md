@@ -7,7 +7,7 @@ TypeScript SDK for building and operating Token-2022 mints with modern extension
 - **Templates**: One-call mint initialization for Stablecoin, Arcade Token, and Tokenized Security
 - **Access control**: Create and manage allowlists/blocklists (ABL, SRFC-37 compliant)
 - **Operations**: Mint, force-transfer (via permanent delegate), freeze/thaw, permissionless thaw (Token ACL)
-- **Confidential balances**: Configure accounts, deposit/withdraw, and confidential transfers with encrypted amounts (via the `@solana/mosaic-sdk/confidential` subpath)
+- **Confidential balances**: Configure accounts, deposit/withdraw, confidential transfers, and confidential mint/burn with encrypted amounts (via the `@solana/mosaic-sdk/confidential` subpath)
 - **Authorities**: Update mint, freeze, metadata, and other authorities
 - **Utilities**: Resolve ATAs, decimal math, transaction B64/B58 encoding
 
@@ -190,13 +190,19 @@ The burn authority can be rotated or removed with `getUpdateAuthorityTransaction
 
 ## Confidential balances & transfers
 
-The SDK supports the Token-2022 Confidential Transfer extension: token amounts are encrypted on-chain (under a per-account ElGamal + AES key pair) while remaining publicly auditable, across the standard flow (configure → deposit → apply → transfer → withdraw → empty).
+The SDK supports the Token-2022 Confidential Transfer extension: token amounts are
+encrypted on-chain (under a per-account ElGamal + AES key pair) while remaining
+publicly auditable. On top of the standard flow (configure → deposit → apply →
+transfer → withdraw → empty), the SDK also supports **confidential mint & burn**,
+where new supply is minted straight into an encrypted balance and burned from it.
 
 > **Import path.** Everything below imports from the dedicated `@solana/mosaic-sdk/confidential` subpath — _not_ the package root. This subpath pulls in the `@solana/zk-sdk` WASM proof/crypto dependency, which is deliberately kept out of the root barrel so plain (non-confidential) imports stay lightweight.
 >
 > **Cluster requirement.** Confidential operations verify zero-knowledge proofs via the ZK ElGamal Proof Program, which must be live on the target cluster. In practice that means **devnet**: it is not always enabled on mainnet, and a stock local validator fails these flows (deposit returns `InvalidInstructionData`), which is why `pnpm test:integration` skips every confidential suite. Several operations span multiple transactions to set up and reclaim proof context-state accounts.
 >
 > **Memory.** `ConfidentialKeys` hold WASM-backed memory — call `freeConfidentialKeys(keys)` when you're done with them.
+>
+> **Amount cap.** Confidential mint and burn amounts are capped at `2^48 − 1` raw units.
 
 ### 1. Enable at mint creation
 
@@ -204,17 +210,73 @@ Use the `Token` builder to add the extension. `policy` is `'opt-in'` (accounts s
 
 ```ts
 import { Token } from '@solana/mosaic-sdk';
+import {
+    getConfidentialMintBurnInit,
+    deriveConfidentialKeys,
+    freeConfidentialKeys,
+} from '@solana/mosaic-sdk/confidential';
 
+// Confidential balances + transfers only
 const tx = await new Token()
     .withConfidentialBalances({ authority: mintAuthority.address, policy: 'opt-in' })
     .buildTransaction({ rpc, decimals: 2, mintAuthority, mint, feePayer });
+
+// To also support confidential mint & burn, pair it with the ConfidentialMintBurn
+// extension. Its init values come from the mint's supply keys, so derive those
+// first and bake them into the mint.
+//
+// Supply keys are the ordinary wallet-only keys of a *dedicated supply-authority
+// wallet*. Do NOT reuse a wallet that holds confidential balances: derivation is
+// wallet-only, so that wallet's balance keys and this mint's supply keys would be
+// the same key. The supply keypair is proof material, never an on-chain signer, so
+// it does not have to be the mint authority.
+const supplyKeys = await deriveConfidentialKeys({ signer: supplyAuthority });
+const tx2 = await new Token()
+    .withConfidentialBalances({ authority: mintAuthority.address, policy: 'opt-in' })
+    .withConfidentialMintBurn(getConfidentialMintBurnInit(supplyKeys))
+    .buildTransaction({ rpc, decimals: 2, mintAuthority, mint, feePayer });
+freeConfidentialKeys(supplyKeys); // once you no longer need them for mint/burn
 ```
+
+> **`withConfidentialMintBurn` forces a confidential-only supply — there is no
+> plaintext side at all.** Such a mint tracks its total supply purely as an encrypted
+> value, so Token-2022 rejects **every** plaintext↔confidential conversion on it with
+> `IllegalMintBurnConversion`:
+>
+> | Operation                                                     | On a `ConfidentialMintBurn` mint        |
+> | ------------------------------------------------------------- | --------------------------------------- |
+> | `createMintToTransaction` (plaintext mint)                    | ✗ rejected — use the confidential mint  |
+> | `createBurnTransaction` / `createPermissionedBurnTransaction` | ✗ rejected — use the confidential burn  |
+> | `createForceBurnTransaction` (permanent delegate)             | ✗ rejected — no confidential equivalent |
+> | `createConfidentialDepositInstructionPlan`                    | ✗ rejected — nothing to deposit from    |
+> | `createConfidentialWithdrawInstructionPlan`                   | ✗ rejected — nowhere to withdraw to     |
+> | `createConfidentialTransferInstructionPlan`                   | ✓ supported                             |
+>
+> All six rejected builders fail fast client-side rather than emitting a doomed
+> transaction. Issuance and redemption go exclusively through
+> `createConfidentialMintInstructionPlan` / `createConfidentialBurnInstructionPlan`
+> (step 5), and **holders have no route back to a plaintext balance** — plan for that
+> before enabling the extension.
+>
+> If you instead want a **public supply with confidential balances**, use
+> `withConfidentialBalances` **without** `withConfidentialMintBurn`: mint in cleartext
+> with `createMintToTransaction`, then move value into the confidential balance with a
+> `deposit` (step 4), and back out with a `withdraw`.
 
 ### 2. Derive account keys
 
-Each holder derives an ElGamal keypair + AES key from a single wallet signature — deterministic, never stored on-chain, and **wallet-only**: there is no owner/mint/token-account seed, so the same signer always derives the same account keys for every mint and token account it holds.
+Each holder derives an ElGamal keypair + AES key from a single wallet signature —
+deterministic, never stored on-chain, and **wallet-only**: there is no owner/mint/
+token-account seed, so the same signer always derives the same account keys for
+every mint and token account it holds.
 
-> Because a wallet has exactly one confidential key pair, there is no in-wallet separation to rely on: a role that must not share keys with a holder, such as an auditor, needs its own wallet.
+> A mint's **supply** keys (step 1) are not a separate derivation — they are this
+> same wallet-only derivation run against a _dedicated supply-authority wallet_.
+> Because a wallet has exactly one confidential key pair, there is no in-wallet
+> separation to rely on: reusing a balance-holding wallet as the supply authority
+> makes its balance keys and the total-supply keys the same key, so sharing account
+> keys — with an auditor, with support, in a backup — would hand over the supply too.
+> Use a separate wallet. The same applies to an auditor key.
 
 ```ts
 import { deriveConfidentialKeys, freeConfidentialKeys } from '@solana/mosaic-sdk/confidential';
@@ -264,6 +326,10 @@ const approvePlan = createApproveConfidentialAccountInstructionPlan({
 ### 4. Deposit, apply, transfer, withdraw, empty
 
 The standard confidential-balance lifecycle. All functions return an `InstructionPlan` — see [Executing plans](#executing-plans) below.
+
+> Deposit and withdraw are **not available on a `ConfidentialMintBurn` mint** (see the
+> table in step 1); on such a mint use the confidential mint/burn flow in step 5
+> instead. Everything else here works on both kinds of confidential mint.
 
 ```ts
 import {
@@ -328,6 +394,79 @@ const empty = await createEmptyConfidentialAccountInstructionPlan({
 >
 > The fee-aware range proof is always staged in an SPL Record account, with or without `recordBackedProof`. The fee schedule is fixed when the plan is built, so a transfer that lands after a scheduled fee change takes effect is rejected on-chain. When the builder fetches the epoch itself, it refuses to plan within `FEE_SCHEDULE_CHANGE_GUARD_SLOTS` (1500 slots, about 10 minutes) of an epoch boundary where the fee changes; a supplied `currentEpoch` skips that check and must be fresh. Holder accounts on a `TransferFeeConfig` mint need room for `ConfidentialTransferFeeAmount`; `createConfigureConfidentialAccountInstructionPlan` reads the mint and adds it automatically (or pass `includeConfidentialTransferFeeAmount`).
 
+### 5. Confidential mint & burn
+
+Requires a mint created with both `withConfidentialBalances` and
+`withConfidentialMintBurn` (see step 1). `supplyKeys` are the supply authority's
+keys — the dedicated wallet the mint was created with, checked against the mint's
+registered supply pubkey before any proof is built; `keys` are the holder's account
+keys. The `authority` signing these instructions is still the mint authority, which
+need not be the same wallet.
+
+```ts
+import {
+    createConfidentialMintInstructionPlan,
+    createConfidentialBurnInstructionPlan,
+    createApplyConfidentialPendingBurnInstructionPlan,
+} from '@solana/mosaic-sdk/confidential';
+
+// Mint straight into a confidential (pending) balance — amount never appears in cleartext.
+const mint = await createConfidentialMintInstructionPlan({
+    rpc,
+    payer: feePayer,
+    mint: 'MintPubkey...',
+    destinationToken: 'OwnerAta...',
+    authority: mintAuthority,
+    amount: 500n,
+    supplyKeys,
+});
+
+// Burn from the account's available confidential balance (authored by the owner).
+const burn = await createConfidentialBurnInstructionPlan({
+    rpc,
+    payer: feePayer,
+    mint: 'MintPubkey...',
+    tokenAccount: 'OwnerAta...',
+    authority: owner,
+    amount: 200n,
+    keys,
+});
+
+// Apply the mint's accumulated pending burn into its confidential supply (mint authority),
+// re-syncing the decryptable supply in the same plan — see the warning below.
+const applyBurn = await createApplyConfidentialPendingBurnInstructionPlan({
+    rpc,
+    mint: 'MintPubkey...',
+    authority: mintAuthority,
+    resyncSupply: {
+        supplyKeys,
+        rawSupply: 300n, // true supply after the burn, in raw base units
+    },
+});
+```
+
+> ⚠️ **Never omit `resyncSupply`, or your next confidential mint will be rejected
+> on-chain.** The mint keeps its supply twice: as an
+> ElGamal ciphertext (`confidentialSupply`) and as a cheap-to-decrypt AES value
+> (`decryptableSupply`). `ApplyPendingBurn` advances the ElGamal form but **cannot**
+> re-encrypt the AES form, so the two drift apart. A confidential mint's equality proof
+> is built from the AES value and checked against the ElGamal one, so once they differ
+> the proof fails verification and the mint transaction is rejected — with no hint that
+> a stale decryptable supply is the cause.
+>
+> `rawSupply` is asserted, not verified: the program re-encrypts whatever you pass, in
+> **raw base units** (no decimal string form). Track the true supply yourself — mint
+> amounts added, applied burn amounts subtracted — because passing the wrong value
+> leaves the mint in exactly the broken state this instruction exists to repair.
+>
+> If you need the two steps as separate plans (e.g. to sign them from different places),
+> omit `resyncSupply` and sequence
+> `createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan` yourself — but then
+> the ordering is on you.
+>
+> The full safe cycle is therefore:
+> `confidential mint → apply pending balance → confidential burn → apply pending burn (+ re-sync)`.
+
 ### Credits (who may send you what)
 
 Four proof-free toggles, each signed by the token account's owner, controlling which kinds of incoming transfer the account accepts. Useful before `empty` / account closure, and to park an account that should stop receiving.
@@ -356,10 +495,12 @@ Deriving keys costs a wallet signature, so a UI usually wants to know what it is
 ```ts
 import {
     isConfidentialTransferMint,
+    isConfidentialMintBurn,
     isConfidentialTransferAccount,
     mintHasConfidentialTransferFee,
     mintHasTransferFeeConfig,
     getConfidentialTransferAccountElgamalPubkey,
+    getConfidentialMintBurnSupplyElgamalPubkey,
 } from '@solana/mosaic-sdk/confidential';
 import { fetchMint } from '@solana-program/token-2022';
 
@@ -369,7 +510,11 @@ if (isConfidentialTransferMint(mint)) {
 }
 ```
 
-`assertConfidentialKeysMatchAccount(keys, registeredPubkey, label)` asserts that a caller's `ConfidentialKeys` are the ones a given account was actually registered with. The builders call it internally; call it yourself to fail early in a UI, before a wrong-wallet key surfaces as an opaque on-chain proof rejection.
+Two guards assert that a caller's `ConfidentialKeys` are the ones a given account
+or mint was actually registered with — `assertConfidentialKeysMatchAccount(keys,
+registeredPubkey, label)` and `assertConfidentialKeysMatchSupply(...)`. The
+builders call them internally; call them yourself to fail early in a UI, before a
+wrong-wallet key surfaces as an opaque on-chain proof rejection.
 
 For raw ciphertexts and their decryption there are `fetchConfidentialAccountState` (the lower-level counterpart to `inspectConfidentialAccount`) plus `decryptConfidentialBalances`, and the two primitives `decryptAesBalance` (fast and exact, for a `decryptableAvailableBalance`) and `decryptElGamalBalance` (a discrete-log search — only practical for small amounts).
 
@@ -377,7 +522,13 @@ For raw ciphertexts and their decryption there are `fetchConfidentialAccountStat
 
 ### Amounts
 
-Builders that take a user-facing amount accept a `TokenAmount` — a decimal string (`"1.5"`) or a raw `bigint`. To scale an amount yourself, use `tokenAmountToRaw(amount, decimals)`, which rejects non-numeric input, more fractional digits than the mint has decimals, and results outside `(0, 2^64)` — unlike the root `decimalAmountToRaw`, which silently truncates over-precision.
+Builders that take a user-facing amount accept a `TokenAmount` — a decimal string
+(`"1.5"`) or a raw `bigint`. Builders that re-assert the encrypted supply
+(`createUpdateConfidentialMintBurnDecryptableSupplyInstructionPlan`, and
+`resyncSupply` on apply-pending-burn) take **raw** units only. Scale with
+`tokenAmountToRaw(amount, decimals)`, which rejects non-numeric input, more
+fractional digits than the mint has decimals, and results outside `(0, 2^64)` —
+unlike the root `decimalAmountToRaw`, which silently truncates over-precision.
 
 <a id="executing-plans"></a>
 
@@ -448,7 +599,8 @@ const info = await inspectConfidentialAccount(rpc, 'OwnerAta...', keys);
 console.log(info?.decrypted?.availableBalance); // bigint (raw units)
 ```
 
-For a runnable end-to-end example of the transfer flow, see `packages/sdk/src/__tests__/integration/confidential.test.ts`.
+For a runnable end-to-end example (both the transfer flow and the mint/burn flow),
+see `packages/sdk/src/__tests__/integration/confidential.test.ts`.
 
 > **Deprecated: `confidential/proof.ts`.** `buildProofVerificationIxs`, `buildTransferProofIxs`, `buildWithdrawProofIxs`, `buildPubkeyValidityProofIxs`, `buildZeroCiphertextProofIxs` and `buildCloseContextStateInstruction` are still exported, but no builder in this SDK constructs proofs by hand any more — every operation delegates to `@solana-program/token-2022/confidential`. They remain only for callers who wired their own flows on them, and are slated for removal in a future breaking release. They are also the only remaining way to reach the sibling/inline proof mode; the supported builders all use context-state proofs.
 

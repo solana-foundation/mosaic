@@ -8,6 +8,7 @@ CLI for building and operating Token-2022 mints with modern extensions on Solana
 - **Operations**: Mint, transfer, force-transfer (permanent delegate), inspect mints
 - **Access control**: Manage allowlists/blocklists
 - **Token ACL**: Create config, set gating program, enable permissionless thaw, thaw/freeze
+- **Confidential balances**: Configure accounts, deposit/apply/withdraw, confidential transfer, confidential mint/burn, and inspect encrypted state
 
 ## Installation
 
@@ -28,7 +29,7 @@ node packages/cli/bin/mosaic.mjs --help
 Note that all commands expect the fee payer to be the authority for the action executed. All commands accept:
 
 ```bash
---rpc-url <url>    # RPC endpoint (default: https://api.devnet.solana.com or Solana CLI config)
+--rpc-url <url>    # RPC endpoint (default: Solana CLI config json_rpc_url, then https://api.devnet.solana.com)
 --keypair <path>   # Path to keypair JSON (default: Solana CLI keypair path)
 ```
 
@@ -60,7 +61,7 @@ If your signer (fee payer) is also the mint authority, the create commands will 
 
 ## Command reference
 
-> **Confidential balances.** The CLI exposes confidential balances only as a mint-creation flag (`--confidential-balances-authority`). Confidential _runtime_ operations — configure account, deposit/apply/withdraw, and confidential transfer — are SDK-only for now; see the [SDK confidential guide](../sdk/README.md#confidential-balances--transfers).
+> **Confidential balances.** `create stablecoin` and `create tokenized-security` set up the extension (see the flags below), and the [`mosaic confidential`](#confidential-balances) group operates it at runtime. For the underlying primitives see the [SDK confidential guide](../sdk/README.md#confidential-balances--transfers).
 
 ### Create
 
@@ -76,6 +77,9 @@ mosaic create stablecoin \
   [--pausable-authority <address>] \
   [--confidential-balances-authority <address>] \
   [--permanent-delegate-authority <address>] \
+  [--confidential-policy <opt-in|whitelist>] \
+  [--auditor-elgamal-pubkey <address>] \
+  [--confidential-mint-burn --supply-keypair <path>] \
   [--mint-keypair <path>]
 
 # Arcade Token (metadata, pausable, permanent delegate, allowlist)
@@ -105,8 +109,17 @@ mosaic create tokenized-security \
   [--permissioned-burn-authority <address>] \
   [--multiplier <number=1>] \
   [--scaled-ui-amount-authority <address>] \
+  [--confidential-policy <opt-in|whitelist>] \
+  [--auditor-elgamal-pubkey <address>] \
+  [--confidential-mint-burn --supply-keypair <path>] \
   [--mint-keypair <path>]
 ```
+
+The confidential flags of `create stablecoin` and `create tokenized-security`:
+
+- `--confidential-policy <opt-in|whitelist>`: with `whitelist` (the default) the confidential balances authority approves each account; with `opt-in` holders configure their own.
+- `--auditor-elgamal-pubkey <address>`: an auditor that can decrypt every confidential transfer amount.
+- `--confidential-mint-burn --supply-keypair <path>`: add the `ConfidentialMintBurn` extension, so the supply only ever exists encrypted and plaintext mint, burn, deposit and withdraw stop working on the mint. The supply is encrypted under keys derived from the `--supply-keypair` wallet. Use a dedicated wallet: one that also holds confidential balances would protect them and the supply with the same key. The supply authority never signs, so this also works with `--raw-tx`.
 
 ### Token management
 
@@ -148,6 +161,84 @@ mosaic force-burn \
 # Inspect a mint and list extensions
 mosaic inspect-mint --mint-address <mint>
 ```
+
+### Confidential balances
+
+Runtime operations for Token-2022 confidential balances. Every command takes `-m, --mint`, and the account commands default `--token-account` to the signer's ATA.
+
+- Commands that derive an account owner's confidential keys (configure-account, transfer, withdraw, burn, empty-account) need the owner's real keypair and can't run with `--raw-tx`.
+- Mint, apply-pending-burn and update-supply are signed by the mint authority, which can be an external signer with `--raw-tx`. Their supply keys come from `--supply-keypair` (defaulting to `--keypair`, and required with `--raw-tx`).
+- Proof flows span several transactions (proof setup, the operation, cleanup), sent one at a time. A send is retried only on rate limits, an unknown blockhash, or a transaction that expired unconfirmed, never on a transaction that failed on chain.
+- `--tx-version 1` packs them into fewer, larger [SIMD-0385](https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0385-transaction-v1.md) transactions. It needs an Agave 4.2.2+ RPC, and can't be combined with `--raw-tx`, since each transaction's resource limits come from simulating it after the previous one landed.
+- With `--raw-tx`, the printed transactions already carry the signatures of keys the CLI holds (such as the ephemeral proof accounts). Sign and send them in the printed order, before the blockhash expires.
+
+```bash
+# Configure (create/reallocate) a token account for confidential transfers
+mosaic confidential configure-account --mint <mint> [--token-account <address>] [--max-pending-credits <number>]
+
+# Approve a configured account (whitelist-policy mints; confidential balances authority)
+mosaic confidential approve --mint <mint> (--owner <wallet> | --token-account <address>)
+
+# Enable / disable incoming credits (--non-confidential toggles plaintext credits)
+mosaic confidential enable-credits  --mint <mint> [--token-account <address>] [--non-confidential]
+mosaic confidential disable-credits --mint <mint> [--token-account <address>] [--non-confidential]
+
+# Deposit plaintext balance -> pending confidential balance
+mosaic confidential deposit --mint <mint> --amount <decimal> [--token-account <address>]
+
+# Apply pending -> available confidential balance
+mosaic confidential apply --mint <mint> [--token-account <address>]
+
+# Withdraw available confidential balance -> plaintext balance
+mosaic confidential withdraw --mint <mint> --amount <decimal> [--token-account <address>]
+
+# Confidentially transfer to another confidential account (uses the mint's auditor by default)
+mosaic confidential transfer \
+  --mint <mint> \
+  --to <recipient_owner> \
+  --amount <decimal> \
+  [--token-account <address>] \
+  [--to-token-account <address>] \
+  [--auditor-elgamal-pubkey <address>]
+
+# Confidentially mint into a confidential balance (ConfidentialMintBurn mints; mint authority)
+mosaic confidential mint \
+  --mint <mint> \
+  --amount <decimal> \
+  --to <recipient_owner> \
+  [--supply-keypair <path>] \
+  [--to-token-account <address>] \
+  [--auditor-elgamal-pubkey <address>]
+
+# Confidentially burn from a confidential balance (account owner). On permissioned burn
+# mints the burn authority co-signs; pass its keypair if it differs from the signer.
+mosaic confidential burn \
+  --mint <mint> \
+  --amount <decimal> \
+  [--token-account <address>] \
+  [--auditor-elgamal-pubkey <address>] \
+  [--permissioned-burn-keypair <path>]
+
+# Apply the mint's accumulated pending burn into its confidential supply (mint authority).
+# --supply is the true total supply AFTER this apply, in raw base units: the command
+# re-encrypts the decryptable supply in the same plan, which keeps the next confidential
+# mint's proof valid. It is asserted, not verified, so track the supply yourself (mint
+# amounts added, applied burn amounts subtracted).
+mosaic confidential apply-pending-burn --mint <mint> --supply <raw_base_units> [--supply-keypair <path>]
+
+# Re-assert the decryptable supply (mint authority). A repair tool for a supply that drifted;
+# the normal cycle never needs it.
+mosaic confidential update-supply --mint <mint> --supply <raw_base_units> [--supply-keypair <path>]
+
+# Prove the available balance is zero so the account can be closed
+mosaic confidential empty-account --mint <mint> [--token-account <address>]
+
+# Inspect an account's confidential state. Balances are decrypted when the signer owns the
+# account, whether it is named by --token-account or is the signer's ATA.
+mosaic confidential inspect-account --mint <mint> [--token-account <address>] [--decrypt-pending]
+```
+
+Every command above except `inspect-account` also takes `--tx-version <0|1>`.
 
 ### ABL (Address-Based Lists)
 

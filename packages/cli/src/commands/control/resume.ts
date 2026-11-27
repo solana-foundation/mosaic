@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { getTokenPauseState, createResumeTransaction, MINT_NOT_PAUSED_ERROR } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../../utils/rpc.js';
-import { resolveSigner } from '../../utils/solana.js';
+import { resolveSigners } from '../../utils/solana.js';
 import { type Address, sendAndConfirmTransactionFactory } from '@solana/kit';
 import { getGlobalOpts, createSpinner, sendOrOutputTransaction } from '../../utils/cli.js';
 
@@ -22,7 +22,6 @@ export const resumeCommand = new Command('resume')
         // Get global options from parent command
         const parentOpts = getGlobalOpts(command);
         const rpcUrl = parentOpts.rpcUrl;
-        const keypairPath = parentOpts.keypair;
         const rawTx: string | undefined = parentOpts.rawTx;
 
         const spinner = createSpinner('Checking token state...', rawTx);
@@ -45,12 +44,9 @@ export const resumeCommand = new Command('resume')
 
             spinner.text = 'Preparing resume transaction...';
 
-            // Resolve pause authority signer or address
-            const { signer: pauseAuthority, address: pauseAuthorityAddress } = await resolveSigner(
-                rawTx,
-                keypairPath,
-                parentOpts.authority,
-            );
+            // Resolve the pause authority and fee payer signers
+            const { authority: pauseAuthority, feePayer } = await resolveSigners(parentOpts);
+            const pauseAuthorityAddress = pauseAuthority.address;
 
             spinner.text = 'Sending resume transaction...';
 
@@ -58,7 +54,7 @@ export const resumeCommand = new Command('resume')
             const { transactionMessage } = await createResumeTransaction(rpc, {
                 mint: options.mintAddress as Address,
                 pauseAuthority,
-                feePayer: pauseAuthority, // Use same signer for fee payer
+                feePayer,
             });
 
             const { raw, signature } = await sendOrOutputTransaction(
