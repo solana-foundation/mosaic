@@ -11,6 +11,7 @@ import { useInputValidation } from '@/hooks/use-input-validation';
 import { humanizeError } from '@/lib/errors';
 import { buildExplorerUrl } from '@/lib/solana/explorer';
 import { ConfidentialPlanError } from '../lib/execute-confidential-plan';
+import { toDecimalAmount } from '../lib/format';
 
 export interface ConfidentialActionValues {
     amount?: string;
@@ -73,7 +74,7 @@ export function ConfidentialActionCard({
     runContext,
     onRun,
 }: ConfidentialActionCardProps) {
-    const { validateSolanaAddress, validateAmount } = useInputValidation();
+    const { validateSolanaAddress } = useInputValidation();
     const [amount, setAmount] = useState('');
     const [address, setAddress] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -98,7 +99,9 @@ export function ConfidentialActionCard({
     const needsAddress = !!fields?.address;
 
     const addressValid = addressOptional && !address ? true : validateSolanaAddress(address);
-    const inputsValid = (!needsAmount || validateAmount(amount)) && (!needsAddress || addressValid);
+    // The builders take an exact decimal string, never `1e-9`: see toDecimalAmount.
+    const decimalAmount = needsAmount ? toDecimalAmount(amount) : null;
+    const inputsValid = (!needsAmount || decimalAmount !== null) && (!needsAddress || addressValid);
 
     const execute = async (send: (onProgress: (current: number, total: number) => void) => Promise<Signature[]>) => {
         // Captured before sending: the selection can change while it runs.
@@ -134,7 +137,10 @@ export function ConfidentialActionCard({
         setSignatures([]);
         return execute(onProgress =>
             onRun(
-                { amount: needsAmount ? amount : undefined, address: needsAddress && address ? address : undefined },
+                {
+                    amount: needsAmount ? (decimalAmount ?? undefined) : undefined,
+                    address: needsAddress && address ? address : undefined,
+                },
                 onProgress,
             ),
         );
