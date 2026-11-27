@@ -10,6 +10,7 @@
         "lint": "eslint src",
         "type-check": "tsc --noEmit",
         "smoke-test": "node scripts/smoke-test.mjs",
+        "test": "node e2e/agent-browser/selftest.mjs",
         "e2e:agent": "bash e2e/agent-browser/run.sh"
     },
     "_dependencyNotes": "@solana/sysvars and @solana/zk-sdk have NO import sites in src/ but are both load-bearing — do not delete them as unused. @solana/sysvars is declared so token-2022's `@solana/sysvars ^8` peer is satisfied from this app's own resolution context; dropping it hands that to pnpm's autoInstallPeers, which is exactly how a second copy gets materialised. @solana/zk-sdk is referenced by next.config.js, which externalises the server build to `commonjs @solana/zk-sdk/node` and rewrites `@solana/zk-sdk/bundler` requests — that resolves from this package's node_modules. It is pinned EXACTLY (0.5.2, matching the root override) because a second resolved copy instantiates a second WASM module and breaks class identity with `expected instance of ElGamalKeypair`. @solana/react is not a direct dependency (zero import sites here); it now arrives only through @solana/connector 0.3.0, and the tree resolves kit 8.5, which satisfies its kit peer. @solana/connector is on 0.3.0, the first release on kit v8 natively: its useKitTransactionSigner is built on @solana/wallet-account-signer and signs SIMD-0385 version-1 transactions, which 0.1.4's hand-rolled bridge could not (1232-byte cap, signatures-first wire bytes) — the confidential wizard plans version-1 transactions when the wallet and RPC support them.",
