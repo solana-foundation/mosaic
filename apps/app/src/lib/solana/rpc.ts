@@ -11,7 +11,7 @@ import {
 import { TOKEN_2022_PROGRAM_ADDRESS, decodeMint } from '@solana-program/token-2022';
 import { fetchEncodedAccount } from '@solana/accounts';
 import { SYSTEM_PROGRAM_ADDRESS } from '@solana-program/system';
-import { getEnvRpcUrl } from './network';
+import { BUILTIN_CLUSTERS, getConfiguredNetwork, getEnvRpcUrl } from './network';
 
 /**
  * Default commitment level for transactions.
@@ -49,10 +49,12 @@ export interface TokenAuthorities {
 }
 
 /**
- * Gets the Solana RPC URL: the override when given, else Devnet's endpoint
- * (NEXT_PUBLIC_SOLANA_DEVNET_RPC_URL, falling back to public devnet). Callers
- * pass the selected cluster's URL as the override; the fallback is Devnet
- * because that is the app's default network.
+ * Gets the Solana RPC URL: the override when given, else the endpoint of the
+ * network the app boots into (`getConfiguredNetwork()`: NEXT_PUBLIC_SOLANA_NETWORK,
+ * else Devnet), which is that network's env RPC variable or its public
+ * endpoint. Callers pass the selected cluster's URL as the override; the
+ * fallback follows the configured network so that reads made before the
+ * connector has a cluster go to the same network the app booted into.
  *
  * @param overrideUrl - Optional RPC URL to override the default behavior
  * @returns RPC URL string
@@ -61,7 +63,9 @@ export function getRpcUrl(overrideUrl?: string): string {
     if (overrideUrl) {
         return overrideUrl;
     }
-    return getEnvRpcUrl('devnet') || 'https://api.devnet.solana.com';
+    const network = getConfiguredNetwork();
+    const builtin = BUILTIN_CLUSTERS.find(cluster => cluster.name === network);
+    return getEnvRpcUrl(network) || builtin?.url || 'https://api.devnet.solana.com';
 }
 
 /**
@@ -100,7 +104,7 @@ export function getWsUrl(rpcUrl: string): string {
 
 /**
  * Creates a Solana RPC client
- * @param rpcUrl - Optional RPC URL, defaults to Devnet's endpoint (see getRpcUrl)
+ * @param rpcUrl - Optional RPC URL, defaults to the configured network's endpoint (see getRpcUrl)
  * @returns RPC client instance
  */
 export function createRpcClient(rpcUrl?: string): Rpc<SolanaRpcApi> {
@@ -110,7 +114,7 @@ export function createRpcClient(rpcUrl?: string): Rpc<SolanaRpcApi> {
 
 /**
  * Creates a Solana RPC subscriptions client
- * @param rpcUrl - Optional RPC URL, defaults to Devnet's endpoint (see getRpcUrl)
+ * @param rpcUrl - Optional RPC URL, defaults to the configured network's endpoint (see getRpcUrl)
  * @returns RPC subscriptions client instance
  */
 export function createRpcSubscriptions(rpcUrl?: string): RpcSubscriptions<SolanaRpcSubscriptionsApi> {
