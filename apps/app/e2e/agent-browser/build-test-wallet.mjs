@@ -1,0 +1,107 @@
+// Bundles test-wallet.ts into a single IIFE for `agent-browser --init-script`,
+// with a devnet test keypair embedded.
+//
+// Usage: node e2e/agent-browser/build-test-wallet.mjs [options]
+//   --role a|b           sign with that role's keypair (default a), resolved by
+//                        keypairs.mjs exactly as chain.mjs resolves it
+//   --keypair <path>     sign with this Solana CLI keypair JSON instead
+//   --alt-role b         second keypair, reachable with window.__mosaicTestWallet.switchAccount()
+//   --alt <path>         the same, from a file
+//   --no-sign-message    leave out solana:signMessage, like a wallet that cannot sign messages
+//   --tx-v1              advertise version-1 transactions, so the app plans SIMD-0385 messages
+//   --out <path>         output file, relative to apps/app/.agent-browser/
+//                        (default: test-wallet.js); a path outside it is refused
+//
+// Prints the address it embedded. Output: apps/app/.agent-browser/<path>,
+// which is gitignored because it contains secret keys. Never commit it or
+// paste it anywhere.
+/* global process, console */
+import { build } from 'esbuild';
+import { chmodSync, mkdirSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { parseArgs } from 'node:util';
+import { getBase58Decoder } from '@solana/kit';
+import { keypairPath, readKeypairFile } from './keypairs.mjs';
+
+const here = dirname(fileURLToPath(import.meta.url));
+const appRoot = resolve(here, '../..');
+
+function die(message) {
+    console.error(`build-test-wallet: ${message}`);
+    process.exit(1);
+}
+
+const { values: args } = parseArgs({
+    options: {
+        role: { type: 'string', default: 'a' },
+        keypair: { type: 'string' },
+        'alt-role': { type: 'string' },
+        alt: { type: 'string' },
+        'no-sign-message': { type: 'boolean', default: false },
+        'tx-v1': { type: 'boolean', default: false },
+        out: { type: 'string', default: 'test-wallet.js' },
+    },
+});
+
+// Bundles stay inside the gitignored .agent-browser/, whatever --out says.
+const outDir = join(appRoot, '.agent-browser');
+const outfile = resolve(outDir, args.out);
+const inside = relative(outDir, outfile);
+if (!inside || inside.startsWith('..') || isAbsolute(inside)) {
+    die(`--out ${args.out} is outside ${outDir}: the bundle embeds secret keys`);
+}
+
+function pathFor(path, role) {
+    if (path) return path;
+    try {
+        return keypairPath(role);
+    } catch (error) {
+        die(error.message);
+    }
+}
+
+function readKeypair(path) {
+    try {
+        return readKeypairFile(path);
+    } catch (error) {
+        die(error.message);
+    }
+}
+
+const secretKey = readKeypair(pathFor(args.keypair, args.role));
+const altPath = args.alt ?? (args['alt-role'] ? pathFor(undefined, args['alt-role']) : null);
+const altSecretKey = altPath ? readKeypair(altPath) : null;
+const txVersions = args['tx-v1'] ? ['legacy', 0, 1] : ['legacy', 0];
+// A Solana CLI keypair file is the 32-byte seed followed by the 32-byte public key.
+const walletAddress = getBase58Decoder().decode(new Uint8Array(secretKey.slice(32)));
+
+mkdirSync(dirname(outfile), { recursive: true });
+
+await build({
+    entryPoints: [join(here, 'test-wallet.ts')],
+    outfile,
+    bundle: true,
+    format: 'iife',
+    platform: 'browser',
+    target: 'chrome120',
+    // Pick the browser builds of @solana/kit so signing uses WebCrypto Ed25519.
+    conditions: ['browser'],
+    define: {
+        __MOSAIC_TEST_SECRET_KEY__: JSON.stringify(secretKey),
+        __MOSAIC_TEST_ALT_SECRET_KEY__: JSON.stringify(altSecretKey),
+        __MOSAIC_TEST_SIGN_MESSAGE__: JSON.stringify(!args['no-sign-message']),
+        __MOSAIC_TEST_TX_VERSIONS__: JSON.stringify(txVersions),
+    },
+    legalComments: 'none',
+    logLevel: 'warning',
+});
+// Owner-only: the bundle embeds secret keys.
+chmodSync(outfile, 0o600);
+
+const modes = [
+    altSecretKey && 'alt account',
+    args['no-sign-message'] && 'no signMessage',
+    args['tx-v1'] && 'tx v1',
+].filter(Boolean);
+console.log(`build-test-wallet: wrote ${outfile} for ${walletAddress}${modes.length ? ` (${modes.join(', ')})` : ''}`);
