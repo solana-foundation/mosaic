@@ -124,8 +124,11 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
     // until read: guessing 0 would show 1.5 tokens of a 9-decimals mint as
     // 1500000000, so the panel withholds amounts until this is known. Reset on
     // every RPC or mint change, so nothing carries over from the previous one.
+    // A failed read is retried from the panel's refresh control (see
+    // `refreshAll`), so a transient RPC error does not hide amounts for good.
     const [decimals, setDecimals] = useState<number | undefined>();
     const [decimalsError, setDecimalsError] = useState<string | undefined>();
+    const [decimalsAttempt, setDecimalsAttempt] = useState(0);
     useEffect(() => {
         setDecimals(undefined);
         setDecimalsError(undefined);
@@ -141,15 +144,18 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
         return () => {
             active = false;
         };
-    }, [rpc, mint]);
+    }, [rpc, mint, decimalsAttempt]);
 
     // The mint's confidential config, to decide whether (and by whom) accounts
     // must be approved. Undefined while loading; null when the mint has no
     // ConfidentialTransferMint extension. Reset on every RPC or mint change,
-    // like the decimals above.
+    // like the decimals above, and retried from refresh after a failed read.
     const [mintConfig, setMintConfig] = useState<ConfidentialMintConfig | null | undefined>();
+    const [mintConfigFailed, setMintConfigFailed] = useState(false);
+    const [mintConfigAttempt, setMintConfigAttempt] = useState(0);
     useEffect(() => {
         setMintConfig(undefined);
+        setMintConfigFailed(false);
         if (!rpc) return;
         let active = true;
         fetchConfidentialMintConfig(rpc, mint)
@@ -157,12 +163,14 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
                 if (active) setMintConfig(c);
             })
             .catch(() => {
-                /* leave undefined; the approve step stays enabled and fails on-chain if unusable */
+                // Leave undefined: the approve step stays enabled and fails
+                // on-chain if unusable. Refresh retries the read.
+                if (active) setMintConfigFailed(true);
             });
         return () => {
             active = false;
         };
-    }, [rpc, mint]);
+    }, [rpc, mint, mintConfigAttempt]);
 
     const confAccount = useConfidentialAccount({ tokenAccount, rpc });
     const tokenBalance = useTokenBalance(mint);
@@ -175,12 +183,16 @@ export function ConfidentialWizard({ mint, symbol }: ConfidentialWizardProps) {
      * public balance is cached until something explicitly refetches it
      * (`use-token-balance.ts` fetches only while `lastFetched === null`), so
      * refreshing the confidential state alone leaves a stale public balance on
-     * screen with no way for the user to clear it.
+     * screen with no way for the user to clear it. A failed mint read (decimals
+     * or confidential config) is retried here too, since nothing else reruns it
+     * while the RPC and mint stay the same.
      */
     const refreshAll = useCallback(() => {
         refresh();
         refetchPlaintext();
-    }, [refresh, refetchPlaintext]);
+        if (decimalsError) setDecimalsAttempt(n => n + 1);
+        if (mintConfigFailed) setMintConfigAttempt(n => n + 1);
+    }, [refresh, refetchPlaintext, decimalsError, mintConfigFailed]);
 
     /**
      * Runs `send`, then refreshes both balance views — after a failure too, since
