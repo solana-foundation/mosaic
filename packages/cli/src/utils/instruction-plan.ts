@@ -37,7 +37,8 @@ export type EstimateLimits = <T extends PlannedMessage>(message: T) => Promise<T
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const RATE_LIMITED = /429|Too Many Requests/i;
+// `\b` keeps a base58 signature or address that happens to contain "429" from reading as a rate limit.
+const RATE_LIMITED = /\b429\b|Too Many Requests/i;
 
 /**
  * Thrown when a transaction did not land before its blockhash expired. Only then is it safe to
@@ -51,23 +52,48 @@ export class BlockhashExpiredError extends Error {
     }
 }
 
+/** Thrown when a transaction landed and failed on chain. It fails the same way every time. */
+export class TransactionFailedError extends Error {
+    constructor(signature: Signature, err: unknown) {
+        super(`Transaction ${signature} failed: ${stringifyErr(err)}`);
+        this.name = 'TransactionFailedError';
+    }
+}
+
 /**
- * Whether a send attempt failed in a way a retry with a fresh blockhash can fix: rate limiting, a
- * blockhash the node doesn't know yet, or a transaction that expired unconfirmed.
+ * Thrown when a transaction was sent but its outcome could not be read, because the RPC kept
+ * rate-limiting the status checks. The transaction may still land, so it is never resent.
+ */
+export class UnconfirmedTransactionError extends Error {
+    constructor(signature: Signature, cause: unknown) {
+        super(
+            `Could not confirm transaction ${signature}: the RPC kept rate-limiting status checks. It may still land; check its status before running the command again.`,
+            { cause },
+        );
+        this.name = 'UnconfirmedTransactionError';
+    }
+}
+
+/**
+ * Whether a send attempt failed in a way a retry with a fresh blockhash can fix: rate limiting
+ * before the transaction was sent, a blockhash the node doesn't know yet, or a transaction that
+ * expired unconfirmed.
  *
  * Everything else is final. In particular a transaction that landed and failed on chain (for
  * example `IncorrectProgramId`, or a fee payer with no SOL to debit) fails the same way every
- * time, so retrying it only delays the error.
+ * time, so retrying it only delays the error, and a sent transaction whose status can't be read
+ * may still land.
  */
 export function isRetryableSendError(error: unknown): boolean {
     if (error instanceof BlockhashExpiredError) return true;
+    if (error instanceof TransactionFailedError || error instanceof UnconfirmedTransactionError) return false;
     const message = error instanceof Error ? error.message : String(error);
     return RATE_LIMITED.test(message) || /BlockhashNotFound|Blockhash not found/i.test(message);
 }
 
 /** Runs an RPC call, retrying on HTTP 429 with exponential backoff. */
-async function withBackoff<T>(label: string, fn: () => Promise<T>): Promise<T> {
-    let delay = 500;
+async function withBackoff<T>(label: string, fn: () => Promise<T>, initialDelayMs = 500): Promise<T> {
+    let delay = initialDelayMs;
     for (let attempt = 0; attempt < 8; attempt++) {
         try {
             return await fn();
@@ -77,7 +103,7 @@ async function withBackoff<T>(label: string, fn: () => Promise<T>): Promise<T> {
             delay = Math.min(delay * 2, 8_000);
         }
     }
-    throw new Error(`${label}: exhausted retries after repeated 429s`);
+    throw new Error(`${label}: exhausted retries after repeated HTTP 429 responses`);
 }
 
 function stringifyErr(err: unknown): string {
@@ -92,44 +118,55 @@ export interface SendOptions {
     attempts?: number;
     /** Delay between status polls, and before a retry. */
     pollIntervalMs?: number;
+    /** First delay of the exponential backoff on HTTP 429. */
+    rateLimitBackoffMs?: number;
 }
 
 /**
  * Sets a fresh blockhash on `baseMessage`, signs it, sends it and polls until it is confirmed.
- * Retries only on {@link isRetryableSendError}.
+ * Retries only on {@link isRetryableSendError}. Once a transaction is sent, it is resent only
+ * after its blockhash has provably expired.
  */
 export async function signSendConfirm(
     rpc: Rpc<SolanaRpcApi>,
     baseMessage: PlannedMessage,
-    { estimateLimits, attempts = 6, pollIntervalMs = 1_000 }: SendOptions = {},
+    { estimateLimits, attempts = 6, pollIntervalMs = 1_000, rateLimitBackoffMs = 500 }: SendOptions = {},
 ): Promise<Signature> {
+    const backoff = <T>(label: string, fn: () => Promise<T>) => withBackoff(label, fn, rateLimitBackoffMs);
     let lastErr: unknown;
     for (let attempt = 0; attempt < attempts; attempt++) {
         try {
-            const { value: bh } = await withBackoff('getLatestBlockhash', () => rpc.getLatestBlockhash().send());
+            const { value: bh } = await backoff('getLatestBlockhash', () => rpc.getLatestBlockhash().send());
             let message = setTransactionMessageLifetimeUsingBlockhash(bh, baseMessage);
             if (estimateLimits) {
                 const withLifetime = message;
-                message = await withBackoff('simulateTransaction', () => estimateLimits(withLifetime));
+                message = await backoff('simulateTransaction', () => estimateLimits(withLifetime));
             }
             const signed = await signTransactionMessageWithSigners(message);
             const signature = getSignatureFromTransaction(signed);
             const wire = getBase64EncodedWireTransaction(signed);
-            await withBackoff('sendTransaction', () =>
+            await backoff('sendTransaction', () =>
                 rpc.sendTransaction(wire, { encoding: 'base64', skipPreflight: true }).send(),
             );
-            for (;;) {
-                const status = await withBackoff('getSignatureStatuses', () =>
-                    rpc.getSignatureStatuses([signature]).send(),
-                );
-                const entry = status.value[0];
-                if (entry?.err) throw new Error(`Transaction ${signature} failed: ${stringifyErr(entry.err)}`);
-                if (entry?.confirmationStatus === 'confirmed' || entry?.confirmationStatus === 'finalized') {
-                    return signature;
+            try {
+                for (;;) {
+                    const status = await backoff('getSignatureStatuses', () =>
+                        rpc.getSignatureStatuses([signature]).send(),
+                    );
+                    const entry = status.value[0];
+                    if (entry?.err) throw new TransactionFailedError(signature, entry.err);
+                    if (entry?.confirmationStatus === 'confirmed' || entry?.confirmationStatus === 'finalized') {
+                        return signature;
+                    }
+                    const height = await backoff('getBlockHeight', () => rpc.getBlockHeight().send());
+                    if (height > bh.lastValidBlockHeight) throw new BlockhashExpiredError(signature);
+                    await sleep(pollIntervalMs);
                 }
-                const height = await withBackoff('getBlockHeight', () => rpc.getBlockHeight().send());
-                if (height > bh.lastValidBlockHeight) throw new BlockhashExpiredError(signature);
-                await sleep(pollIntervalMs);
+            } catch (err) {
+                // Past this point the transaction may land: only a proven expiry or an on-chain
+                // failure settles it. Anything else that a retry would act on is reported instead.
+                if (err instanceof BlockhashExpiredError || !isRetryableSendError(err)) throw err;
+                throw new UnconfirmedTransactionError(signature, err);
             }
         } catch (err) {
             lastErr = err;

@@ -16,6 +16,7 @@ import {
     flattenPlan,
     isRetryableSendError,
     signSendConfirm,
+    UnconfirmedTransactionError,
     type EstimateLimits,
 } from '../utils/instruction-plan';
 
@@ -44,10 +45,13 @@ function fakeRpc({
     statusesPerAttempt,
     heightsPerAttempt = [],
     sendErrors = [],
+    statusError,
 }: {
     statusesPerAttempt: Status[][];
     heightsPerAttempt?: bigint[][];
     sendErrors?: (Error | undefined)[];
+    /** Thrown by every `getSignatureStatuses` call, e.g. a persistent HTTP 429. */
+    statusError?: Error;
 }) {
     let attempt = -1;
     let poll = 0;
@@ -72,6 +76,7 @@ function fakeRpc({
         sendTransaction,
         getSignatureStatuses: () => ({
             send: async () => {
+                if (statusError) throw statusError;
                 const statuses = statusesPerAttempt[attempt] ?? [null];
                 return { value: [statuses[Math.min(poll, statuses.length - 1)]] };
             },
@@ -108,8 +113,14 @@ describe('isRetryableSendError', () => {
         ['Transaction sig failed: {"InstructionError":[0,{"Custom":1}]}'],
         ['could not find account'],
         ['insufficient funds'],
+        // A base58 signature can contain "429"; that is not a rate limit.
+        ['Transaction 5Kd429XyQ failed: {"InstructionError":[0,{"Custom":1}]}'],
     ])('does not retry %s', message => {
         expect(isRetryableSendError(new Error(message))).toBe(false);
+    });
+
+    it('does not retry a sent transaction whose status could not be read', () => {
+        expect(isRetryableSendError(new UnconfirmedTransactionError('sig' as never, new Error('429')))).toBe(false);
     });
 });
 
@@ -167,6 +178,18 @@ describe('signSendConfirm', () => {
             signSendConfirm(rpc, buildMessage(feePayer), { pollIntervalMs: 1, attempts: 2 }),
         ).rejects.toBeInstanceOf(BlockhashExpiredError);
         expect(sendTransaction).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not resend when status polling stays rate-limited after the send', async () => {
+        // The first copy may still land: resending with a fresh blockhash could deposit twice.
+        const { rpc, sendTransaction } = fakeRpc({
+            statusesPerAttempt: [],
+            statusError: new Error('HTTP error (429): Too Many Requests'),
+        });
+        await expect(
+            signSendConfirm(rpc, buildMessage(feePayer), { pollIntervalMs: 1, rateLimitBackoffMs: 1 }),
+        ).rejects.toBeInstanceOf(UnconfirmedTransactionError);
+        expect(sendTransaction).toHaveBeenCalledTimes(1);
     });
 
     it('does not resend when sending itself fails for good', async () => {
