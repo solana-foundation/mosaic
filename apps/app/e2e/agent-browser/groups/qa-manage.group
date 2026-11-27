@@ -1,0 +1,6 @@
+# The UI QA matrix, managing tokens on devnet (spends SOL, 5 mints plus
+# fees): every Admin Actions item, the Permissions tab's edit and revoke, and
+# the close-empty-account path, each checked against chain.
+qa-actions
+qa-authorities
+qa-close-empty

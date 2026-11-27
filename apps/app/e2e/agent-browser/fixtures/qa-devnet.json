@@ -1,0 +1,70 @@
+{
+    "_comment": "Devnet mints created by hand during the 2026-07/08 UI QA matrix run (Phantom wallet 9DMW…82wF). The test wallets hold none of their authorities, so they double as the non-authority case. qa-fixtures.sh checks they still exist and still look like this; the flows read them with `fixture <key> <field>`.",
+    "creator": "9DMWvjE7svY2VCmpkdn5fHS7aG4msACtnMUwnhnB82wF",
+    "mints": {
+        "stablecoin": {
+            "mint": "5TcswmYBHyM5S8wKtdXVTK95AHhh5Kpcz3QgJTgM5Lyu",
+            "template": "Stablecoin",
+            "extensions": [
+                "MetadataPointer",
+                "PausableConfig",
+                "DefaultAccountState",
+                "ConfidentialTransferMint",
+                "PermanentDelegate",
+                "TokenMetadata"
+            ]
+        },
+        "security": {
+            "mint": "4HnsATw81RHbYqFifkHpxydcgUuosuWyAFC6QvjQ6mge",
+            "template": "Tokenized Security",
+            "extensions": [
+                "MetadataPointer",
+                "PausableConfig",
+                "DefaultAccountState",
+                "ConfidentialTransferMint",
+                "PermanentDelegate",
+                "PermissionedBurn",
+                "ScaledUiAmountConfig",
+                "TokenMetadata"
+            ]
+        },
+        "arcade": {
+            "mint": "BUdv47XejzMxxACvVb44iCJ8Lv917b55SrDDcYSKaVK7",
+            "template": "Arcade Token",
+            "extensions": [
+                "MetadataPointer",
+                "PausableConfig",
+                "DefaultAccountState",
+                "PermanentDelegate",
+                "TokenMetadata"
+            ]
+        },
+        "confidential": {
+            "mint": "7rAGGKA9HKf5CncAaWZHU7s1pCmGYfwdvhtH64TetkBL",
+            "template": "Custom",
+            "extensions": ["MetadataPointer", "DefaultAccountState", "ConfidentialTransferMint", "TokenMetadata"]
+        },
+        "paused": {
+            "mint": "EfxZNtjF9H1eHQWggRKiDTyKRHNNaP7LdnF5S8MPGPt6",
+            "template": "Custom",
+            "extensions": ["MetadataPointer", "PausableConfig", "DefaultAccountState", "TokenMetadata"]
+        },
+        "scaled": {
+            "mint": "4kVXtDnLFPoj5CYwHTvj2aLkTMQxH2NRtLTtM3Mv8rCa",
+            "template": "Custom",
+            "extensions": ["MetadataPointer", "DefaultAccountState", "ScaledUiAmountConfig", "TokenMetadata"]
+        },
+        "blocklist": {
+            "mint": "G73UxUkifAwn1BefZkr3yC8rJyx6hJcY63WrAk7J62UU",
+            "template": "Custom",
+            "aclMode": "blocklist",
+            "extensions": ["MetadataPointer", "DefaultAccountState", "TokenMetadata"]
+        },
+        "allowlist": {
+            "mint": "4BJ5GDrV2oAeotYESPXNDc3CnoTC6y5WX8epQPzf7F5T",
+            "template": "Custom",
+            "aclMode": "allowlist",
+            "extensions": ["MetadataPointer", "DefaultAccountState", "TokenMetadata"]
+        }
+    }
+}
