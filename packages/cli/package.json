@@ -24,7 +24,7 @@
         "dev": "tsc --watch",
         "dev:run": "tsx src/index.ts",
         "start": "node bin/mosaic.mjs",
-        "test": "echo 'Tests will be implemented'",
+        "test": "jest",
         "lint": "eslint src --ext .ts",
         "lint:fix": "eslint src --ext .ts --fix",
         "type-check": "tsc --noEmit",
