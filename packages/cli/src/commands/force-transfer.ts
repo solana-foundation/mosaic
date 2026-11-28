@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { createForceTransferTransaction, validatePermanentDelegate } from '@solana/mosaic-sdk';
+import { createForceTransferTransaction, validateDecimalAmount, validatePermanentDelegate } from '@solana/mosaic-sdk';
 import { createRpcClient, createRpcSubscriptions } from '../utils/rpc.js';
 import { getAddressFromKeypair, loadKeypair } from '../utils/solana.js';
 import { createNoopSigner, type Address, type TransactionSigner, sendAndConfirmTransactionFactory } from '@solana/kit';
@@ -45,10 +45,7 @@ export const forceTransferCommand = new Command('force-transfer')
             }
 
             // Parse and validate amount
-            const decimalAmount = parseFloat(options.amount);
-            if (isNaN(decimalAmount) || decimalAmount <= 0) {
-                throw new Error('Amount must be a positive number');
-            }
+            validateDecimalAmount(options.amount);
 
             spinner.text = 'Validating permanent delegate authority...';
 
@@ -63,9 +60,9 @@ export const forceTransferCommand = new Command('force-transfer')
                 options.mintAddress as Address,
                 options.fromAccount as Address,
                 options.recipient as Address,
-                decimalAmount,
-                authority.address,
-                payer.address,
+                options.amount,
+                authority,
+                payer,
             );
 
             const { raw, signature } = await sendOrOutputTransaction(
@@ -84,7 +81,7 @@ export const forceTransferCommand = new Command('force-transfer')
             console.log(`   ${chalk.bold('Mint Address:')} ${options.mintAddress}`);
             console.log(`   ${chalk.bold('From Account:')} ${options.fromAccount}`);
             console.log(`   ${chalk.bold('To Account:')} ${options.recipient}`);
-            console.log(`   ${chalk.bold('Amount:')} ${decimalAmount}`);
+            console.log(`   ${chalk.bold('Amount:')} ${options.amount}`);
             console.log(`   ${chalk.bold('Transaction:')} ${signature}`);
             console.log(`   ${chalk.bold('Permanent Delegate:')} ${authority.address}`);
 
